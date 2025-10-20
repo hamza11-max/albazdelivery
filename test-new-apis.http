@@ -1,0 +1,149 @@
+### AL-baz Delivery - New API Routes Testing
+### Test the newly migrated Analytics, Payments, and Loyalty routes
+
+@baseUrl = http://localhost:3000
+@adminToken = YOUR_TOKEN_HERE
+@vendorToken = YOUR_TOKEN_HERE
+@customerToken = YOUR_TOKEN_HERE
+
+### ============================================
+### ANALYTICS ROUTES
+### ============================================
+
+### Get Analytics Dashboard (Vendor)
+GET {{baseUrl}}/api/analytics/dashboard
+Authorization: Bearer {{vendorToken}}
+
+### Get Analytics Dashboard (Admin viewing vendor)
+GET {{baseUrl}}/api/analytics/dashboard?vendorId=vendor-id-here
+Authorization: Bearer {{adminToken}}
+
+### Get Customer Insights
+GET {{baseUrl}}/api/analytics/customer-insights
+Authorization: Bearer {{vendorToken}}
+
+### Get Sales Forecast (Week)
+GET {{baseUrl}}/api/analytics/sales-forecast?period=week
+Authorization: Bearer {{vendorToken}}
+
+### Get Sales Forecast (Month)
+GET {{baseUrl}}/api/analytics/sales-forecast?period=month
+Authorization: Bearer {{vendorToken}}
+
+### ============================================
+### PAYMENT ROUTES
+### ============================================
+
+### Create Payment (Cash)
+POST {{baseUrl}}/api/payments/create
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "orderId": "order-id-here",
+  "amount": 1500,
+  "method": "CASH",
+  "transactionId": null
+}
+
+### Create Payment (Wallet)
+POST {{baseUrl}}/api/payments/create
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "orderId": "order-id-here",
+  "amount": 1500,
+  "method": "WALLET"
+}
+
+### Get Payment History (Current User)
+GET {{baseUrl}}/api/payments/history
+Authorization: Bearer {{customerToken}}
+
+### Get Payment History (Admin viewing customer)
+GET {{baseUrl}}/api/payments/history?customerId=customer-id-here
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### LOYALTY ROUTES
+### ============================================
+
+### Get Loyalty Account
+GET {{baseUrl}}/api/loyalty/account
+Authorization: Bearer {{customerToken}}
+
+### Update Loyalty Points (Admin Only)
+POST {{baseUrl}}/api/loyalty/account
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{
+  "customerId": "customer-id-here",
+  "points": 100,
+  "description": "Bonus points for testing"
+}
+
+### Get Available Rewards
+GET {{baseUrl}}/api/loyalty/rewards
+
+### Redeem Reward
+POST {{baseUrl}}/api/loyalty/rewards
+Content-Type: application/json
+Authorization: Bearer {{customerToken}}
+
+{
+  "customerId": "your-customer-id",
+  "rewardId": "reward-1",
+  "pointsCost": 100
+}
+
+### Get Loyalty Transactions
+GET {{baseUrl}}/api/loyalty/transactions
+Authorization: Bearer {{customerToken}}
+
+### Get Loyalty Transactions (Admin viewing customer)
+GET {{baseUrl}}/api/loyalty/transactions?customerId=customer-id-here
+Authorization: Bearer {{adminToken}}
+
+### ============================================
+### TESTING WORKFLOW
+### ============================================
+
+### 1. First, login and get your tokens
+### Use the test-login.ps1 script or login via browser
+
+### 2. Test Analytics (Vendor Only)
+### - Check dashboard metrics
+### - Review customer insights  
+### - View sales forecast
+
+### 3. Test Payments
+### - Create a cash payment
+### - Create a wallet payment (needs wallet balance)
+### - View payment history
+
+### 4. Test Loyalty Program
+### - Check your loyalty account
+### - View available rewards
+### - Redeem a reward (if you have points)
+### - View transaction history
+
+### ============================================
+### EXPECTED RESPONSES
+### ============================================
+
+### All routes return this structure:
+# {
+#   "success": true,
+#   "data": {
+#     // Your data here
+#   }
+# }
+
+### Error responses:
+# {
+#   "success": false,
+#   "error": "Error message",
+#   "statusCode": 400
+# }
