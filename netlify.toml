@@ -1,5 +1,12 @@
 [build]
-  command = "pnpm run build"
+  # Build the Next.js app. If DATABASE_URL is configured in the Netlify
+  # environment, also run Prisma migrations against the production DB so the
+  # deployed site has the correct schema. The shell guard prevents the migrate
+  # step from running in contexts where DATABASE_URL is not set (e.g. forks/previews).
+  #
+  # Note: `npx prisma migrate deploy` runs migrations that were created with
+  # `prisma migrate dev` / `prisma migrate` and should be used for production.
+  command = "if [ -n \"$DATABASE_URL\" ]; then pnpm run build && npx prisma migrate deploy; else pnpm run build; fi"
   # Don't set publish - @netlify/plugin-nextjs handles it automatically
 
 [build.environment]

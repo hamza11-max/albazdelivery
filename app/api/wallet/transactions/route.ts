@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     // Get or create wallet
     let wallet = await prisma.wallet.findUnique({
-      where: { userId: customerId },
+      where: { customerId: customerId },
       include: {
         transactions: {
           orderBy: {
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     if (!wallet) {
       wallet = await prisma.wallet.create({
-        data: { userId: customerId },
+        data: { customerId: customerId },
         include: { transactions: true },
       })
     }

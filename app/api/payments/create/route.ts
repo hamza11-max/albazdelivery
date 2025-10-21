@@ -35,18 +35,19 @@ export async function POST(request: NextRequest) {
     // Create payment record
     const payment = await prisma.payment.create({
       data: {
-        orderId,
         amount: parseFloat(amount),
         method: method.toUpperCase(),
         status: 'PENDING',
         transactionId: transactionId || null,
+        order: { connect: { id: orderId } },
+        customer: { connect: { id: customerId } },
       },
     })
 
     // If payment method is wallet, deduct from wallet
     if (method.toLowerCase() === 'wallet') {
       const wallet = await prisma.wallet.findUnique({
-        where: { userId: customerId },
+        where: { customerId: customerId },
       })
 
       if (!wallet || wallet.balance < parseFloat(amount)) {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
 
       // Deduct from wallet
       await prisma.wallet.update({
-        where: { userId: customerId },
+        where: { customerId: customerId },
         data: {
           balance: { decrement: parseFloat(amount) },
         },
@@ -71,11 +72,9 @@ export async function POST(request: NextRequest) {
         data: { status: 'COMPLETED' },
       })
 
-      // Update order payment status
-      await prisma.order.update({
-        where: { id: orderId },
-        data: { paymentStatus: 'PAID' },
-      })
+      // Note: Order model does not have `paymentStatus` in Prisma schema.
+      // Payment relation records the payment; update order fields here if your
+      // schema has a specific field (e.g., status) to reflect payment.
     }
 
     return successResponse({ payment })
