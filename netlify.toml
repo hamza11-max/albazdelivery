@@ -17,6 +17,16 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+[[redirects]]
+  from = "/_next/static/*"
+  to = "/_next/static/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/_next/static/media/*"
+  to = "/_next/static/media/:splat"
+  status = 200
+
 # ⚠️ IMPORTANT: Environment Variables Required
 # Go to: Netlify Dashboard → Site settings → Environment variables
 # 
