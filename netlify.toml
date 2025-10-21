@@ -1,0 +1,23 @@
+[build]
+  command = "pnpm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Redirect rules for Next.js routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["!admin", "!vendor", "!driver"]}
+
+# Environment variables (set these in Netlify UI for security)
+# DATABASE_URL
+# NEXTAUTH_SECRET
+# NEXTAUTH_URL
+# GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET

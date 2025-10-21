@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Use Edge runtime to avoid the 1MB limit and keep middleware lightweight
-export const runtime = 'edge'
+// Netlify requires 'experimental-edge' instead of 'edge'
+export const runtime = 'experimental-edge'
 
 export default edgeAuth((req: NextRequest & { auth: any }) => {
   const { auth: session } = req
