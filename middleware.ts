@@ -1,8 +1,11 @@
-import { auth } from '@/lib/auth'
+import { edgeAuth } from '@/lib/auth.edge'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export default auth((req: NextRequest & { auth: any }) => {
+// Use Edge runtime to avoid the 1MB limit and keep middleware lightweight
+export const runtime = 'edge'
+
+export default edgeAuth((req: NextRequest & { auth: any }) => {
   const { auth: session } = req
   const isLoggedIn = !!session?.user
   const { pathname } = req.nextUrl
