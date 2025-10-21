@@ -35,53 +35,57 @@ import {
   Gift,
   Moon,
   Sun,
+  Store,
+  Pill,
+  Pizza,
+  Bike,
 } from "lucide-react"
 
 const categories = [
   {
     id: 1,
-    name: "Restaurants",
-    nameAr: "مطاعم",
-    nameFr: "Restaurants",
-    icon: UtensilsCrossed,
-    color: "from-orange-400 to-red-500",
-    customIcon: "/icons/restaurants.jpg",
+    name: "Shops",
+    nameAr: "متاجر",
+    nameFr: "Boutiques",
+    icon: Store,
+    color: "bg-gradient-to-br from-emerald-100 to-green-50",
+    iconColor: "text-emerald-600",
   },
   {
     id: 2,
-    name: "Groceries",
-    nameAr: "بقالة",
-    nameFr: "Épicerie",
-    icon: ShoppingBag,
-    color: "from-green-400 to-emerald-500",
-    customIcon: "/icons/groceries.jpg",
+    name: "Pharmacy & Beauty",
+    nameAr: "صيدلية وتجميل",
+    nameFr: "Pharmacie & Beauté",
+    icon: Pill,
+    color: "bg-gradient-to-br from-pink-100 to-rose-50",
+    iconColor: "text-pink-500",
   },
   {
     id: 3,
-    name: "Beauty",
-    nameAr: "جمال",
-    nameFr: "Beauté",
-    icon: Gift,
-    color: "from-pink-400 to-rose-500",
-    customIcon: "/icons/beauty.jpg",
+    name: "Groceries",
+    nameAr: "بقالة",
+    nameFr: "Épicerie",
+    icon: ShoppingCart,
+    color: "bg-gradient-to-br from-orange-100 to-amber-50",
+    iconColor: "text-orange-500",
   },
   {
     id: 4,
-    name: "Gifts",
-    nameAr: "هدايا",
-    nameFr: "Cadeaux",
-    icon: Gift,
-    color: "from-purple-400 to-pink-500",
-    customIcon: "/icons/gifts.jpg",
+    name: "Food",
+    nameAr: "طعام",
+    nameFr: "Nourriture",
+    icon: Pizza,
+    color: "bg-gradient-to-br from-orange-100 to-yellow-50",
+    iconColor: "text-orange-600",
   },
   {
     id: 5,
-    name: "Package",
-    nameAr: "طرود",
+    name: "Package Delivery",
+    nameAr: "توصيل الطرود",
     nameFr: "Livraison de colis",
-    icon: Package,
-    color: "from-blue-400 to-cyan-500",
-    customIcon: "/icons/package-delivery.jpg",
+    icon: Bike,
+    color: "bg-gradient-to-br from-yellow-100 to-amber-50",
+    iconColor: "text-yellow-600",
   },
 ]
 
@@ -413,10 +417,11 @@ export default function AlBazApp() {
       </div>
 
       {/* Circular Category Icons */}
-      <div className="px-4 py-8">
+      <div className="px-4 py-8 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-900">
         <div className="grid grid-cols-3 gap-6 max-w-md mx-auto">
           {categories.map((category) => {
             const categoryName = selectedLanguage === "ar" ? category.nameAr : category.nameFr
+            const Icon = category.icon
             return (
               <button
                 key={category.id}
@@ -431,15 +436,13 @@ export default function AlBazApp() {
                 className="flex flex-col items-center gap-3 group"
               >
                 <div
-                  className={`w-20 h-20 rounded-full bg-gradient-to-br ${category.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300 overflow-hidden`}
+                  className={`w-24 h-24 rounded-full ${category.color} dark:bg-gray-700 flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.15)] group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.2)] group-hover:scale-105 transition-all duration-300`}
                 >
-                  <img
-                    src={category.customIcon || "/placeholder.svg"}
-                    alt={categoryName}
-                    className="w-full h-full object-cover"
-                  />
+                  <Icon className={`w-12 h-12 ${category.iconColor} dark:text-gray-200 stroke-[2.5]`} />
                 </div>
-                <span className="text-sm font-medium text-center text-foreground">{categoryName}</span>
+                <span className="text-sm font-semibold text-center text-gray-800 dark:text-gray-200 max-w-[90px]">
+                  {categoryName}
+                </span>
               </button>
             )
           })}
@@ -879,11 +882,11 @@ export default function AlBazApp() {
             {/* Quantity and Order */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3 bg-muted rounded-full px-4 py-3">
-                <button className="w-8 h-8 rounded-full bg-card flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
+                <button aria-label="Decrease quantity" className="w-8 h-8 rounded-full bg-card flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
                   <Minus className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <span className="text-lg font-bold w-12 text-center text-foreground">01</span>
-                <button className="w-8 h-8 rounded-full bg-card flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
+                <button aria-label="Increase quantity" className="w-8 h-8 rounded-full bg-card flex items-center justify-center shadow-sm hover:shadow-md transition-shadow">
                   <Plus className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>

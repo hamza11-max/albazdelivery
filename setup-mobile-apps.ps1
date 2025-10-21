@@ -47,7 +47,7 @@ Write-Host "4. Exit" -ForegroundColor White
 
 $choice = Read-Host "`nEnter your choice (1-4)"
 
-function Create-App {
+function New-App {
     param(
         [string]$AppName,
         [string]$DisplayName
@@ -104,14 +104,14 @@ function Create-App {
 
 switch ($choice) {
     "1" {
-        Create-App "customer-app" "Customer App"
+        New-App "customer-app" "Customer App"
     }
     "2" {
-        Create-App "driver-app" "Driver App"
+        New-App "driver-app" "Driver App"
     }
     "3" {
-        Create-App "customer-app" "Customer App"
-        Create-App "driver-app" "Driver App"
+        New-App "customer-app" "Customer App"
+        New-App "driver-app" "Driver App"
     }
     "4" {
         Write-Host "`n👋 Setup cancelled" -ForegroundColor Yellow
