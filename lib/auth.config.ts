@@ -71,10 +71,7 @@ export const authConfig = {
       },
     }),
   ],
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
+  // pages are already defined above
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -109,4 +106,4 @@ export const authConfig = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-} satisfies NextAuthConfig
+} as NextAuthConfig

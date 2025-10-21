@@ -1,5 +1,5 @@
 import { handlers } from '@/lib/auth'
-import { cookies } from 'next/headers'
+import type { NextRequest } from 'next/server'
 
 // Specify Node.js runtime for Netlify serverless functions
 export const runtime = 'nodejs'
@@ -8,12 +8,12 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // Add debug logging wrapper
-const GET = async (req: Request) => {
+const GET = async (req: NextRequest) => {
   try {
     console.log('[Auth] Processing GET request', {
       url: req.url,
       headers: Object.fromEntries(req.headers.entries()),
-      cookies: cookies().getAll(),
+      cookies: req.cookies.getAll(),
       env: {
         hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
         hasSecret: !!process.env.NEXTAUTH_SECRET,
@@ -27,7 +27,7 @@ const GET = async (req: Request) => {
   }
 }
 
-const POST = async (req: Request) => {
+const POST = async (req: NextRequest) => {
   try {
     console.log('[Auth] Processing POST request')
     return await handlers.POST(req)
