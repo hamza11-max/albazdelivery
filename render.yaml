@@ -1,0 +1,39 @@
+# Render service manifest for albazdelivery
+#
+# Notes:
+# - This file declares a single Web Service that builds and runs the Next.js app.
+# - Do NOT commit secrets to this file. Set secret values in the Render dashboard
+#   (or use Render's encrypted secrets feature) after connecting your repo.
+# - The build command includes a Prisma migration step. Ensure the production DB
+#   is reachable during build (or remove the migrate step and run migrations
+#   separately via a manual job).
+
+services:
+  - type: web
+    name: albazdelivery
+    env: node
+    # Branch to auto-deploy
+    branch: main
+    # Install + build + run Prisma migrations during the build. If you prefer
+    # not to run migrations at build time, remove `&& npx prisma migrate deploy`.
+    buildCommand: pnpm install && pnpm build && npx prisma migrate deploy
+    startCommand: pnpm start
+    # The plan determines instance size. Use "free" or "starter" as appropriate.
+    plan: starter
+    envVars:
+      # Non-secret defaults you can set here — secrets should be set in the dashboard
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+
+# Required environment variables (set in Render → Environment → Environment
+# Variables for the service, or use the Render dashboard secrets interface):
+# - NEXTAUTH_URL=https://<your-service>.onrender.com
+# - NEXTAUTH_SECRET=<32+ char base64 or secure random string>
+# - DATABASE_URL=postgresql://user:pass@host:5432/dbname?sslmode=require
+# - GOOGLE_CLIENT_ID (optional)
+# - GOOGLE_CLIENT_SECRET (optional)
+
+# Optional: If you'd like to set environment variables outside the manifest,
+# do that in the Render dashboard. Keep secrets out of source control.
