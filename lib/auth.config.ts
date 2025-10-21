@@ -6,6 +6,24 @@ import { prisma } from './prisma'
 import { verifyPassword } from './password'
 
 export const authConfig = {
+  // Add pages config to ensure correct redirect URLs
+  pages: {
+    signIn: '/login',
+    error: '/login',
+  },
+  // Add trusted host config for production
+  trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true
+      }
+    }
+  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,

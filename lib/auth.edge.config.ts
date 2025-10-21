@@ -10,6 +10,19 @@ export const edgeAuthConfig = {
     signIn: '/login',
     error: '/login',
   },
+  // Add trusted host config for production
+  trustHost: true,
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true
+      }
+    }
+  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -44,4 +57,15 @@ export const edgeAuthConfig = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // Add redirect callback to ensure URLs are always from NEXTAUTH_URL
+  callbacks: {
+    ...edgeAuthConfig.callbacks,
+    async redirect({ url, baseUrl }) {
+      // Allows relative URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url
+      return baseUrl
+    }
+  }
 } satisfies NextAuthConfig
