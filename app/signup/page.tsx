@@ -12,6 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Users, Truck, Store, ArrowLeft } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic'
+
 type UserRole = "customer" | "driver" | "vendor"
 
 export default function SignUpPage() {

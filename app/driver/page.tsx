@@ -184,11 +184,11 @@ export default function DriverApp() {
       
       if (data.success && data.data?.deliveries) {
         const deliveries = data.data.deliveries
-        const active = deliveries.find((d: Order) => d.status === 'ASSIGNED' || d.status === 'IN_DELIVERY')
+        const active = deliveries.find((d: Order) => d.status === 'assigned' || d.status === 'in_delivery')
         setActiveDelivery(active || null)
 
         // Get completed deliveries for history
-        const completed = deliveries.filter((d: Order) => d.status === 'DELIVERED')
+        const completed = deliveries.filter((d: Order) => d.status === 'delivered')
         setDeliveryHistory(completed)
       } else {
         // No deliveries yet

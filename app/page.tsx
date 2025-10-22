@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useSSE } from "@/lib/use-sse"
 import type { Order } from "@/lib/types"
+
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic'
 import {
   ShoppingCart,
   User,
