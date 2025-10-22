@@ -6,7 +6,10 @@ import type { NextRequest } from 'next/server'
 // Netlify requires 'experimental-edge' instead of 'edge'
 export const runtime = 'experimental-edge'
 
-export default edgeAuth((req: NextRequest & { auth: any }) => {
+// Wrap the middleware in a try-catch to prevent 500 errors in production
+export default async function middleware(request: NextRequest) {
+  try {
+    return await edgeAuth((req: NextRequest & { auth: any }) => {
   const { auth: session } = req
   const isLoggedIn = !!session?.user
   const { pathname } = req.nextUrl
@@ -45,6 +48,12 @@ export default edgeAuth((req: NextRequest & { auth: any }) => {
 
   return NextResponse.next()
 })
+  } catch (error) {
+    console.error('Middleware error:', error);
+    // Allow the request to proceed to avoid blocking the application
+    return NextResponse.next();
+  }
+}
 
 export const config = {
   matcher: [

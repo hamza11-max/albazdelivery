@@ -559,19 +559,40 @@ enum TicketStatus {
 // ========================================
 
 model DriverLocation {
-  id        String   @id @default(cuid())
-  driverId  String   @unique
-  latitude  Float
-  longitude Float
-  accuracy  Float
-  heading   Float
-  speed     Float
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  driverId      String   @unique
+  latitude      Float
+  longitude     Float
+  accuracy      Float
+  heading       Float
+  speed         Float
+  isActive      Boolean  @default(false)
+  status        String   @default("offline") // offline, online, delivering
+  currentOrderId String?
+  updatedAt     DateTime @updatedAt
+  locationHistory LocationHistory[]
   
   driver User @relation(fields: [driverId], references: [id])
   
   @@index([driverId])
   @@index([updatedAt])
+  @@index([isActive])
+  @@index([status])
+}
+
+model LocationHistory {
+  id            String   @id @default(cuid())
+  driverLocationId String
+  latitude      Float
+  longitude     Float
+  timestamp     DateTime @default(now())
+  orderId       String?
+  
+  driverLocation DriverLocation @relation(fields: [driverLocationId], references: [id])
+  
+  @@index([driverLocationId])
+  @@index([timestamp])
+  @@index([orderId])
 }
 
 model DriverPerformance {

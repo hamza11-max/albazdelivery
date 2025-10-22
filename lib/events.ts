@@ -9,6 +9,7 @@ type EventType =
   | "notification_sent"
   | "payment_processed"
   | "loyalty_points_earned"
+  | "driver_privacy_changed"
 
 type EventListener = (data: any) => void
 
@@ -80,6 +81,10 @@ export function emitDeliveryUpdated(delivery: any) {
 
 export function emitDriverLocationUpdated(driverId: string, location: { lat: number; lng: number }) {
   eventEmitter.emit("driver_location_updated", { driverId, location, timestamp: new Date() })
+}
+
+export function emitDriverPrivacyChanged(driverId: string, isPrivate: boolean) {
+  eventEmitter.emit("driver_privacy_changed", { driverId, isPrivate, timestamp: new Date() })
 }
 
 export function emitNotificationSent(notification: any) {
