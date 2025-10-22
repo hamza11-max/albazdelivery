@@ -39,6 +39,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic'
+
 export default function AdminPanel() {
   const router = useRouter()
   const { data: session, status } = useSession()

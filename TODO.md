@@ -5,6 +5,7 @@
 - [x] Remove legacy auth context (`lib/auth-context.tsx`)
 - [x] Clean mock database code from `lib/db.ts`
 - [x] Implement Redis-based rate limiting in `lib/rate-limit.ts`
+- [x] Simplify middleware for Vercel compatibility
 - [x] Create environment validation script
 
 ## Pending Tasks

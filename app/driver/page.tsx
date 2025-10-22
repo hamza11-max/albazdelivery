@@ -30,6 +30,9 @@ import { useSSE } from "@/lib/use-sse"
 import { useToast } from "@/hooks/use-toast"
 import { useSession, signOut } from "next-auth/react"
 
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic'
+
 export default function DriverApp() {
   const router = useRouter()
   const { data: session, status } = useSession()
