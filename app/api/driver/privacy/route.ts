@@ -1,12 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { emitDriverPrivacyChanged } from "@/lib/events"
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
     if (!session || session.user.role !== "DRIVER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -19,7 +18,8 @@ export async function POST(request: NextRequest) {
     const location = await prisma.driverLocation.upsert({
       where: { driverId },
       update: {
-        isActive: isActive
+        isActive: isActive,
+        status: isActive ? "online" : "offline"
       },
       create: {
         driverId,
@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
         accuracy: 0,
         heading: 0,
         speed: 0,
-        isActive: isActive
+        isActive: isActive,
+        status: isActive ? "online" : "offline"
       }
     })
 

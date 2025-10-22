@@ -1,5 +1,8 @@
 import { NextRequest } from 'next/server'
-import { emitter } from '@/lib/events'
+import { eventEmitter } from '@/lib/events'
+
+// Use the exported eventEmitter instance
+const emitter = eventEmitter
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'edge'

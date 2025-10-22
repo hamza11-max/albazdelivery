@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/lib/auth"
+
 import { prisma } from "@/lib/prisma"
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
@@ -23,7 +23,6 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         status: true,
-        estimatedDeliveryTime: true,
         customerId: true,
         vendorId: true,
         driverId: true,
@@ -72,7 +71,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get recent location history (last 10 points)
-    const locationHistory = await prisma.locationHistory.findMany({
+    const locationHistory = await prisma.LocationHistory.findMany({
       where: { 
         driverLocation: { driverId: order.driverId },
         orderId: orderId

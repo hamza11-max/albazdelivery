@@ -60,10 +60,13 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
   const [error, setError] = useState<string | null>(null)
 
   // Subscribe to real-time updates
-  const { data: locationUpdate } = useSSE(`/api/sse/driver-location?orderId=${orderId}`, {
-    onMessage: (data) => {
+  const { data: locationUpdate } = useSSE(`/api/sse/driver-location?orderId=${orderId}`, true)
+  
+  // Handle incoming SSE messages
+  useEffect(() => {
+    if (locationUpdate) {
       try {
-        const parsedData = JSON.parse(data)
+        const parsedData = typeof locationUpdate === 'string' ? JSON.parse(locationUpdate) : locationUpdate
         if (parsedData && trackingData) {
           setTrackingData(prev => {
             if (!prev) return prev
@@ -232,7 +235,7 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
   if (loading) {
     return (
       <Card className="p-4 flex flex-col items-center justify-center h-64">
-        <Spinner size="lg" />
+        <Spinner className="h-8 w-8" />
         <p className="mt-4 text-gray-500">Loading tracking information...</p>
       </Card>
     )
@@ -272,9 +275,9 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
           <div>
             <h3 className="font-medium">Order #{orderId.slice(-6)}</h3>
             <Badge variant={
-              trackingData.order.status === 'DELIVERED' ? 'success' :
+              trackingData.order.status === 'DELIVERED' ? 'secondary' :
               trackingData.order.status === 'IN_TRANSIT' ? 'default' :
-              'secondary'
+              'outline'
             }>
               {trackingData.order.status.replace('_', ' ')}
             </Badge>

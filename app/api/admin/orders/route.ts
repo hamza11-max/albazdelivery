@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { applyRateLimit, apiRateLimit } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    if (apiRateLimit) {
+      await applyRateLimit(request, apiRateLimit)
+    }
 
     const session = await auth()
     if (!session?.user || session.user.role !== 'ADMIN') {
