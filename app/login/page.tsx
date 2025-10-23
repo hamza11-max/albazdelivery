@@ -29,16 +29,13 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: false,
+        redirect: true,
+        callbackUrl: "/",
       })
 
-      if (result?.error) {
+      if ((result as any)?.error) {
         setError("Email ou mot de passe incorrect")
         setLoading(false)
-      } else if (result?.ok) {
-        // Successful login - redirect based on role
-        router.push("/")
-        router.refresh()
       }
     } catch (err) {
       setError("Une erreur s'est produite. Veuillez réessayer.")

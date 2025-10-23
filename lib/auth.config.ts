@@ -13,6 +13,8 @@ export const authConfig = {
   },
   // Add trusted host config for production
   trustHost: true,
+  // Enable debug logs (visible in server logs)
+  debug: true,
   // Remove custom cookies config to use NextAuth defaults
   // This prevents domain mismatch issues on Vercel
   providers: [

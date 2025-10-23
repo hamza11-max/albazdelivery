@@ -250,10 +250,18 @@ export default function AlBazApp() {
   }, [orderId, currentPage])
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "customer") {
+    if (status === "loading") return
+
+    if (status === "unauthenticated") {
       router.push("/login")
+      return
     }
-  }, [isAuthenticated, user, router])
+
+    if (status === "authenticated" && user?.role && user.role !== "CUSTOMER") {
+      const dest = user.role === "ADMIN" ? "/admin" : user.role === "VENDOR" ? "/vendor" : user.role === "DRIVER" ? "/driver" : "/"
+      router.push(dest)
+    }
+  }, [status, user, router])
 
   useEffect(() => {
     if (isDarkMode) {
