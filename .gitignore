@@ -76,3 +76,6 @@ logs
 
 # Empty directories
 albazdelivery-app/
+
+.vercel
+.env*.local
