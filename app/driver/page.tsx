@@ -128,10 +128,11 @@ export default function DriverApp() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "driver") {
+    if (status === "loading") return
+    if (!isAuthenticated || user?.role !== "DRIVER") {
       router.push("/login")
     }
-  }, [isAuthenticated, user, router])
+  }, [status, isAuthenticated, user, router])
 
   useEffect(() => {
     if (isDarkMode) {

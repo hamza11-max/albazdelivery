@@ -409,7 +409,8 @@ export default function VendorERPApp() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "vendor") {
+    if (status === "loading") return
+    if (!isAuthenticated || user?.role !== "VENDOR") {
       router.push("/login")
       return
     }
@@ -420,7 +421,7 @@ export default function VendorERPApp() {
     fetchCustomers()
     fetchSuppliers()
     fetchAIInsights()
-  }, [isAuthenticated, user, router])
+  }, [status, isAuthenticated, user, router])
 
   useEffect(() => {
     if (isDarkMode) {
