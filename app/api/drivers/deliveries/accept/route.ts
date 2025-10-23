@@ -1,56 +1,102 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { emitOrderAssigned } from "@/lib/events"
+import { type NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
+import { emitOrderAssigned } from '@/lib/events'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { orderId, driverId } = body
+    applyRateLimit(request, rateLimitConfigs.api)
 
-    if (!orderId || !driverId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Missing orderId or driverId",
-        },
-        { status: 400 },
-      )
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
     }
 
-    const order = db.getOrder(orderId)
+    if (session.user.role !== 'DRIVER') {
+      throw new ForbiddenError('Only drivers can accept deliveries')
+    }
+
+    const body = await request.json()
+    const { orderId } = body
+    const driverId = session.user.id
+
+    if (!orderId) {
+      return errorResponse(new Error('orderId is required'), 400)
+    }
+
+    // Get order
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+    })
 
     if (!order) {
-      return NextResponse.json({ success: false, error: "Order not found" }, { status: 404 })
+      return errorResponse(new Error('Order not found'), 404)
     }
 
-    if (order.status !== "ready") {
-      return NextResponse.json({ success: false, error: "Order is not ready for pickup" }, { status: 400 })
+    // Check if order is ready for pickup
+    if (order.status !== 'READY') {
+      return errorResponse(new Error('Order is not ready for pickup'), 400)
     }
 
+    // Check if order is already assigned
     if (order.driverId) {
-      return NextResponse.json({ success: false, error: "Order already assigned to a driver" }, { status: 400 })
+      return errorResponse(new Error('Order already assigned to another driver'), 400)
     }
 
-    const updatedOrder = db.assignDriver(orderId, driverId)
-
-    console.log("[v0] Driver accepted delivery:", orderId)
-
-    if (updatedOrder) {
-      emitOrderAssigned(updatedOrder, driverId)
-    }
-
-    return NextResponse.json({
-      success: true,
-      order: updatedOrder,
-    })
-  } catch (error) {
-    console.error("[v0] Error accepting delivery:", error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Failed to accept delivery",
+    // Assign driver to order
+    const updatedOrder = await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        driverId,
+        status: 'ASSIGNED',
+        assignedAt: new Date(),
       },
-      { status: 500 },
-    )
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            vehicleType: true,
+          },
+        },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+          },
+        },
+      },
+    })
+
+    console.log('[API] Driver accepted delivery:', orderId, 'by', driverId)
+
+    // Emit event for real-time updates
+    emitOrderAssigned(updatedOrder as any, driverId)
+
+    return successResponse({ order: updatedOrder })
+  } catch (error) {
+    return errorResponse(error)
   }
 }

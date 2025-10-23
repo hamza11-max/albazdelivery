@@ -1,94 +1,128 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { emitOrderCreated, emitNotificationSent } from "@/lib/events"
-import type { Order, OrderItem, PaymentMethod, PaymentStatus } from "@/lib/types"
+import { type NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
+import { emitOrderCreated, emitNotificationSent } from '@/lib/events'
+import { createOrderSchema } from '@/lib/validations/order'
 
 export async function POST(request: NextRequest) {
   try {
+    applyRateLimit(request, rateLimitConfigs.api)
+
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
     const body = await request.json()
+    const validatedData = createOrderSchema.parse(body)
+
     const {
-      customerId,
       storeId,
       items,
-      deliveryAddress,
-      city,
-      customerPhone,
-      paymentMethod,
-      scheduledDate,
-      scheduledTime,
-      whoPays,
-      isPackageDelivery,
-      packageDescription,
-      recipientName,
-      recipientPhone,
-    } = body
-
-    const subtotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0)
-    const deliveryFee = 500
-
-    const order: Order = {
-      id: `order-${Date.now()}`,
-      customerId,
-      storeId,
-      items: items as OrderItem[],
       subtotal,
       deliveryFee,
-      total: subtotal + deliveryFee,
-      status: "pending",
-      paymentMethod: paymentMethod || "cash",
+      total,
+      paymentMethod,
       deliveryAddress,
       city,
       customerPhone,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
-      scheduledTime,
-      whoPays: whoPays || "customer",
-      isPackageDelivery: isPackageDelivery || false,
-      packageDescription,
-      recipientName,
-      recipientPhone,
+    } = validatedData
+
+    // Get store and vendor info
+    const store = await prisma.store.findUnique({
+      where: { id: storeId },
+      select: { id: true, vendorId: true, isActive: true },
+    })
+
+    if (!store || !store.isActive) {
+      return errorResponse(new Error('Store not found or inactive'), 404)
     }
 
-    const createdOrder = db.createOrder(order)
+    // Create order with items
+    const order = await prisma.order.create({
+      data: {
+        customerId: session.user.id,
+        vendorId: store.vendorId,
+        storeId,
+        subtotal,
+        deliveryFee,
+        total,
+        status: 'PENDING',
+        paymentMethod: paymentMethod.toUpperCase() as any,
+        deliveryAddress,
+        city,
+        customerPhone,
+        items: {
+          create: items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        },
+      },
+      include: {
+        items: { include: { product: true } },
+        customer: { select: { id: true, name: true, phone: true } },
+        store: { select: { id: true, name: true, address: true } },
+      },
+    })
 
-    // Emit order created event for real-time updates
-    emitOrderCreated(createdOrder)
+    // Emit order created event
+    emitOrderCreated(order as any)
 
     // Create vendor notification
-    const vendorNotification = {
-      id: `notif-${Date.now()}`,
-      recipientId: `vendor-${storeId}`,
-      recipientRole: "vendor" as const,
-      type: "order_status" as const,
-      title: "New Order Received",
-      message: `New order #${createdOrder.id} from customer`,
-      relatedOrderId: createdOrder.id,
-      actionUrl: `/vendor?orderId=${createdOrder.id}`,
-      isRead: false,
-      createdAt: new Date(),
-    }
-
-    db.createNotification(vendorNotification)
-    emitNotificationSent(vendorNotification)
+    const vendorNotification = await prisma.notification.create({
+      data: {
+        recipientId: store.vendorId,
+        recipientRole: 'VENDOR',
+        type: 'ORDER_STATUS',
+        title: 'New Order Received',
+        message: `New order #${order.id} from customer`,
+        relatedOrderId: order.id,
+        actionUrl: `/vendor?orderId=${order.id}`,
+      },
+    })
+    emitNotificationSent(vendorNotification as any)
 
     // Create payment record if not cash
-    if (paymentMethod !== "cash") {
-      const payment = {
-        id: `payment-${Date.now()}`,
-        orderId: createdOrder.id,
-        customerId,
-        amount: createdOrder.total,
-        method: paymentMethod as PaymentMethod,
-        status: "pending" as PaymentStatus,
-        createdAt: new Date(),
-      }
-      db.createPayment(payment)
+    if (paymentMethod.toUpperCase() !== 'CASH') {
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          customerId: session.user.id,
+          amount: total,
+          method: paymentMethod.toUpperCase() as any,
+          status: 'PENDING',
+        },
+      })
     }
 
-    return NextResponse.json({ success: true, order: createdOrder }, { status: 201 })
+    // Award loyalty points
+    const pointsToAward = Math.floor(total * 0.05)
+    if (pointsToAward > 0) {
+      await prisma.loyaltyAccount.update({
+        where: { customerId: session.user.id },
+        data: {
+          points: { increment: pointsToAward },
+          totalPointsEarned: { increment: pointsToAward },
+        },
+      })
+
+      await prisma.loyaltyTransaction.create({
+        data: {
+          loyaltyAccountId: session.user.id,
+          type: 'EARN',
+          points: pointsToAward,
+          description: `Points earned from order ${order.id}`,
+          relatedOrderId: order.id,
+        },
+      })
+    }
+
+    return successResponse({ order }, 201)
   } catch (error) {
-    console.error("[v0] Error creating order:", error)
-    return NextResponse.json({ success: false, error: "Failed to create order" }, { status: 500 })
+    return errorResponse(error)
   }
 }

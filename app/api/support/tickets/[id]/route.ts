@@ -1,82 +1,108 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import type { ChatMessage } from "@/lib/types"
+import { type NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const ticket = db.getSupportTicket(params.id)
+    applyRateLimit(request, rateLimitConfigs.api)
 
-    if (!ticket) {
-      return NextResponse.json({ success: false, error: "Ticket not found" }, { status: 404 })
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
     }
 
-    return NextResponse.json({
-      success: true,
-      ticket: {
-        ...ticket,
-        createdAt: ticket.createdAt.toISOString(),
-        updatedAt: ticket.updatedAt.toISOString(),
-        resolvedAt: ticket.resolvedAt?.toISOString(),
-        messages: ticket.messages.map((m) => ({
-          ...m,
-          createdAt: m.createdAt.toISOString(),
-          updatedAt: m.updatedAt.toISOString(),
-        })),
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: params.id },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     })
+
+    if (!ticket) {
+      return errorResponse(new Error('Ticket not found'), 404)
+    }
+
+    // Authorization: Users can only view their own tickets (except admin)
+    if (session.user.role !== 'ADMIN' && ticket.customerId !== session.user.id) {
+      throw new ForbiddenError('You can only view your own tickets')
+    }
+
+    return successResponse({ ticket })
   } catch (error) {
-    console.error("[v0] Error fetching ticket:", error)
-    return NextResponse.json({ success: false, error: "Failed to fetch ticket" }, { status: 500 })
+    return errorResponse(error)
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
+    applyRateLimit(request, rateLimitConfigs.api)
+
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
     const body = await request.json()
-    const { status, assignedTo, message, senderId, senderRole, senderName } = body
+    const { status, assignedTo } = body
 
-    let ticket = db.getSupportTicket(params.id)
+    // Get existing ticket
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: params.id },
+    })
+
     if (!ticket) {
-      return NextResponse.json({ success: false, error: "Ticket not found" }, { status: 404 })
+      return errorResponse(new Error('Ticket not found'), 404)
     }
 
-    // Add message if provided
-    if (message && senderId) {
-      const chatMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        conversationId: params.id,
-        senderId,
-        senderRole,
-        senderName,
-        message,
-        isRead: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-      ticket = db.addMessageToTicket(params.id, chatMessage) || ticket
+    // Authorization: Only admin can update tickets
+    if (session.user.role !== 'ADMIN') {
+      throw new ForbiddenError('Only admin can update ticket status')
     }
 
-    // Update status if provided
+    // Update ticket
+    const updateData: any = {}
     if (status) {
-      ticket = db.updateSupportTicketStatus(params.id, status, assignedTo) || ticket
+      updateData.status = status.toUpperCase()
+      if (status.toUpperCase() === 'RESOLVED' || status.toUpperCase() === 'CLOSED') {
+        updateData.resolvedAt = new Date()
+      }
+    }
+    if (assignedTo) {
+      updateData.assignedTo = assignedTo
     }
 
-    return NextResponse.json({
-      success: true,
-      ticket: {
-        ...ticket,
-        createdAt: ticket.createdAt.toISOString(),
-        updatedAt: ticket.updatedAt.toISOString(),
-        resolvedAt: ticket.resolvedAt?.toISOString(),
-        messages: ticket.messages.map((m) => ({
-          ...m,
-          createdAt: m.createdAt.toISOString(),
-          updatedAt: m.updatedAt.toISOString(),
-        })),
+    const updatedTicket = await prisma.supportTicket.update({
+      where: { id: params.id },
+      data: updateData,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     })
+
+    console.log('[API] Support ticket updated:', params.id, '->', status)
+
+    return successResponse({ ticket: updatedTicket })
   } catch (error) {
-    console.error("[v0] Error updating ticket:", error)
-    return NextResponse.json({ success: false, error: "Failed to update ticket" }, { status: 500 })
+    return errorResponse(error)
   }
 }

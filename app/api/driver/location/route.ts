@@ -1,14 +1,21 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import { emitDriverLocationUpdated } from "@/lib/events"
-import { auth } from "@/lib/auth"
-import { prisma } from "@/lib/prisma"
+import { type NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
+import { emitDriverLocationUpdated } from '@/lib/events'
 
 export async function POST(request: NextRequest) {
   try {
+    applyRateLimit(request, rateLimitConfigs.api)
+
     const session = await auth()
-    if (!session || session.user.role !== "DRIVER") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    if (session.user.role !== 'DRIVER') {
+      throw new ForbiddenError('Only drivers can update location')
     }
 
     const body = await request.json()
@@ -63,21 +70,22 @@ export async function POST(request: NextRequest) {
       timestamp: new Date()
     })
 
-    return NextResponse.json(location)
+    return successResponse({ location })
   } catch (error) {
-    console.error("[DRIVER] Error updating driver location:", error)
-    return NextResponse.json({ error: "Failed to update location" }, { status: 500 })
+    return errorResponse(error)
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
+    applyRateLimit(request, rateLimitConfigs.api)
+
     const searchParams = request.nextUrl.searchParams
-    const driverId = searchParams.get("driverId")
-    const orderId = searchParams.get("orderId")
+    const driverId = searchParams.get('driverId')
+    const orderId = searchParams.get('orderId')
 
     if (!driverId && !orderId) {
-      return NextResponse.json({ error: "driverId or orderId is required" }, { status: 400 })
+      return errorResponse(new Error('driverId or orderId is required'), 400)
     }
 
     let location;
@@ -117,12 +125,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!location) {
-      return NextResponse.json({ error: "Location not found" }, { status: 404 })
+      return errorResponse(new Error('Location not found'), 404)
     }
 
-    return NextResponse.json(location)
+    return successResponse({ location })
   } catch (error) {
-    console.error("[DRIVER] Error fetching driver location:", error)
-    return NextResponse.json({ error: "Failed to fetch location" }, { status: 500 })
+    return errorResponse(error)
   }
 }

@@ -1,23 +1,39 @@
-import { db } from "@/lib/db"
+import { type NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { successResponse, errorResponse } from '@/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    applyRateLimit(request, rateLimitConfigs.api)
+
     const body = await request.json()
     const { reviewId, helpful } = body
 
     if (!reviewId || helpful === undefined) {
-      return Response.json({ success: false, error: "Missing required fields" }, { status: 400 })
+      return errorResponse(new Error('reviewId and helpful are required'), 400)
     }
 
-    const review = db.updateReviewHelpful(reviewId, helpful)
+    // Update review helpful/unhelpful count
+    const review = await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        ...(helpful
+          ? { helpful: { increment: 1 } }
+          : { unhelpful: { increment: 1 } }),
+      },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
 
-    if (!review) {
-      return Response.json({ success: false, error: "Review not found" }, { status: 404 })
-    }
-
-    return Response.json({ success: true, review })
+    return successResponse({ review })
   } catch (error) {
-    console.error("[v0] Error updating review helpful:", error)
-    return Response.json({ success: false, error: "Failed to update review" }, { status: 500 })
+    return errorResponse(error)
   }
 }

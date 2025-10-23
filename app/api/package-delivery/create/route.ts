@@ -1,68 +1,88 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/db"
-import type { Order } from "@/lib/types"
+import { type NextRequest } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
+import { createPackageDeliverySchema } from '@/lib/validations/order'
+import { emitOrderCreated } from '@/lib/events'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const {
-      customerId,
-      fromLocation,
-      toLocation,
-      packageDescription,
-      recipientName,
-      recipientPhone,
-      senderPhone,
-      vehicleType,
-      paymentMethod,
-      whoPays,
-      deliveryOption,
-      total,
-    } = body
+    applyRateLimit(request, rateLimitConfigs.api)
 
-    // Create a package delivery order
-    const order: Order = {
-      id: `pkg-${Date.now()}`,
-      customerId,
-      storeId: 0, // Package delivery doesn't have a store
-      items: [
-        {
-          productId: 0,
-          quantity: 1,
-          price: total,
-          productName: packageDescription || "Package Delivery",
-        },
-      ],
-      subtotal: total,
-      deliveryFee: 0,
-      total,
-      status: "ready", // Ready for driver pickup
-      paymentMethod,
-      deliveryAddress: toLocation,
-      city: "Tamanrasset",
-      customerPhone: senderPhone,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      packageDescription,
-      recipientName,
-      recipientPhone,
-      vehicleType,
-      whoPays,
-      deliveryOption,
-      isPackageDelivery: true,
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
     }
 
-    // Create the order in database
-    db.createOrder(order)
+    const body = await request.json()
+    const validatedData = createPackageDeliverySchema.parse(body)
 
-    // Return success response
-    return NextResponse.json({
-      success: true,
-      order,
-      message: "Package delivery created successfully",
+    const {
+      packageDescription,
+      recipientName,
+      recipientPhone,
+      deliveryAddress,
+      city,
+      customerPhone,
+      scheduledDate,
+      scheduledTime,
+      whoPays,
+      deliveryFee,
+      paymentMethod,
+    } = validatedData
+
+    // Create package delivery order
+    const order = await prisma.order.create({
+      data: {
+        customerId: session.user.id,
+        isPackageDelivery: true,
+        packageDescription,
+        recipientName,
+        recipientPhone,
+        deliveryAddress,
+        city,
+        customerPhone,
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+        scheduledTime: scheduledTime || null,
+        whoPays,
+        subtotal: deliveryFee,
+        deliveryFee: deliveryFee,
+        total: deliveryFee,
+        status: 'PENDING',
+        paymentMethod: paymentMethod.toUpperCase() as any,
+      },
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+      },
     })
+
+    console.log('[API] Package delivery created:', order.id)
+
+    // Emit order created event
+    emitOrderCreated(order as any)
+
+    // Create notification for customer
+    await prisma.notification.create({
+      data: {
+        recipientId: session.user.id,
+        recipientRole: 'CUSTOMER',
+        type: 'ORDER_STATUS',
+        title: 'Package Delivery Created',
+        message: `Your package delivery request has been created`,
+        relatedOrderId: order.id,
+        actionUrl: `/tracking?orderId=${order.id}`,
+      },
+    })
+
+    return successResponse({ order, message: 'Package delivery created successfully' }, 201)
   } catch (error) {
-    console.error("[v0] Error creating package delivery:", error)
-    return NextResponse.json({ success: false, error: "Failed to create package delivery" }, { status: 500 })
+    return errorResponse(error)
   }
 }
