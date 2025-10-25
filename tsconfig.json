@@ -14,7 +14,7 @@
     "jsx": "preserve",
     "incremental": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["jest", "testing-library__jest-dom"],
+    "types": ["jest", "@testing-library/jest-dom"],
     "plugins": [
       {
         "name": "next"
@@ -34,5 +34,10 @@
     "types/jest.d.ts",
     "jest.setup.ts"
   ],
-  "exclude": ["node_modules", "mobile-app-templates"]
+  "exclude": [
+    "node_modules",
+    "mobile-app-templates",
+    "--template",
+    "mobile-apps"
+  ]
 }

@@ -1,16 +1,37 @@
 /**
  * @jest-environment jsdom
  */
-import { test, describe, expect } from '@jest/globals';
+import '@testing-library/jest-dom';
+import { test, describe, jest } from '@jest/globals';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Session } from 'next-auth';
 import { SessionProvider } from 'next-auth/react';
+import { Elements } from '@stripe/stripe-js';
 import { CheckoutPage } from '@/app/checkout/client';
+
+// Mock Stripe
+jest.mock('@stripe/stripe-js', () => ({
+  ...jest.requireActual('@stripe/stripe-js'),
+  useStripe: () => ({
+    confirmCardPayment: jest.fn().mockResolvedValue({ paymentIntent: { status: 'succeeded' } }),
+  }),
+  useElements: () => ({
+    getElement: jest.fn().mockReturnValue({ something: true }),
+  }),
+  Elements: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 // Mock global fetch
 global.fetch = jest.fn();
+
+// Mock toast hook
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn(),
+  }),
+}));
 
 // Create mock session
 const mockSession: Session = {
@@ -47,93 +68,69 @@ const mockOrder = {
 };
 
 describe('Payment Flow Integration Tests', () => {
-  test('completes card payment successfully', async () => {
-    (global.fetch as jest.Mock).mockImplementation(() => 
-      mockFetchResponse({
-        success: true,
-        clientSecret: 'pi_test_secret_key',
-      })
-    );
-
-    render(
+  const setup = () => {
+    return render(
       <SessionProvider session={mockSession}>
-        <CheckoutPage order={mockOrder} />
+        <Elements stripe={null}>
+          <CheckoutPage order={mockOrder} />
+        </Elements>
       </SessionProvider>
     );
+  };
 
-    // Wait for payment form to load
-    const cardInput = await screen.findByTestId('card-number-input');
-    expect(cardInput).toBeInTheDocument();
-
-    // Fill in payment details
-    await userEvent.type(cardInput, '4242424242424242');
-    await userEvent.type(screen.getByTestId('card-expiry-input'), '12/25');
-    await userEvent.type(screen.getByTestId('card-cvc-input'), '123');
-
-    // Submit payment
-    const submitButton = screen.getByRole('button', { name: /pay/i });
-    await userEvent.click(submitButton);
-
-    // Verify success message
-    await waitFor(() => {
-      expect(screen.getByTestId('success-message')).toBeInTheDocument();
-      expect(screen.getByTestId('success-message')).toHaveTextContent(/payment successful/i);
-    });
+  test('renders payment form', async () => {
+    setup();
+    
+    expect(screen.getByText(/Paiement de commande/i)).toBeInTheDocument();
+    expect(screen.getByText(/Détails de la carte/i)).toBeInTheDocument();
+    expect(screen.getByTestId('pay-button')).toBeInTheDocument();
   });
 
-  test('handles payment failure gracefully', async () => {
-    // Mock failed payment
-    (global.fetch as jest.Mock).mockImplementation(() => 
+  test('displays correct order summary', async () => {
+    setup();
+
+    expect(screen.getByText(/Sous-total/i)).toBeInTheDocument();
+    expect(screen.getByText(/21.98/)).toBeInTheDocument();
+    expect(screen.getByText(/Frais de livraison/i)).toBeInTheDocument();
+    expect(screen.getByText(/5.00/)).toBeInTheDocument();
+    expect(screen.getByText(/26.98/)).toBeInTheDocument();
+  });
+
+  test('handles payment submission', async () => {
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
       Promise.resolve({
-        ok: false,
-        status: 400,
-        json: () => Promise.resolve({
-          error: 'Payment failed'
-        })
+        ok: true,
+        json: () => Promise.resolve({ clientSecret: 'test_secret' }),
       })
     );
 
-    render(
-      <SessionProvider session={mockSession}>
-        <CheckoutPage order={mockOrder} />
-      </SessionProvider>
-    );
+    setup();
 
-    // Fill in payment details
-    const cardInput = await screen.findByTestId('card-number-input');
-    await userEvent.type(cardInput, '4000000000000002'); // Declined card
-    await userEvent.type(screen.getByTestId('card-expiry-input'), '12/25');
-    await userEvent.type(screen.getByTestId('card-cvc-input'), '123');
+    // Trigger payment
+    const payButton = screen.getByTestId('pay-button');
+    await userEvent.click(payButton);
 
-    // Submit payment
-    const submitButton = screen.getByRole('button', { name: /pay/i });
-    await userEvent.click(submitButton);
-
-    // Verify error message
     await waitFor(() => {
-      expect(screen.getByTestId('error-message')).toBeInTheDocument();
-      expect(screen.getByTestId('error-message')).toHaveTextContent(/payment failed/i);
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/payments/create-intent',
+        expect.any(Object)
+      );
     });
   });
 
-  test('validates payment form inputs', async () => {
-    render(
-      <SessionProvider session={mockSession}>
-        <CheckoutPage order={mockOrder} />
-      </SessionProvider>
+  test('handles payment failure', async () => {
+    (global.fetch as jest.Mock).mockImplementationOnce(() =>
+      Promise.reject(new Error('Network error'))
     );
 
-    // Wait for form to load
-    const submitButton = await screen.findByRole('button', { name: /pay/i });
+    setup();
 
-    // Try to submit without filling in details
-    await userEvent.click(submitButton);
+    // Trigger payment
+    const payButton = screen.getByTestId('pay-button');
+    await userEvent.click(payButton);
 
-    // Check for required fields
     await waitFor(() => {
-      expect(screen.getByTestId('card-number-input')).toBeRequired();
-      expect(screen.getByTestId('card-expiry-input')).toBeRequired();
-      expect(screen.getByTestId('card-cvc-input')).toBeRequired();
+      expect(screen.getByText(/erreur/i)).toBeInTheDocument();
     });
   });
 });

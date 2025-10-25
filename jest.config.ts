@@ -6,34 +6,16 @@ const createJestConfig = nextJest({
 });
 
 const config: Config = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-  testEnvironment: 'jest-environment-jsdom',
+  preset: 'ts-jest',
+  setupFilesAfterEnv: ['<rootDir>/__tests__/setupTests.ts'],
+  testEnvironment: 'jsdom',
   testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
     '^@testing-library/(.*)$': '<rootDir>/node_modules/@testing-library/$1',
   },
   transform: {
-    '^.+\\.(js|jsx|ts|tsx|mjs)$': ['babel-jest', {
-      presets: [
-        ['@babel/preset-env', {
-          targets: {
-            node: 'current',
-          },
-          modules: 'commonjs'
-        }],
-        '@babel/preset-typescript',
-        ['@babel/preset-react', {
-          runtime: 'automatic'
-        }],
-      ],
-      plugins: [
-        ['@babel/plugin-transform-runtime', {
-          regenerator: true,
-          helpers: true
-        }],
-      ]
-    }],
+    '^.+\\.(js|jsx|ts|tsx|mjs)$': 'babel-jest'
   },
   transformIgnorePatterns: [
     'node_modules/(?!(msw|until-async|node-fetch|uuid|nanoid|@mswjs|@open-draft|client-only|@testing-library)/)',
@@ -50,7 +32,7 @@ const config: Config = {
   ],
   globals: {
     'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.json',
+      tsconfig: '<rootDir>/tsconfig.test.json',
       useESM: true,
     },
   },

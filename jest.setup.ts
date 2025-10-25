@@ -1,3 +1,4 @@
+/// <reference types="@testing-library/jest-dom" />
 import '@testing-library/jest-dom';
 import { jest, expect, beforeAll, afterAll, afterEach } from '@jest/globals';
 import { TextEncoder, TextDecoder } from 'util';

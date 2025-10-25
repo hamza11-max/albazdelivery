@@ -1,4 +1,4 @@
-import { describe, it, expect, jest } from '@jest/globals'
+import { describe, it, jest } from '@jest/globals'
 import { emitDriverLocationUpdated, eventEmitter } from '@/lib/events'
 
 // Create spy on event emitter
