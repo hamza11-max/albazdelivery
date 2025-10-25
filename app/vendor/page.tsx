@@ -126,11 +126,12 @@ export default function VendorERPApp() {
       const response = await fetch("/api/erp/dashboard")
       const data = await response.json()
       if (data.success) {
-        setTodaySales(data.todaySales)
-        setWeekSales(data.weekSales)
-        setMonthSales(data.monthSales)
-        setTopProducts(data.topProducts)
-        setLowStockProducts(data.lowStockProducts)
+        const d = data.data || {}
+        setTodaySales(d.todaySales || 0)
+        setWeekSales(d.weekSales || 0)
+        setMonthSales(d.monthSales || 0)
+        setTopProducts(Array.isArray(d.topProducts) ? d.topProducts : [])
+        setLowStockProducts(Array.isArray(d.lowStockProducts) ? d.lowStockProducts : [])
       }
     } catch (error) {
       console.error("[v0] Error fetching dashboard:", error)
@@ -143,7 +144,8 @@ export default function VendorERPApp() {
       const response = await fetch("/api/erp/inventory")
       const data = await response.json()
       if (data.success) {
-        setProducts(data.products)
+        const d = data.data || {}
+        setProducts(Array.isArray(d.products) ? d.products : [])
       }
     } catch (error) {
       console.error("[v0] Error fetching inventory:", error)
@@ -156,7 +158,14 @@ export default function VendorERPApp() {
       const response = await fetch("/api/erp/sales")
       const data = await response.json()
       if (data.success) {
-        setSales(data.sales)
+        const d = data.data || {}
+        const sales = Array.isArray(d.sales) ? d.sales : []
+        // normalize paymentMethod for UI
+        const norm = sales.map((s: any) => ({
+          ...s,
+          paymentMethod: (s.paymentMethod || 'cash').toString().toLowerCase(),
+        }))
+        setSales(norm)
       }
     } catch (error) {
       console.error("[v0] Error fetching sales:", error)
@@ -169,7 +178,8 @@ export default function VendorERPApp() {
       const response = await fetch("/api/erp/customers")
       const data = await response.json()
       if (data.success) {
-        setCustomers(data.customers)
+        const d = data.data || {}
+        setCustomers(Array.isArray(d.customers) ? d.customers : [])
       }
     } catch (error) {
       console.error("[v0] Error fetching customers:", error)
@@ -182,7 +192,8 @@ export default function VendorERPApp() {
       const response = await fetch("/api/erp/suppliers")
       const data = await response.json()
       if (data.success) {
-        setSuppliers(data.suppliers)
+        const d = data.data || {}
+        setSuppliers(Array.isArray(d.suppliers) ? d.suppliers : [])
       }
     } catch (error) {
       console.error("[v0] Error fetching suppliers:", error)
@@ -195,9 +206,10 @@ export default function VendorERPApp() {
       const response = await fetch("/api/erp/ai-insights")
       const data = await response.json()
       if (data.success) {
-        setSalesForecast(data.forecast)
-        setInventoryRecommendations(data.recommendations)
-        setProductBundles(data.bundles)
+        const d = data.data || {}
+        setSalesForecast(d.forecast || null)
+        setInventoryRecommendations(Array.isArray(d.recommendations) ? d.recommendations : [])
+        setProductBundles(Array.isArray(d.bundles) ? d.bundles : [])
       }
     } catch (error) {
       console.error("[v0] Error fetching AI insights:", error)
@@ -654,6 +666,7 @@ export default function VendorERPApp() {
                                   stock: product.stock.toString(),
                                   lowStockThreshold: product.lowStockThreshold.toString(),
                                   barcode: product.barcode || "",
+                                  image: product.image || "",
                                 })
                                 setShowProductDialog(true)
                               }}

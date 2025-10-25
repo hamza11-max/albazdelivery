@@ -61,15 +61,25 @@ export default function SignUpPage() {
       return
     }
 
+    // Normalize payload for API
+    const normalizePhone = (p: string) => {
+      const digits = p.replace(/\D/g, "")
+      if (digits.startsWith("213")) {
+        const rest = digits.slice(3)
+        return rest.startsWith("0") ? rest : `0${rest}`
+      }
+      return digits.startsWith("0") ? digits : p
+    }
+
     // Submit registration request
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          role: selectedRole,
+          role: selectedRole ? selectedRole.toUpperCase() : undefined,
           name,
-          phone,
+          phone: normalizePhone(phone),
           email,
           password,
           licenseNumber: selectedRole === "driver" ? licenseNumber : undefined,
@@ -89,11 +99,8 @@ export default function SignUpPage() {
         })
         router.push("/login")
       } else {
-        toast({
-          title: "Erreur",
-          description: data.error || "Une erreur s'est produite",
-          variant: "destructive",
-        })
+        const message = typeof data.error === "string" ? data.error : data.error?.message || "Une erreur s'est produite"
+        toast({ title: "Erreur", description: message, variant: "destructive" })
       }
     } catch (error) {
       toast({

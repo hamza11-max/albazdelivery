@@ -1,15 +1,8 @@
 import { describe, it, expect, jest } from '@jest/globals'
-import { emitDriverLocationUpdated } from '@/lib/events'
+import { emitDriverLocationUpdated, eventEmitter } from '@/lib/events'
 
-// Mock the event emitter
-jest.mock('@/lib/events', () => ({
-  emitDriverLocationUpdated: jest.fn(),
-  eventEmitter: {
-    emit: jest.fn(),
-    on: jest.fn(),
-    off: jest.fn()
-  }
-}))
+// Create spy on event emitter
+const emitSpy = jest.spyOn(eventEmitter, 'emit');
 
 describe('Driver Location Tracking', () => {
   it('should emit driver location update event with correct data', () => {
@@ -26,7 +19,11 @@ describe('Driver Location Tracking', () => {
     // Call the function
     emitDriverLocationUpdated(driverId, locationData)
 
-    // Check if the function was called with the right parameters
-    expect(emitDriverLocationUpdated).toHaveBeenCalledWith(driverId, locationData)
+    // Check if the event was emitted with correct data
+    expect(emitSpy).toHaveBeenCalledWith('driver_location_updated', {
+      driverId,
+      location: locationData,
+      timestamp: expect.any(Date)
+    })
   })
 })

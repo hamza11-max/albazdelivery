@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderAssigned } from '@/lib/events'
+import { OrderStatus } from '@/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if order is ready for pickup
-    if (order.status !== 'READY') {
+    if (order.status !== OrderStatus.READY) {
       return errorResponse(new Error('Order is not ready for pickup'), 400)
     }
 
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
       where: { id: orderId },
       data: {
         driverId,
-        status: 'ASSIGNED',
+        status: OrderStatus.ASSIGNED,
         assignedAt: new Date(),
       },
       include: {

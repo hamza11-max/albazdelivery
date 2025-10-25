@@ -14,20 +14,12 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError('Only vendors can access sales')
     }
 
-    const sales = await prisma.order.findMany({
+    const sales = await prisma.sale.findMany({
       where: {
         vendorId: session.user.id,
-        status: { in: ['COMPLETED', 'DELIVERED'] },
       },
       include: {
         items: true,
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -53,30 +45,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { customerId, items, subtotal, discount, total, paymentMethod } = body
 
-    // Create order for POS sale
-    const order = await prisma.order.create({
+    const sale = await prisma.sale.create({
       data: {
-        customerId,
         vendorId: session.user.id,
-        status: 'COMPLETED',
-        deliveryMethod: 'PICKUP',
-        paymentMethod: paymentMethod || 'CASH',
+        customerId: customerId || null,
         subtotal: parseFloat(subtotal),
-        deliveryFee: 0,
+        discount: parseFloat(discount || 0),
         total: parseFloat(total),
+        paymentMethod: (paymentMethod?.toUpperCase() === 'CARD') ? 'CARD' : 'CASH',
         items: {
           create: items.map((item: any) => ({
             productId: item.productId,
-            name: item.name,
+            productName: item.productName,
             quantity: item.quantity,
             price: parseFloat(item.price),
+            discount: parseFloat(item.discount || 0),
           })),
         },
       },
       include: { items: true },
     })
 
-    return successResponse({ sale: order })
+    return successResponse({ sale })
   } catch (error) {
     console.error('[API] Sales POST error:', error)
     return errorResponse(error)

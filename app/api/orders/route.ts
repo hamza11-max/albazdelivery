@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderCreated } from '@/lib/events'
+import { OrderStatus } from '@/lib/constants'
 
 // GET /api/orders - Get all orders or filter by customer
 export async function GET(request: NextRequest) {
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       // Drivers can see assigned orders or available orders
       where.OR = [
         { driverId: session.user.id },
-        { status: 'READY', driverId: null },
+        { status: OrderStatus.READY, driverId: null },
       ]
     } else if (session.user.role === 'ADMIN') {
       // Admins can filter by customerId if provided

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError('Only vendors can access inventory')
     }
 
-    const products = await prisma.product.findMany({
+    const products = await prisma.inventoryProduct.findMany({
       where: { vendorId: session.user.id },
       orderBy: { createdAt: 'desc' },
     })
@@ -37,17 +37,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, price, stock, category, image } = body
+    const { sku, name, category, supplierId, costPrice, sellingPrice, stock, lowStockThreshold, barcode, image } = body
 
-    const product = await prisma.product.create({
+    const product = await prisma.inventoryProduct.create({
       data: {
-        name,
-        description: description || '',
-        price: parseFloat(price),
-        stock: parseInt(stock),
-        category: category || 'General',
-        image: image || '/placeholder.jpg',
         vendorId: session.user.id,
+        sku,
+        name,
+        category,
+        supplierId: supplierId || undefined,
+        costPrice: parseFloat(costPrice),
+        sellingPrice: parseFloat(sellingPrice),
+        stock: parseInt(stock),
+        lowStockThreshold: parseInt(lowStockThreshold),
+        barcode: barcode || undefined,
+        image: image || undefined,
       },
     })
 
@@ -69,10 +73,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { id, name, description, price, stock, category, image } = body
+    const { id, sku, name, category, supplierId, costPrice, sellingPrice, stock, lowStockThreshold, barcode, image } = body
 
     // Verify ownership
-    const existing = await prisma.product.findFirst({
+    const existing = await prisma.inventoryProduct.findFirst({
       where: { id, vendorId: session.user.id },
     })
 
@@ -80,15 +84,19 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    const updated = await prisma.product.update({
+    const updated = await prisma.inventoryProduct.update({
       where: { id },
       data: {
+        sku,
         name,
-        description,
-        price: price ? parseFloat(price) : undefined,
-        stock: stock ? parseInt(stock) : undefined,
         category,
-        image,
+        supplierId: supplierId || undefined,
+        costPrice: typeof costPrice !== 'undefined' ? parseFloat(costPrice) : undefined,
+        sellingPrice: typeof sellingPrice !== 'undefined' ? parseFloat(sellingPrice) : undefined,
+        stock: typeof stock !== 'undefined' ? parseInt(stock) : undefined,
+        lowStockThreshold: typeof lowStockThreshold !== 'undefined' ? parseInt(lowStockThreshold) : undefined,
+        barcode: typeof barcode !== 'undefined' ? barcode : undefined,
+        image: typeof image !== 'undefined' ? image : undefined,
       },
     })
 
@@ -117,7 +125,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify ownership
-    const existing = await prisma.product.findFirst({
+    const existing = await prisma.inventoryProduct.findFirst({
       where: { id, vendorId: session.user.id },
     })
 
@@ -125,7 +133,7 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    await prisma.product.delete({ where: { id } })
+    await prisma.inventoryProduct.delete({ where: { id } })
 
     return successResponse({ message: 'Product deleted' })
   } catch (error) {

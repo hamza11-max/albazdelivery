@@ -216,7 +216,7 @@ export default function AlBazApp() {
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
 
   // New state for customer ID and current order
-  const [customerId] = useState("customer-1")
+  const customerId = user?.id || "customer-1"
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
 
   const shouldUseSSE = currentPage === "tracking" && !!orderId
@@ -270,6 +270,12 @@ export default function AlBazApp() {
       document.documentElement.classList.remove("dark")
     }
   }, [isDarkMode])
+
+  // Apply RTL/LTR and lang attribute based on selected language
+  useEffect(() => {
+    document.documentElement.lang = selectedLanguage
+    document.documentElement.dir = selectedLanguage === "ar" ? "rtl" : "ltr"
+  }, [selectedLanguage])
 
   const t = (key: string, fr: string, ar: string) => {
     if (selectedLanguage === "ar") return ar

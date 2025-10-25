@@ -23,21 +23,19 @@ export async function GET(request: NextRequest) {
     const monthAgo = new Date(today)
     monthAgo.setMonth(monthAgo.getMonth() - 1)
 
-    // Calculate sales
-    const weekSales = await prisma.order.aggregate({
+    // Calculate sales (from Sale)
+    const weekSales = await prisma.sale.aggregate({
       where: {
         vendorId,
         createdAt: { gte: weekAgo },
-        status: { in: ['COMPLETED', 'DELIVERED'] },
       },
       _sum: { total: true },
     })
 
-    const monthSales = await prisma.order.aggregate({
+    const monthSales = await prisma.sale.aggregate({
       where: {
         vendorId,
         createdAt: { gte: monthAgo },
-        status: { in: ['COMPLETED', 'DELIVERED'] },
       },
       _sum: { total: true },
     })
@@ -53,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Inventory recommendations
-    const lowStockProducts = await prisma.product.findMany({
+    const lowStockProducts = await prisma.inventoryProduct.findMany({
       where: {
         vendorId,
         stock: { lte: 10 },

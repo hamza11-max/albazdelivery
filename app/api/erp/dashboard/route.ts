@@ -35,52 +35,45 @@ export async function GET(request: NextRequest) {
     // Get this month's date range
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 
-    // Calculate sales for different periods
-    const todaySales = await prisma.order.aggregate({
+    // Calculate sales (from Sale) for different periods
+    const todaySales = await prisma.sale.aggregate({
       where: {
         vendorId,
         createdAt: {
           gte: today,
           lt: tomorrow,
         },
-        status: { in: ['COMPLETED', 'DELIVERED'] },
       },
       _sum: { total: true },
     })
 
-    const weekSales = await prisma.order.aggregate({
+    const weekSales = await prisma.sale.aggregate({
       where: {
         vendorId,
         createdAt: { gte: weekStart },
-        status: { in: ['COMPLETED', 'DELIVERED'] },
       },
       _sum: { total: true },
     })
 
-    const monthSales = await prisma.order.aggregate({
+    const monthSales = await prisma.sale.aggregate({
       where: {
         vendorId,
         createdAt: { gte: monthStart },
-        status: { in: ['COMPLETED', 'DELIVERED'] },
       },
       _sum: { total: true },
     })
 
-    // Get top selling products (from order items)
-    const topProducts = await prisma.orderItem.groupBy({
-      by: ['productId', 'name'],
+    // Top selling products (from SaleItem)
+    const topProductsAgg = await prisma.saleItem.groupBy({
+      by: ['productId', 'productName'],
       where: {
-        order: {
+        sale: {
           vendorId,
           createdAt: { gte: monthStart },
-          status: { in: ['COMPLETED', 'DELIVERED'] },
         },
       },
       _sum: {
         quantity: true,
-      },
-      _count: {
-        id: true,
       },
       orderBy: {
         _sum: {
@@ -90,19 +83,26 @@ export async function GET(request: NextRequest) {
       take: 5,
     })
 
-    // Get low stock products
-    const lowStockProducts = await prisma.product.findMany({
+    const topProducts = topProductsAgg.map((p) => ({
+      productId: p.productId,
+      productName: p.productName,
+      totalSold: p._sum.quantity || 0,
+    }))
+
+    // Low stock products (from InventoryProduct)
+    const lowStockProducts = await prisma.inventoryProduct.findMany({
       where: {
         vendorId,
         stock: {
-          lte: 10, // Low stock threshold
+          lte: 10,
         },
       },
       select: {
         id: true,
+        sku: true,
         name: true,
         stock: true,
-        price: true,
+        sellingPrice: true,
       },
       take: 10,
     })
@@ -111,11 +111,7 @@ export async function GET(request: NextRequest) {
       todaySales: todaySales._sum.total || 0,
       weekSales: weekSales._sum.total || 0,
       monthSales: monthSales._sum.total || 0,
-      topProducts: topProducts.map(p => ({
-        name: p.name,
-        quantity: p._sum.quantity || 0,
-        orders: p._count.id,
-      })),
+      topProducts,
       lowStockProducts,
     })
   } catch (error) {

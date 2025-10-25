@@ -13,10 +13,17 @@ export const authConfig = {
   },
   // Add trusted host config for production
   trustHost: true,
-  // Enable debug logs (visible in server logs)
-  debug: true,
-  // Remove custom cookies config to use NextAuth defaults
-  // This prevents domain mismatch issues on Vercel
+  cookies: {
+    sessionToken: {
+      name: `__Secure-next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: true
+      }
+    }
+  },
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -98,6 +105,5 @@ export const authConfig = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  useSecureCookies: process.env.NODE_ENV === 'production',
   secret: process.env.NEXTAUTH_SECRET,
 } as NextAuthConfig

@@ -1,14 +1,14 @@
 export type UserRole = "customer" | "vendor" | "driver" | "admin"
 
 export type OrderStatus =
-  | "pending"
-  | "accepted"
-  | "preparing"
-  | "ready"
-  | "assigned"
-  | "in_delivery"
-  | "delivered"
-  | "cancelled"
+  | "PENDING"
+  | "ACCEPTED"
+  | "PREPARING"
+  | "READY"
+  | "ASSIGNED"
+  | "IN_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED"
 
 export type ApprovalStatus = "pending" | "approved" | "rejected"
 
@@ -432,13 +432,27 @@ export interface Notification {
 }
 
 export interface DriverLocation {
+  id: string
   driverId: string
   latitude: number
   longitude: number
   accuracy: number
   heading: number
   speed: number
+  isActive: boolean
+  status: "offline" | "online" | "delivering"
+  currentOrderId?: string
   updatedAt: Date
+  locationHistory?: LocationHistory[]
+}
+
+export interface LocationHistory {
+  id: string
+  driverLocationId: string
+  latitude: number
+  longitude: number
+  timestamp: Date
+  orderId?: string
 }
 
 export interface ScheduledDelivery {

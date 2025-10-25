@@ -14,6 +14,7 @@
     "jsx": "preserve",
     "incremental": true,
     "forceConsistentCasingInFileNames": true,
+    "types": ["jest", "testing-library__jest-dom"],
     "plugins": [
       {
         "name": "next"
@@ -23,6 +24,15 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "types/global.d.ts",
+    "types/jest-dom.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "types/jest.d.ts",
+    "jest.setup.ts"
+  ],
   "exclude": ["node_modules", "mobile-app-templates"]
 }

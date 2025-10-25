@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { OrderStatus } from "@/lib/constants"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -185,11 +186,11 @@ export default function DriverApp() {
       
       if (data.success && data.data?.deliveries) {
         const deliveries = data.data.deliveries
-        const active = deliveries.find((d: Order) => d.status === 'assigned' || d.status === 'in_delivery')
+        const active = deliveries.find((d: Order) => d.status === OrderStatus.ASSIGNED || d.status === OrderStatus.IN_DELIVERY)
         setActiveDelivery(active || null)
 
         // Get completed deliveries for history
-        const completed = deliveries.filter((d: Order) => d.status === 'delivered')
+        const completed = deliveries.filter((d: Order) => d.status === OrderStatus.DELIVERED)
         setDeliveryHistory(completed)
       } else {
         // No deliveries yet
@@ -466,7 +467,7 @@ export default function DriverApp() {
       )
     }
 
-    const isPickedUp = activeDelivery.status === "in_delivery"
+    const isPickedUp = activeDelivery.status === OrderStatus.IN_DELIVERY
 
     return (
       <div className="container mx-auto px-4 py-6 pb-24 space-y-6">

@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderAssigned } from '@/lib/events'
+import { OrderStatus } from '@/lib/constants'
 
 // GET /api/drivers/deliveries - Get available deliveries or driver's assigned deliveries
 export async function GET(request: NextRequest) {
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
       // Get orders that are ready for pickup and not assigned to any driver
       const availableOrders = await prisma.order.findMany({
         where: {
-          status: 'READY',
+          status: OrderStatus.READY,
           driverId: null,
         },
         include: {

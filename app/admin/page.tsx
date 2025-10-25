@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { OrderStatus } from "@/lib/constants"
 import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -208,9 +209,9 @@ export default function AdminPanel() {
   }
 
   const totalOrders = orders.length
-  const pendingOrders = orders.filter((o) => o.status === "pending").length
-  const completedOrders = orders.filter((o) => o.status === "delivered").length
-  const totalRevenue = orders.filter((o) => o.status === "delivered").reduce((sum, o) => sum + o.total, 0)
+  const pendingOrders = orders.filter((o) => o.status === OrderStatus.PENDING).length 
+  const completedOrders = orders.filter((o) => o.status === OrderStatus.DELIVERED).length
+  const totalRevenue = orders.filter((o) => o.status === OrderStatus.DELIVERED).reduce((sum, o) => sum + o.total, 0)
 
   const Header = () => (
     <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg">
@@ -373,9 +374,9 @@ export default function AdminPanel() {
                   <p className="font-bold">{order.total} DZD</p>
                   <Badge
                     variant={
-                      order.status === "delivered"
+                      order.status === OrderStatus.DELIVERED
                         ? "default"
-                        : order.status === "cancelled"
+                        : order.status === OrderStatus.CANCELLED
                           ? "destructive"
                           : "secondary"
                     }

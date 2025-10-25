@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderCreated, emitNotificationSent } from '@/lib/events'
 import { createOrderSchema } from '@/lib/validations/order'
+import { OrderStatus } from '@/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
         subtotal,
         deliveryFee,
         total,
-        status: 'PENDING',
+        status: OrderStatus.PENDING,
         paymentMethod: paymentMethod.toUpperCase() as any,
         deliveryAddress,
         city,

@@ -14,26 +14,33 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError('Only vendors can access customers')
     }
 
-    // Get unique customers who ordered from this vendor
-    const orders = await prisma.order.findMany({
-      where: { vendorId: session.user.id },
-      select: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            createdAt: true,
-          },
-        },
-      },
-      distinct: ['customerId'],
+    const vendorId = session.user.id
+
+    // Aggregate sales by customer
+    const aggregates = await prisma.sale.groupBy({
+      by: ['customerId'],
+      where: { vendorId, NOT: { customerId: null } },
+      _sum: { total: true },
+      _max: { createdAt: true },
     })
 
-    const customers = orders
-      .map(o => o.customer)
-      .filter(c => c !== null)
+    const customerIds = aggregates.map((a) => a.customerId!).filter(Boolean)
+    const users = await prisma.user.findMany({
+      where: { id: { in: customerIds } },
+      select: { id: true, name: true, email: true, phone: true },
+    })
+
+    const customers = aggregates.map((a) => {
+      const u = users.find((x) => x.id === a.customerId)
+      return {
+        id: u?.id || a.customerId!,
+        name: u?.name || 'Client',
+        email: u?.email || undefined,
+        phone: u?.phone || '',
+        totalPurchases: a._sum.total || 0,
+        lastPurchaseDate: a._max.createdAt || null,
+      }
+    })
 
     return successResponse({ customers })
   } catch (error) {
