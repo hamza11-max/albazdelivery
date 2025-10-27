@@ -1,7 +1,7 @@
 // API Cache Management
 const CACHE_EXPIRY = 5 * 60 * 1000 // 5 minutes in milliseconds
 
-export function getCachedData(key: string) {
+export function getCachedData<T>(key: string): T | null {
   try {
     const cached = localStorage.getItem(`cache_${key}`)
     if (!cached) return null
@@ -19,7 +19,7 @@ export function getCachedData(key: string) {
   }
 }
 
-export function setCachedData(key: string, data: any) {
+export function setCachedData<T>(key: string, data: T): void {
   try {
     localStorage.setItem(`cache_${key}`, JSON.stringify({
       data,

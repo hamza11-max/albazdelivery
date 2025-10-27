@@ -7,6 +7,7 @@
 - [x] Implement Redis-based rate limiting in `lib/rate-limit.ts`
 - [x] Simplify middleware for Vercel compatibility
 - [x] Create environment validation script
+- [x] Fix type export issues in `lib/types/index.ts`
 
 ## Pending Tasks
 

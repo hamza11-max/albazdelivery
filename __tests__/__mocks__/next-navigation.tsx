@@ -1,5 +1,3 @@
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-
 // Mock router implementation
 const mockedRouter = {
   push: jest.fn(),

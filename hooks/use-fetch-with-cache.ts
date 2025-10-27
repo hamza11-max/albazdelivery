@@ -3,12 +3,23 @@ import { useToast } from "@/components/ui/use-toast"
 import type { LoadingState } from "@/app/vendor/types"
 import { getCachedData, setCachedData } from "@/lib/api-cache"
 
-interface ApiResponse<T> {
+interface CacheApiResponse<T> {
   success: boolean
   data: T
 }
 
-export function useFetchWithCache() {
+export interface FetchWithCacheResult {
+  loadingState: LoadingState
+  fetchData: <T>(
+    key: keyof LoadingState,
+    url: string,
+    cacheKey: string,
+    normalize?: (data: T) => any
+  ) => Promise<T | undefined>
+  fetchWithCache: <T>(key: string, url: string) => Promise<T>
+}
+
+export function useFetchWithCache(): FetchWithCacheResult {
   const { toast } = useToast()
   const [loadingState, setLoadingState] = useState<LoadingState>({
     sales: false,
@@ -30,14 +41,14 @@ export function useFetchWithCache() {
     setLoadingState(prev => ({ ...prev, [key]: true }))
     
     // Try to use cached data first
-    const cached = getCachedData(cacheKey)
+    const cached = getCachedData<T>(cacheKey)
     if (cached) {
       return normalize ? normalize(cached) : cached
     }
     
     try {
       const response = await fetch(url)
-      const data: ApiResponse<T> = await response.json()
+      const data: CacheApiResponse<T> = await response.json()
       
       if (!data.success) {
         throw new Error("Failed to fetch data")
@@ -56,12 +67,12 @@ export function useFetchWithCache() {
       })
       
       // Try to return cached data even if it's expired
-      const expired = getCachedData(cacheKey)
+      const expired = getCachedData<T>(cacheKey)
       if (expired) {
         return normalize ? normalize(expired) : expired
       }
       
-      return null
+      return null as T | null
     } finally {
       setLoadingState(prev => ({ ...prev, [key]: false }))
     }
@@ -69,6 +80,20 @@ export function useFetchWithCache() {
 
   return {
     loadingState,
-    fetchData
+    fetchData,
+    fetchWithCache: async <T>(key: string, url: string): Promise<T> => {
+      const cached = getCachedData<T>(key)
+      if (cached) return cached
+      
+      const response = await fetch(url)
+      const data: CacheApiResponse<T> = await response.json()
+      
+      if (!data.success) {
+        throw new Error("Failed to fetch data")
+      }
+      
+      setCachedData(key, data.data)
+      return data.data
+    }
   }
 }

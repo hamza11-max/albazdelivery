@@ -53,13 +53,17 @@ const mockData = {
 };
 
 // Mock fetch globally
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
+const mockFetchImplementation = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  return Promise.resolve(new Response(JSON.stringify({ success: true, data: mockData }), {
     status: 200,
-    json: () => Promise.resolve({ success: true, data: mockData })
-  })
-);
+    headers: { 'Content-Type': 'application/json' }
+  }));
+};
+
+// Type assertion for the mock function
+const mockFetch = jest.fn(mockFetchImplementation) as jest.MockedFunction<typeof fetch>;
+
+global.fetch = mockFetch;
 
 // Reset mocks between each test
 beforeEach(() => {

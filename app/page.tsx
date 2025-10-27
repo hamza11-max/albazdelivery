@@ -9,9 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useSSE } from "@/lib/use-sse"
 import type { Order } from "@/lib/types"
-
-// Force dynamic rendering to avoid static generation issues
-export const dynamic = 'force-dynamic'
 import {
   ShoppingCart,
   User,
@@ -43,6 +40,9 @@ import {
   Pizza,
   Bike,
 } from "lucide-react"
+
+// Force dynamic rendering to avoid static generation issues
+export const dynamic = 'force-dynamic'
 
 const categories = [
   {
@@ -612,16 +612,16 @@ export default function AlBazApp() {
                             <div className="flex items-center gap-2 mb-2">
                               <Badge
                                 className={
-                                  order.status === "delivered"
+                                  order.status === "DELIVERED"
                                     ? "bg-green-500"
-                                    : order.status === "in_delivery"
+                                    : order.status === "IN_DELIVERY"
                                       ? "bg-blue-500"
                                       : "bg-yellow-500"
                                 }
                               >
-                                {order.status === "delivered"
+                                {order.status === "DELIVERED"
                                   ? t("delivered", "Livrée", "تم التوصيل")
-                                  : order.status === "in_delivery"
+                                  : order.status === "IN_DELIVERY"
                                     ? t("in-delivery", "En Livraison", "قيد التوصيل")
                                     : t("pending", "En Attente", "قيد الانتظار")}
                               </Badge>
@@ -672,16 +672,16 @@ export default function AlBazApp() {
                             <div className="flex items-center gap-2 mb-2">
                               <Badge
                                 className={
-                                  pkg.status === "delivered"
+                                  pkg.status === "DELIVERED"
                                     ? "bg-green-500"
-                                    : pkg.status === "in_delivery"
+                                    : pkg.status === "IN_DELIVERY"
                                       ? "bg-blue-500"
                                       : "bg-yellow-500"
                                 }
                               >
-                                {pkg.status === "delivered"
+                                {pkg.status === "DELIVERED"
                                   ? t("delivered", "Livrée", "تم التوصيل")
-                                  : pkg.status === "in_delivery"
+                                  : pkg.status === "IN_DELIVERY"
                                     ? t("in-delivery", "En Livraison", "قيد التوصيل")
                                     : t("pending", "En Attente", "قيد الانتظار")}
                               </Badge>
@@ -1186,9 +1186,9 @@ export default function AlBazApp() {
           return 2
         case "ready":
         case "assigned":
-        case "in_delivery":
+        case "IN_DELIVERY":
           return 3
-        case "delivered":
+        case "DELIVERED":
           return 4
         default:
           return 1
@@ -1209,9 +1209,9 @@ export default function AlBazApp() {
         id: 3,
         label: t("in-delivery", "En Livraison", "قيد التوصيل"),
         icon: Truck,
-        status: ["ready", "assigned", "in_delivery"],
+        status: ["ready", "assigned", "IN_DELIVERY"],
       },
-      { id: 4, label: t("delivered", "Livrée", "تم التوصيل"), icon: CheckCircle2, status: ["delivered"] },
+      { id: 4, label: t("delivered", "Livrée", "تم التوصيل"), icon: CheckCircle2, status: ["DELIVERED"] },
     ]
 
     // Helper function to get a descriptive status text
@@ -1227,9 +1227,9 @@ export default function AlBazApp() {
           return t("status-ready", "Commande prête, en attente d'un livreur", "الطلب جاهز، في انتظار السائق")
         case "assigned":
           return t("status-assigned", "Un livreur a été assigné à votre commande", "تم تعيين سائق لطلبك")
-        case "in_delivery":
+        case "IN_DELIVERY":
           return t("status-in-delivery", "Votre commande est en cours de livraison", "طلبك قيد التوصيل")
-        case "delivered":
+        case "DELIVERED":
           return t("status-delivered", "Commande livrée avec succès", "تم توصيل الطلب بنجاح")
         default:
           return t("status-unknown", "Statut inconnu", "حالة غير معروفة")
@@ -1244,7 +1244,7 @@ export default function AlBazApp() {
               <CheckCircle2 className="w-8 h-8 text-primary" />
             </div>
             <CardTitle className="text-2xl mb-2 text-foreground">
-              {currentOrder?.status === "delivered"
+              {currentOrder?.status === "DELIVERED"
                 ? t("order-delivered", "Commande Livrée!", "تم توصيل الطلب!")
                 : t("order-confirmed", "Commande Confirmée!", "تم تأكيد الطلب!")}
             </CardTitle>
@@ -1326,7 +1326,7 @@ export default function AlBazApp() {
               </div>
             )}
 
-            {currentOrder?.status === "delivered" ? (
+            {currentOrder?.status === "DELIVERED" ? (
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6 text-center">
                 <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-green-600 dark:text-green-400" />
                 <p className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">

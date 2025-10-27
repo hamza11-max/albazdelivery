@@ -2,14 +2,35 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
 import { playSuccessSound } from "@/lib/notifications"
-import { Camera } from "lucide-react"
+import { 
+  AlertTriangle,
+  BarChart3,
+  Camera,
+  DollarSign,
+  Edit,
+  History,
+  LayoutDashboard,
+  Minus,
+  Package,
+  Plus,
+  Printer,
+  Receipt,
+  Search,
+  Settings,
+  ShoppingBag,
+  ShoppingCart,
+  Store,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Truck,
+  Users
+} from "lucide-react"
+
+// UI Components
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import { useLoadingState } from "@/hooks/use-loading-state"
-import { useDarkMode } from "@/hooks/use-dark-mode"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -18,172 +39,61 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { toast } from "@/components/ui/use-toast"
-import { useAuth } from "@/hooks/use-auth"
-import { useFetchWithCache } from "@/hooks/use-fetch-with-cache"
-import type { Sale } from "@/lib/types/sale"
-import type { Customer } from "@/lib/types/customer"
-import type { Supplier } from "@/lib/types/supplier"
-import type { Product } from "@/lib/types/product"
-import type { Order } from "@/lib/types/order"
-import type { Category } from "@/lib/types/category"
-import type { CartItem, Cart, CartCreateInput } from "@/lib/types/cart"
-import {
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  Users,
-  Settings,
-  Store,
-  ChevronDown,
-  Plus,
-  Edit,
-  Trash
-} from "lucide-react"
+import Header from "@/components/Header"
 
-interface FormState {
-  name: string
-  description: string
-  price: number
-  stock: number
-  lowStockThreshold: number
-  category: string
-  image?: string
-}
+// Hooks
+// Use custom hooks
+import { useAuth } from "../../hooks/use-auth"
+import { useDashboardData } from "./fetch-data"
+import { fetchDashboardData, fetchInventory } from "./refresh-data"
 
-interface CartItem {
-  id: number
-  name: string
-  price: number
-  quantity: number
-  total: number
-}
+// Types
+import type {
+  InventoryProduct,
+  Sale, 
+  Customer,
+  Supplier,
+  Order,
+  SaleItem
+} from "@/lib/types"
 
-interface TopProduct {
-  productId: number
-  name: string
-  totalQuantity: number
-  totalSales: number
-}
+import { type Category } from "./types"
+
+import type {
+  ApiResponse,
+  CartItem,
+  CustomerForm,
+  ProductForm,
+  TopProductData,
+  SalesForecast,
+  BundleRecommendation,
+  InventoryRecommendation,
+  LoadingState,
+  SupplierForm,
+  SalesFilter,
+  SalesData,
+  CustomersData,
+  SuppliersData,
+  ProductsData,
+  OrdersData,
+  CategoriesData
+} from "./types"
 
 export default function VendorDashboard() {
   const router = useRouter()
   const { isAuthenticated, user } = useAuth()
   const { toast } = useToast()
+  
+  // UI States
   const [isDarkMode, setIsDarkMode] = useState(false)
-  
-  // Data states
-  const [sales, setSales] = useState<Sale[]>([])
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [orders, setOrders] = useState<Order[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([])
-  
-  // Dashboard metrics
-  const [todaySales, setTodaySales] = useState(0)
-  const [weekSales, setWeekSales] = useState(0)
-  const [monthSales, setMonthSales] = useState(0)
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([])
-  
-  // UI states
+  const [activeTab, setActiveTab] = useState("dashboard")
+  const [language, setLanguage] = useState("fr")
   const [showProductDialog, setShowProductDialog] = useState(false)
   const [showCustomerDialog, setShowCustomerDialog] = useState(false)
   const [showSupplierDialog, setShowSupplierDialog] = useState(false)
   const [showReceiptDialog, setShowReceiptDialog] = useState(false)
   
-  // Form states
-  const [productForm, setProductForm] = useState<FormState>({
-    name: "",
-    description: "",
-    price: 0,
-    stock: 0,
-    lowStockThreshold: 10,
-    category: "",
-  })
-  const [customerForm, setCustomerForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-  })
-  const [supplierForm, setSupplierForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-  })
-  
-  // POS states
-  const [posCart, setPosCart] = useState<CartItem[]>([])
-  const [posCustomerId, setPosCustomerId] = useState<number | null>(null)
-  const [posDiscount, setPosDiscount] = useState(0)
-  const [productImages, setProductImages] = useState<string[]>([])
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [lastSale, setLastSale] = useState<Sale | null>(null)
-
-  // Loading states
-  const [loadingState, setLoadingState] = useState<Record<string, boolean>>({})
-  const { getCachedData, setCachedData } = useFetchWithCache()
-  History,
-  Users,
-  Truck,
-  Plus,
-  Edit,
-  Trash2,
-  Search,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  Minus,
-  BarChart3,
-  DollarSign,
-  ShoppingBag,
-  Receipt,
-  Printer,
-} from "lucide-react"
-import type { 
-  InventoryProduct, 
-  Customer, 
-  Supplier, 
-  Sale, 
-  SaleItem,
-  Order,
-  Category
-} from "@/lib/types"
-
-import { useToast } from "@/hooks/use-toast"
-import { useDashboardData } from "./fetch-data"
-import { 
-  type ApiResponse,
-  type LoadingState, 
-  type ProductForm, 
-  type CustomerForm, 
-  type SupplierForm, 
-  type SalesFilter,
-  type SalesData,
-  type CustomersData,
-  type SuppliersData,
-  type ProductsData,
-  type OrdersData,
-  type CategoriesData
-} from "./types"
-
-// Import Header component
-import Header from "@/components/Header"
-
-export default function VendorERPApp() {
-  const router = useRouter()
-  const { data: session, status } = useSession()
-  const user = session?.user
-  const isAuthenticated = status === "authenticated"
-  const [language, setLanguage] = useState("fr")
-  const [activeTab, setActiveTab] = useState("dashboard")
-  const [isDarkMode, setIsDarkMode] = useState(false)
-  const { toast } = useToast()
-  
-  // Dashboard data, loading state, and fetch utilities
+  // Dashboard Data and Loading States
   const {
     loadingState,
     setLoadingState,
@@ -195,645 +105,222 @@ export default function VendorERPApp() {
     fetchOrders,
     fetchCategories
   } = useDashboardData()
-
-  // Data States - Core business data
+  
+  // Data States
   const [sales, setSales] = useState<Sale[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [products, setProducts] = useState<InventoryProduct[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
   const [orders, setOrders] = useState<Order[]>([])
-
+  const [categories, setCategories] = useState<Category[]>([])
+  const [lowStockProducts, setLowStockProducts] = useState<InventoryProduct[]>([])
+  
   // Analytics States
   const [todaySales, setTodaySales] = useState(0)
   const [weekSales, setWeekSales] = useState(0)
   const [monthSales, setMonthSales] = useState(0)
-  const [topProducts, setTopProducts] = useState<Array<{
-    productId: number
-    name: string
-    totalQuantity: number
-    totalSales: number
-  }>>([])
-  const [lowStockProducts, setLowStockProducts] = useState<InventoryProduct[]>([])
-
-  // API Fetching Functions
-  const fetchProducts = async () => {
-    setLoadingState(prev => ({ ...prev, products: true }))
-    
-    try {
-      const cached = getCachedData<Product[]>('products')
-      if (cached) {
-        setProducts(cached)
-        return cached
-      }
-
-      const response = await fetch('/api/products')
-      if (!response.ok) throw new Error('Failed to fetch products')
-      
-      const data = await response.json()
-      const products = data.products
-      setProducts(products)
-      setCachedData('products', products)
-      return products
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les produits",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setLoadingState(prev => ({ ...prev, products: false }))
-    }
-  }
-
-  const fetchCategories = async () => {
-    setLoadingState(prev => ({ ...prev, categories: true }))
-    
-    try {
-      const cached = getCachedData<Category[]>('categories')
-      if (cached) {
-        setCategories(cached)
-        return cached
-      }
-
-      const response = await fetch('/api/categories')
-      if (!response.ok) throw new Error('Failed to fetch categories')
-      
-      const data = await response.json()
-      const categories = data.categories
-      setCategories(categories)
-      setCachedData('categories', categories)
-      return categories
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les catégories",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setLoadingState(prev => ({ ...prev, categories: false }))
-    }
-  }
-
-  const fetchSales = async () => {
-    setLoadingState(prev => ({ ...prev, sales: true }))
-    
-    try {
-      const cached = getCachedData<Sale[]>('sales')
-      if (cached) {
-        setSales(cached)
-        return cached
-      }
-
-      const response = await fetch('/api/sales')
-      if (!response.ok) throw new Error('Failed to fetch sales')
-      
-      const data = await response.json()
-      const sales = data.sales
-      setSales(sales)
-      setCachedData('sales', sales)
-      return sales
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les ventes",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setLoadingState(prev => ({ ...prev, sales: false }))
-    }
-  }
-
-  const fetchCustomers = async () => {
-    setLoadingState(prev => ({ ...prev, customers: true }))
-    
-    try {
-      const cached = getCachedData<Customer[]>('customers')
-      if (cached) {
-        setCustomers(cached)
-        return cached
-      }
-
-      const response = await fetch('/api/customers')
-      if (!response.ok) throw new Error('Failed to fetch customers')
-      
-      const data = await response.json()
-      const customers = data.customers
-      setCustomers(customers)
-      setCachedData('customers', customers)
-      return customers
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les clients",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setLoadingState(prev => ({ ...prev, customers: false }))
-    }
-  }
-
-  const fetchSuppliers = async () => {
-    setLoadingState(prev => ({ ...prev, suppliers: true }))
-    
-    try {
-      const cached = getCachedData<Supplier[]>('suppliers')
-      if (cached) {
-        setSuppliers(cached)
-        return cached
-      }
-
-      const response = await fetch('/api/suppliers')
-      if (!response.ok) throw new Error('Failed to fetch suppliers')
-      
-      const data = await response.json()
-      const suppliers = data.suppliers
-      setSuppliers(suppliers)
-      setCachedData('suppliers', suppliers)
-      return suppliers
-    } catch (error) {
-      toast({
-        title: "Erreur", 
-        description: "Impossible de charger les fournisseurs",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setLoadingState(prev => ({ ...prev, suppliers: false }))
-    }
-  }
-
-  const fetchOrders = async () => {
-    setLoadingState(prev => ({ ...prev, orders: true }))
-    
-    try {
-      const cached = getCachedData<Order[]>('orders')
-      if (cached) {
-        setOrders(cached)
-        return cached
-      }
-
-      const response = await fetch('/api/orders')
-      if (!response.ok) throw new Error('Failed to fetch orders')
-      
-      const data = await response.json()
-      const orders = data.orders
-      setOrders(orders)
-      setCachedData('orders', orders)
-      return orders
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les commandes",
-        variant: "destructive",
-      })
-      return []
-    } finally {
-      setLoadingState(prev => ({ ...prev, orders: false }))
-    }
-  }
-
-  // API Response Types
-  type ApiResponse<T> = {
-    data: T
-    error?: string
-    message?: string
-  }
-
-  // API Functions
-  const handleApiRequest = async <T,>(
-    url: string, 
-    options?: RequestInit
-  ): Promise<T> => {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-    })
-    
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`)
-    }
-    
-    const data = await response.json()
-    return data as T
-  }
-
-  const fetchDashboardData = async () => {
-    try {
-      const [
-        salesData,
-        ordersData,
-        productsData,
-        customersData,
-        suppliersData,
-        categoriesData
-      ] = await Promise.all([
-        handleApiRequest<Sale[]>('/api/sales'),
-        handleApiRequest<Order[]>('/api/orders'),
-        handleApiRequest<Product[]>('/api/products'),
-        handleApiRequest<Customer[]>('/api/customers'),
-        handleApiRequest<Supplier[]>('/api/suppliers'),
-        handleApiRequest<Category[]>('/api/categories')
-      ])
-
-      setSales(salesData)
-      setOrders(ordersData)
-      setProducts(productsData)
-      setCustomers(customersData)
-      setSuppliers(suppliersData)
-      setCategories(categoriesData)
-
-      // Calculate derived data
-      const lowStock = productsData.filter(p => p.stock <= p.lowStockThreshold)
-      setLowStockProducts(lowStock)
-
-      // Calculate sales metrics
-      const today = new Date()
-      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-
-      setTodaySales(salesData
-        .filter(s => new Date(s.createdAt).toDateString() === today.toDateString())
-        .reduce((sum, s) => sum + s.total, 0))
-
-      setWeekSales(salesData
-        .filter(s => new Date(s.createdAt) >= weekAgo)
-        .reduce((sum, s) => sum + s.total, 0))
-
-      setMonthSales(salesData
-        .filter(s => new Date(s.createdAt) >= monthAgo)
-        .reduce((sum, s) => sum + s.total, 0))
-
-      // Calculate top products
-      const productSales = new Map<number, { quantity: number; total: number }>()
-      salesData.forEach(sale => 
-        sale.items.forEach(item => {
-          const existing = productSales.get(item.productId) || { quantity: 0, total: 0 }
-          productSales.set(item.productId, {
-            quantity: existing.quantity + item.quantity,
-            total: existing.total + (item.price * item.quantity)
-          })
-        })
-      )
-
-      const topProducts = Array.from(productSales.entries())
-        .map(([productId, sales]) => ({
-          productId,
-          name: productsData.find(p => p.id === productId)?.name || 'Unknown',
-          totalQuantity: sales.quantity,
-          totalSales: sales.total
-        }))
-        .sort((a, b) => b.totalSales - a.totalSales)
-        .slice(0, 5)
-
-      setTopProducts(topProducts)
-
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors du chargement des données",
-        variant: "destructive"
-      })
-    }
-  }
-
-  // UI Dialog States
-  const [showProductDialog, setShowProductDialog] = useState(false)
-  const [showCustomerDialog, setShowCustomerDialog] = useState(false)
-  const [showSupplierDialog, setShowSupplierDialog] = useState(false)
-  const [showCameraDialog, setShowCameraDialog] = useState(false)
-  const [showReceiptDialog, setShowReceiptDialog] = useState(false)
-
-  // Form States 
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [productForm, setProductForm] = useState<FormState>({
-    name: "",
-    description: "",
-    price: 0,
-    stock: 0,
-    lowStockThreshold: 10,
-    category: ""
-  })
+  const [topProducts, setTopProducts] = useState<TopProductData[]>([])
   
-  const [customerForm, setCustomerForm] = useState({
+  // Form States
+  const [productForm, setProductForm] = useState<ProductForm>({
+    sku: "",
+    name: "",
+    category: "",
+    description: "",
+    supplierId: "",
+    costPrice: "",
+    sellingPrice: "",
+    price: "",
+    stock: 0,
+    lowStockThreshold: 0,
+    barcode: "",
+    image: ""
+  })
+  // Form States
+  const [customerForm, setCustomerForm] = useState<CustomerForm>({
     name: "",
     email: "",
     phone: "",
     address: ""
   })
-  
-  const [supplierForm, setSupplierForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    contactPerson: ""
-  })
 
+  const [salesForecast, setSalesForecast] = useState<SalesForecast | null>(null)
+  const [inventoryRecommendations, setInventoryRecommendations] = useState<InventoryRecommendation[]>([])
+  const [productBundles, setProductBundles] = useState<BundleRecommendation[]>([])
+  const [selectedProductForImage, setSelectedProductForImage] = useState<number | null>(null)
+  const [showCameraDialog, setShowCameraDialog] = useState(false)
+  const [posSearch, setPosSearch] = useState("")
+  const [supplierForm, setSupplierForm] = useState<SupplierForm>({
+    name: "",
+    contactPerson: "",
+    phone: "",
+    email: "",
+    address: ""
+  })
+  
   // POS States
   const [posCart, setPosCart] = useState<CartItem[]>([])
-  const [posSearch, setPosSearch] = useState("")
-  const [posDiscount, setPosDiscount] = useState(0)
   const [posCustomerId, setPosCustomerId] = useState<number | null>(null)
-  
-  // Cart operations with type safety
-  const addToCart = (product: Product) => {
-    setPosCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id)
-      
-      if (existingItem) {
-        return prevCart.map(item => 
-          item.id === product.id 
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-                total: (item.quantity + 1) * item.price
-              }
-            : item
-        )
-      }
-      
-      return [...prevCart, {
-        id: product.id,
-        name: product.name,
-        price: product.price,
-        quantity: 1,
-        total: product.price
-      }]
-    })
-  }
-
-  const removeFromCart = (productId: number) => {
-    setPosCart(prevCart => prevCart.filter(item => item.id !== productId))
-  }
-
-  const updateQuantity = (productId: number, quantity: number) => {
-    if (quantity < 1) {
-      removeFromCart(productId)
-      return
-    }
-
-    setPosCart(prevCart => 
-      prevCart.map(item => 
-        item.id === productId
-          ? { ...item, quantity, total: quantity * item.price }
-          : item
-      )
-    )
-  }
-
-  const clearCart = () => {
-    setPosCart([])
-    setPosDiscount(0)
-    setPosCustomerId(null)
-  }
-
-  const getCartTotal = () => {
-    const subtotal = posCart.reduce((sum, item) => sum + item.total, 0)
-    return subtotal - posDiscount
-  }
-
-  const handleCheckout = async () => {
-    if (posCart.length === 0) {
-      toast({
-        title: "Panier vide",
-        description: "Ajoutez des produits au panier pour continuer",
-        variant: "destructive"
-      })
-      return
-    }
-
-    try {
-      const saleData: CartCreateInput = {
-        items: posCart,
-        customerId: posCustomerId || undefined,
-        discount: posDiscount,
-        paymentMethod: "cash",
-        notes: ""
-      }
-
-      const response = await handleApiRequest<Sale>('/api/sales', {
-        method: 'POST',
-        body: JSON.stringify(saleData)
-      })
-
-      setLastSale(response)
-      setShowReceiptDialog(true)
-      clearCart()
-      fetchDashboardData()
-
-      toast({
-        title: "Vente effectuée",
-        description: "La vente a été enregistrée avec succès",
-        variant: "default"
-      })
-      
-      playSuccessSound()
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de l'enregistrement de la vente",
-        variant: "destructive"
-      })
-    }
-  }
+  const [posDiscount, setPosDiscount] = useState(0)
+  const [productImages, setProductImages] = useState<string[]>([])
+  const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
 
-  // Filter States
-  const [salesFilter, setSalesFilter] = useState<SalesFilter>({
-    startDate: "",
-    endDate: "",
-    paymentMethod: ""
-  })
+  // Form reset functions
+  const resetProductForm = () => {
+    setProductForm({
+      sku: "",
+      name: "",
+      category: "",
+      description: "",
+      supplierId: "",
+      costPrice: "",
+      sellingPrice: "",
+      price: "",
+      stock: 0,
+      lowStockThreshold: 0,
+      barcode: "",
+      image: ""
+    })
+  }
 
-  // Asset Management States
-  const [productImages, setProductImages] = useState<{ [key: number]: string }>({})
-  const [selectedProductForImage, setSelectedProductForImage] = useState<number | null>(null)
+  const resetCustomerForm = () => {
+    setCustomerForm({ 
+      name: "", 
+      email: "", 
+      phone: "", 
+      address: "" 
+    })
+  }
 
-  // AI Insights State
-  const [salesForecast, setSalesForecast] = useState<any>(null)
-  const [inventoryRecommendations, setInventoryRecommendations] = useState<any[]>([])
-  const [productBundles, setProductBundles] = useState<any[]>([])
-
-  // API and caching utilities
-  const { loadingState, setLoadingState } = useDashboardData()
-
-  // Cache utilities with proper typing
-  const getCachedData = <T,>(key: string): T | null => {
+  // Data loading function
+  const handleDataLoad = async () => {
     try {
-      const cached = localStorage.getItem(key)
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached) as { data: T; timestamp: number }
-        // Cache is valid for 5 minutes
-        if (Date.now() - timestamp < 5 * 60 * 1000) {
-          return data
+      const [
+        salesRes,
+        ordersRes,
+        productsRes,
+        customersRes,
+        suppliersRes,
+        categoriesRes
+      ] = await Promise.all([
+        fetchSales(),
+        fetchOrders(),
+        fetchProducts(),
+        fetchCustomers(),
+        fetchSuppliers(),
+        fetchCategories()
+      ])
+
+      // Transform responses into proper data types
+      const salesData = { sales: salesRes } as SalesData
+      const ordersData = { orders: ordersRes } as OrdersData
+      const productsData = { products: productsRes } as ProductsData
+      const customersData = { customers: customersRes } as CustomersData
+      const suppliersData = { suppliers: suppliersRes } as SuppliersData
+      const categoriesData = { categories: categoriesRes } as CategoriesData
+
+      // Update state with fetched data
+      if (salesData.sales) setSales(salesData.sales)
+      if (ordersData.orders) setOrders(ordersData.orders)
+      if (productsData.products) {
+        setProducts(productsData.products)
+        const lowStock = productsData.products.filter(
+          (p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)
+        )
+        setLowStockProducts(lowStock)
+      }
+      if (customersData.customers) setCustomers(customersData.customers)
+      if (suppliersData.suppliers) setSuppliers(suppliersData.suppliers)
+      if (categoriesData.categories) setCategories(categoriesData.categories)
+
+      // Calculate sales metrics
+      if (salesData.sales?.length) {
+        const today = new Date()
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+        // Filter sales by date periods
+        const todaySales = salesData.sales.filter((s: Sale) => 
+          new Date(s.createdAt).toDateString() === today.toDateString()
+        )
+        const weekSales = salesData.sales.filter((s: Sale) => 
+          new Date(s.createdAt) >= weekAgo
+        )
+        const monthSales = salesData.sales.filter((s: Sale) => 
+          new Date(s.createdAt) >= monthAgo
+        )
+
+        // Calculate totals
+        setTodaySales(todaySales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
+        setWeekSales(weekSales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
+        setMonthSales(monthSales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
+
+        // Calculate top products
+        if (productsData.products) {
+          const productSales = new Map<number, { quantity: number; total: number }>()
+          salesData.sales.forEach((sale: Sale) => 
+            sale.items.forEach((item: SaleItem) => {
+              const existing = productSales.get(item.productId) || { quantity: 0, total: 0 }
+              productSales.set(item.productId, {
+                quantity: existing.quantity + item.quantity,
+                total: existing.total + (item.price * item.quantity)
+              })
+            })
+          )
+
+          const topProducts = Array.from(productSales.entries())
+            .map(([productId, sales]) => ({
+              productId,
+              productName: productsData.products.find((p: InventoryProduct) => p.id === productId)?.name || 'Unknown',
+              totalQuantity: sales.quantity,
+              totalSales: sales.total,
+              totalSold: sales.quantity
+            }))
+            .sort((a, b) => b.totalSales - a.totalSales)
+            .slice(0, 5)
+
+          setTopProducts(topProducts)
         }
       }
-    } catch (error) {
-      console.error(`Error reading cache for ${key}:`, error)
-    }
-    return null
-  }
 
-  const setCachedData = <T,>(key: string, data: T): void => {
-    try {
-      localStorage.setItem(key, JSON.stringify({
-        data,
-        timestamp: Date.now()
+      // Clear loading states
+      setLoadingState(prev => ({
+        ...prev,
+        products: false,
+        categories: false,
+        sales: false,
+        customers: false,
+        suppliers: false,
+        orders: false,
+        dashboard: false
       }))
+
     } catch (error) {
-      console.error(`Error caching data for ${key}:`, error)
-    }
-  }
-
-  // API utilities with proper typing
-  const handleApiRequest = async <T,>(
-    key: keyof LoadingState,
-    request: () => Promise<T>
-  ): Promise<T | null> => {
-    handleApiLoading(key, true)
-    try {
-      return await request()
-    } catch (error) {
-      handleApiError(key, error)
-      return null
-    } finally {
-      handleApiLoading(key, false)
-    }
-  }
-
-  const fetchWithCache = async <T,>(
-    url: string, 
-    cacheKey: string,
-    normalizer?: (data: T) => T
-  ): Promise<T | null> => {
-    // Try cache first
-    const cached = getCachedData<T>(cacheKey)
-    if (cached) {
-      return normalizer ? normalizer(cached) : cached
-    }
-
-    // Fetch fresh data
-    const response = await fetchDashboardData<ApiResponse<T>>(url)
-    if (response?.success && response.data) {
-      const normalized = normalizer ? normalizer(response.data) : response.data
-      setCachedData(cacheKey, normalized)
-      return normalized
-    }
-    return null
-  }
-      })
-    }
-  }
-
-  // API error and loading handlers
-  const handleApiError = (key: keyof LoadingState, error: unknown) => {
-    console.error(`[v0] Error fetching ${key}:`, error)
-    toast({
-      title: `Erreur de chargement`,
-      description: `Impossible de charger les données. Réessayez plus tard.`,
-      variant: "destructive",
-    })
-  }
-
-  const handleApiLoading = (key: keyof LoadingState, isLoading: boolean) => {
-    setLoadingState((prev: LoadingState) => ({ ...prev, [key]: isLoading }))
-  }
-
-  // Data normalizers
-  const normalizeSale = (sale: Sale): Sale => ({
-    ...sale,
-    paymentMethod: (sale.paymentMethod || 'cash').toString().toLowerCase()
-  })
-
-  const normalizeSalesData = (data: SalesData): SalesData => ({
-    ...data,
-    sales: data.sales.map(normalizeSale)
-  })
-
-  // Data fetch functions with proper typing
-  const fetchSales = async () => {
-    const result = await handleApiRequest('sales', async () => {
-      const data = await fetchWithCache<SalesData>(
-        '/api/erp/sales',
-        'sales',
-        normalizeSalesData
-      )
-      if (data?.sales) {
-        setSales(data.sales)
-      }
-      return data
-    })
-    return result?.sales || []
-  }
-
-  // Fetch Customers
-  const fetchCustomers = async () => {
-    setLoadingState(prev => ({ ...prev, customers: true }))
-
-    // Try to use cached data first
-    const cached = getCachedData('customers')
-    if (cached) {
-      setCustomers(cached.customers || [])
-    }
-
-    try {
-      const data = await fetchWithRetry("/api/erp/customers")
-      if (data.success) {
-        const d = data.data || {}
-        setCustomers(Array.isArray(d.customers) ? d.customers : [])
-        
-        // Cache the new data
-        setCachedData('customers', d)
-      }
-    } catch (error) {
-      console.error("[v0] Error fetching customers:", error)
+      console.error('Error loading dashboard data:', error)
       toast({
-        title: "Erreur des clients",
-        description: "Impossible de charger la liste des clients. Réessayez plus tard.",
-        variant: "destructive",
+        title: "Error",
+        description: "Failed to load dashboard data",
+        variant: "destructive"
       })
-    } finally {
-      setLoadingState(prev => ({ ...prev, customers: false }))
+      setLoadingState(prev => ({
+        ...prev,
+        products: false,
+        categories: false,
+        sales: false,
+        customers: false,
+        suppliers: false,
+        orders: false,
+        dashboard: false
+      }))
     }
   }
 
-  // Fetch Suppliers
-  const fetchSuppliers = async () => {
-    setLoadingState(prev => ({ ...prev, suppliers: true }))
-
-    // Try to use cached data first
-    const cached = getCachedData('suppliers')
-    if (cached) {
-      setSuppliers(cached.suppliers || [])
-    }
-
-    try {
-      const data = await fetchWithRetry("/api/erp/suppliers")
-      if (data.success) {
-        const d = data.data || {}
-        setSuppliers(Array.isArray(d.suppliers) ? d.suppliers : [])
-        
-        // Cache the new data
-        setCachedData('suppliers', d)
-      }
-    } catch (error) {
-      console.error("[v0] Error fetching suppliers:", error)
-      toast({
-        title: "Erreur des fournisseurs",
-        description: "Impossible de charger la liste des fournisseurs. Réessayez plus tard.",
-        variant: "destructive",
-      })
-    }
-  }
+  // Load data on component mount
+  useEffect(() => {
+    handleDataLoad()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Fetch AI Insights
   const fetchAIInsights = async () => {
@@ -863,8 +350,8 @@ export default function VendorERPApp() {
           id: editingProduct?.id,
           costPrice: Number.parseFloat(productForm.costPrice),
           sellingPrice: Number.parseFloat(productForm.sellingPrice),
-          stock: Number.parseInt(productForm.stock),
-          lowStockThreshold: Number.parseInt(productForm.lowStockThreshold),
+          stock: productForm.stock,
+          lowStockThreshold: productForm.lowStockThreshold,
         }),
       })
       const data = await response.json()
@@ -877,13 +364,15 @@ export default function VendorERPApp() {
           sku: "",
           name: "",
           category: "",
+          description: "",
           supplierId: "",
           costPrice: "",
           sellingPrice: "",
-          stock: "",
-          lowStockThreshold: "",
+          price: "",
+          stock: 0,
+          lowStockThreshold: 0,
           barcode: "",
-          image: "",
+          image: ""
         })
         toast({
           title: editingProduct ? "Produit mis à jour" : "Produit ajouté",
@@ -918,19 +407,20 @@ export default function VendorERPApp() {
 
   // Add to POS Cart
   const addToCart = (product: InventoryProduct) => {
-    const existing = posCart.find((item) => item.productId === product.id)
+    const existing = posCart.find((item) => item.id === product.id)
     if (existing) {
       setPosCart(
-        posCart.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item)),
+        posCart.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)),
       )
     } else {
       setPosCart([
         ...posCart,
         {
+          id: product.id,
           productId: product.id,
           productName: product.name,
           quantity: 1,
-          price: product.sellingPrice,
+          price: product.sellingPrice || 0,
           discount: 0,
         },
       ])
@@ -938,8 +428,8 @@ export default function VendorERPApp() {
   }
 
   // Remove from Cart
-  const removeFromCart = (productId: number) => {
-    setPosCart(posCart.filter((item) => item.productId !== productId))
+  const removeFromCart = (id: number) => {
+    setPosCart(posCart.filter((item) => item.id !== id))
   }
 
   // Update Cart Quantity
@@ -986,7 +476,7 @@ export default function VendorERPApp() {
         setShowReceiptDialog(true)
         setPosCart([])
         setPosDiscount(0)
-        setPosCustomerId("")
+        setPosCustomerId(null)
         fetchDashboardData()
         fetchInventory()
         fetchSales()
@@ -1012,7 +502,7 @@ export default function VendorERPApp() {
       if (data.success) {
         fetchCustomers()
         setShowCustomerDialog(false)
-        setCustomerForm({ name: "", email: "", phone: "" })
+        resetCustomerForm()
         toast({
           title: "Client ajouté",
           description: "Le client a été ajouté avec succès",
@@ -1055,123 +545,17 @@ export default function VendorERPApp() {
     })
   }
 
-  // Effect to check authentication
+  // Authentication check
   useEffect(() => {
     if (status === "loading") return
     if (!isAuthenticated || user?.role !== "VENDOR") {
       router.push("/login")
       return
     }
+
+    // Load initial data only when authenticated
+    handleDataLoad()
   }, [status, isAuthenticated, user, router])
-
-  // Effect to load initial data
-  useEffect(() => {
-    if (!isAuthenticated || !user) {
-      router.push('/login')
-      return
-    }
-
-    fetchDashboardData()
-  }, [isAuthenticated, user, router, fetchDashboardData])
-  }, [
-    isAuthenticated,
-    fetchSales,
-    fetchCustomers,
-    fetchSuppliers,
-    fetchProducts,
-    fetchOrders,
-    fetchCategories,
-    setSales,
-    setCustomers,
-    setSuppliers,
-    setProducts,
-    setOrders,
-    setCategories,
-    setLowStockProducts,
-    setTodaySales,
-    setWeekSales,
-    setMonthSales,
-    setTopProducts,
-    toast
-  ])
-
-        // Calculate dashboard metrics from sales data
-        if (salesData?.sales) {
-          const today = new Date()
-          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-          const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-
-          const todaySalesTotal = salesData.sales
-            .filter(s => new Date(s.createdAt).toDateString() === today.toDateString())
-            .reduce((sum, s) => sum + s.total, 0)
-
-          const weekSalesTotal = salesData.sales
-            .filter(s => new Date(s.createdAt) >= weekAgo)
-            .reduce((sum, s) => sum + s.total, 0)
-
-          const monthSalesTotal = salesData.sales
-            .filter(s => new Date(s.createdAt) >= monthAgo)
-            .reduce((sum, s) => sum + s.total, 0)
-
-          setTodaySales(todaySalesTotal)
-          setWeekSales(weekSalesTotal)
-          setMonthSales(monthSalesTotal)
-
-          // Calculate top products with proper typing
-          type ProductSale = {
-            productId: number
-            name: string
-            totalQuantity: number
-            totalSales: number
-          }
-
-          const productSales = salesData.sales.reduce((acc: Record<number, ProductSale>, sale) => {
-            sale.items.forEach(item => {
-              if (!acc[item.productId]) {
-                acc[item.productId] = {
-                  productId: item.productId,
-                name: item.name,
-                totalQuantity: 0,
-                totalSales: 0
-              }
-            }
-            acc[item.productId].totalQuantity += item.quantity
-            acc[item.productId].totalSales += item.price * item.quantity
-          })
-          return acc
-        }, {})
-
-        setTopProducts(Object.values(productSales)
-          .sort((a: any, b: any) => b.totalSales - a.totalSales)
-          .slice(0, 5))
-
-        // Set low stock products
-        setLowStockProducts(
-          productsData.filter((p: InventoryProduct) => p.stock <= p.lowStockThreshold)
-        )
-      } catch (error) {
-        console.error("[v0] Error loading initial data:", error)
-        toast({
-          title: "Erreur de chargement",
-          description: "Impossible de charger certaines données. Réessayez plus tard.",
-          variant: "destructive",
-        })
-      }
-    }
-
-    loadInitialData()
-  }, [
-    status, 
-    isAuthenticated, 
-    user, 
-    router,
-    fetchSales,
-    fetchCustomers,
-    fetchSuppliers,
-    fetchProducts,
-    fetchOrders,
-    fetchCategories
-  ])
 
   useEffect(() => {
     if (isDarkMode) {
@@ -1283,7 +667,7 @@ export default function VendorERPApp() {
                           </div>
                           <div>
                             <p className="font-medium">{product.productName}</p>
-                            <p className="text-sm text-muted-foreground">{product.totalSold} vendus</p>
+                            <p className="text-sm text-muted-foreground">{product.totalQuantity} vendus</p>
                           </div>
                         </div>
                         <TrendingUp className="w-5 h-5 text-green-500" />
@@ -1398,13 +782,15 @@ export default function VendorERPApp() {
                                   sku: product.sku,
                                   name: product.name,
                                   category: product.category,
+                                  description: product.description || "",
                                   supplierId: product.supplierId?.toString() || "",
                                   costPrice: product.costPrice.toString(),
                                   sellingPrice: product.sellingPrice.toString(),
-                                  stock: product.stock.toString(),
-                                  lowStockThreshold: product.lowStockThreshold.toString(),
+                                  price: product.price.toString(),
+                                  stock: product.stock,
+                                  lowStockThreshold: product.lowStockThreshold,
                                   barcode: product.barcode || "",
-                                  image: product.image || "",
+                                  image: product.image || ""
                                 })
                                 setShowProductDialog(true)
                               }}
@@ -1891,7 +1277,7 @@ export default function VendorERPApp() {
               <Input
                 type="number"
                 value={productForm.stock}
-                onChange={(e) => setProductForm({ ...productForm, stock: e.target.value })}
+                onChange={(e) => setProductForm({ ...productForm, stock: Number(e.target.value) })}
               />
             </div>
             <div className="space-y-2">
@@ -1899,7 +1285,7 @@ export default function VendorERPApp() {
               <Input
                 type="number"
                 value={productForm.lowStockThreshold}
-                onChange={(e) => setProductForm({ ...productForm, lowStockThreshold: e.target.value })}
+                onChange={(e) => setProductForm({ ...productForm, lowStockThreshold: Number(e.target.value) })}
               />
             </div>
             <div className="col-span-2 space-y-2">

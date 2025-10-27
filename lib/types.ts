@@ -1,19 +1,25 @@
+// API types
+export interface ApiResponse<T> {
+  success: boolean
+  data: T
+  error?: string
+  message?: string
+}
+
+export interface QueryResult<T> {
+  data: T[]
+  total: number
+  page: number
+  limit: number
+}
+
+// Common types
 export type UserRole = "customer" | "vendor" | "driver" | "admin"
-
-export type OrderStatus =
-  | "PENDING"
-  | "ACCEPTED"
-  | "PREPARING"
-  | "READY"
-  | "ASSIGNED"
-  | "IN_DELIVERY"
-  | "DELIVERED"
-  | "CANCELLED"
-
-export type ApprovalStatus = "pending" | "approved" | "rejected"
-
+import { OrderStatus } from './types/order'
+export type { OrderStatus }
 export type PaymentMethod = "cash" | "card" | "wallet"
 export type PaymentStatus = "pending" | "completed" | "failed" | "refunded"
+export type ApprovalStatus = "pending" | "approved" | "rejected"
 
 export type MembershipTier = "bronze" | "silver" | "gold" | "platinum"
 
@@ -125,9 +131,11 @@ export interface InventoryProduct {
   sku: string
   name: string
   category: string
+  description?: string
   supplierId?: number
   costPrice: number
   sellingPrice: number
+  price: number
   stock: number
   lowStockThreshold: number
   image?: string

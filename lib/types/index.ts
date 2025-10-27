@@ -1,12 +1,18 @@
-// Core entity types
-export * from './category'
+// Core types
+export * from './api'
+
+// Entity types
 export * from './customer'
+export * from './order'
 export * from './product'
 export * from './sale'
-export * from './supplier'
-export * from './order'
+export * from './category'
 
-// API types
+// Common types
+export type UserRole = "customer" | "vendor" | "driver" | "admin"
+export type OrderStatus = "pending" | "accepted" | "preparing" | "ready" | "assigned" | "in_delivery" | "delivered" | "cancelled"
+export type PaymentMethod = "cash" | "card" | "wallet"
+export type PaymentStatus = "pending" | "completed" | "failed" | "refunded"
 export interface ApiResponse<T> {
   success: boolean
   data: T

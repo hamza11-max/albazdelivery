@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react'
 import { useFetchWithCache } from "@/hooks/use-fetch-with-cache"
 import type {
-  ApiResponse,
   Sale,
   Customer,
   Supplier,
   InventoryProduct,
   Order,
-  Category
 } from "@/lib/types"
+import type { ApiResponse } from "@/lib/types/api"
+import type { Category } from "@/lib/types/category"
 import type {
   SalesData,
   CustomersData,

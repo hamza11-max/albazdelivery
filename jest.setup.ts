@@ -1,9 +1,10 @@
-/// <reference types="@testing-library/jest-dom" />
-import '@testing-library/jest-dom';
+import '@testing-library/jest-dom/extend-expect';
 import { jest, expect, beforeAll, afterAll, afterEach } from '@jest/globals';
 import { TextEncoder, TextDecoder } from 'util';
 import { cleanup } from '@testing-library/react';
 import 'cross-fetch/polyfill';
+
+import './__tests__/setup/testing-library-setup';
 
 // Mock Web APIs
 interface Port {

@@ -4,17 +4,109 @@ import {
   type SaleItem, 
   type InventoryProduct,
   type Order,
-  type Supplier,
-  type Category
+  type Supplier
 } from "@/lib/types"
+import { type Category } from "@/lib/types/category"
 
-// API Response Types
-export interface ApiResponse<T> {
-  success: boolean
-  data: T
-  error?: string
+// Re-export types
+export type { 
+  Customer,
+  Sale,
+  SaleItem,
+  InventoryProduct,
+  Order,
+  Supplier
 }
 
+export type { Category }
+
+// Import API types from shared lib
+export type { ApiResponse } from '@/lib/types'
+
+export interface CartItem {
+  id: number
+  productId: number
+  productName: string
+  quantity: number
+  price: number
+  discount: number
+}
+
+export interface CustomerForm {
+  name: string
+  email: string
+  phone: string
+  address: string
+}
+
+export interface SalesForecast {
+  week: number
+  month: number
+  trend: 'up' | 'down' | 'stable'
+}
+
+export interface BaseProductFields {
+  name: string
+  category: string
+  stock: number
+  lowStockThreshold: number
+}
+
+export interface ProductForm extends BaseProductFields {
+  sku: string
+  supplierId: string
+  costPrice: string
+  sellingPrice: string
+  barcode: string
+  image: string
+  description: string
+  price: string
+}
+
+export interface ProductUpdateData extends BaseProductFields {
+  id: number
+  sku?: string
+  supplierId?: string
+  costPrice?: string
+  sellingPrice?: string
+  barcode?: string
+  image?: string
+}
+
+export interface TopProductData {
+  productId: number
+  productName: string
+  totalQuantity: number
+  totalSales: number
+  totalSold: number
+}
+
+export interface BundleRecommendation {
+  products: string[]
+  confidence: number
+  support: number
+  frequency: number
+  suggestedDiscount: number
+}
+
+export interface InventoryRecommendation {
+  productId: number
+  productName: string
+  currentStock: number
+  recommendedStock: number
+  reason: string
+  recommendedQuantity: number
+}
+
+export interface SupplierForm {
+  name: string
+  contactPerson: string
+  phone: string
+  email: string
+  address: string
+}
+
+// Data Transfer Objects
 export interface SalesData {
   sales: Sale[]
   totalSales?: number
@@ -51,6 +143,7 @@ export interface CategoriesData {
   popularCategories?: { id: number; name: string; count: number }[]
 }
 
+// UI State Types
 export interface LoadingState {
   sales: boolean
   customers: boolean
@@ -62,17 +155,24 @@ export interface LoadingState {
   inventory: boolean
 }
 
-export interface ProductForm {
-  sku: string
+// Form Types
+export interface BaseProductFields {
   name: string
+  description: string
   category: string
+  stock: number
+  lowStockThreshold: number
+}
+
+export interface ProductForm extends BaseProductFields {
+  sku: string
   supplierId: string
   costPrice: string
   sellingPrice: string
-  stock: string
-  lowStockThreshold: string
   barcode: string
   image: string
+  description: string
+  price: string
 }
 
 export interface CustomerForm {
@@ -90,25 +190,30 @@ export interface SupplierForm {
   address: string
 }
 
+// Filter Types
 export interface SalesFilter {
   startDate: string
   endDate: string
   paymentMethod: string
 }
 
+// Dashboard Types
+export interface TopProduct {
+  productId: number
+  name: string
+  totalQuantity: number
+  totalSales: number
+}
+
 export interface DashboardData {
   todaySales: number
   weekSales: number
   monthSales: number
-  topProducts: Array<{
-    productId: number
-    name: string
-    totalQuantity: number
-    totalSales: number
-  }>
+  topProducts: TopProduct[]
   lowStockProducts: InventoryProduct[]
 }
 
+// AI Types
 export interface AIInsights {
   salesForecast: {
     week: number
