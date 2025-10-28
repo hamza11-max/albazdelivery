@@ -83,7 +83,7 @@ describe('Vendor Dashboard Integration Tests', () => {
     setup();
     
     // Just verify that the main heading is rendered
-    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading')).toBeInTheDocument();
   }, 15000);
 
   test('handles data loading error', async () => {

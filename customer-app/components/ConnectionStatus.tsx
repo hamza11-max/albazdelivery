@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import { View, Text, StyleSheet, Animated, StyleProp, ViewStyle, TextStyle } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { useOfflineStore } from '../stores/offline-store';
+
+interface ConnectionStatusStyles {
+  container: StyleProp<ViewStyle>;
+  text: StyleProp<TextStyle>;
+  subText: StyleProp<TextStyle>;
+}
 
 export const ConnectionStatus: React.FC = () => {
   const isOnline = useOfflineStore((state) => state.isOnline);
@@ -9,8 +15,7 @@ export const ConnectionStatus: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Subscribe to network state updates
-    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+    const unsubscribe = NetInfo.addEventListener(state => {
       const online = (state.isConnected && state.isInternetReachable) ?? false;
       useOfflineStore.getState().setOnlineStatus(online);
       
@@ -26,7 +31,7 @@ export const ConnectionStatus: React.FC = () => {
     };
   }, []);
 
-  const showBanner = () => {
+  const showBanner = (): void => {
     setIsVisible(true);
     Animated.spring(slideAnim, {
       toValue: 0,
@@ -34,7 +39,7 @@ export const ConnectionStatus: React.FC = () => {
     }).start();
   };
 
-  const hideBanner = () => {
+  const hideBanner = (): void => {
     Animated.timing(slideAnim, {
       toValue: -50,
       duration: 300,
