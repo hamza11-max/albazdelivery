@@ -7,9 +7,9 @@
     "npm": ">=10.0.0"
   },
   "scripts": {
-    "clean": "rm -rf .next",
-    "build": "swc src -d dist",
-    "vercel-build": "prisma generate && prisma migrate deploy && swc src -d dist",
+  "clean": "rm -rf .next",
+  "build": "npx --yes @swc/cli src -d dist",
+  "vercel-build": "prisma generate && prisma migrate deploy && npx --yes @swc/cli src -d dist",
     "dev": "next dev",
     "lint": "next lint",
     "start": "node -r @swc/register dist/server.js",
