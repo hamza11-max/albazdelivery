@@ -72,7 +72,7 @@ const mockFetch: FetchFunc = jest.fn(async () =>
   } as Response)
 );
 
-(global as any).fetch = mockFetch;
+Object.defineProperty(globalThis, 'fetch', { value: mockFetch, writable: true });
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({

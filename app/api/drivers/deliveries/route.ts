@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     console.log('[API] Driver accepted delivery:', session.user.id, '->', orderId)
 
     // Emit SSE event
-    emitOrderAssigned(updatedOrder as any, session.user.id)
+  emitOrderAssigned(updatedOrder, session.user.id)
 
     // Create notification for customer
     await prisma.notification.create({

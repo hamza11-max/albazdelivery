@@ -41,25 +41,27 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('Store not found or inactive'), 404)
     }
 
-    // Create order with items
+    // Normalize payment method and create order with items
+    const normalizedPaymentMethod = (paymentMethod?.toUpperCase() || 'CASH') as import('@prisma/client').PaymentMethod
+
     const order = await prisma.order.create({
       data: {
         customerId: session.user.id,
         vendorId: store.vendorId,
-        storeId,
         subtotal,
         deliveryFee,
         total,
         status: OrderStatus.PENDING,
-        paymentMethod: paymentMethod.toUpperCase() as any,
+        paymentMethod: normalizedPaymentMethod,
         deliveryAddress,
         city,
         customerPhone,
         items: {
-          create: items.map((item) => ({
+          create: items.map((item: any) => ({
             productId: item.productId,
             quantity: item.quantity,
             price: item.price,
+            paymentMethod: normalizedPaymentMethod,
           })),
         },
       },
@@ -71,7 +73,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Emit order created event
-    emitOrderCreated(order as any)
+    emitOrderCreated(order)
 
     // Create vendor notification
     const vendorNotification = await prisma.notification.create({
@@ -85,16 +87,16 @@ export async function POST(request: NextRequest) {
         actionUrl: `/vendor?orderId=${order.id}`,
       },
     })
-    emitNotificationSent(vendorNotification as any)
+    emitNotificationSent(vendorNotification)
 
     // Create payment record if not cash
-    if (paymentMethod.toUpperCase() !== 'CASH') {
+    if (normalizedPaymentMethod !== 'CASH') {
       await prisma.payment.create({
         data: {
           orderId: order.id,
           customerId: session.user.id,
           amount: total,
-          method: paymentMethod.toUpperCase() as any,
+          method: normalizedPaymentMethod,
           status: 'PENDING',
         },
       })

@@ -29,14 +29,21 @@ export default function LoginPage() {
       const result = await signIn("credentials", {
         email,
         password,
-        redirect: true,
+        redirect: false,
         callbackUrl: "/",
       })
 
-      if ((result as any)?.error) {
-        setError("Email ou mot de passe incorrect")
-        setLoading(false)
+      if (result && typeof result === 'object' && 'error' in result) {
+        const res = result as { error?: string }
+        if (res.error) {
+          setError("Email ou mot de passe incorrect")
+          setLoading(false)
+          return
+        }
       }
+
+      // If signIn didn't return an error, navigate to home
+      router.push('/')
     } catch (err) {
       setError("Une erreur s'est produite. Veuillez réessayer.")
       setLoading(false)

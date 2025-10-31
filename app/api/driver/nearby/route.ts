@@ -38,8 +38,7 @@ export async function GET(request: NextRequest) {
         const distance = calculateDistance(lat, lng, loc.latitude, loc.longitude)
         return {
           ...loc,
-          // cast driver access to any to satisfy typings if Prisma generation differs
-          driver: (loc as any).driver,
+          driver: loc.driver,
           distance,
         }
       })

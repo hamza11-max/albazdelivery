@@ -184,8 +184,8 @@ export async function POST(request: NextRequest) {
 
     console.log('[API] Order created:', order.id)
 
-    // Emit order created event for SSE
-    emitOrderCreated(order as any)
+  // Emit order created event for SSE
+  emitOrderCreated(order)
 
     // Award loyalty points (5% of total)
     const pointsToAward = Math.floor(total * 0.05)

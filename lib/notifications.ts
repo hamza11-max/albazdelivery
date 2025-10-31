@@ -1,5 +1,11 @@
+interface WindowWithWebkit extends Window {
+  AudioContext?: typeof AudioContext
+  webkitAudioContext?: typeof AudioContext
+}
+
 export const playNotificationSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const AudioClass = (window as WindowWithWebkit).AudioContext || (window as WindowWithWebkit).webkitAudioContext
+  const audioContext = new (AudioClass as unknown as typeof AudioContext)()
   const oscillator = audioContext.createOscillator()
   const gainNode = audioContext.createGain()
 
@@ -17,7 +23,8 @@ export const playNotificationSound = () => {
 }
 
 export const playSuccessSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+  const AudioClass = (window as WindowWithWebkit).AudioContext || (window as WindowWithWebkit).webkitAudioContext
+  const audioContext = new (AudioClass as unknown as typeof AudioContext)()
   const notes = [523.25, 659.25, 783.99] // C, E, G
 
   notes.forEach((freq, index) => {

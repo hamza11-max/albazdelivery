@@ -34,8 +34,7 @@ export async function GET(request: NextRequest) {
       where: {
         vendorId,
         createdAt: { gte: periodStart },
-        // cast the enum checks to any to satisfy generated OrderStatus typing
-        status: { in: ['COMPLETED', 'DELIVERED'] as any },
+        status: { in: ['COMPLETED', 'DELIVERED'] as import('@prisma/client').OrderStatus[] },
       },
       _sum: { total: true },
       _count: true,

@@ -15,7 +15,8 @@ export const ConnectionStatus: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state: NetInfo.NetInfoState) => {
+  type Unsubscribe = (() => void) | { remove: () => void };
+  const unsubscribe: Unsubscribe = NetInfo.addEventListener((state: NetInfo.NetInfoState) => {
       const online = (state.isConnected && state.isInternetReachable) ?? false;
       useOfflineStore.getState().setOnlineStatus(online);
       
@@ -30,8 +31,8 @@ export const ConnectionStatus: React.FC = () => {
       try {
         if (typeof unsubscribe === 'function') {
           unsubscribe();
-        } else if (unsubscribe && typeof (unsubscribe as any).remove === 'function') {
-          (unsubscribe as any).remove();
+        } else if (unsubscribe && typeof unsubscribe.remove === 'function') {
+          unsubscribe.remove();
         }
       } catch (e) {
         // ignore

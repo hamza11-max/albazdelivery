@@ -90,7 +90,7 @@ export async function PATCH(request: NextRequest) {
     })
 
     console.log('[API] Vendor updated order:', orderId, '->', status)
-    emitOrderUpdated(updatedOrder as any)
+  emitOrderUpdated(updatedOrder)
 
     return successResponse({ order: updatedOrder })
   } catch (error) {

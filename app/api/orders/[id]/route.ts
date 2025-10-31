@@ -212,8 +212,8 @@ export async function PATCH(
 
   console.log('[API] Order status updated:', updatedOrder.id, '->', status)
 
-    // Emit SSE event
-    emitOrderUpdated(updatedOrder as any)
+  // Emit SSE event
+  emitOrderUpdated(updatedOrder)
 
     return successResponse({ order: updatedOrder })
   } catch (error) {

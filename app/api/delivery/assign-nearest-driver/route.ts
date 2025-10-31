@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    emitOrderAssigned(updatedOrder as any, selectedDriver.driverId)
+  emitOrderAssigned(updatedOrder, selectedDriver.driverId)
 
     return successResponse({
       order: updatedOrder,

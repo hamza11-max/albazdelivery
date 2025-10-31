@@ -68,9 +68,10 @@ api.interceptors.request.use(async (config) => {
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
       if (!config.headers) {
-          config.headers = {} as any;
-        }
-        (config.headers as any).Authorization = `Bearer ${token}`;
+        (config as AxiosRequestConfig).headers = { Authorization: `Bearer ${token}` } as AxiosRequestConfig['headers'];
+      } else {
+        (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      }
     }
 
     const netInfo = await NetInfo.fetch();

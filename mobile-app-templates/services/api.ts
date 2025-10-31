@@ -89,7 +89,7 @@ axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig
             headers: {},
             config
           })
-        } as any;
+        } as InternalAxiosRequestConfig;
       }
 
       if (config.method?.toLowerCase() !== 'get') {
@@ -130,7 +130,7 @@ axiosInstance.interceptors.response.use(
           statusText: 'OK (Cached)',
           headers: {},
           config: error.config,
-        } as any as AxiosResponse;
+        } as AxiosResponse;
       }
     }
 

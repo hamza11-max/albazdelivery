@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       type: conv.type,
       participantIds: conv.participantIds,
       participantRoles: conv.participantRoles,
-      orderId: (conv as any).orderId,
+      orderId: (conv as unknown as { orderId?: string }).orderId ?? null,
       lastMessage: conv.messages[0] || null,
       lastMessageTime: conv.lastMessageTime,
       isActive: conv.isActive,
@@ -86,26 +87,23 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if conversation already exists
-    const existing = await prisma.conversation.findFirst({
-      where: ({
-        type,
-        participantIds: {
-          hasEvery: [currentUserId, participantId],
-        },
-        // cast to any to avoid strict ConversationWhereInput mismatch for optional orderId
-        orderId: (orderId || null) as any,
-      } as any)
-    })
+    const where: Prisma.ConversationWhereInput & Record<string, any> = {
+      type,
+      participantIds: { hasEvery: [currentUserId, participantId] },
+    }
+    if (orderId) where.orderId = orderId
+
+    const existing = await prisma.conversation.findFirst({ where })
 
     if (existing) {
       return successResponse({ conversation: existing })
     }
 
     // Create new conversation
-    const createData: any = {
-      type,
+    const createData: Prisma.ConversationCreateInput & { orderId?: string } = {
+      type: type as any,
       participantIds: [currentUserId, participantId],
-      participantRoles: [currentUserRole, (participant as any).role],
+      participantRoles: [currentUserRole, participant.role] as import('@prisma/client').ChatParticipantRole[],
     }
     if (orderId) createData.orderId = orderId
 

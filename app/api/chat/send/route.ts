@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
       data: {
         conversationId,
         senderId: session.user.id,
-  senderRole: session.user.role as any,
-  senderName: (session.user as any).name || '',
+        senderRole: session.user.role as import('@prisma/client').ChatParticipantRole,
+        senderName: session.user.name || '',
         message,
         attachments: attachments || [],
       },

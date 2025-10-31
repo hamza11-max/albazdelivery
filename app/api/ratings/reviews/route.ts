@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       where: {
         id: orderId,
         customerId,
-        status: { in: ['DELIVERED', 'COMPLETED'] as any },
+        status: { in: ['DELIVERED', 'COMPLETED'] as import('@prisma/client').OrderStatus[] },
       },
     })
 

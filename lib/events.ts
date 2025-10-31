@@ -1,3 +1,5 @@
+import type { Order, Notification, Payment, ChatMessage, User } from '@prisma/client'
+
 type EventType =
   | "order_created"
   | "order_updated"
@@ -55,19 +57,19 @@ class EventEmitter {
 
 export const eventEmitter = new EventEmitter()
 
-export function emitOrderCreated(order: any) {
+export function emitOrderCreated(order: Order | (Order & Record<string, any>)) {
   eventEmitter.emit("order_created", { order, timestamp: new Date() })
 }
 
-export function emitOrderUpdated(order: any) {
+export function emitOrderUpdated(order: Order | (Order & Record<string, any>)) {
   eventEmitter.emit("order_updated", { order, timestamp: new Date() })
 }
 
-export function emitOrderAssigned(order: any, driverId: string) {
+export function emitOrderAssigned(order: Order | (Order & Record<string, any>), driverId: string) {
   eventEmitter.emit("order_assigned", { order, driverId, timestamp: new Date() })
 }
 
-export function emitOrderDelivered(order: any) {
+export function emitOrderDelivered(order: Order | (Order & Record<string, any>)) {
   eventEmitter.emit("order_delivered", { order, timestamp: new Date() })
 }
 
@@ -87,11 +89,11 @@ export function emitDriverPrivacyChanged(driverId: string, isPrivate: boolean) {
   eventEmitter.emit("driver_privacy_changed", { driverId, isPrivate, timestamp: new Date() })
 }
 
-export function emitNotificationSent(notification: any) {
+export function emitNotificationSent(notification: Notification | (Notification & Record<string, any>)) {
   eventEmitter.emit("notification_sent", { notification, timestamp: new Date() })
 }
 
-export function emitPaymentProcessed(payment: any) {
+export function emitPaymentProcessed(payment: Payment) {
   eventEmitter.emit("payment_processed", { payment, timestamp: new Date() })
 }
 

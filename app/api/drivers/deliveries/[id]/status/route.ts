@@ -96,9 +96,9 @@ export async function PATCH(
 
     // Emit appropriate event
     if (normalizedStatus === 'DELIVERED') {
-      emitOrderDelivered(updatedOrder as any)
+      emitOrderDelivered(updatedOrder)
     } else {
-      emitOrderUpdated(updatedOrder as any)
+      emitOrderUpdated(updatedOrder)
     }
 
     return successResponse({ order: updatedOrder })

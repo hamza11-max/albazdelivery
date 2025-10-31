@@ -93,7 +93,7 @@ export async function PUT(
 
     // Create notifications
     if (normalizedStatus === 'ASSIGNED' && driverId) {
-      emitOrderAssigned(order as any, driverId)
+      emitOrderAssigned(order, driverId)
 
       // Notification for driver
       await prisma.notification.create({
@@ -108,7 +108,7 @@ export async function PUT(
         },
       })
     } else {
-      emitOrderUpdated(order as any)
+  emitOrderUpdated(order)
     }
 
     // Notification for customer
@@ -132,7 +132,7 @@ export async function PUT(
           actionUrl: `/tracking?orderId=${order.id}`,
         },
       })
-      emitNotificationSent(notification as any)
+  emitNotificationSent(notification)
     }
 
     return successResponse({ order })

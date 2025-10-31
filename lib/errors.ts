@@ -114,9 +114,18 @@ export function errorResponse(
     )
   }
 
-  // Handle Prisma errors
-  if ((error as any)?.code && typeof (error as any).code === 'string') {
-    const prismaError = error as any
+  // Handle Prisma errors (narrow at runtime to avoid blanket `any` casts)
+  const isPrismaError = (err: unknown): err is { code: string; meta?: any } => {
+    return (
+      typeof err === 'object' &&
+      err !== null &&
+      'code' in err &&
+      typeof (err as { code?: unknown }).code === 'string'
+    )
+  }
+
+  if (isPrismaError(error)) {
+    const prismaError = error
     
     // Unique constraint violation
     if (prismaError.code === 'P2002') {
@@ -138,8 +147,8 @@ export function errorResponse(
     }
 
     // Record not found
-      const errAny = error as any
-      if (errAny && errAny.code === 'P2025') {
+    // Record not found
+    if (prismaError.code === 'P2025') {
       return NextResponse.json<ApiResponse>(
         {
           success: false,

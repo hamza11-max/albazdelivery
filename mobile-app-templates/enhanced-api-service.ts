@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosRequestHeaders } from 'axios';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosRequestHeaders, AxiosResponse } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import NetInfo from '@react-native-community/netinfo';
 import { useOfflineStore } from './stores/offline-store';
@@ -102,7 +102,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
           headers: {},
           config
         })
-      } as any;
+      } as InternalAxiosRequestConfig;
     }
 
     // Queue write operations for later
@@ -151,7 +151,7 @@ api.interceptors.response.use(async (response) => {
   if (error.message === 'Network Error' || !error.response) {
     const cachedData = await getFromCache(error.config as unknown as EnhancedRequestConfig);
     if (cachedData) {
-      return Promise.resolve({ data: cachedData, status: 200, statusText: 'OK (Cached)', headers: {}, config: error.config } as any);
+      return Promise.resolve({ data: cachedData, status: 200, statusText: 'OK (Cached)', headers: {}, config: error.config } as AxiosResponse);
     }
   }
 

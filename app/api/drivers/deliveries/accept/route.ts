@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
     console.log('[API] Driver accepted delivery:', orderId, 'by', driverId)
 
     // Emit event for real-time updates
-    emitOrderAssigned(updatedOrder as any, driverId)
+  emitOrderAssigned(updatedOrder, driverId)
 
     return successResponse({ order: updatedOrder })
   } catch (error) {

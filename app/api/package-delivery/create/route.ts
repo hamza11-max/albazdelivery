@@ -33,6 +33,8 @@ export async function POST(request: NextRequest) {
     } = validatedData
 
     // Create package delivery order
+    const normalizedPaymentMethod = (paymentMethod?.toUpperCase() || 'CASH') as import('@prisma/client').PaymentMethod
+
     const order = await prisma.order.create({
       data: {
         customerId: session.user.id,
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
         deliveryFee: deliveryFee,
         total: deliveryFee,
         status: 'PENDING',
-        paymentMethod: paymentMethod.toUpperCase() as any,
+        paymentMethod: normalizedPaymentMethod,
       },
       include: {
         customer: {
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
     console.log('[API] Package delivery created:', order.id)
 
     // Emit order created event
-    emitOrderCreated(order as any)
+    emitOrderCreated(order)
 
     // Create notification for customer
     await prisma.notification.create({
