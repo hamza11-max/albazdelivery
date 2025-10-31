@@ -9,7 +9,7 @@
   "scripts": {
   "clean": "rm -rf .next",
   "build": "swc src -d dist",
-  "vercel-build": "prisma generate && prisma migrate deploy && swc src -d dist",
+  "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "node -r @swc/register dist/server.js",
