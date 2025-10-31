@@ -8,10 +8,12 @@ import { emitOrderUpdated, emitOrderDelivered } from '@/lib/events'
 // PATCH /api/drivers/deliveries/[id]/status - Update delivery status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
+
+    const paramsResolved = await context.params
 
     const session = await auth()
     if (!session?.user) {
@@ -32,7 +34,7 @@ export async function PATCH(
 
     // Get order
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
     })
 
     if (!order) {
@@ -58,7 +60,7 @@ export async function PATCH(
     }
 
     const updatedOrder = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
       data: updateData,
       include: {
         items: {
@@ -90,7 +92,7 @@ export async function PATCH(
       },
     })
 
-    console.log('[API] Driver updated delivery status:', params.id, '->', normalizedStatus)
+  console.log('[API] Driver updated delivery status:', paramsResolved.id, '->', normalizedStatus)
 
     // Emit appropriate event
     if (normalizedStatus === 'DELIVERED') {

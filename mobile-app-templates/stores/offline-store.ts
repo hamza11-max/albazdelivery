@@ -1,16 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import NetInfo from '@react-native-community/netinfo';
 import { api } from '../services/api';
-
-interface OfflineQueueItem {
-  id: string;
-  endpoint: string;
-  method: string;
-  data: any;
-  timestamp: number;
-}
+import { OfflineQueueItem } from '../types';
 
 interface OfflineState {
   isOnline: boolean;
@@ -41,7 +33,7 @@ export const useOfflineStore = create<OfflineState>()(
 
       setOnlineStatus: (status: boolean) => set({ isOnline: status }),
 
-      addToOfflineQueue: (item) => {
+      addToOfflineQueue: (item: Omit<OfflineQueueItem, 'id' | 'timestamp'>) => {
         const queueItem: OfflineQueueItem = {
           ...item,
           id: Math.random().toString(36).substring(7),
@@ -52,13 +44,13 @@ export const useOfflineStore = create<OfflineState>()(
         }));
       },
 
-      removeFromOfflineQueue: (id) => {
+      removeFromOfflineQueue: (id: string) => {
         set((state) => ({
           offlineQueue: state.offlineQueue.filter((item) => item.id !== id),
         }));
       },
 
-      setOfflineData: (key, data) => {
+      setOfflineData: <T>(key: string, data: T) => {
         set((state) => ({
           offlineData: {
             ...state.offlineData,
@@ -67,12 +59,12 @@ export const useOfflineStore = create<OfflineState>()(
         }));
       },
 
-      getOfflineData: (key) => {
+      getOfflineData: <T>(key: string): T | undefined => {
         const state = get();
-        return state.offlineData[key];
+        return state.offlineData[key] as T | undefined;
       },
 
-      setLastSyncTimestamp: (timestamp) => set({ lastSyncTimestamp: timestamp }),
+      setLastSyncTimestamp: (timestamp: number) => set({ lastSyncTimestamp: timestamp }),
 
       syncOfflineQueue: async () => {
         const state = get();
@@ -104,7 +96,6 @@ export const useOfflineStore = create<OfflineState>()(
         const state = get();
         if (!state.isOnline) return;
 
-        const timestamp = state.lastSyncTimestamp || 0;
         try {
           // Implement your sync logic here
           // Example:

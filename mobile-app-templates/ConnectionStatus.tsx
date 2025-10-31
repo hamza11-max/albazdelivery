@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Text, StyleSheet, Animated, Easing } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import { useOfflineStore } from '../stores/offline-store';
+import { useOfflineStore } from '@stores/offline-store';
 
 export const ConnectionStatus: React.FC = () => {
-  const isOnline = useOfflineStore((state) => state.isOnline);
-  const [slideAnim] = useState(new Animated.Value(-50));
-  const [isVisible, setIsVisible] = useState(false);
+  const isOnline = useOfflineStore(state => state.isOnline);
+  const [slideAnim] = useState<Animated.Value>(new Animated.Value(-50));
+  const [isVisible, setIsVisible] = useState<boolean>(false);
 
   useEffect(() => {
     // Subscribe to network state updates
@@ -26,20 +26,23 @@ export const ConnectionStatus: React.FC = () => {
     };
   }, []);
 
-  const showBanner = () => {
+  const showBanner = (): void => {
     setIsVisible(true);
     Animated.spring(slideAnim, {
       toValue: 0,
       useNativeDriver: true,
-    }).start();
+      speed: 12,
+      bounciness: 8,
+    } as Animated.SpringAnimationConfig).start();
   };
 
-  const hideBanner = () => {
+  const hideBanner = (): void => {
     Animated.timing(slideAnim, {
       toValue: -50,
       duration: 300,
       useNativeDriver: true,
-    }).start(() => setIsVisible(false));
+      easing: Easing.ease,
+    } as Animated.TimingAnimationConfig).start(() => setIsVisible(false));
   };
 
   if (!isVisible) return null;

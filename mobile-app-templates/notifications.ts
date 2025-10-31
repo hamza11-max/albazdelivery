@@ -1,10 +1,11 @@
 // Notifications Service Template
 // Copy to: mobile-apps/[app-name]/services/notifications.ts
 
+import React from 'react';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import api from './api';
+import { api } from './services/api';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -62,7 +63,7 @@ export async function registerForPushNotifications() {
 
 // Listen for notifications while app is foregrounded
 export function useNotificationObserver(
-  onNotification: (notification: Notifications.Notification) => void
+  onNotification: (notification: { request: { content: Notifications.NotificationContent } }) => void
 ) {
   React.useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener(
@@ -90,8 +91,8 @@ export function useNotificationResponseObserver(
 export async function scheduleNotification(
   title: string,
   body: string,
-  data?: any,
-  trigger?: Notifications.NotificationTriggerInput
+  data?: Record<string, unknown>,
+  trigger?: any
 ) {
   await Notifications.scheduleNotificationAsync({
     content: {

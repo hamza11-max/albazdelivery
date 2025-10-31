@@ -15,7 +15,21 @@ const config: Config = {
     '^@testing-library/(.*)$': '<rootDir>/node_modules/@testing-library/$1',
   },
   transform: {
-    '^.+\\.(js|jsx|ts|tsx|mjs)$': 'babel-jest'
+    '^.+\\.(js|jsx|ts|tsx|mjs)$': ['@swc/jest', {
+      jsc: {
+        parser: {
+          syntax: 'typescript',
+          tsx: true,
+          decorators: true,
+          dynamicImport: true
+        },
+        transform: {
+          react: {
+            runtime: 'automatic'
+          }
+        }
+      }
+    }]
   },
   transformIgnorePatterns: [
     'node_modules/(?!(msw|until-async|node-fetch|uuid|nanoid|@mswjs|@open-draft|client-only|@testing-library)/)',

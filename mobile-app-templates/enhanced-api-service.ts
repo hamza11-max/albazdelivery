@@ -1,23 +1,28 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig, AxiosRequestHeaders } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import NetInfo from '@react-native-community/netinfo';
-import { useOfflineStore } from '../stores/offline-store';
+import { useOfflineStore } from './stores/offline-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type {
+  EnhancedRequestConfig,
+  EnhancedResponse,
+  RetryConfig,
+  CacheConfig
+} from './types';
 
 // Configure API URL based on environment
-const API_URL = __DEV__ 
+const API_URL = __DEV__
   ? 'http://192.168.1.100:3000/api' // Replace with your local IP
   : 'https://your-project.vercel.app/api';
 
 // Cache configuration
-const CACHE_CONFIG = {
-  // Cache duration in milliseconds
+const CACHE_CONFIG: CacheConfig = {
   maxAge: 1000 * 60 * 60, // 1 hour
   excludePaths: ['/auth/login', '/auth/logout'],
 };
 
 // Create axios instance
-const api = axios.create({
+const api: AxiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 15000, // Increased timeout for slower connections
   headers: {
@@ -26,11 +31,11 @@ const api = axios.create({
 });
 
 // Cache helper functions
-const getCacheKey = (config: AxiosRequestConfig) => {
+const getCacheKey = (config: EnhancedRequestConfig): string => {
   return `api-cache:${config.method}:${config.url}:${JSON.stringify(config.params)}`;
 };
 
-const getFromCache = async (config: AxiosRequestConfig) => {
+const getFromCache = async <T>(config: EnhancedRequestConfig): Promise<EnhancedResponse<T> | null> => {
   try {
     const cacheKey = getCacheKey(config);
     const cached = await AsyncStorage.getItem(cacheKey);
@@ -38,9 +43,9 @@ const getFromCache = async (config: AxiosRequestConfig) => {
     if (cached) {
       const { data, timestamp } = JSON.parse(cached);
       const age = Date.now() - timestamp;
-      
+
       if (age < CACHE_CONFIG.maxAge) {
-        return data;
+        return data as EnhancedResponse<T>;
       }
     }
   } catch (error) {
@@ -49,28 +54,30 @@ const getFromCache = async (config: AxiosRequestConfig) => {
   return null;
 };
 
-const saveToCache = async (config: AxiosRequestConfig, data: any) => {
+const saveToCache = async <T>(config: EnhancedRequestConfig, data: T): Promise<void> => {
   try {
     if (config.method?.toLowerCase() !== 'get') return;
-    if (CACHE_CONFIG.excludePaths.some(path => config.url?.includes(path))) return;
-    
+    if (CACHE_CONFIG.excludePaths?.some((path: string) => config.url?.includes(path))) return;
+
     const cacheKey = getCacheKey(config);
-    await AsyncStorage.setItem(cacheKey, JSON.stringify({
+    const cacheEntry = {
       data,
       timestamp: Date.now()
-    }));
+    };
+    await AsyncStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
   } catch (error) {
     console.error('Cache write error:', error);
   }
 };
 
 // Request interceptor
-api.interceptors.request.use(async (config) => {
+api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   // Add auth token
   try {
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      if (!config.headers) config.headers = {} as AxiosRequestHeaders;
+      (config.headers as AxiosRequestHeaders).Authorization = `Bearer ${token}`;
     }
   } catch (error) {
     console.error('Auth token error:', error);
@@ -78,14 +85,24 @@ api.interceptors.request.use(async (config) => {
 
   // Check network status
   const netInfo = await NetInfo.fetch();
-  const isOnline = netInfo.isConnected && netInfo.isInternetReachable;
-  useOfflineStore.getState().setOnlineStatus(isOnline);
+  const isOnline = (netInfo.isConnected && netInfo.isInternetReachable) ?? false;
+  useOfflineStore.getState().setOnlineStatus(Boolean(isOnline));
 
   // Handle offline state
   if (!isOnline) {
-    const cachedData = await getFromCache(config);
+    const cachedData = await getFromCache(config as unknown as EnhancedRequestConfig);
     if (cachedData) {
-      return Promise.resolve(cachedData);
+      // Return a fake adapter that resolves with the cached response
+      return {
+        ...config,
+        adapter: () => Promise.resolve({
+          data: cachedData,
+          status: 200,
+          statusText: 'OK (Cached)',
+          headers: {},
+          config
+        })
+      } as any;
     }
 
     // Queue write operations for later
@@ -132,9 +149,9 @@ api.interceptors.response.use(async (response) => {
 
   // Network error handling
   if (error.message === 'Network Error' || !error.response) {
-    const cachedData = await getFromCache(error.config!);
+    const cachedData = await getFromCache(error.config as unknown as EnhancedRequestConfig);
     if (cachedData) {
-      return Promise.resolve({ data: cachedData, headers: {}, status: 200 });
+      return Promise.resolve({ data: cachedData, status: 200, statusText: 'OK (Cached)', headers: {}, config: error.config } as any);
     }
   }
 
@@ -142,13 +159,19 @@ api.interceptors.response.use(async (response) => {
 });
 
 // Automatic retry for failed requests
-const withRetry = async (request: () => Promise<any>, retries = 3, delay = 1000) => {
+const withRetry = async <T>(
+  request: () => Promise<T>,
+  retries = 3,
+  delay = 1000,
+  config: RetryConfig = {} as RetryConfig
+): Promise<T> => {
   try {
     return await request();
   } catch (error) {
     if (retries > 0) {
+      config.onRetry?.(retries, error);
       await new Promise(resolve => setTimeout(resolve, delay));
-      return withRetry(request, retries - 1, delay * 2);
+      return withRetry(request, retries - 1, delay * 2, config);
     }
     throw error;
   }
@@ -156,18 +179,37 @@ const withRetry = async (request: () => Promise<any>, retries = 3, delay = 1000)
 
 // Enhanced API methods with retry and offline support
 export const enhancedApi = {
-  get: (url: string, config?: AxiosRequestConfig) => 
-    withRetry(() => api.get(url, config)),
+  get: <T>(url: string, config?: EnhancedRequestConfig): Promise<EnhancedResponse<T>> => 
+    withRetry(() => api.get<T>(url, config)),
   
-  post: (url: string, data?: any, config?: AxiosRequestConfig) =>
-    withRetry(() => api.post(url, data, config)),
-  
-  put: (url: string, data?: any, config?: AxiosRequestConfig) =>
-    withRetry(() => api.put(url, data, config)),
-  
-  delete: (url: string, config?: AxiosRequestConfig) =>
-    withRetry(() => api.delete(url, config)),
+  post: <T>(url: string, data?: unknown, config?: EnhancedRequestConfig): Promise<EnhancedResponse<T>> =>
+    withRetry(() => api.post<T>(url, data, config)),
     
+  put: <T>(url: string, data?: unknown, config?: EnhancedRequestConfig): Promise<EnhancedResponse<T>> =>
+    withRetry(() => api.put<T>(url, data, config)),
+    
+  delete: <T>(url: string, config?: EnhancedRequestConfig): Promise<EnhancedResponse<T>> =>
+    withRetry(() => api.delete<T>(url, config)),
+    
+  patch: <T>(url: string, data?: unknown, config?: EnhancedRequestConfig): Promise<EnhancedResponse<T>> =>
+    withRetry(() => api.patch<T>(url, data, config)),
+    
+  setAuthToken: (token: string): void => {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  },
+  
+  clearAuthToken: (): void => {
+    delete api.defaults.headers.common.Authorization;
+  },
+  
+  getCacheKey,
+  
+  clearCache: async (): Promise<void> => {
+    const keys = await AsyncStorage.getAllKeys();
+    const cacheKeys = keys.filter(key => key.startsWith('api-cache:'));
+    await AsyncStorage.multiRemove(cacheKeys);
+  },
+  
   // Background sync utility
   sync: async () => {
     const offlineStore = useOfflineStore.getState();

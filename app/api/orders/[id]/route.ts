@@ -9,10 +9,12 @@ import { updateOrderStatusSchema } from '@/lib/validations/order'
 // GET /api/orders/[id] - Get a specific order
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
+
+    const paramsResolved = await context.params
 
     const session = await auth()
     if (!session?.user) {
@@ -20,7 +22,7 @@ export async function GET(
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
       include: {
         items: {
           include: {
@@ -88,10 +90,12 @@ export async function GET(
 // PATCH /api/orders/[id] - Update order status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
+
+    const paramsResolved = await context.params
 
     const session = await auth()
     if (!session?.user) {
@@ -99,15 +103,15 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { status, driverId } = updateOrderStatusSchema.parse({
-      orderId: params.id,
-      status,
-      driverId,
+    const parsed = updateOrderStatusSchema.parse({
+      orderId: paramsResolved.id,
+      ...body,
     })
+    const { status, driverId } = parsed
 
     // Get existing order
     const existingOrder = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
     })
 
     if (!existingOrder) {
@@ -174,7 +178,7 @@ export async function PATCH(
 
     // Update order
     const updatedOrder = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
       data: updateData,
       include: {
         items: {
@@ -206,7 +210,7 @@ export async function PATCH(
       },
     })
 
-    console.log('[API] Order status updated:', updatedOrder.id, '->', status)
+  console.log('[API] Order status updated:', updatedOrder.id, '->', status)
 
     // Emit SSE event
     emitOrderUpdated(updatedOrder as any)

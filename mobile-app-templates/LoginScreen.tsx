@@ -15,7 +15,7 @@ import {
   Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '../../stores/authStore';
+import { useAuthStore } from './auth-store';
 
 export default function LoginScreen() {
   const router = useRouter();

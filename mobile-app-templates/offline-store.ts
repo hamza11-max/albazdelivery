@@ -1,20 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import NetInfo from '@react-native-community/netinfo';
+import { api } from './services/api';
 
 interface OfflineQueueItem {
   id: string;
   endpoint: string;
   method: string;
-  data: any;
+  data: unknown;
   timestamp: number;
 }
 
 interface OfflineState {
   isOnline: boolean;
   offlineQueue: OfflineQueueItem[];
-  offlineData: Record<string, any>;
+  offlineData: Record<string, unknown>;
   lastSyncTimestamp: number | null;
   
   // Actions
@@ -81,8 +81,8 @@ export const useOfflineStore = create<OfflineState>()(
         const queue = [...state.offlineQueue];
         for (const item of queue) {
           try {
-            // Attempt to send the queued request
-            await api.request({
+                // Attempt to send the queued request
+                await api.request({
               url: item.endpoint,
               method: item.method,
               data: item.data,

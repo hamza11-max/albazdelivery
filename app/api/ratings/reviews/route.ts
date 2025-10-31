@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       where: {
         id: orderId,
         customerId,
-        status: { in: ['DELIVERED', 'COMPLETED'] },
+        status: { in: ['DELIVERED', 'COMPLETED'] as any },
       },
     })
 
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       data: {
         orderId,
         customerId,
-        vendorId: order.vendorId,
+  vendorId: order.vendorId!,
         rating: parseInt(rating),
         comment: comment || '',
       },

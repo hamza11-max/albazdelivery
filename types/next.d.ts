@@ -1,6 +1,6 @@
 declare module 'next' {
   export interface Metadata {
-    title?: string;
+    title?: string | { default?: string; template?: string };
     description?: string;
     [key: string]: any;
   }

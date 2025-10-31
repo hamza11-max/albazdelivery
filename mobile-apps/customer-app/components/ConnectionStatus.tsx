@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
+import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { useOfflineStore } from '../stores/offline-store';
 
-export const ConnectionStatus = () => {
+export const ConnectionStatus: React.FC = () => {
   const isOnline = useOfflineStore((state) => state.isOnline);
   const [slideAnim] = useState(new Animated.Value(-50));
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      const online = state.isConnected && state.isInternetReachable;
+    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
+      const online = !!(state.isConnected && state.isInternetReachable);
       useOfflineStore.getState().setOnlineStatus(online);
       
       if (!online) {

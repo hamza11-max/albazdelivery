@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     // Get all active driver locations
     const driverLocations = await prisma.driverLocation.findMany({
       where: {
-        isOnline: true,
+        isActive: true,
         updatedAt: {
           gte: new Date(Date.now() - 15 * 60 * 1000), // Last 15 minutes
         },
@@ -38,7 +38,8 @@ export async function GET(request: NextRequest) {
         const distance = calculateDistance(lat, lng, loc.latitude, loc.longitude)
         return {
           ...loc,
-          driver: loc.driver,
+          // cast driver access to any to satisfy typings if Prisma generation differs
+          driver: (loc as any).driver,
           distance,
         }
       })

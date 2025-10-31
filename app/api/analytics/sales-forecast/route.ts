@@ -34,18 +34,21 @@ export async function GET(request: NextRequest) {
       where: {
         vendorId,
         createdAt: { gte: periodStart },
-        status: { in: ['COMPLETED', 'DELIVERED'] },
+        // cast the enum checks to any to satisfy generated OrderStatus typing
+        status: { in: ['COMPLETED', 'DELIVERED'] as any },
       },
       _sum: { total: true },
       _count: true,
     })
 
-    const totalRevenue = periodRevenue._sum.total || 0
+    const totalRevenue = (periodRevenue._sum?.total as number) || 0
     const avgDailyRevenue = totalRevenue / periodDays
 
     // Simple forecast: assume trend continues
     const predictedRevenue = avgDailyRevenue * periodDays
-    const orderCount = periodRevenue._count || 0
+    // _count may be a number or an object depending on Prisma client; normalize
+    const rawCount: any = periodRevenue._count
+    const orderCount = typeof rawCount === 'number' ? rawCount : (rawCount?._all || 0)
     const trend = orderCount > 0 ? 'stable' : 'down'
 
     return successResponse({

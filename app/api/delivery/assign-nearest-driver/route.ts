@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Get active drivers nearby (within 5km)
     const driverLocations = await prisma.driverLocation.findMany({
       where: {
-        isOnline: true,
+        isActive: true,
         updatedAt: {
           gte: new Date(Date.now() - 15 * 60 * 1000),
         },
@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
 
     return successResponse({
       order: updatedOrder,
-      driver: selectedDriver.driver,
+      // selectedDriver may not have a fully typed `driver` property depending on Prisma client generation; return id safely
+      driver: selectedDriver.driver ?? { id: selectedDriver.driverId },
     })
   } catch (error) {
     console.error('[API] Error assigning driver:', error)

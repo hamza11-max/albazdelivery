@@ -3,7 +3,7 @@
 
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
-import { authAPI } from '../services/api';
+import { authAPI } from './services/api';
 
 interface User {
   id: string;
@@ -36,7 +36,7 @@ interface RegisterData {
   phone: string;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   token: null,
   isLoading: true,

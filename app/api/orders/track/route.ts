@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Get recent location history (last 10 points)
-    const locationHistory = await prisma.LocationHistory.findMany({
+    const locationHistory = await prisma.locationHistory.findMany({
       where: { 
         driverLocation: { driverId: order.driverId },
         orderId: orderId

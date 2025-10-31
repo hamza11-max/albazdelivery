@@ -2,7 +2,7 @@
 // Copy to: mobile-apps/customer-app/components/TrackingMap.tsx
 
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image, Text } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 
 interface Location {
@@ -23,7 +23,7 @@ export function TrackingMap({
   driverLocation,
   route,
 }: TrackingMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
 
   // Fit map to show all markers
   useEffect(() => {
@@ -177,7 +177,7 @@ export function DriverNavigationMap({
   destination: Location;
   route?: Location[];
 }) {
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<any>(null);
 
   useEffect(() => {
     if (mapRef.current && currentLocation) {

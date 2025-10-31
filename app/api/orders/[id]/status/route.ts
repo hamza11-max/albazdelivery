@@ -7,17 +7,19 @@ import { emitOrderUpdated, emitOrderAssigned, emitNotificationSent } from '@/lib
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
+
+    const paramsResolved = await context.params
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    const { id } = params
+  const { id } = paramsResolved
     const body = await request.json()
     const { status, driverId } = body
 

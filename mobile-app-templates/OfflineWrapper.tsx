@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet, AppState, AppStateStatus } from 'react-native';
 import { ConnectionStatus } from './ConnectionStatus';
-import { useOfflineStore } from '../stores/offline-store';
-import { enhancedApi } from '../services/enhanced-api-service';
+// useOfflineStore intentionally not imported here (not used) to avoid unused import
+import { enhancedApi } from './enhanced-api-service';
 
 interface OfflineWrapperProps {
   children: React.ReactNode;

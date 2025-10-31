@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    // Use the shared auth wrapper for session retrieval to keep behavior consistent
+    const session = await auth()
     if (!session || session.user.role !== "DRIVER") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }

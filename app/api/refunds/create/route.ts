@@ -26,7 +26,8 @@ export async function POST(request: NextRequest) {
         customerId: session.user.id,
       },
       include: {
-        payments: true,
+        // Prisma client generates `payment` include; payment(s) plural may not exist
+        payment: true,
       },
     })
 

@@ -59,16 +59,8 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Emit event for real-time updates
-    emitDriverLocationUpdated(driverId, { 
-      lat: latitude, 
-      lng: longitude,
-      heading,
-      speed,
-      status,
-      orderId: currentOrderId,
-      timestamp: new Date()
-    })
+    // Emit event for real-time updates (emit only lat/lng to match event signature)
+    emitDriverLocationUpdated(driverId, { lat: latitude, lng: longitude })
 
     return successResponse({ location })
   } catch (error) {

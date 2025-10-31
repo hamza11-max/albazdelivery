@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
       type: conv.type,
       participantIds: conv.participantIds,
       participantRoles: conv.participantRoles,
-      orderId: conv.orderId,
+      orderId: (conv as any).orderId,
       lastMessage: conv.messages[0] || null,
       lastMessageTime: conv.lastMessageTime,
       isActive: conv.isActive,
@@ -87,13 +87,14 @@ export async function POST(request: NextRequest) {
 
     // Check if conversation already exists
     const existing = await prisma.conversation.findFirst({
-      where: {
+      where: ({
         type,
         participantIds: {
           hasEvery: [currentUserId, participantId],
         },
-        orderId: orderId || null,
-      },
+        // cast to any to avoid strict ConversationWhereInput mismatch for optional orderId
+        orderId: (orderId || null) as any,
+      } as any)
     })
 
     if (existing) {
@@ -101,14 +102,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new conversation
-    const conversation = await prisma.conversation.create({
-      data: {
-        type,
-        participantIds: [currentUserId, participantId],
-        participantRoles: [currentUserRole, participant.role],
-        orderId: orderId || null,
-      },
-    })
+    const createData: any = {
+      type,
+      participantIds: [currentUserId, participantId],
+      participantRoles: [currentUserRole, (participant as any).role],
+    }
+    if (orderId) createData.orderId = orderId
+
+    const conversation = await prisma.conversation.create({ data: createData })
 
     return successResponse({ conversation })
   } catch (error) {

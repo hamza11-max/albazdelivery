@@ -138,7 +138,8 @@ export function errorResponse(
     }
 
     // Record not found
-    if (error.code === 'P2025') {
+      const errAny = error as any
+      if (errAny && errAny.code === 'P2025') {
       return NextResponse.json<ApiResponse>(
         {
           success: false,

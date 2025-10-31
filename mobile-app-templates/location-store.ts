@@ -1,24 +1,25 @@
 // Location Store Template (For Driver App)
 // Copy to: mobile-apps/driver-app/stores/locationStore.ts
 
+import React from 'react';
 import { create } from 'zustand';
 import * as Location from 'expo-location';
-import { driversAPI } from '../services/api';
+import { driversAPI } from './services/api';
 
 interface LocationState {
-  location: Location.LocationObject | null;
+  location: import('expo-location').LocationObject | null;
   isTracking: boolean;
   error: string | null;
   
   // Actions
   startTracking: () => Promise<void>;
   stopTracking: () => void;
-  getCurrentLocation: () => Promise<Location.LocationObject | null>;
+  getCurrentLocation: () => Promise<any | null>;
 }
 
-let locationSubscription: Location.LocationSubscription | null = null;
+let locationSubscription: import('expo-location').LocationSubscription | null = null;
 
-export const useLocationStore = create<LocationState>((set, get) => ({
+export const useLocationStore = create<LocationState>((set) => ({
   location: null,
   isTracking: false,
   error: null,
@@ -49,7 +50,7 @@ export const useLocationStore = create<LocationState>((set, get) => ({
           timeInterval: 5000, // Update every 5 seconds
           distanceInterval: 10, // Or every 10 meters
         },
-        async (location) => {
+        async (location: import('expo-location').LocationObject) => {
           set({ location, isTracking: true, error: null });
           
           // Send location to server

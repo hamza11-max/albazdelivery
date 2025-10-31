@@ -6,10 +6,12 @@ import { auth } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
+
+    const paramsResolved = await context.params
 
     const session = await auth()
     if (!session?.user) {
@@ -17,7 +19,7 @@ export async function GET(
     }
 
     const ticket = await prisma.supportTicket.findUnique({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
       include: {
         customer: {
           select: {
@@ -46,10 +48,12 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
+
+    const paramsResolved = await context.params
 
     const session = await auth()
     if (!session?.user) {
@@ -61,7 +65,7 @@ export async function PATCH(
 
     // Get existing ticket
     const ticket = await prisma.supportTicket.findUnique({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
     })
 
     if (!ticket) {
@@ -86,7 +90,7 @@ export async function PATCH(
     }
 
     const updatedTicket = await prisma.supportTicket.update({
-      where: { id: params.id },
+      where: { id: paramsResolved.id },
       data: updateData,
       include: {
         customer: {
@@ -99,7 +103,7 @@ export async function PATCH(
       },
     })
 
-    console.log('[API] Support ticket updated:', params.id, '->', status)
+  console.log('[API] Support ticket updated:', paramsResolved.id, '->', status)
 
     return successResponse({ ticket: updatedTicket })
   } catch (error) {

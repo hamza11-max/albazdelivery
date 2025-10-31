@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig, AxiosRequestHeaders } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import NetInfo from '@react-native-community/netinfo';
 import { useOfflineStore } from '../stores/offline-store';
@@ -16,7 +16,7 @@ const CACHE_CONFIG = {
 };
 
 // Create axios instance
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL,
   timeout: 15000,
   headers: {
@@ -68,11 +68,14 @@ api.interceptors.request.use(async (config) => {
   try {
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      if (!config.headers) {
+        config.headers = {} as AxiosRequestHeaders;
+      }
+      (config.headers as AxiosRequestHeaders).Authorization = `Bearer ${token}`;
     }
 
     const netInfo = await NetInfo.fetch();
-    const isOnline = netInfo.isConnected && netInfo.isInternetReachable;
+    const isOnline = (netInfo.isConnected && netInfo.isInternetReachable) ?? false;
     useOfflineStore.getState().setOnlineStatus(isOnline);
 
     if (!isOnline) {

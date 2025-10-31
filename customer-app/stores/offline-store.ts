@@ -42,7 +42,7 @@ export const useOfflineStore = create<OfflineStore>()(
         }));
       },
 
-      setOfflineData: (key, data) => {
+      setOfflineData: (key: string, data: unknown) => {
         set((state) => ({
           offlineData: {
             ...state.offlineData,
@@ -51,11 +51,11 @@ export const useOfflineStore = create<OfflineStore>()(
         }));
       },
 
-      getOfflineData: (key) => {
-        return get().offlineData[key];
+      getOfflineData: <T = unknown>(key: string): T | undefined => {
+        return get().offlineData[key] as T;
       },
 
-      setLastSyncTimestamp: (timestamp) => {
+      setLastSyncTimestamp: (timestamp: number) => {
         set({ lastSyncTimestamp: timestamp });
       },
 

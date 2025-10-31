@@ -1,8 +1,8 @@
-import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestHeaders } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ApiConfig, CacheConfig, CacheEntry, ApiResponse } from '../types';
+import { ApiConfig, CacheConfig, CacheEntry } from '../types';
 import { useOfflineStore } from '../stores/offline-store';
 
 const API_CONFIG: ApiConfig = {
@@ -12,7 +12,7 @@ const API_CONFIG: ApiConfig = {
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
-  },
+  } as unknown as AxiosRequestHeaders,
 };
 
 const CACHE_CONFIG: CacheConfig = {
@@ -20,7 +20,7 @@ const CACHE_CONFIG: CacheConfig = {
   excludePaths: ['/auth/login', '/auth/logout'],
 };
 
-const api = axios.create(API_CONFIG);
+const axiosInstance = axios.create(API_CONFIG);
 
 const getCacheKey = (config: AxiosRequestConfig): string => {
   return `api-cache:${config.method}:${config.url}:${JSON.stringify(config.params)}`;
@@ -48,7 +48,7 @@ const getFromCache = async <T>(config: AxiosRequestConfig): Promise<T | null> =>
 const saveToCache = async <T>(config: AxiosRequestConfig, data: T): Promise<void> => {
   try {
     if (config.method?.toLowerCase() !== 'get') return;
-    if (CACHE_CONFIG.excludePaths.some(path => config.url?.includes(path))) return;
+  if (CACHE_CONFIG.excludePaths?.some(path => config.url?.includes(path))) return;
     
     const cacheKey = getCacheKey(config);
     const cacheEntry: CacheEntry<T> = {
@@ -63,14 +63,14 @@ const saveToCache = async <T>(config: AxiosRequestConfig, data: T): Promise<void
 };
 
 // Request interceptor
-api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
+axiosInstance.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
   try {
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
       if (!config.headers) {
-        config.headers = new axios.AxiosHeaders();
+        config.headers = {} as AxiosRequestHeaders;
       }
-      config.headers.Authorization = `Bearer ${token}`;
+      (config.headers as AxiosRequestHeaders).Authorization = `Bearer ${token}`;
     }
 
     const netInfo = await NetInfo.fetch();
@@ -89,7 +89,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
             headers: {},
             config
           })
-        };
+        } as any;
       }
 
       if (config.method?.toLowerCase() !== 'get') {
@@ -109,7 +109,7 @@ api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
 });
 
 // Response interceptor
-api.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   async (response: AxiosResponse) => {
     if (response.config.method?.toLowerCase() === 'get') {
       await saveToCache(response.config, response.data);
@@ -130,7 +130,7 @@ api.interceptors.response.use(
           statusText: 'OK (Cached)',
           headers: {},
           config: error.config,
-        } as AxiosResponse;
+        } as any as AxiosResponse;
       }
     }
 
@@ -159,4 +159,8 @@ const withRetry = async <T>(
   throw lastError;
 };
 
-export { api, withRetry };
+export { axiosInstance as api, withRetry };
+
+// Re-export convenience API collections from template service file so callers
+// using `../services/api` can import `authAPI`, `driversAPI`, etc.
+export * from '../api-service';
