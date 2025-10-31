@@ -8,8 +8,8 @@
   },
   "scripts": {
   "clean": "rm -rf .next",
-  "build": "npx --yes @swc/cli src -d dist",
-  "vercel-build": "prisma generate && prisma migrate deploy && npx --yes @swc/cli src -d dist",
+  "build": "swc src -d dist",
+  "vercel-build": "prisma generate && prisma migrate deploy && swc src -d dist",
     "dev": "next dev",
     "lint": "next lint",
     "start": "node -r @swc/register dist/server.js",
@@ -93,6 +93,10 @@
     "uuid": "latest",
     "vaul": "latest",
     "zod": "3.25.76"
+    ,"@swc/cli": "^0.7.8",
+    "@swc/core": "^1.14.0",
+    "@swc/helpers": "^0.5.17",
+    "@swc/register": "^0.1.10"
   },
   "devDependencies": {
     "@babel/core": "^7.28.5",
@@ -104,11 +108,7 @@
     "@jest/globals": "^30.2.0",
     "@stripe/react-stripe-js": "^5.3.0",
     "@stripe/stripe-js": "^8.2.0",
-    "@swc/cli": "^0.7.8",
-    "@swc/core": "^1.14.0",
-    "@swc/helpers": "^0.5.17",
-    "@swc/jest": "^0.2.39",
-    "@swc/register": "^0.1.10",
+  "@swc/jest": "^0.2.39",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.9.1",
