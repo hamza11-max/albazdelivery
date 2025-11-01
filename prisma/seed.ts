@@ -377,10 +377,10 @@ async function main() {
 
 main()
   .then(async () => {
-    await prisma.$disconnect()
+    if (prisma.$disconnect) await prisma.$disconnect()
   })
   .catch(async (e) => {
     console.error('❌ Error seeding database:', e)
-    await prisma.$disconnect()
+    if (prisma.$disconnect) await prisma.$disconnect()
     process.exit(1)
   })

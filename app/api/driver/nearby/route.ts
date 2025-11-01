@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate distance and filter by radius
     const nearbyDrivers = driverLocations
-      .map((loc) => {
+      .map((loc: any) => {
         const distance = calculateDistance(lat, lng, loc.latitude, loc.longitude)
         return {
           ...loc,
@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
           distance,
         }
       })
-      .filter((d) => d.distance <= radius)
-      .sort((a, b) => a.distance - b.distance)
+      .filter((d: any) => d.distance <= radius)
+      .sort((a: any, b: any) => a.distance - b.distance)
 
     return successResponse({ drivers: nearbyDrivers })
   } catch (error) {

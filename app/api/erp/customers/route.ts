@@ -24,14 +24,14 @@ export async function GET(request: NextRequest) {
       _max: { createdAt: true },
     })
 
-    const customerIds = aggregates.map((a) => a.customerId!).filter(Boolean)
+  const customerIds = aggregates.map((a: any) => a.customerId!).filter(Boolean)
     const users = await prisma.user.findMany({
       where: { id: { in: customerIds } },
       select: { id: true, name: true, email: true, phone: true },
     })
 
-    const customers = aggregates.map((a) => {
-      const u = users.find((x) => x.id === a.customerId)
+    const customers = aggregates.map((a: any) => {
+      const u = users.find((x: any) => x.id === a.customerId)
       return {
         id: u?.id || a.customerId!,
         name: u?.name || 'Client',

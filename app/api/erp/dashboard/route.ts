@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       take: 5,
     })
 
-    const topProducts = topProductsAgg.map((p) => ({
+    const topProducts = topProductsAgg.map((p: any) => ({
       productId: p.productId,
       productName: p.productName,
       totalSold: p._sum.quantity || 0,

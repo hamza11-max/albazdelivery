@@ -32,10 +32,10 @@ export async function GET(request: NextRequest) {
 
     // Calculate metrics
     const totalReviews = reviews.length
-    const averageRating = reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+  const averageRating = reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / totalReviews
 
     // Rating distribution
-    const ratingDistribution = reviews.reduce((acc, r) => {
+    const ratingDistribution = reviews.reduce((acc: Record<number, number>, r: any) => {
       acc[r.rating] = (acc[r.rating] || 0) + 1
       return acc
     }, {} as Record<number, number>)
@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const recentReviews = reviews.filter(r => r.createdAt >= thirtyDaysAgo)
+    const recentReviews = reviews.filter((r: any) => r.createdAt >= thirtyDaysAgo)
     const recentAverage = recentReviews.length > 0
-      ? recentReviews.reduce((sum, r) => sum + r.rating, 0) / recentReviews.length
+      ? recentReviews.reduce((sum: number, r: any) => sum + r.rating, 0) / recentReviews.length
       : averageRating
 
     return successResponse({

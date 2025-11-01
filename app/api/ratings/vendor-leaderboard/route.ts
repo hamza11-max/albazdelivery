@@ -29,10 +29,10 @@ export async function GET(request: NextRequest) {
 
     // Calculate average ratings and sort
     const vendorsWithRatings = vendors
-      .map(vendor => {
+      .map((vendor: any) => {
         const totalReviews = vendor.reviews.length
         const averageRating = totalReviews > 0
-          ? vendor.reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+          ? vendor.reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / totalReviews
           : 0
 
         return {
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
           averageRating: Math.round(averageRating * 10) / 10,
         }
       })
-      .sort((a, b) => {
+      .sort((a: any, b: any) => {
         // Sort by rating first, then by number of reviews
         if (b.averageRating !== a.averageRating) {
           return b.averageRating - a.averageRating

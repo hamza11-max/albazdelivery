@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const recommendations = lowStockProducts.map((product) => ({
+    const recommendations = lowStockProducts.map((product: any) => ({
       productId: product.id,
       productName: product.name,
       currentStock: product.stock,

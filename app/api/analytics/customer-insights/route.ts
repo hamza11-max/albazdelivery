@@ -48,13 +48,13 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const repeatCount = customerOrders.filter((c) => c._count.id > 1).length
+  const repeatCount = customerOrders.filter((c: any) => c._count.id > 1).length
     const repeatRate = totalCustomers.length > 0 
       ? (repeatCount / totalCustomers.length) * 100 
       : 0
 
     // Top customers with user details
-    const topCustomerIds = customerOrders.slice(0, 10).map(c => c.customerId)
+  const topCustomerIds = customerOrders.slice(0, 10).map((c: any) => c.customerId)
     const customerDetails = await prisma.user.findMany({
       where: { id: { in: topCustomerIds } },
       select: {
@@ -64,8 +64,8 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const topCustomers = customerOrders.slice(0, 10).map((c) => {
-      const details = customerDetails.find(d => d.id === c.customerId)
+    const topCustomers = customerOrders.slice(0, 10).map((c: any) => {
+      const details = customerDetails.find((d: any) => d.id === c.customerId)
       return {
         customerId: c.customerId,
         customerName: details?.name || 'Unknown',

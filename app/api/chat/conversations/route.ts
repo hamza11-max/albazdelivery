@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Format response
-    const formatted = conversations.map((conv) => ({
+  const formatted = conversations.map((conv: any) => ({
       id: conv.id,
       type: conv.type,
       participantIds: conv.participantIds,
