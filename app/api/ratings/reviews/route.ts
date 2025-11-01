@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { OrderStatus } from '@prisma/client'
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
       where: {
         id: orderId,
         customerId,
-        status: { in: ['DELIVERED', 'COMPLETED'] as import('@prisma/client').OrderStatus[] },
+        status: { in: ['DELIVERED'] },
       },
     })
 

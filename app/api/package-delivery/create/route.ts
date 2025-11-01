@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
       paymentMethod,
     } = validatedData
 
-    // Create package delivery order
-    const normalizedPaymentMethod = (paymentMethod?.toUpperCase() || 'CASH') as import('@prisma/client').PaymentMethod
+  // Create package delivery order
+  const normalizedPaymentMethod = (paymentMethod?.toUpperCase() || 'CASH') as import('@prisma/client').PaymentMethod
 
     const order = await prisma.order.create({
       data: {

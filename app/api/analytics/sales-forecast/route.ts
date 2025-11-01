@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { OrderStatus } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
   try {
@@ -34,7 +35,9 @@ export async function GET(request: NextRequest) {
       where: {
         vendorId,
         createdAt: { gte: periodStart },
-        status: { in: ['COMPLETED', 'DELIVERED'] as import('@prisma/client').OrderStatus[] },
+  // Use string literal that matches the DB enum value to avoid depending on
+  // the generated enum value export being present in the editor analysis.
+  status: { in: ['DELIVERED'] },
       },
       _sum: { total: true },
       _count: true,

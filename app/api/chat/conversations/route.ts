@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
+// Avoid importing Prisma namespace types directly from `@prisma/client` which
+// some editor/TS-server configurations may not resolve. Use a permissive local
+// type for the create payload and keep runtime behavior unchanged.
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
@@ -87,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if conversation already exists
-    const where: Prisma.ConversationWhereInput & Record<string, any> = {
+    const where: any = {
       type,
       participantIds: { hasEvery: [currentUserId, participantId] },
     }
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new conversation
-    const createData: Prisma.ConversationCreateInput & { orderId?: string } = {
+    const createData: any = {
       type: type as any,
       participantIds: [currentUserId, participantId],
       participantRoles: [currentUserRole, participant.role] as import('@prisma/client').ChatParticipantRole[],

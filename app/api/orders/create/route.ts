@@ -42,6 +42,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Normalize payment method and create order with items
+    // Avoid relying on a named `PaymentMethod` export from @prisma/client here
+    // (editor may not resolve generated client types). Use an inline assertion.
     const normalizedPaymentMethod = (paymentMethod?.toUpperCase() || 'CASH') as import('@prisma/client').PaymentMethod
 
     const order = await prisma.order.create({

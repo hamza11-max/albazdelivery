@@ -3,8 +3,8 @@
 
 Param(
     [int] $WaitSeconds = 120,
-    [switch] $StartNext = $true,
-    [switch] $StartExpo = $true,
+    [switch] $StartNext,
+    [switch] $StartExpo,
     [string] $ExpoCmd = 'npm run web'
 )
 
