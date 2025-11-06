@@ -1,11 +1,15 @@
 # Start Next and Expo dev servers in background PowerShell processes and capture logs.
 # Usage: From repo root run: .\scripts\capture-dev-logs.ps1
+# Disable specific ScriptAnalyzer rule that flags switch parameters with explicit defaults
+# (we intentionally avoid setting defaults for switches and add explicit Parameter attributes).
+# PSScriptAnalyzerDisableRule: PSAvoidDefaultValueSwitchParameter
 
+[CmdletBinding()]
 Param(
-    [int] $WaitSeconds = 120,
-    [switch] $StartNext,
-    [switch] $StartExpo,
-    [string] $ExpoCmd = 'npm run web'
+    [Parameter(Mandatory=$false)] [int] $WaitSeconds = 120,
+    [Parameter(Mandatory=$false)] [switch] $StartNext,
+    [Parameter(Mandatory=$false)] [switch] $StartExpo,
+    [Parameter(Mandatory=$false)] [string] $ExpoCmd = 'npm run web'
 )
 
 function Start-BackgroundProcess($workDir, $command, $outFile) {
