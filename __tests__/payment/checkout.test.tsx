@@ -5,7 +5,7 @@ import '@testing-library/jest-dom';
 import { test, describe, jest, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Session } from 'next-auth';
+import type { Session } from 'next-auth/core/types';
 import { SessionProvider } from 'next-auth/react';
 import { Elements } from '@stripe/react-stripe-js';
 import { CheckoutPage } from '@/app/checkout/client';
@@ -29,31 +29,37 @@ interface MockConfirmCardPaymentResult {
 }
 
 // Mock Stripe with proper types
-jest.mock('@stripe/stripe-js', () => {
-  const mockConfirmCardPayment = jest.fn()
-    .mockImplementation((): Promise<MockConfirmCardPaymentResult> => 
-      Promise.resolve({
-        paymentIntent: {
-          id: 'pi_123',
-          status: 'succeeded'
-        }
-      })
-    );
+const mockConfirmCardPayment = jest.fn(
+  (): Promise<MockConfirmCardPaymentResult> => 
+    Promise.resolve({
+      paymentIntent: {
+        id: 'pi_123',
+        status: 'succeeded'
+      }
+    })
+);
 
-  return {
-    loadStripe: () => Promise.resolve({
-      createPaymentMethod: jest.fn(),
-      confirmCardPayment: mockConfirmCardPayment,
-    }),
-    useStripe: () => ({
-      confirmCardPayment: mockConfirmCardPayment,
-    }),
-    useElements: () => ({
-      getElement: jest.fn().mockReturnValue({ complete: true }),
-    }),
-    Elements: ({ children }: { children: React.ReactNode }) => children,
-  };
-});
+// Mock Stripe elements
+const mockElements = {
+  create: jest.fn().mockReturnValue({ mount: jest.fn() }),
+  getElement: jest.fn().mockReturnValue({ mount: jest.fn() })
+};
+
+// Mock Stripe instance
+const mockStripe = {
+  createPaymentMethod: jest.fn(),
+  confirmCardPayment: mockConfirmCardPayment,
+  elements: jest.fn().mockReturnValue(mockElements)
+};
+
+// Mock Stripe module
+jest.mock('@stripe/stripe-js', () => ({
+  __esModule: true,
+  loadStripe: jest.fn(() => Promise.resolve(mockStripe)),
+  useStripe: jest.fn(() => mockStripe),
+  useElements: jest.fn(() => mockElements),
+  Elements: ({ children }: { children: React.ReactNode }) => children
+}));
 
 // Mock toast hook
 jest.mock('@/hooks/use-toast', () => ({
@@ -63,15 +69,16 @@ jest.mock('@/hooks/use-toast', () => ({
 }));
 
 // Create mock session
-const mockSession: Session = {
+const mockSession = {
   user: { 
     id: 'test_user', 
     name: 'Test User', 
     email: 'test@test.com',
-    role: 'customer',
+    role: 'CUSTOMER',
   },
-  expires: new Date(Date.now() + 2 * 86400).toISOString()
-};
+  expires: new Date(Date.now() + 2 * 86400).toISOString(),
+  status: 'authenticated',
+} as const;
 
 // Mock fetch responses
 type MockResponseInit = {

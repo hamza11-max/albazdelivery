@@ -5,6 +5,43 @@ import { loginSchema } from './validations/auth'
 import { prisma } from './prisma'
 import { verifyPassword } from './password'
 
+export type UserRole = 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN'
+
+declare module 'next-auth' {
+  interface User {
+    id: string
+    email: string
+    name: string
+    role: UserRole
+    phone?: string
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  }
+
+  interface Session {
+    user: {
+      id: string
+      name: string
+      email: string
+      role: UserRole
+      status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    } & {
+      id: string
+      name: string
+      email: string
+      role: UserRole
+      status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    }
+  }
+}
+
+declare module 'next-auth/jwt' {
+  interface JWT {
+    id: string
+    role: UserRole
+    status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  }
+}
+
 export const authConfig = {
   // Add pages config to ensure correct redirect URLs
   pages: {
@@ -30,7 +67,7 @@ export const authConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
     Credentials({
-      async authorize(credentials) {
+      async authorize(credentials: Record<string, string> | undefined) {
         // Validate credentials
         const validatedFields = loginSchema.safeParse(credentials)
 
@@ -73,31 +110,32 @@ export const authConfig = {
   ],
   // pages are already defined above
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: any; user?: any }) {
       if (user) {
         token.id = user.id
-        token.role = user.role
+        token.role = user.role as UserRole
+        token.status = user.status as 'PENDING' | 'APPROVED' | 'REJECTED'
       }
       return token
     },
-    async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string
-        session.user.role = token.role as string
+    async session({ session, token }: { session: any; token: any }) {
+      if (session.user) {
+        session.user.id = token.id
+        session.user.role = token.role
+        session.user.status = token.status
       }
       return session
     },
-    async authorized({ auth, request: { nextUrl } }) {
+    async authorized({ auth, request: { nextUrl } }: { auth: any; request: { nextUrl: URL } }) {
       const isLoggedIn = !!auth?.user
-      const isOnDashboard = nextUrl.pathname.startsWith('/admin') ||
-                           nextUrl.pathname.startsWith('/vendor') ||
-                           nextUrl.pathname.startsWith('/driver')
-      
+      const isOnDashboard = nextUrl.pathname.startsWith('/dashboard')
+
       if (isOnDashboard) {
         if (isLoggedIn) return true
         return false // Redirect unauthenticated users to login page
+      } else if (isLoggedIn) {
+        return Response.redirect(new URL('/dashboard', nextUrl))
       }
-      
       return true
     },
   },
@@ -106,4 +144,4 @@ export const authConfig = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-} as NextAuthConfig
+}

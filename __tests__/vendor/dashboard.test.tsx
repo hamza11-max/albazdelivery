@@ -6,7 +6,7 @@ import { test, describe, beforeEach } from '@jest/globals';
 import { screen, waitFor } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Session } from 'next-auth';
+import type { Session } from 'next-auth/core/types';
 import { SessionProvider } from 'next-auth/react';
 import VendorERPApp from '@/app/vendor/page';
 
@@ -25,15 +25,17 @@ jest.mock('next/navigation', () => ({
 }));
 
 // Create mock session
-const mockSession: Session = {
+const mockSession = {
   user: { 
     id: '1', 
     name: 'Test Vendor', 
     email: 'vendor@test.com',
     role: 'VENDOR',
+    status: 'APPROVED',
   },
-  expires: new Date(Date.now() + 2 * 86400).toISOString()
-};
+  expires: new Date(Date.now() + 2 * 86400).toISOString(),
+  status: 'authenticated'
+} as const;
 
 // Mock data for tests
 const mockData = {
@@ -54,10 +56,16 @@ const mockData = {
 
 // Mock fetch globally
 const mockFetchImplementation = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  return Promise.resolve(new Response(JSON.stringify({ success: true, data: mockData }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  }));
+  const url = typeof input === 'string' ? input : input.toString();
+  
+  if (url.includes('/api/vendor/dashboard')) {
+    return Promise.resolve(new Response(JSON.stringify(mockData.dashboard), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    }));
+  }
+  
+  return Promise.resolve(new Response(JSON.stringify({}), { status: 404 }));
 };
 
 // Type assertion for the mock function
