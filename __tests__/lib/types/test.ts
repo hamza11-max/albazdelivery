@@ -1,4 +1,4 @@
-import { Customer } from './customer';
+import { Customer } from '@/lib/types/customer';
 
 describe('Customer Type', () => {
   it('should have the correct type structure', () => {

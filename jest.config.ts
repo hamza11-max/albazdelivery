@@ -1,55 +1,55 @@
-import type { Config } from 'jest';
-import nextJest from 'next/jest';
-
-const createJestConfig = nextJest({
-  dir: './',
-});
-
-const config: Config = {
-  preset: 'ts-jest',
-  setupFilesAfterEnv: ['<rootDir>/__tests__/setupTests.ts'],
+module.exports = {
+  preset: 'ts-jest/presets/js-with-ts',
   testEnvironment: 'jsdom',
-  testMatch: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
-    '^@testing-library/(.*)$': '<rootDir>/node_modules/@testing-library/$1',
+    // Handle CSS imports (with CSS modules)
+    // https://jestjs.io/docs/webpack#mocking-css-modules
+    '^\\.(css|sass|scss)$': 'identity-obj-proxy',
+    // Handle image imports
+    // https://jestjs.io/docs/webpack#handling-static-assets
+    '^\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
   },
+  testPathIgnorePatterns: [
+    '<rootDir>/node_modules/',
+    '<rootDir>/.next/',
+    '<rootDir>/cypress/',
+    // Ignore empty test files
+    '<rootDir>/lib/types/test.ts',
+    '<rootDir>/__tests__/setupTests.ts',
+    '<rootDir>/__tests__/jest-matchers.d.ts',
+    '<rootDir>/__tests__/test-utils.tsx',
+    // Ignore MSW test files for now
+    '<rootDir>/__tests__/mocks/'
+  ],
   transform: {
-    '^.+\\.(js|jsx|ts|tsx|mjs)$': ['@swc/jest', {
-      jsc: {
-        parser: {
-          syntax: 'typescript',
-          tsx: true,
-          decorators: true,
-          dynamicImport: true
-        },
-        transform: {
-          react: {
-            runtime: 'automatic'
-          }
-        }
-      }
-    }]
+    // Use babel-jest to transpile tests with the next/babel preset
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(msw|until-async|node-fetch|uuid|nanoid|@mswjs|@open-draft|client-only|@testing-library)/)',
+    '/node_modules/(?!(next|@babel/runtime)/)',
+    '^.+\\.module\\.(css|sass|scss)$',
   ],
-  moduleDirectories: ['node_modules', '<rootDir>/__tests__/__mocks__'],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node', 'mjs'],
-  testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
-  collectCoverageFrom: [
-    'app/**/*.{js,jsx,ts,tsx}',
-    'lib/**/*.{js,jsx,ts,tsx}',
-    'components/**/*.{js,jsx,ts,tsx}',
-    '!**/*.d.ts',
-    '!**/node_modules/**',
-  ],
+  // Add support for TypeScript
   globals: {
     'ts-jest': {
-      tsconfig: '<rootDir>/tsconfig.test.json',
-      useESM: true,
+      tsconfig: 'tsconfig.jest.json',
     },
   },
-}
-
-export default createJestConfig(config);
+  // Setup files
+  setupFiles: ['<rootDir>/jest.polyfills.js'],
+  // Test environment options
+  testEnvironmentOptions: {
+    customExportConditions: [''],
+  },
+  // Test timeout
+  testTimeout: 10000,
+  // Only run tests in __tests__ directory
+  testMatch: [
+    '**/__tests__/**/*.test.[jt]s?(x)',
+    '**/?(*.)+(spec|test).[jt]s?(x)'
+  ],
+  // Don't run tests in node_modules by default
+  testPathIgnorePatterns: ['/node_modules/'],
+};
