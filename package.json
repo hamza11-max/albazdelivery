@@ -32,7 +32,6 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
-    "@next/swc-win32-x64-msvc": "^16.0.1",
     "@prisma/client": "^6.1.0",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
