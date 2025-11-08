@@ -8,13 +8,7 @@ module.exports = {
   images: {
     unoptimized: true,
   },
-  postcss: {
-    plugins: {
-      'tailwindcss': {},
-      'autoprefixer': {},
-    },
-  },
   compiler: {
     styledComponents: true
-  }
+  },
 };
