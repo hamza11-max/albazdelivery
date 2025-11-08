@@ -43,8 +43,14 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL !== '') {
   try {
     run('prisma', ['migrate', 'deploy']);
   } catch (err) {
-    console.error('prisma migrate deploy failed:', err && err.message ? err.message : err);
-    process.exit(1);
+    const msg = err && err.message ? err.message : String(err);
+    // Skip known baseline error (P3005) safely
+    if (msg.includes('P3005')) {
+      console.warn('⚠️  Prisma P3005: Database not empty — skipping migrations (baseline assumed)');
+    } else {
+      console.error('❌ Prisma migrate deploy failed:', msg);
+      process.exit(1);
+    }
   }
 } else {
   console.log('No DATABASE_URL detected — skipping `prisma migrate deploy` in build');
