@@ -23,6 +23,9 @@
 /* Custom utilities */
 @layer utilities {
   .text-balance {
-    text-wrap: balance;
+    /* Fully compatible text wrapping for all browsers */
+    overflow-wrap: break-word;
+    word-wrap: break-word; /* legacy support */
+    word-break: break-word; /* ensures long words wrap correctly */
   }
 }

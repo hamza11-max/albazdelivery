@@ -1,94 +1,103 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { stripePromise } from "@/lib/stripe";
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Loader2 } from "lucide-react"
-import { formatPrice } from "@/lib/utils"
-import { useToast } from "@/hooks/use-toast"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/hooks/use-toast'
+import { Loader2 } from 'lucide-react'
+import { formatPrice } from '@/lib/utils'
 
-interface CheckoutOrder {
-  id: string;
-  items: {
-    id: number;
-    name: string;
-    price: number;
-    quantity: number;
-  }[];
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
+interface CheckoutOrderItem {
+  id: number
+  name: string
+  price: number
+  quantity: number
+}
+
+export interface CheckoutOrder {
+  id: string
+  items: CheckoutOrderItem[]
+  subtotal: number
+  deliveryFee: number
+  total: number
 }
 
 interface CheckoutPageProps {
-  order: CheckoutOrder;
+  order: CheckoutOrder | null
 }
 
 export function CheckoutPage({ order }: CheckoutPageProps) {
-  const stripe = useStripe()
-  const elements = useElements()
   const [isLoading, setIsLoading] = useState(false)
-  const [cardComplete, setCardComplete] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    paymentMethod: '',
+  })
   const { toast } = useToast()
+  const router = useRouter()
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
+  // ✅ Null check for order
+  if (!order) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <p className="text-muted-foreground">Commande introuvable.</p>
+      </div>
+    )
+  }
 
-    if (!stripe || !elements) {
-      return
-    }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     setIsLoading(true)
 
     try {
-      // Get client secret from server
-      const response = await fetch('/api/payments/create-intent', {
+      const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          orderId: order.id,
-          amount: order.total,
+          ...formData,
+          subtotal: order.subtotal,
+          deliveryFee: order.deliveryFee,
+          total: order.total,
         }),
       })
 
-      const { clientSecret } = await response.json()
+      const result = await response.json()
 
-      if (!clientSecret) {
-        throw new Error('Payment failed to initialize')
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Erreur lors de la création de la commande')
       }
 
-      // Confirm payment
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
-        clientSecret,
-        {
-          payment_method: {
-            card: elements.getElement(CardElement)!,
-          },
-        }
-      )
-
-      if (stripeError) {
-        throw new Error(stripeError.message)
-      }
-
-      if (paymentIntent.status === "succeeded") {
-        toast({
-          title: "Paiement réussi",
-          description: "Votre commande a été confirmée.",
-          variant: "default",
-        })
-      }
-    } catch (error) {
-      console.error('Payment error:', error)
       toast({
-        title: "Erreur de paiement",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite lors du paiement",
-        variant: "destructive",
+        title: 'Commande confirmée',
+        description: 'Votre commande a été enregistrée avec succès.',
+      })
+
+      // ✅ Redirect to success page with orderId
+      router.push(`/checkout/success?orderId=${result.order?.id ?? order.id}`)
+    } catch (error) {
+      console.error(error)
+      toast({
+        title: 'Erreur',
+        description:
+          error instanceof Error
+            ? error.message
+            : "Une erreur s'est produite lors de l'enregistrement de la commande.",
+        variant: 'destructive',
       })
     } finally {
       setIsLoading(false)
@@ -98,30 +107,69 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
   return (
     <Card className="w-full max-w-lg mx-auto">
       <CardHeader>
-        <CardTitle>Paiement de commande</CardTitle>
-        <CardDescription>Entrez vos détails de paiement pour finaliser votre commande.</CardDescription>
+        <CardTitle>Finaliser la commande</CardTitle>
+        <CardDescription>
+          Remplissez les détails ci-dessous pour compléter votre commande.
+        </CardDescription>
       </CardHeader>
+
       <CardContent>
-        <form onSubmit={handleSubmit} id="payment-form" className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label>Détails de la carte</Label>
-            <CardElement 
-              id="card-element"
-              className="p-3 border rounded-md"
-              onChange={(e) => setCardComplete(e.complete)}
-              options={{
-                style: {
-                  base: {
-                    fontSize: '16px',
-                    fontSmoothing: 'antialiased',
-                  },
-                },
-              }}
-              data-testid="card-number-input"
+            <Label htmlFor="name">Nom complet</Label>
+            <Input
+              id="name"
+              name="name"
+              placeholder="Entrez votre nom complet"
+              value={formData.name}
+              onChange={handleChange}
+              required
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
+            <Label htmlFor="phone">Numéro de téléphone</Label>
+            <Input
+              id="phone"
+              name="phone"
+              type="tel"
+              placeholder="Ex: +213 6 12 34 56 78"
+              value={formData.phone}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="address">Adresse de livraison</Label>
+            <Input
+              id="address"
+              name="address"
+              placeholder="Entrez votre adresse complète"
+              value={formData.address}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="paymentMethod">Méthode de paiement</Label>
+            <select
+              id="paymentMethod"
+              name="paymentMethod"
+              title="Sélectionnez une méthode de paiement"
+              value={formData.paymentMethod}
+              onChange={handleChange}
+              className="w-full border rounded-md p-2 bg-background text-foreground"
+              required
+            >
+              <option value="">Choisir une méthode</option>
+              <option value="cash">Paiement à la livraison</option>
+              <option value="bank">Virement bancaire</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5 pt-4 border-t">
             <div className="flex justify-between text-sm">
               <span>Sous-total</span>
               <span>{formatPrice(order.subtotal)}</span>
@@ -135,25 +183,22 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
               <span>{formatPrice(order.total)}</span>
             </div>
           </div>
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Envoi en cours...
+              </>
+            ) : (
+              `Confirmer la commande (${formatPrice(order.total)})`
+            )}
+          </Button>
         </form>
       </CardContent>
-      <CardFooter>
-        <Button 
-          type="submit"
-          form="payment-form"
-          className="w-full"
-          disabled={!stripe || !cardComplete || isLoading}
-          data-testid="pay-button"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Traitement en cours...
-            </>
-          ) : (
-            `Payer ${formatPrice(order.total)}`
-          )}
-        </Button>
+
+      <CardFooter className="text-center text-sm text-muted-foreground">
+        Votre commande sera confirmée et payée à la livraison.
       </CardFooter>
     </Card>
   )
