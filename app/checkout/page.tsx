@@ -1,12 +1,6 @@
 export const dynamic = 'force-dynamic';
 
 import { CheckoutPage } from './client';
-import { Metadata } from 'next';
-
-export const metadata: Metadata = {
-  title: 'Checkout',
-  description: 'Complete your order',
-};
 
 export default async function Page({ params, searchParams }: {
   params: { [key: string]: string }
