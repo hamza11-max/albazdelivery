@@ -1,18 +1,15 @@
-"use client"
+'use client';
 
-import { Elements } from "@stripe/react-stripe-js"
-import { loadStripe } from "@stripe/stripe-js"
+import React from 'react';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+interface CheckoutLayoutProps {
+  children: React.ReactNode;
+}
 
-export default function CheckoutLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function CheckoutLayout({ children }: CheckoutLayoutProps) {
   return (
-    <Elements stripe={stripePromise}>
+    <div className="checkout-layout">
       {children}
-    </Elements>
-  )
+    </div>
+  );
 }
