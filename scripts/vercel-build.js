@@ -37,6 +37,12 @@ function run(program, args) {
 // 1) generate client
 run('prisma', ['generate']);
 
+// ✅ ADD THIS BLOCK — ensure DIRECT_URL is defined
+if (!process.env.DIRECT_URL && process.env.DATABASE_URL) {
+  console.log('DIRECT_URL not set — using DATABASE_URL as fallback');
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
+
 // 2) run migrations only if there's a DATABASE_URL set
 if (process.env.DATABASE_URL && process.env.DATABASE_URL !== '') {
   console.log('DATABASE_URL detected in environment — running prisma migrate deploy');
