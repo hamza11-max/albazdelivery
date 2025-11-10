@@ -104,25 +104,48 @@ if (typeof global.Response === 'undefined') {
   };
 }
 
-// Mock window.matchMedia
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(),
-    removeListener: jest.fn(),
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
+// Only set up browser APIs if window is available (jsdom environment)
+if (typeof window !== 'undefined') {
+  // Mock window.matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
 
-// Mock ResizeObserver
-class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  // Mock ResizeObserver
+  class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  window.ResizeObserver = ResizeObserver;
 }
-window.ResizeObserver = ResizeObserver;
+
+// Add crypto.randomUUID polyfill for Jest
+if (typeof global.crypto === 'undefined' || !global.crypto.randomUUID) {
+  const nodeCrypto = require('crypto');
+  if (!global.crypto) {
+    global.crypto = {};
+  }
+  global.crypto.randomUUID = nodeCrypto.randomUUID.bind(nodeCrypto);
+  global.crypto.getRandomValues = nodeCrypto.randomFillSync.bind(nodeCrypto);
+}
+
+// Also ensure it's available in globalThis
+if (typeof globalThis.crypto === 'undefined' || !globalThis.crypto.randomUUID) {
+  const nodeCrypto = require('crypto');
+  if (!globalThis.crypto) {
+    globalThis.crypto = {};
+  }
+  globalThis.crypto.randomUUID = nodeCrypto.randomUUID.bind(nodeCrypto);
+  globalThis.crypto.getRandomValues = nodeCrypto.randomFillSync.bind(nodeCrypto);
+}

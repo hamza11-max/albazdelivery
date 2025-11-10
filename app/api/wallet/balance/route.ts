@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { walletTransactionSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 // GET /api/wallet/balance - Get wallet balance
 export async function GET(request: NextRequest) {
@@ -17,9 +19,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Customers can only view their own wallet, admins can view any
-    const customerId = session.user.role === 'ADMIN' 
-      ? request.nextUrl.searchParams.get('customerId') || session.user.id
-      : session.user.id
+    let customerId = session.user.id
+    if (session.user.role === 'ADMIN') {
+      const requestedCustomerId = request.nextUrl.searchParams.get('customerId')
+      if (requestedCustomerId) {
+        // Validate customerId format
+        try {
+          z.string().cuid().parse(requestedCustomerId)
+          customerId = requestedCustomerId
+        } catch {
+          return errorResponse(new Error('Invalid customerId format'), 400)
+        }
+      }
+    }
 
     // Get or create wallet
     let wallet = await prisma.wallet.findUnique({
@@ -72,12 +84,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { customerId, amount, description, relatedOrderId } = body
-
-    // Validate input
-    if (!customerId || amount === undefined) {
-      return errorResponse(new Error('customerId and amount are required'), 400)
-    }
+    
+    // Validate input with schema
+    const validatedData = walletTransactionSchema.extend({
+      customerId: z.string().cuid('Invalid customerId format'),
+      relatedOrderId: z.string().cuid().optional(),
+    }).parse(body)
+    
+    const { customerId, amount, description, relatedOrderId } = validatedData
 
     // Only customer themselves or admin can update wallet
     if (session.user.role !== 'ADMIN' && customerId !== session.user.id) {

@@ -25,8 +25,22 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const role = searchParams.get('role')
     const status = searchParams.get('status')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+
+    // Validate pagination parameters
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100) // Max 100 per page
+
+    // Validate role if provided
+    if (role && !['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN'].includes(role.toUpperCase())) {
+      return errorResponse(new Error('Invalid role'), 400)
+    }
+
+    // Validate status if provided
+    if (status && !['PENDING', 'APPROVED', 'REJECTED'].includes(status.toUpperCase())) {
+      return errorResponse(new Error('Invalid status'), 400)
+    }
 
     // Build where clause
     const where: any = {}

@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ========================================
@@ -755,4 +756,34 @@ model ERPCustomer {
   
   @@index([vendorId])
   @@index([phone])
+}
+
+// ========================================
+// Audit Logging
+// ========================================
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  userRole      String?
+  action        String
+  resource      String
+  resourceId    String?
+  ipAddress     String?
+  userAgent     String?
+  details       Json?
+  status        AuditLogStatus
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum AuditLogStatus {
+  SUCCESS
+  FAILURE
 }

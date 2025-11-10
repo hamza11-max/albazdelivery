@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { createOrderSchema } from '@/lib/validations/order'
 import { emitOrderCreated } from '@/lib/events'
 import { OrderStatus } from '@/lib/constants'
 
@@ -110,6 +111,7 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
+    const validatedData = createOrderSchema.parse(body)
     const {
       storeId,
       items,
@@ -120,12 +122,7 @@ export async function POST(request: NextRequest) {
       deliveryAddress,
       city,
       customerPhone,
-    } = body
-
-    // Validate required fields (basic validation - you can add Zod schema later)
-    if (!storeId || !items || !deliveryAddress || !city || !customerPhone) {
-      return errorResponse(new Error('Missing required fields'), 400)
-    }
+    } = validatedData
 
     // Get store and vendor information
     const store = await prisma.store.findUnique({

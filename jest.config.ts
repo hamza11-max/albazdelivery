@@ -2,34 +2,45 @@ import type { Config } from '@jest/types';
 
 const config: Config.InitialOptions = {
   preset: 'ts-jest/presets/js-with-ts',
-  testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
-    '^\\.(css|sass|scss)$': 'identity-obj-proxy',
-    '^\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
-  },
-  transform: {
-    '^.+\\.[jt]sx?$': ['babel-jest', { presets: ['next/babel'] }],
-  },
-  transformIgnorePatterns: [
-    '/node_modules/(?!(next|@babel/runtime|msw|@mswjs|@bundled-es-modules|until-async)/)',
-    '^.+\\.module\\.(css|sass|scss)$',
-  ],
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tsconfig.jest.json',
+  // Use projects to support different test environments
+  projects: [
+    {
+      displayName: 'api',
+      testEnvironment: 'node',
+      testMatch: ['**/__tests__/api/**/*.test.[jt]s?(x)', '**/__tests__/lib/security/**/*.test.[jt]s?(x)'],
+      setupFiles: ['<rootDir>/jest.polyfills.js'],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.api.ts'],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/$1',
+      },
+      transform: {
+        '^.+\\.[jt]sx?$': ['babel-jest', { presets: ['next/babel'] }],
+      },
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next|@babel/runtime|msw|@mswjs|@bundled-es-modules|until-async)/)',
+      ],
     },
-  },
-  setupFiles: ['<rootDir>/jest.polyfills.js'],
-  testEnvironmentOptions: {
-    customExportConditions: [''],
-  },
-  testTimeout: 10000,
-  testMatch: [
-    '**/__tests__/**/*.test.[jt]s?(x)',
-    '**/?(*.)+(spec|test).[jt]s?(x)'
+    {
+      displayName: 'ui',
+      testEnvironment: 'jsdom',
+      testMatch: ['**/__tests__/**/*.test.[jt]sx', '!**/__tests__/api/**', '!**/__tests__/lib/security/**'],
+      setupFiles: ['<rootDir>/jest.polyfills.js'],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/$1',
+        '^\\.(css|sass|scss)$': 'identity-obj-proxy',
+        '^\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
+      },
+      transform: {
+        '^.+\\.[jt]sx?$': ['babel-jest', { presets: ['next/babel'] }],
+      },
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next|@babel/runtime|msw|@mswjs|@bundled-es-modules|until-async)/)',
+        '^.+\\.module\\.(css|sass|scss)$',
+      ],
+    },
   ],
+  testTimeout: 10000,
   testPathIgnorePatterns: [
     '/node_modules/',
     '/.next/',

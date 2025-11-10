@@ -4,6 +4,8 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitDriverLocationUpdated } from '@/lib/events'
+import { updateDriverLocationSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +21,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { latitude, longitude, accuracy, heading, speed, isActive, status, currentOrderId } = body
+    const validatedData = updateDriverLocationSchema.parse(body)
+    const { latitude, longitude, accuracy, heading, speed, isActive, status, currentOrderId } = validatedData
     const driverId = session.user.id
 
     // Update driver location
@@ -78,6 +81,23 @@ export async function GET(request: NextRequest) {
 
     if (!driverId && !orderId) {
       return errorResponse(new Error('driverId or orderId is required'), 400)
+    }
+
+    // Validate IDs if provided
+    if (driverId) {
+      try {
+        z.string().cuid().parse(driverId)
+      } catch {
+        return errorResponse(new Error('Invalid driverId format'), 400)
+      }
+    }
+
+    if (orderId) {
+      try {
+        z.string().cuid().parse(orderId)
+      } catch {
+        return errorResponse(new Error('Invalid orderId format'), 400)
+      }
     }
 
     let location;

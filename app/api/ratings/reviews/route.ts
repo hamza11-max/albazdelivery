@@ -4,6 +4,8 @@ import { successResponse, errorResponse, UnauthorizedError, NotFoundError } from
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { OrderStatus } from '@prisma/client'
+import { createReviewSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,11 +17,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { orderId, rating, comment } = body
+    const validatedData = createReviewSchema.parse(body)
+    const { orderId, rating, comment, vendorId } = validatedData
     const customerId = session.user.id
 
-    if (!orderId || !rating) {
-      return errorResponse(new Error('orderId and rating are required'), 400)
+    // Verify vendorId matches the order's vendor
+    if (vendorId) {
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { vendorId: true },
+      })
+      
+      if (order && order.vendorId !== vendorId) {
+        return errorResponse(new Error('Vendor ID does not match order vendor'), 400)
+      }
     }
 
     // Verify order exists and belongs to customer
@@ -44,14 +55,28 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('Review already exists for this order'), 400)
     }
 
+    // Get order to verify vendor
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { vendorId: true },
+    })
+
+    if (!order || !order.vendorId) {
+      throw new NotFoundError('Order not found or has no vendor')
+    }
+
     // Create review
     const review = await prisma.review.create({
       data: {
         orderId,
         customerId,
-  vendorId: order.vendorId!,
-        rating: parseInt(rating),
-        comment: comment || '',
+        vendorId: vendorId || order.vendorId,
+        rating,
+        comment: validatedData.comment,
+        foodQuality: validatedData.foodQuality || null,
+        deliveryTime: validatedData.deliveryTime || null,
+        customerService: validatedData.customerService || null,
+        photos: validatedData.photos || [],
       },
       include: {
         customer: {
@@ -78,8 +103,26 @@ export async function GET(request: NextRequest) {
     const vendorId = searchParams.get('vendorId')
     const productId = searchParams.get('productId')
 
+    // Validate query parameters
     if (!vendorId && !productId) {
       return errorResponse(new Error('vendorId or productId is required'), 400)
+    }
+
+    // Validate format if provided
+    if (vendorId) {
+      try {
+        z.string().cuid().parse(vendorId)
+      } catch {
+        return errorResponse(new Error('Invalid vendorId format'), 400)
+      }
+    }
+
+    if (productId) {
+      try {
+        z.string().cuid().parse(productId)
+      } catch {
+        return errorResponse(new Error('Invalid productId format'), 400)
+      }
     }
 
     const where: any = {}

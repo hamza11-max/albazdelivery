@@ -1,43 +1,26 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
+import { redeemRewardSchema } from '@/lib/validations/api'
 
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    // Return predefined rewards catalog
-    // TODO: Move to database table if needed
-    const rewards = [
-      {
-        id: 'reward-1',
-        name: 'Livraison Gratuite',
-        description: 'Livraison gratuite sur votre prochaine commande',
-        pointsCost: 100,
-        type: 'DISCOUNT',
-        value: 0,
-        icon: '🚚',
+    // Fetch active rewards from database
+    const rewards = await prisma.loyaltyReward.findMany({
+      where: {
+        isActive: true,
+        expiresAt: {
+          gt: new Date(), // Only rewards that haven't expired
+        },
       },
-      {
-        id: 'reward-2',
-        name: 'Réduction 10%',
-        description: '10% de réduction sur votre prochaine commande',
-        pointsCost: 200,
-        type: 'DISCOUNT',
-        value: 10,
-        icon: '🎁',
+      orderBy: {
+        pointsCost: 'asc', // Cheapest rewards first
       },
-      {
-        id: 'reward-3',
-        name: 'Réduction 20%',
-        description: '20% de réduction sur votre prochaine commande',
-        pointsCost: 400,
-        type: 'DISCOUNT',
-        value: 20,
-        icon: '💎',
-      },
-    ]
+    })
 
     return successResponse({ rewards })
   } catch (error) {
@@ -50,10 +33,31 @@ export async function POST(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const { customerId, rewardId, pointsCost } = await request.json()
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
 
-    if (!customerId || !rewardId || !pointsCost) {
-      return errorResponse(new Error('Missing required fields'), 400)
+    const body = await request.json()
+    const validatedData = redeemRewardSchema.parse(body)
+    const { rewardId } = validatedData
+    const customerId = session.user.id
+
+    // Get reward from database
+    const reward = await prisma.loyaltyReward.findUnique({
+      where: { id: rewardId },
+    })
+
+    if (!reward) {
+      return errorResponse(new Error('Reward not found'), 404)
+    }
+
+    if (!reward.isActive) {
+      return errorResponse(new Error('Reward is not available'), 400)
+    }
+
+    if (reward.expiresAt < new Date()) {
+      return errorResponse(new Error('Reward has expired'), 400)
     }
 
     // Get loyalty account
@@ -65,7 +69,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('Loyalty account not found'), 404)
     }
 
-    if (account.points < pointsCost) {
+    if (account.points < reward.pointsCost) {
       return errorResponse(new Error('Insufficient points'), 400)
     }
 
@@ -75,8 +79,8 @@ export async function POST(request: NextRequest) {
       await tx.loyaltyAccount.update({
         where: { customerId },
         data: {
-          points: { decrement: pointsCost },
-          totalPointsRedeemed: { increment: pointsCost },
+          points: { decrement: reward.pointsCost },
+          totalPointsRedeemed: { increment: reward.pointsCost },
         },
       })
 
@@ -85,17 +89,29 @@ export async function POST(request: NextRequest) {
         data: {
           loyaltyAccountId: account.id,
           type: 'REDEEM',
-          points: pointsCost,
-          description: `Redeemed reward: ${rewardId}`,
+          points: reward.pointsCost,
+          description: `Redeemed reward: ${reward.name}`,
         },
       })
 
-      return { transaction }
+      // Create redemption record
+      const redemption = await tx.customerRedemption.create({
+        data: {
+          customerId,
+          loyaltyAccountId: account.id,
+          rewardId: reward.id,
+          status: 'ACTIVE',
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        },
+      })
+
+      return { transaction, redemption, reward }
     })
 
     return successResponse({
       message: 'Reward redeemed successfully',
-      transaction: result.transaction,
+      redemption: result.redemption,
+      reward: result.reward,
     })
   } catch (error) {
     console.error('[API] Reward redemption error:', error)

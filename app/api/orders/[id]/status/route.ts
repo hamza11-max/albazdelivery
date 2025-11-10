@@ -1,9 +1,11 @@
 import { type NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderUpdated, emitOrderAssigned, emitNotificationSent } from '@/lib/events'
+import { updateOrderStatusBodySchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function PUT(
   request: NextRequest,
@@ -13,39 +15,93 @@ export async function PUT(
     applyRateLimit(request, rateLimitConfigs.api)
 
     const paramsResolved = await context.params
+    const { id } = paramsResolved
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-  const { id } = paramsResolved
-    const body = await request.json()
-    const { status, driverId } = body
-
-    if (!status) {
-      return errorResponse(new Error('status is required'), 400)
+    // Validate order ID format
+    try {
+      z.string().cuid().parse(id)
+    } catch {
+      return errorResponse(new Error('Invalid order ID format'), 400)
     }
+
+    const body = await request.json()
+    const validatedData = updateOrderStatusBodySchema.parse(body)
+    const { status, driverId } = validatedData
 
     // Get existing order
     const existingOrder = await prisma.order.findUnique({
       where: { id },
-      include: { customer: true, vendor: true },
+      include: { 
+        customer: true, 
+        vendor: true,
+        store: {
+          select: {
+            id: true,
+            vendorId: true,
+          },
+        },
+      },
     })
 
     if (!existingOrder) {
-      return errorResponse(new Error('Order not found'), 404)
+      throw new NotFoundError('Order')
     }
 
-    // Authorization check
+    // Verify vendorId matches store vendorId
+    if (existingOrder.vendorId && existingOrder.store?.vendorId !== existingOrder.vendorId) {
+      // Update vendorId from store if inconsistent
+      await prisma.order.update({
+        where: { id },
+        data: { vendorId: existingOrder.store?.vendorId },
+      })
+      existingOrder.vendorId = existingOrder.store?.vendorId || existingOrder.vendorId
+    }
+
+    // Authorization check based on role and status transition
     const role = session.user.role
-    if (role !== 'ADMIN') {
-      if (role === 'VENDOR' && existingOrder.vendorId !== session.user.id) {
+    const userId = session.user.id
+
+    if (role === 'VENDOR') {
+      if (existingOrder.vendorId !== userId) {
         throw new ForbiddenError('You can only update your own orders')
-      } else if (role === 'CUSTOMER' && existingOrder.customerId !== session.user.id) {
-        throw new ForbiddenError('You can only update your own orders')
-      } else if (role === 'DRIVER' && existingOrder.driverId !== session.user.id) {
+      }
+      // Vendors can only set: ACCEPTED, PREPARING, READY
+      if (!['ACCEPTED', 'PREPARING', 'READY'].includes(status)) {
+        throw new ForbiddenError('Invalid status transition for vendor')
+      }
+    } else if (role === 'DRIVER') {
+      if (existingOrder.driverId !== userId && status !== 'ASSIGNED') {
         throw new ForbiddenError('You can only update assigned orders')
+      }
+      // Drivers can only set: ASSIGNED, IN_DELIVERY, DELIVERED
+      if (!['ASSIGNED', 'IN_DELIVERY', 'DELIVERED'].includes(status)) {
+        throw new ForbiddenError('Invalid status transition for driver')
+      }
+    } else if (role === 'CUSTOMER') {
+      if (existingOrder.customerId !== userId) {
+        throw new ForbiddenError('You can only update your own orders')
+      }
+      // Customers can only cancel orders
+      if (status !== 'CANCELLED') {
+        throw new ForbiddenError('Customers can only cancel orders')
+      }
+    } else if (role !== 'ADMIN') {
+      throw new ForbiddenError('Insufficient permissions')
+    }
+
+    // Validate driver assignment
+    if (status === 'ASSIGNED' && driverId) {
+      const driver = await prisma.driver.findUnique({
+        where: { userId: driverId },
+        select: { id: true },
+      })
+      if (!driver) {
+        return errorResponse(new Error('Driver not found'), 404)
       }
     }
 

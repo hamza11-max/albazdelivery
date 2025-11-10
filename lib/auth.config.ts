@@ -24,12 +24,6 @@ declare module 'next-auth' {
       email: string
       role: UserRole
       status: 'PENDING' | 'APPROVED' | 'REJECTED'
-    } & {
-      id: string
-      name: string
-      email: string
-      role: UserRole
-      status: 'PENDING' | 'APPROVED' | 'REJECTED'
     }
   }
 }
@@ -103,7 +97,8 @@ export const authConfig = {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
+          role: user.role as UserRole,
+          status: user.status as 'PENDING' | 'APPROVED' | 'REJECTED',
         }
       },
     }),

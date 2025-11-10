@@ -18,8 +18,12 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const page = parseInt(searchParams.get('page') || '1')
+    const limitParam = searchParams.get('limit')
+    const pageParam = searchParams.get('page')
+
+    // Validate pagination parameters
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
+    const page = Math.max(1, parseInt(pageParam || '1'))
 
     // Build where clause
     const where: any = {
@@ -76,7 +80,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { notificationId, markAllAsRead } = body
+    const validatedData = markNotificationReadSchema.parse(body)
+    const { notificationId, markAllAsRead } = validatedData
 
     if (markAllAsRead) {
       // Mark all notifications as read
@@ -98,7 +103,14 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!notificationId) {
-      return errorResponse(new Error('notificationId or markAllAsRead is required'), 400)
+      return errorResponse(new Error('notificationId is required when markAllAsRead is false'), 400)
+    }
+
+    // Validate notificationId format
+    try {
+      z.string().cuid().parse(notificationId)
+    } catch {
+      return errorResponse(new Error('Invalid notification ID format'), 400)
     }
 
     // Mark single notification as read
@@ -162,6 +174,13 @@ export async function DELETE(request: NextRequest) {
 
     if (!notificationId) {
       return errorResponse(new Error('notificationId or all=true is required'), 400)
+    }
+
+    // Validate notificationId format
+    try {
+      z.string().cuid().parse(notificationId)
+    } catch {
+      return errorResponse(new Error('Invalid notification ID format'), 400)
     }
 
     // Verify ownership before deleting

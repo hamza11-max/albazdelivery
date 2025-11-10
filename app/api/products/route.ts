@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { createProductSchema, updateProductSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 // GET /api/products - Get products by store with optional filters
 export async function GET(request: NextRequest) {
@@ -16,8 +18,16 @@ export async function GET(request: NextRequest) {
     const available = searchParams.get('available')
     const search = searchParams.get('search')
 
+    // Validate storeId
     if (!storeId) {
       return errorResponse(new Error('storeId is required'), 400)
+    }
+
+    // Validate storeId format (should be a valid CUID)
+    try {
+      z.string().cuid().parse(storeId)
+    } catch {
+      return errorResponse(new Error('Invalid storeId format'), 400)
     }
 
     // Build where clause
@@ -65,11 +75,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { productId, available } = body
-
-    if (productId === undefined || available === undefined) {
-      return errorResponse(new Error('productId and available are required'), 400)
-    }
+    
+    // Validate request body
+    const updateSchema = z.object({
+      productId: z.string().cuid('Invalid productId format'),
+      available: z.boolean(),
+    })
+    
+    const validatedData = updateSchema.parse(body)
+    const { productId, available } = validatedData
 
     // Get product to verify ownership
     const product = await prisma.product.findUnique({

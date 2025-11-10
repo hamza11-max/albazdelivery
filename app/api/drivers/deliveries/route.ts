@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderAssigned } from '@/lib/events'
 import { OrderStatus } from '@/lib/constants'
+import { z } from 'zod'
 
 // GET /api/drivers/deliveries - Get available deliveries or driver's assigned deliveries
 export async function GET(request: NextRequest) {
@@ -26,6 +27,14 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const available = searchParams.get('available')
     const status = searchParams.get('status')
+
+    // Validate status if provided
+    if (status) {
+      const validStatuses = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'IN_DELIVERY', 'DELIVERED', 'CANCELLED']
+      if (!validStatuses.includes(status.toUpperCase())) {
+        return errorResponse(new Error('Invalid status'), 400)
+      }
+    }
 
     if (available === 'true') {
       // Get orders that are ready for pickup and not assigned to any driver
@@ -130,6 +139,13 @@ export async function POST(request: NextRequest) {
 
     if (!orderId) {
       return errorResponse(new Error('orderId is required'), 400)
+    }
+
+    // Validate orderId format
+    try {
+      z.string().cuid().parse(orderId)
+    } catch {
+      return errorResponse(new Error('Invalid orderId format'), 400)
     }
 
     // Get the order

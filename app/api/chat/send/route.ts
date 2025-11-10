@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { sendMessageSchema } from '@/lib/validations/api'
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,11 +15,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { conversationId, message, attachments } = body
-
-    if (!conversationId || !message) {
-      return errorResponse(new Error('conversationId and message are required'), 400)
-    }
+    const validatedData = sendMessageSchema.parse(body)
+    const { conversationId, message, attachments } = validatedData
 
     // Verify user is participant
     const conversation = await prisma.conversation.findFirst({

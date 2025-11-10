@@ -87,10 +87,28 @@ export function successResponse<T>(data: T, statusCode = 200): NextResponse<ApiR
 // Error response helper
 export function errorResponse(
   error: unknown,
-  statusCode?: number
+  statusCode?: number,
+  request?: Request
 ): NextResponse<ApiResponse> {
   // Log error for monitoring
   console.error('[API Error]:', error)
+
+  // Import audit logging dynamically to avoid circular dependencies
+  if (request && error instanceof Error) {
+    import('@/lib/security/audit-log').then(({ auditSecurityEvent, getClientInfo }) => {
+      if (error instanceof UnauthorizedError) {
+        auditSecurityEvent('UNAUTHORIZED_ACCESS', undefined, undefined, request as any, {
+          message: error.message,
+        })
+      } else if (error instanceof ValidationError) {
+        auditSecurityEvent('VALIDATION_ERROR', undefined, undefined, request as any, {
+          message: error.message,
+        })
+      }
+    }).catch(() => {
+      // Silently fail audit logging to prevent breaking error handling
+    })
+  }
 
   // Handle Zod validation errors
   if (error instanceof ZodError) {
@@ -188,12 +206,15 @@ export function errorResponse(
   const message =
     error instanceof Error ? error.message : 'An unexpected error occurred'
 
+  // Show detailed errors in development and test environments
+  const showDetailedError = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+
   return NextResponse.json<ApiResponse>(
     {
       success: false,
       error: {
         code: 'INTERNAL_SERVER_ERROR',
-        message: process.env.NODE_ENV === 'development' ? message : 'Internal server error',
+        message: showDetailedError ? message : 'Internal server error',
       },
       meta: {
         timestamp: new Date().toISOString(),

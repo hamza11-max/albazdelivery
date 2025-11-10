@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { z } from 'zod'
 
 // GET /api/loyalty/account - Get loyalty account with transaction history
 export async function GET(request: NextRequest) {
@@ -17,9 +18,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Customers can only view their own account, admins can view any
-    const customerId = session.user.role === 'ADMIN'
-      ? request.nextUrl.searchParams.get('customerId') || session.user.id
-      : session.user.id
+    let customerId = session.user.id
+    if (session.user.role === 'ADMIN') {
+      const requestedCustomerId = request.nextUrl.searchParams.get('customerId')
+      if (requestedCustomerId) {
+        // Validate customerId format
+        try {
+          z.string().cuid().parse(requestedCustomerId)
+          customerId = requestedCustomerId
+        } catch {
+          return errorResponse(new Error('Invalid customerId format'), 400)
+        }
+      }
+    }
 
     // Get or create loyalty account
     let account = await prisma.loyaltyAccount.findUnique({
@@ -79,11 +90,17 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { customerId, points, description, orderId } = body
-
-    if (!customerId || points === undefined) {
-      return errorResponse(new Error('customerId and points are required'), 400)
-    }
+    
+    // Validate input
+    const updateSchema = z.object({
+      customerId: z.string().cuid('Invalid customerId format'),
+      points: z.number().int('Points must be an integer'),
+      description: z.string().min(5).max(200).optional(),
+      orderId: z.string().cuid().optional(),
+    })
+    
+    const validatedData = updateSchema.parse(body)
+    const { customerId, points, description, orderId } = validatedData
 
     // Only admin can manually adjust points
     if (session.user.role !== 'ADMIN') {

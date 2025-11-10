@@ -4,6 +4,7 @@ import { verifyPassword } from '@/lib/password'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { loginSchema } from '@/lib/validations/auth'
 import { signIn } from '@/lib/auth'
+import { auditAuthEvent } from '@/lib/security/audit-log'
 
 // POST /api/auth/login - Simple login endpoint for API testing
 export async function POST(request: NextRequest) {
@@ -28,11 +29,13 @@ export async function POST(request: NextRequest) {
     })
     
     if (!user) {
+      await auditAuthEvent('LOGIN_FAILED', undefined, undefined, request, 'Invalid email or password')
       throw new UnauthorizedError('Invalid email or password')
     }
     
     // Check if approved
     if (user.status !== 'APPROVED') {
+      await auditAuthEvent('LOGIN_FAILED', user.id, user.role, request, 'Account pending approval')
       throw new UnauthorizedError('Your account is pending approval')
     }
     
@@ -40,8 +43,12 @@ export async function POST(request: NextRequest) {
     const isValid = await verifyPassword(password, user.password)
     
     if (!isValid) {
+      await auditAuthEvent('LOGIN_FAILED', user.id, user.role, request, 'Invalid password')
       throw new UnauthorizedError('Invalid email or password')
     }
+    
+    // Log successful login
+    await auditAuthEvent('LOGIN', user.id, user.role, request)
     
     // Return user data (without password)
     const { password: _, ...userWithoutPassword } = user

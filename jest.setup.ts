@@ -182,3 +182,24 @@ const mockWindow = {
 Object.defineProperty(window, 'ResizeObserver', { value: mockWindow.ResizeObserver });
 Object.defineProperty(window, 'IntersectionObserver', { value: mockWindow.IntersectionObserver });
 Object.defineProperty(window, 'matchMedia', { value: mockWindow.matchMedia });
+
+// Mock crypto.randomUUID for Node.js environment
+if (typeof crypto === 'undefined' || !crypto.randomUUID) {
+  const { randomUUID } = require('crypto');
+  Object.defineProperty(global, 'crypto', {
+    value: {
+      ...(global.crypto || {}),
+      randomUUID,
+    },
+    writable: true,
+  });
+}
+
+// Ensure crypto is available in global scope for both browser and Node environments
+if (typeof globalThis.crypto === 'undefined') {
+  const nodeCrypto = require('crypto');
+  (globalThis as any).crypto = {
+    randomUUID: nodeCrypto.randomUUID.bind(nodeCrypto),
+    getRandomValues: nodeCrypto.randomFillSync.bind(nodeCrypto),
+  };
+}

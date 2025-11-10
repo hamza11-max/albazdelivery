@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { createSupportTicketSchema } from '@/lib/validations/api'
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +24,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (status) {
-      where.status = status.toUpperCase()
+      // Validate status enum
+      const validStatuses = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
+      if (validStatuses.includes(status.toUpperCase())) {
+        where.status = status.toUpperCase()
+      }
     }
 
     const tickets = await prisma.supportTicket.findMany({
@@ -59,18 +64,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { subject, description, category, priority } = body
-
-    if (!subject || !description) {
-      return errorResponse(new Error('subject and description are required'), 400)
-    }
+    const validatedData = createSupportTicketSchema.parse(body)
+    const { subject, description, category, priority } = validatedData
 
     const ticket = await prisma.supportTicket.create({
       data: {
         customerId: session.user.id,
         subject,
         description,
-        category: category || 'GENERAL',
+        category: category || 'OTHER',
         priority: priority || 'MEDIUM',
         status: 'OPEN',
       },

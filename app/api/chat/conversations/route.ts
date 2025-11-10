@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { createConversationSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,31 +71,46 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { participantId, type, orderId } = body
-
-    if (!participantId || !type) {
-      return errorResponse(new Error('participantId and type are required'), 400)
-    }
+    const validatedData = createConversationSchema.parse(body)
+    const { participantIds, type, relatedOrderId } = validatedData
 
     const currentUserId = session.user.id
     const currentUserRole = session.user.role
 
+    // Validate that current user is included in participants
+    if (!participantIds.includes(currentUserId)) {
+      return errorResponse(new Error('You must include yourself as a participant'), 400)
+    }
+
     // Get participant details
-    const participant = await prisma.user.findUnique({
-      where: { id: participantId },
+    const participants = await prisma.user.findMany({
+      where: {
+        id: { in: participantIds },
+      },
       select: { id: true, role: true },
     })
 
-    if (!participant) {
-      return errorResponse(new Error('Participant not found'), 404)
+    if (participants.length !== participantIds.length) {
+      return errorResponse(new Error('One or more participants not found'), 404)
+    }
+
+    // Verify order exists if provided
+    if (relatedOrderId) {
+      const order = await prisma.order.findUnique({
+        where: { id: relatedOrderId },
+        select: { id: true },
+      })
+      if (!order) {
+        return errorResponse(new Error('Order not found'), 404)
+      }
     }
 
     // Check if conversation already exists
     const where: any = {
       type,
-      participantIds: { hasEvery: [currentUserId, participantId] },
+      participantIds: { hasEvery: participantIds },
     }
-    if (orderId) where.orderId = orderId
+    if (relatedOrderId) where.orderId = relatedOrderId
 
     const existing = await prisma.conversation.findFirst({ where })
 
@@ -104,14 +121,14 @@ export async function POST(request: NextRequest) {
     // Create new conversation
     const createData: any = {
       type: type as any,
-      participantIds: [currentUserId, participantId],
-      participantRoles: [currentUserRole, participant.role] as import('@prisma/client').ChatParticipantRole[],
+      participantIds: participantIds,
+      participantRoles: participants.map(p => p.role) as import('@prisma/client').ChatParticipantRole[],
     }
-    if (orderId) createData.orderId = orderId
+    if (relatedOrderId) createData.orderId = relatedOrderId
 
     const conversation = await prisma.conversation.create({ data: createData })
 
-    return successResponse({ conversation })
+    return successResponse({ conversation }, 201)
   } catch (error) {
     console.error('[API] Error creating conversation:', error)
     return errorResponse(error)
