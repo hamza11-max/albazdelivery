@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const available = searchParams.get('available')
     const search = searchParams.get('search')
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+    const minPrice = searchParams.get('minPrice')
+    const maxPrice = searchParams.get('maxPrice')
 
     // Validate storeId
     if (!storeId) {
@@ -29,6 +33,10 @@ export async function GET(request: NextRequest) {
     } catch {
       return errorResponse(new Error('Invalid storeId format'), 400)
     }
+
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
     // Build where clause
     const where: any = {
@@ -43,15 +51,46 @@ export async function GET(request: NextRequest) {
       }),
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      orderBy: [
-        { available: 'desc' }, // Available products first
-        { rating: 'desc' },    // Then by rating
-      ],
-    })
+    // Add price filters if provided
+    if (minPrice || maxPrice) {
+      where.price = {}
+      if (minPrice) {
+        const min = parseFloat(minPrice)
+        if (!isNaN(min)) {
+          where.price.gte = min
+        }
+      }
+      if (maxPrice) {
+        const max = parseFloat(maxPrice)
+        if (!isNaN(max)) {
+          where.price.lte = max
+        }
+      }
+    }
 
-    return successResponse({ products })
+    // Get total count and products with pagination
+    const [total, products] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        orderBy: [
+          { available: 'desc' }, // Available products first
+          { rating: 'desc' },    // Then by rating
+        ],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
+
+    return successResponse({ 
+      products,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    })
   } catch (error) {
     return errorResponse(error)
   }

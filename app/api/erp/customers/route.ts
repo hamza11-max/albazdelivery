@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 
@@ -10,11 +10,23 @@ export async function GET(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can access customers')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    if (session.user.role !== 'VENDOR') {
+      throw new ForbiddenError('Only vendors can access customers')
     }
 
     const vendorId = session.user.id
+    const searchParams = request.nextUrl.searchParams
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+    const sortParam = searchParams.get('sort') // 'totalPurchases' | 'lastPurchaseDate'
+
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
     // Aggregate sales by customer
     const aggregates = await prisma.sale.groupBy({
@@ -22,15 +34,35 @@ export async function GET(request: NextRequest) {
       where: { vendorId, NOT: { customerId: null } },
       _sum: { total: true },
       _max: { createdAt: true },
+      _count: { id: true },
     })
 
-  const customerIds = aggregates.map((a: any) => a.customerId!).filter(Boolean)
+    // Sort aggregates
+    if (sortParam === 'lastPurchaseDate') {
+      aggregates.sort((a: any, b: any) => {
+        const dateA = a._max.createdAt?.getTime() || 0
+        const dateB = b._max.createdAt?.getTime() || 0
+        return dateB - dateA // Most recent first
+      })
+    } else {
+      // Default: sort by total purchases
+      aggregates.sort((a: any, b: any) => {
+        const totalA = a._sum.total || 0
+        const totalB = b._sum.total || 0
+        return totalB - totalA // Highest first
+      })
+    }
+
+    // Apply pagination
+    const paginatedAggregates = aggregates.slice((page - 1) * limit, page * limit)
+    const customerIds = paginatedAggregates.map((a: any) => a.customerId!).filter(Boolean)
+
     const users = await prisma.user.findMany({
       where: { id: { in: customerIds } },
       select: { id: true, name: true, email: true, phone: true },
     })
 
-    const customers = aggregates.map((a: any) => {
+    const customers = paginatedAggregates.map((a: any) => {
       const u = users.find((x: any) => x.id === a.customerId)
       return {
         id: u?.id || a.customerId!,
@@ -38,11 +70,20 @@ export async function GET(request: NextRequest) {
         email: u?.email || undefined,
         phone: u?.phone || '',
         totalPurchases: a._sum.total || 0,
+        orderCount: a._count.id || 0,
         lastPurchaseDate: a._max.createdAt || null,
       }
     })
 
-    return successResponse({ customers })
+    return successResponse({
+      customers,
+      pagination: {
+        page,
+        limit,
+        total: aggregates.length,
+        pages: Math.ceil(aggregates.length / limit),
+      },
+    })
   } catch (error) {
     console.error('[API] Customers GET error:', error)
     return errorResponse(error)

@@ -1,8 +1,10 @@
 import { type NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { updateSupportTicketSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function GET(
   request: NextRequest,
@@ -12,16 +14,31 @@ export async function GET(
     applyRateLimit(request, rateLimitConfigs.api)
 
     const paramsResolved = await context.params
+    const { id } = paramsResolved
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
+    // Validate ticket ID format
+    try {
+      z.string().cuid().parse(id)
+    } catch {
+      return errorResponse(new Error('Invalid ticket ID format'), 400)
+    }
+
     const ticket = await prisma.supportTicket.findUnique({
-      where: { id: paramsResolved.id },
+      where: { id },
       include: {
         customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        assignedToUser: {
           select: {
             id: true,
             name: true,
@@ -32,7 +49,7 @@ export async function GET(
     })
 
     if (!ticket) {
-      return errorResponse(new Error('Ticket not found'), 404)
+      throw new NotFoundError('Support ticket')
     }
 
     // Authorization: Users can only view their own tickets (except admin)
@@ -60,21 +77,52 @@ export async function PATCH(
       throw new UnauthorizedError()
     }
 
+    const paramsResolved = await context.params
+    const { id } = paramsResolved
+
+    // Validate ticket ID format
+    try {
+      z.string().cuid().parse(id)
+    } catch {
+      return errorResponse(new Error('Invalid ticket ID format'), 400)
+    }
+
     const body = await request.json()
-    const { status, assignedTo } = body
+    const validatedData = updateSupportTicketSchema.parse(body)
+    const { status, assignedTo } = validatedData
 
     // Get existing ticket
     const ticket = await prisma.supportTicket.findUnique({
-      where: { id: paramsResolved.id },
+      where: { id },
+      select: { id: true, customerId: true },
     })
 
     if (!ticket) {
-      return errorResponse(new Error('Ticket not found'), 404)
+      throw new NotFoundError('Support ticket')
     }
 
     // Authorization: Only admin can update tickets
     if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admin can update ticket status')
+    }
+
+    // Validate assignedTo if provided
+    if (assignedTo) {
+      try {
+        z.string().cuid().parse(assignedTo)
+      } catch {
+        return errorResponse(new Error('Invalid assignedTo ID format'), 400)
+      }
+
+      // Verify user exists and is admin or support staff
+      const assignedUser = await prisma.user.findUnique({
+        where: { id: assignedTo },
+        select: { id: true, role: true },
+      })
+
+      if (!assignedUser || !['ADMIN', 'SUPPORT'].includes(assignedUser.role)) {
+        return errorResponse(new Error('Assigned user must be an admin or support staff'), 400)
+      }
     }
 
     // Update ticket
@@ -90,7 +138,7 @@ export async function PATCH(
     }
 
     const updatedTicket = await prisma.supportTicket.update({
-      where: { id: paramsResolved.id },
+      where: { id },
       data: updateData,
       include: {
         customer: {
@@ -100,10 +148,17 @@ export async function PATCH(
             email: true,
           },
         },
+        assignedToUser: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
       },
     })
 
-  console.log('[API] Support ticket updated:', paramsResolved.id, '->', status)
+    console.log('[API] Support ticket updated:', id, '->', status)
 
     return successResponse({ ticket: updatedTicket })
   } catch (error) {

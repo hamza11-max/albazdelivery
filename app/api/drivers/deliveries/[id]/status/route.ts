@@ -1,9 +1,11 @@
 import { type NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderUpdated, emitOrderDelivered } from '@/lib/events'
+import { updateOrderStatusBodySchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 // PATCH /api/drivers/deliveries/[id]/status - Update delivery status
 export async function PATCH(
@@ -14,6 +16,7 @@ export async function PATCH(
     applyRateLimit(request, rateLimitConfigs.api)
 
     const paramsResolved = await context.params
+    const { id } = paramsResolved
 
     const session = await auth()
     if (!session?.user) {
@@ -24,21 +27,26 @@ export async function PATCH(
       throw new ForbiddenError('Only drivers can update delivery status')
     }
 
-    const body = await request.json()
-    const { status } = body
-    const driverId = session.user.id
-
-    if (!status) {
-      return errorResponse(new Error('status is required'), 400)
+    // Validate order ID format
+    try {
+      z.string().cuid().parse(id)
+    } catch {
+      return errorResponse(new Error('Invalid order ID format'), 400)
     }
+
+    const body = await request.json()
+    const validatedData = updateOrderStatusBodySchema.parse(body)
+    const { status } = validatedData
+    const driverId = session.user.id
 
     // Get order
     const order = await prisma.order.findUnique({
-      where: { id: paramsResolved.id },
+      where: { id },
+      select: { id: true, driverId: true, status: true },
     })
 
     if (!order) {
-      return errorResponse(new Error('Order not found'), 404)
+      throw new NotFoundError('Order')
     }
 
     // Check if order is assigned to this driver
@@ -50,7 +58,7 @@ export async function PATCH(
     const allowedStatuses = ['IN_DELIVERY', 'DELIVERED']
     const normalizedStatus = status.toUpperCase()
     if (!allowedStatuses.includes(normalizedStatus)) {
-      return errorResponse(new Error('Invalid status for driver'), 400)
+      return errorResponse(new Error('Invalid status for driver. Allowed statuses: IN_DELIVERY, DELIVERED'), 400)
     }
 
     // Update order status
@@ -60,7 +68,7 @@ export async function PATCH(
     }
 
     const updatedOrder = await prisma.order.update({
-      where: { id: paramsResolved.id },
+      where: { id },
       data: updateData,
       include: {
         items: {
@@ -92,7 +100,7 @@ export async function PATCH(
       },
     })
 
-  console.log('[API] Driver updated delivery status:', paramsResolved.id, '->', normalizedStatus)
+    console.log('[API] Driver updated delivery status:', id, '->', normalizedStatus)
 
     // Emit appropriate event
     if (normalizedStatus === 'DELIVERED') {

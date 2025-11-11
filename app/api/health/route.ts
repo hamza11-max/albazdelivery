@@ -8,9 +8,9 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     version: '1.0.0',
     routes: {
-      migrated: 28,
+      migrated: 54,
       total: 54,
-      progress: '52%',
+      progress: '100%',
     },
     features: {
       authentication: '✅ Ready',

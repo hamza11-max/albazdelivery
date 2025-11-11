@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, NotFoundError, Forbi
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { createRefundSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function POST(request: NextRequest) {
   try {
@@ -101,6 +102,14 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const status = searchParams.get('status')
     const orderId = searchParams.get('orderId')
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
+
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
     // Build where clause based on user role
     const where: any = {}
@@ -117,33 +126,72 @@ export async function GET(request: NextRequest) {
     } else if (session.user.role === 'ADMIN') {
       // Admins can see all refunds
       if (status) {
-        where.status = status
+        const validStatuses = ['PENDING', 'APPROVED', 'REJECTED', 'PROCESSED']
+        if (validStatuses.includes(status.toUpperCase())) {
+          where.status = status.toUpperCase()
+        }
       }
       if (orderId) {
-        where.orderId = orderId
+        try {
+          z.string().cuid().parse(orderId)
+          where.orderId = orderId
+        } catch {
+          return errorResponse(new Error('Invalid orderId format'), 400)
+        }
       }
     } else {
       throw new ForbiddenError('Only customers and admins can view refunds')
     }
 
-    // Fetch refunds
-    const refunds = await prisma.refund.findMany({
-      where,
-      include: {
-        payment: {
-          select: {
-            id: true,
-            amount: true,
-            method: true,
+    // Add date range filter if provided
+    if (startDate || endDate) {
+      where.createdAt = {}
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate)
+      }
+      if (endDate) {
+        where.createdAt.lte = new Date(endDate)
+      }
+    }
+
+    // Get total count and refunds with pagination
+    const [total, refunds] = await Promise.all([
+      prisma.refund.count({ where }),
+      prisma.refund.findMany({
+        where,
+        include: {
+          payment: {
+            select: {
+              id: true,
+              amount: true,
+              method: true,
+            },
+          },
+          order: {
+            select: {
+              id: true,
+              total: true,
+              status: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
+
+    return successResponse({ 
+      refunds,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     })
-
-    return successResponse({ refunds })
   } catch (error) {
     console.error('[API] Refund fetch error:', error)
     return errorResponse(error)

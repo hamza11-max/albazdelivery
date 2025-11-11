@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { analyticsDashboardSchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,12 +17,44 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    // Only vendors can access their own dashboard
-    if (session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can access this dashboard')
+    const searchParams = request.nextUrl.searchParams
+    const vendorIdParam = searchParams.get('vendorId')
+
+    // Determine vendorId - vendors see their own, admins can specify
+    let vendorId = session.user.role === 'VENDOR' ? session.user.id : null
+
+    if (vendorIdParam) {
+      // Validate vendorId format
+      try {
+        z.string().cuid().parse(vendorIdParam)
+      } catch {
+        return errorResponse(new Error('Invalid vendor ID format'), 400)
+      }
+      vendorId = vendorIdParam
     }
 
-    const vendorId = session.user.id
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId is required'), 400)
+    }
+
+    // Only vendors can access their own dashboard, admins can access any
+    if (session.user.role !== 'VENDOR' && session.user.role !== 'ADMIN') {
+      throw new ForbiddenError('Only vendors and admins can access this dashboard')
+    }
+
+    if (session.user.role === 'VENDOR' && session.user.id !== vendorId) {
+      throw new ForbiddenError('You can only access your own dashboard')
+    }
+
+    // Verify vendor exists
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: { id: true, role: true },
+    })
+
+    if (!vendor || vendor.role !== 'VENDOR') {
+      return errorResponse(new Error('Vendor not found'), 404)
+    }
 
     // Get today's date range
     const today = new Date()

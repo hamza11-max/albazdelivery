@@ -26,24 +26,63 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError('Only vendors can access suppliers')
     }
 
-    // Fetch suppliers for this vendor
-    const suppliers = await prisma.supplier.findMany({
-      where: {
-        vendorId: session.user.id,
-      },
-      orderBy: {
-        name: 'asc',
-      },
-      include: {
-        _count: {
-          select: {
-            products: true,
+    const searchParams = request.nextUrl.searchParams
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+    const search = searchParams.get('search')
+    const city = searchParams.get('city')
+
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
+
+    // Build where clause
+    const where: any = {
+      vendorId: session.user.id,
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { contactPerson: { contains: search, mode: 'insensitive' } },
+        { phone: { contains: search } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ]
+    }
+
+    if (city) {
+      where.address = { contains: city, mode: 'insensitive' }
+    }
+
+    // Get total count and suppliers with pagination
+    const [total, suppliers] = await Promise.all([
+      prisma.supplier.count({ where }),
+      prisma.supplier.findMany({
+        where,
+        orderBy: {
+          name: 'asc',
+        },
+        include: {
+          _count: {
+            select: {
+              products: true,
+            },
           },
         },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
+
+    return successResponse({ 
+      suppliers,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     })
-
-    return successResponse({ suppliers })
   } catch (error) {
     console.error('[API] Suppliers GET error:', error)
     return errorResponse(error)
@@ -100,6 +139,13 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Supplier ID is required'), 400)
     }
 
+    // Validate supplier ID format
+    try {
+      z.string().cuid().parse(id)
+    } catch {
+      return errorResponse(new Error('Invalid supplier ID format'), 400)
+    }
+
     // Validate update data
     const validatedData = updateSupplierSchema.parse(updateData)
 
@@ -120,11 +166,79 @@ export async function PUT(request: NextRequest) {
     const supplier = await prisma.supplier.update({
       where: { id },
       data: validatedData,
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
     })
 
     return successResponse({ supplier })
   } catch (error) {
     console.error('[API] Suppliers PUT error:', error)
+    return errorResponse(error)
+  }
+}
+
+// DELETE - Delete supplier
+export async function DELETE(request: NextRequest) {
+  try {
+    applyRateLimit(request, rateLimitConfigs.api)
+
+    const session = await auth()
+    if (!session?.user || session.user.role !== 'VENDOR') {
+      throw new UnauthorizedError('Only vendors can delete suppliers')
+    }
+
+    const searchParams = request.nextUrl.searchParams
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return errorResponse(new Error('Supplier ID is required'), 400)
+    }
+
+    // Validate supplier ID format
+    try {
+      z.string().cuid().parse(id)
+    } catch {
+      return errorResponse(new Error('Invalid supplier ID format'), 400)
+    }
+
+    // Verify supplier belongs to this vendor
+    const existingSupplier = await prisma.supplier.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            products: true,
+          },
+        },
+      },
+    })
+
+    if (!existingSupplier) {
+      return errorResponse(new Error('Supplier not found'), 404)
+    }
+
+    if (existingSupplier.vendorId !== session.user.id) {
+      throw new ForbiddenError('You can only delete your own suppliers')
+    }
+
+    // Check if supplier has products
+    if (existingSupplier._count.products > 0) {
+      return errorResponse(new Error('Cannot delete supplier with associated products'), 400)
+    }
+
+    // Delete supplier
+    await prisma.supplier.delete({
+      where: { id },
+    })
+
+    return successResponse({ message: 'Supplier deleted successfully' })
+  } catch (error) {
+    console.error('[API] Suppliers DELETE error:', error)
     return errorResponse(error)
   }
 }

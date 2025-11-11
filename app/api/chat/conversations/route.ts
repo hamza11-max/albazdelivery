@@ -19,29 +19,67 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id
+    const searchParams = request.nextUrl.searchParams
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+    const type = searchParams.get('type')
+    const isActive = searchParams.get('isActive')
+    const orderId = searchParams.get('orderId')
 
-    // Get conversations where user is a participant
-    const conversations = await prisma.conversation.findMany({
-      where: {
-        participantIds: {
-          has: userId,
-        },
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
+
+    // Build where clause
+    const where: any = {
+      participantIds: {
+        has: userId,
       },
-      include: {
-        messages: {
-          orderBy: {
-            createdAt: 'desc',
+    }
+
+    if (type) {
+      const validTypes = ['CUSTOMER_SUPPORT', 'ORDER', 'GENERAL']
+      if (validTypes.includes(type.toUpperCase())) {
+        where.type = type.toUpperCase()
+      }
+    }
+
+    if (isActive !== null) {
+      where.isActive = isActive === 'true'
+    }
+
+    if (orderId) {
+      try {
+        z.string().cuid().parse(orderId)
+        where.orderId = orderId
+      } catch {
+        return errorResponse(new Error('Invalid orderId format'), 400)
+      }
+    }
+
+    // Get total count and conversations with pagination
+    const [total, conversations] = await Promise.all([
+      prisma.conversation.count({ where }),
+      prisma.conversation.findMany({
+        where,
+        include: {
+          messages: {
+            orderBy: {
+              createdAt: 'desc',
+            },
+            take: 1, // Last message
           },
-          take: 1, // Last message
         },
-      },
-      orderBy: {
-        lastMessageTime: 'desc',
-      },
-    })
+        orderBy: {
+          lastMessageTime: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
 
     // Format response
-  const formatted = conversations.map((conv: any) => ({
+    const formatted = conversations.map((conv: any) => ({
       id: conv.id,
       type: conv.type,
       participantIds: conv.participantIds,
@@ -54,7 +92,15 @@ export async function GET(request: NextRequest) {
       updatedAt: conv.updatedAt,
     }))
 
-    return successResponse({ conversations: formatted })
+    return successResponse({ 
+      conversations: formatted,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    })
   } catch (error) {
     console.error('[API] Error fetching conversations:', error)
     return errorResponse(error)

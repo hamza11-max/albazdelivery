@@ -1,16 +1,42 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
+import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
     const searchParams = request.nextUrl.searchParams
-    const lat = Number.parseFloat(searchParams.get('lat') || '0')
-    const lng = Number.parseFloat(searchParams.get('lng') || '0')
-    const radius = Number.parseFloat(searchParams.get('radius') || '5')
+    const latParam = searchParams.get('lat')
+    const lngParam = searchParams.get('lng')
+    const radiusParam = searchParams.get('radius')
+
+    if (!latParam || !lngParam) {
+      return errorResponse(new Error('lat and lng are required'), 400)
+    }
+
+    const lat = Number.parseFloat(latParam)
+    const lng = Number.parseFloat(lngParam)
+    const radius = Math.min(Math.max(1, Number.parseFloat(radiusParam || '5')), 50) // Limit radius to 1-50 km
+
+    // Validate coordinates
+    if (isNaN(lat) || lat < -90 || lat > 90) {
+      return errorResponse(new Error('Invalid latitude. Must be between -90 and 90'), 400)
+    }
+    if (isNaN(lng) || lng < -180 || lng > 180) {
+      return errorResponse(new Error('Invalid longitude. Must be between -180 and 180'), 400)
+    }
+    if (isNaN(radius) || radius <= 0) {
+      return errorResponse(new Error('Invalid radius. Must be a positive number'), 400)
+    }
 
     // Get all active driver locations
     const driverLocations = await prisma.driverLocation.findMany({

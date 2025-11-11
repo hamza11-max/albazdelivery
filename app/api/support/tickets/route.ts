@@ -14,7 +14,16 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    const status = request.nextUrl.searchParams.get('status')
+    const searchParams = request.nextUrl.searchParams
+    const status = searchParams.get('status')
+    const category = searchParams.get('category')
+    const priority = searchParams.get('priority')
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
     const where: any = {}
 
@@ -31,23 +40,58 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const tickets = await prisma.supportTicket.findMany({
-      where,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+    if (category) {
+      const validCategories = ['ORDER', 'PAYMENT', 'DELIVERY', 'ACCOUNT', 'OTHER']
+      if (validCategories.includes(category.toUpperCase())) {
+        where.category = category.toUpperCase()
+      }
+    }
+
+    if (priority) {
+      const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
+      if (validPriorities.includes(priority.toUpperCase())) {
+        where.priority = priority.toUpperCase()
+      }
+    }
+
+    // Get total count and tickets with pagination
+    const [total, tickets] = await Promise.all([
+      prisma.supportTicket.count({ where }),
+      prisma.supportTicket.findMany({
+        where,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          assignedToUser: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
+
+    return successResponse({ 
+      tickets,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     })
-
-    return successResponse({ tickets })
   } catch (error) {
     console.error('[API] Error fetching tickets:', error)
     return errorResponse(error)

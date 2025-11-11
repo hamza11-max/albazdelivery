@@ -1,8 +1,9 @@
 import { type NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError, ConflictError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { vendorResponseSchema } from '@/lib/validations/api'
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,11 +19,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { reviewId, response } = body
-
-    if (!reviewId || !response) {
-      return errorResponse(new Error('reviewId and response are required'), 400)
-    }
+    const validatedData = vendorResponseSchema.parse(body)
+    const { reviewId, response } = validatedData
 
     // Get review to verify vendor ownership
     const review = await prisma.review.findUnique({
@@ -31,7 +29,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!review) {
-      return errorResponse(new Error('Review not found'), 404)
+      throw new NotFoundError('Review')
     }
 
     // Verify vendor can respond to this review
@@ -45,7 +43,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingResponse) {
-      return errorResponse(new Error('Response already exists for this review'), 400)
+      throw new ConflictError('Response already exists for this review')
     }
 
     // Create vendor response
@@ -85,6 +83,13 @@ export async function GET(request: NextRequest) {
       return errorResponse(new Error('reviewId is required'), 400)
     }
 
+    // Validate reviewId format
+    try {
+      vendorResponseSchema.pick({ reviewId: true }).parse({ reviewId })
+    } catch {
+      return errorResponse(new Error('Invalid review ID format'), 400)
+    }
+
     const response = await prisma.vendorResponse.findUnique({
       where: { reviewId },
       include: {
@@ -93,10 +98,21 @@ export async function GET(request: NextRequest) {
             id: true,
             rating: true,
             comment: true,
+            createdAt: true,
+          },
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
     })
+
+    if (!response) {
+      throw new NotFoundError('Vendor response')
+    }
 
     return successResponse({ response })
   } catch (error) {

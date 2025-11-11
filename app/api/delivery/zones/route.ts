@@ -26,24 +26,43 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const city = searchParams.get('city')
     const isActive = searchParams.get('isActive')
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
     const where: any = {}
     if (city) {
-      where.city = city
+      where.city = { contains: city, mode: 'insensitive' }
     }
     if (isActive !== null) {
       where.isActive = isActive === 'true'
     }
 
-    // Fetch delivery zones from database
-    const zones = await prisma.deliveryZone.findMany({
-      where,
-      orderBy: {
-        name: 'asc',
+    // Get total count and zones with pagination
+    const [total, zones] = await Promise.all([
+      prisma.deliveryZone.count({ where }),
+      prisma.deliveryZone.findMany({
+        where,
+        orderBy: {
+          name: 'asc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
+
+    return successResponse({ 
+      zones,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     })
-
-    return successResponse({ zones })
   } catch (error) {
     console.error('[API] Zones fetch error:', error)
     return errorResponse(error)

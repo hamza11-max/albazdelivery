@@ -335,3 +335,58 @@ export const paymentHistorySchema = z.object({
   limit: z.number().int().min(1).max(100).optional().default(50),
 })
 
+// ========================================
+// Wallet Transactions Validation Schemas
+// ========================================
+
+export const walletTransactionsSchema = z.object({
+  customerId: z.string().cuid('Invalid customer ID').optional(),
+  page: z.number().int().min(1).optional().default(1),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+  type: z.enum(['CREDIT', 'DEBIT', 'ALL']).optional().default('ALL'),
+})
+
+// ========================================
+// Loyalty Transactions Validation Schemas
+// ========================================
+
+export const loyaltyTransactionsSchema = z.object({
+  customerId: z.string().cuid('Invalid customer ID').optional(),
+  page: z.number().int().min(1).optional().default(1),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+  type: z.enum(['EARNED', 'REDEEMED', 'ALL']).optional().default('ALL'),
+})
+
+// ========================================
+// Admin Orders Validation Schemas
+// ========================================
+
+export const adminOrdersSchema = z.object({
+  status: z.enum(['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'IN_DELIVERY', 'DELIVERED', 'CANCELLED']).optional(),
+  vendorId: z.string().cuid('Invalid vendor ID').optional(),
+  customerId: z.string().cuid('Invalid customer ID').optional(),
+  driverId: z.string().cuid('Invalid driver ID').optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  page: z.number().int().min(1).optional().default(1),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+})
+
+// ========================================
+// Review Helpful Validation Schemas
+// ========================================
+
+export const reviewHelpfulSchema = z.object({
+  reviewId: z.string().cuid('Invalid review ID'),
+  helpful: z.boolean(),
+})
+
+// ========================================
+// Vendor Response Validation Schemas
+// ========================================
+
+export const vendorResponseSchema = z.object({
+  reviewId: z.string().cuid('Invalid review ID'),
+  response: z.string().min(10, 'Response must be at least 10 characters').max(500, 'Response too long'),
+})
+

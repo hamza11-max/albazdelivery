@@ -1,46 +1,114 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderUpdated } from '@/lib/events'
+import { orderQuerySchema } from '@/lib/validations/api'
+import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can access this')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    if (session.user.role !== 'VENDOR') {
+      throw new ForbiddenError('Only vendors can access this endpoint')
     }
 
     const vendorId = session.user.id
+    const searchParams = request.nextUrl.searchParams
+    const statusParam = searchParams.get('status')
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
 
-    const orders = await prisma.order.findMany({
-      where: { vendorId },
-      include: {
-        items: true,
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
+
+    // Build where clause
+    const where: any = { vendorId }
+
+    if (statusParam) {
+      // Validate status
+      try {
+        orderQuerySchema.pick({ status: true }).parse({ status: statusParam })
+        where.status = statusParam.toUpperCase()
+      } catch {
+        return errorResponse(new Error('Invalid order status'), 400)
+      }
+    }
+
+    // Get orders with pagination
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
+                },
+              },
+            },
+          },
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              email: true,
+            },
+          },
+          driver: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              vehicleType: true,
+            },
+          },
+          store: {
+            select: {
+              id: true,
+              name: true,
+              address: true,
+            },
+          },
+          payment: {
+            select: {
+              id: true,
+              amount: true,
+              method: true,
+              status: true,
+            },
           },
         },
-        driver: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-          },
+        orderBy: {
+          createdAt: 'desc',
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.order.count({ where }),
+    ])
+
+    return successResponse({
+      orders,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     })
-
-    return successResponse({ orders })
   } catch (error) {
     console.error('[API] Error fetching vendor orders:', error)
     return errorResponse(error)
@@ -52,8 +120,12 @@ export async function PATCH(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can update orders')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    if (session.user.role !== 'VENDOR') {
+      throw new ForbiddenError('Only vendors can update orders')
     }
 
     const body = await request.json()
@@ -63,9 +135,18 @@ export async function PATCH(request: NextRequest) {
       return errorResponse(new Error('orderId and status are required'), 400)
     }
 
+    // Validate orderId format
+    try {
+      z.string().cuid().parse(orderId)
+    } catch {
+      return errorResponse(new Error('Invalid order ID format'), 400)
+    }
+
+    // Validate status
     const allowedStatuses = ['ACCEPTED', 'PREPARING', 'READY', 'CANCELLED']
-    if (!allowedStatuses.includes(status.toUpperCase())) {
-      return errorResponse(new Error('Invalid status for vendor'), 400)
+    const normalizedStatus = status.toUpperCase()
+    if (!allowedStatuses.includes(normalizedStatus)) {
+      return errorResponse(new Error(`Invalid status for vendor. Allowed statuses: ${allowedStatuses.join(', ')}`), 400)
     }
 
     // Verify order belongs to vendor
@@ -74,23 +155,80 @@ export async function PATCH(request: NextRequest) {
         id: orderId,
         vendorId: session.user.id,
       },
+      select: { id: true, status: true, vendorId: true },
     })
 
     if (!order) {
-      return errorResponse(new Error('Order not found'), 404)
+      throw new NotFoundError('Order')
+    }
+
+    // Prepare update data with timestamps
+    const updateData: any = { status: normalizedStatus }
+
+    // Add appropriate timestamp based on status
+    switch (normalizedStatus) {
+      case 'ACCEPTED':
+        updateData.acceptedAt = new Date()
+        break
+      case 'PREPARING':
+        updateData.preparingAt = new Date()
+        break
+      case 'READY':
+        updateData.readyAt = new Date()
+        break
+      case 'CANCELLED':
+        updateData.cancelledAt = new Date()
+        break
     }
 
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
-      data: { status: status.toUpperCase() },
+      data: updateData,
       include: {
-        items: true,
-        customer: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                price: true,
+              },
+            },
+          },
+        },
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        driver: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+          },
+        },
       },
     })
 
-    console.log('[API] Vendor updated order:', orderId, '->', status)
-  emitOrderUpdated(updatedOrder)
+    console.log('[API] Vendor updated order:', orderId, '->', normalizedStatus)
+    emitOrderUpdated(updatedOrder)
 
     return successResponse({ order: updatedOrder })
   } catch (error) {

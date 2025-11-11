@@ -21,29 +21,31 @@ export async function POST(request: NextRequest) {
     const { orderId, rating, comment, vendorId } = validatedData
     const customerId = session.user.id
 
-    // Verify vendorId matches the order's vendor
-    if (vendorId) {
-      const order = await prisma.order.findUnique({
-        where: { id: orderId },
-        select: { vendorId: true },
-      })
-      
-      if (order && order.vendorId !== vendorId) {
-        return errorResponse(new Error('Vendor ID does not match order vendor'), 400)
-      }
-    }
-
-    // Verify order exists and belongs to customer
+    // Verify order exists and belongs to customer, and is delivered
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
         customerId,
         status: { in: ['DELIVERED'] },
       },
+      select: {
+        id: true,
+        vendorId: true,
+        status: true,
+      },
     })
 
     if (!order) {
       throw new NotFoundError('Order not found or not eligible for review')
+    }
+
+    // Verify vendorId matches the order's vendor if provided
+    if (vendorId && order.vendorId !== vendorId) {
+      return errorResponse(new Error('Vendor ID does not match order vendor'), 400)
+    }
+
+    if (!order.vendorId) {
+      throw new NotFoundError('Order has no vendor')
     }
 
     // Check if review already exists
@@ -53,16 +55,6 @@ export async function POST(request: NextRequest) {
 
     if (existingReview) {
       return errorResponse(new Error('Review already exists for this order'), 400)
-    }
-
-    // Get order to verify vendor
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      select: { vendorId: true },
-    })
-
-    if (!order || !order.vendorId) {
-      throw new NotFoundError('Order not found or has no vendor')
     }
 
     // Create review
@@ -102,6 +94,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl
     const vendorId = searchParams.get('vendorId')
     const productId = searchParams.get('productId')
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+    const minRatingParam = searchParams.get('minRating')
 
     // Validate query parameters
     if (!vendorId && !productId) {
@@ -125,41 +120,92 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '20')), 100)
+
+    // Validate minRating if provided
+    let minRating: number | undefined
+    if (minRatingParam) {
+      minRating = parseFloat(minRatingParam)
+      if (isNaN(minRating) || minRating < 1 || minRating > 5) {
+        return errorResponse(new Error('minRating must be between 1 and 5'), 400)
+      }
+    }
+
     const where: any = {}
     if (vendorId) where.vendorId = vendorId
     if (productId) where.order = { items: { some: { productId } } }
+    if (minRating !== undefined) where.rating = { gte: minRating }
 
-    const reviews = await prisma.review.findMany({
+    // Get total count and reviews with pagination
+    const [total, reviews] = await Promise.all([
+      prisma.review.count({ where }),
+      prisma.review.findMany({
+        where,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              photoUrl: true,
+            },
+          },
+          order: {
+            select: {
+              id: true,
+              createdAt: true,
+            },
+          },
+          vendor: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
+
+    // Calculate average rating from all reviews (not just current page)
+    const avgRatingResult = await prisma.review.aggregate({
       where,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        order: {
-          select: {
-            id: true,
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
+      _avg: {
+        rating: true,
       },
     })
 
-    // Calculate average rating
-    const avgRating = reviews.length > 0
-      ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length
-      : 0
+    const avgRating = avgRatingResult._avg.rating || 0
+
+    // Get rating distribution
+    const ratingDistribution = await prisma.review.groupBy({
+      by: ['rating'],
+      where,
+      _count: {
+        rating: true,
+      },
+    })
 
     return successResponse({ 
       reviews,
       summary: {
-        totalReviews: reviews.length,
+        totalReviews: total,
         averageRating: Math.round(avgRating * 10) / 10,
+        ratingDistribution: ratingDistribution.reduce((acc: any, item: any) => {
+          acc[item.rating] = item._count.rating
+          return acc
+        }, {}),
+      },
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     })
   } catch (error) {

@@ -9,20 +9,74 @@ export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    // Fetch active rewards from database
-    const rewards = await prisma.loyaltyReward.findMany({
-      where: {
-        isActive: true,
-        expiresAt: {
-          gt: new Date(), // Only rewards that haven't expired
+    const searchParams = request.nextUrl.searchParams
+    const pageParam = searchParams.get('page')
+    const limitParam = searchParams.get('limit')
+    const category = searchParams.get('category')
+    const minPoints = searchParams.get('minPoints')
+    const maxPoints = searchParams.get('maxPoints')
+    const includeExpired = searchParams.get('includeExpired') === 'true'
+
+    // Validate and parse pagination
+    const page = Math.max(1, parseInt(pageParam || '1'))
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
+
+    // Build where clause
+    const where: any = {
+      isActive: true,
+    }
+
+    // Filter by expiration date
+    if (!includeExpired) {
+      where.expiresAt = {
+        gt: new Date(), // Only rewards that haven't expired
+      }
+    }
+
+    // Filter by category if provided
+    if (category) {
+      where.category = category.toUpperCase()
+    }
+
+    // Filter by points range if provided
+    if (minPoints || maxPoints) {
+      where.pointsCost = {}
+      if (minPoints) {
+        const min = parseInt(minPoints)
+        if (!isNaN(min)) {
+          where.pointsCost.gte = min
+        }
+      }
+      if (maxPoints) {
+        const max = parseInt(maxPoints)
+        if (!isNaN(max)) {
+          where.pointsCost.lte = max
+        }
+      }
+    }
+
+    // Get total count and rewards with pagination
+    const [total, rewards] = await Promise.all([
+      prisma.loyaltyReward.count({ where }),
+      prisma.loyaltyReward.findMany({
+        where,
+        orderBy: {
+          pointsCost: 'asc', // Cheapest rewards first
         },
-      },
-      orderBy: {
-        pointsCost: 'asc', // Cheapest rewards first
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ])
+
+    return successResponse({ 
+      rewards,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
       },
     })
-
-    return successResponse({ rewards })
   } catch (error) {
     console.error('[API] Rewards error:', error)
     return errorResponse(error)

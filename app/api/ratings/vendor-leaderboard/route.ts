@@ -1,14 +1,21 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
     const { searchParams } = request.nextUrl
-    const limit = Number.parseInt(searchParams.get('limit') || '10')
+    const limitParam = searchParams.get('limit')
+    const limit = Math.min(Math.max(1, Number.parseInt(limitParam || '10')), 50) // Limit between 1 and 50
 
     // Get all vendors with reviews
     const vendors = await prisma.user.findMany({

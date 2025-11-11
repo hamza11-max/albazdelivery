@@ -1,17 +1,41 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { auth } from '@/lib/auth'
+import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
+
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
 
     const { searchParams } = request.nextUrl
     const vendorId = searchParams.get('vendorId')
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId is required'), 400)
+    }
+
+    // Validate vendorId format
+    try {
+      z.string().cuid().parse(vendorId)
+    } catch {
+      return errorResponse(new Error('Invalid vendor ID format'), 400)
+    }
+
+    // Verify vendor exists
+    const vendor = await prisma.user.findUnique({
+      where: { id: vendorId },
+      select: { id: true, role: true },
+    })
+
+    if (!vendor || vendor.role !== 'VENDOR') {
+      return errorResponse(new Error('Vendor not found'), 404)
     }
 
     // Get vendor reviews
