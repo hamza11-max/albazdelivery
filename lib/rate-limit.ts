@@ -28,14 +28,32 @@ let apiRateLimit: any = null
 let strictRateLimit: any = null
 let relaxedRateLimit: any = null
 
-// Skip Redis initialization during build time to prevent URL validation errors
-// Only initialize in runtime, not during static generation or build
-if (typeof window === 'undefined' && // Not in browser
-    process.env.NODE_ENV !== 'production' && // Not in production build
-    process.env.UPSTASH_REDIS_REST_URL &&
-    process.env.UPSTASH_REDIS_REST_TOKEN &&
-    process.env.UPSTASH_REDIS_REST_URL !== 'your-upstash-url' &&
-    process.env.UPSTASH_REDIS_REST_TOKEN !== 'your-upstash-token') {
+// Skip Redis initialization during build time to prevent connection errors
+// Redis is optional - the app falls back to in-memory rate limiting if not available
+// Only initialize in production runtime, not during Vercel build or static generation
+const shouldInitializeRedis = () => {
+  // Skip if not in Node environment
+  if (typeof window !== 'undefined') return false
+  
+  // Skip during Vercel build
+  if (process.env.VERCEL_ENV === 'production' || 
+      process.env.__NEXT_PRIVATE_PREBUILD === 'true' ||
+      process.env.NODE_ENV === 'production') {
+    return false
+  }
+  
+  // Skip if Redis credentials are missing or invalid
+  if (!process.env.UPSTASH_REDIS_REST_URL ||
+      !process.env.UPSTASH_REDIS_REST_TOKEN ||
+      process.env.UPSTASH_REDIS_REST_URL === 'your-upstash-url' ||
+      process.env.UPSTASH_REDIS_REST_TOKEN === 'your-upstash-token') {
+    return false
+  }
+  
+  return true
+}
+
+if (shouldInitializeRedis()) {
   try {
     // Only validate URL if it's not a placeholder
     if (process.env.UPSTASH_REDIS_REST_URL.startsWith('http')) {
@@ -74,7 +92,11 @@ if (typeof window === 'undefined' && // Not in browser
       analytics: true,
     })
   } catch (error) {
-    console.warn('Redis rate limiting not available:', error)
+    // Silent fail - Redis is optional, app uses in-memory rate limiting as fallback
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Redis rate limiting not available:', error instanceof Error ? error.message : error)
+    }
   }
 }
 
