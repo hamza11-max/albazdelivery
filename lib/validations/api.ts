@@ -91,10 +91,6 @@ export const createReviewSchema = z.object({
   photos: z.array(z.string().url()).optional().default([]),
 })
 
-export const vendorResponseSchema = z.object({
-  response: z.string().min(10, 'Response must be at least 10 characters').max(500),
-})
-
 // ========================================
 // Chat Validation Schemas
 // ========================================

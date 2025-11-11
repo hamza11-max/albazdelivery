@@ -70,8 +70,6 @@ export async function PATCH(
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const paramsResolved = await context.params
-
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
