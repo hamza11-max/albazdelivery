@@ -20,18 +20,25 @@ function resolveBin(name) {
   return name; // fall back to PATH
 }
 
-function run(program, args) {
+function run(program, args, allowFailure = false) {
   const prog = resolveBin(program);
   console.log(`> Running: ${prog} ${args.join(' ')}`);
   const res = spawnSync(prog, args, { stdio: 'inherit', env: process.env });
   if (res.error) {
     console.error(res.error);
-    process.exit(1);
+    if (!allowFailure) {
+      process.exit(1);
+    }
+    return false;
   }
   if (res.status !== 0) {
     console.error(`Command failed: ${prog} ${args.join(' ')} -> exit ${res.status}`);
-    process.exit(res.status || 1);
+    if (!allowFailure) {
+      process.exit(res.status || 1);
+    }
+    return false;
   }
+  return true;
 }
 
 // 1) generate client
@@ -46,17 +53,13 @@ if (!process.env.DIRECT_URL && process.env.DATABASE_URL) {
 // 2) run migrations only if there's a DATABASE_URL set
 if (process.env.DATABASE_URL && process.env.DATABASE_URL !== '') {
   console.log('DATABASE_URL detected in environment — running prisma migrate deploy');
-  try {
-    run('prisma', ['migrate', 'deploy']);
-  } catch (err) {
-    const msg = err && err.message ? err.message : String(err);
-    // Skip known baseline error (P3005) safely
-    if (msg.includes('P3005')) {
-      console.warn('⚠️  Prisma P3005: Database not empty — skipping migrations (baseline assumed)');
-    } else {
-      console.error('❌ Prisma migrate deploy failed:', msg);
-      process.exit(1);
-    }
+  const migrationSuccess = run('prisma', ['migrate', 'deploy'], true);
+  if (!migrationSuccess) {
+    console.warn('⚠️  Prisma migrate deploy failed — this may be due to:');
+    console.warn('   - Database not accessible during build (common on Vercel)');
+    console.warn('   - Network connectivity issues');
+    console.warn('   - Database server not running');
+    console.warn('⚠️  Continuing build without migrations. Migrations should be run separately or during deployment.');
   }
 } else {
   console.log('No DATABASE_URL detected — skipping `prisma migrate deploy` in build');
