@@ -1,33 +1,85 @@
 import { Redis } from '@upstash/redis';
 import { Queue } from 'bullmq';
 
-// Initialize Redis client
-export const redis = new Redis({
-  url: process.env.REDIS_URL || '',
-  token: process.env.REDIS_TOKEN || '',
-});
+// Skip initialization during build to prevent connection errors
+const isBuildTime = () => {
+  return process.env.NEXT_PHASE === 'phase-production-build' ||
+         process.env.VERCEL_ENV === 'production' ||
+         process.env.__NEXT_PRIVATE_PREBUILD === 'true' ||
+         typeof window !== 'undefined'
+}
 
-// Initialize queues
-export const queues = {
-  orders: new Queue('orders', {
-    connection: {
-      host: process.env.REDIS_HOST,
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    },
-  }),
-  notifications: new Queue('notifications', {
-    connection: {
-      host: process.env.REDIS_HOST,
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    },
-  }),
-  analytics: new Queue('analytics', {
-    connection: {
-      host: process.env.REDIS_HOST,
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-    },
-  }),
-};
+// Initialize Redis client lazily
+let _redis: Redis | null = null
+export const redis = new Proxy({} as Redis, {
+  get(target, prop) {
+    if (isBuildTime()) {
+      // Return no-op functions during build
+      return () => Promise.resolve(null)
+    }
+    
+    if (!_redis && process.env.REDIS_URL && process.env.REDIS_TOKEN) {
+      _redis = new Redis({
+        url: process.env.REDIS_URL,
+        token: process.env.REDIS_TOKEN,
+      })
+    }
+    
+    if (_redis) {
+      return (_redis as any)[prop]
+    }
+    
+    // Return no-op if Redis not configured
+    return () => Promise.resolve(null)
+  }
+})
+
+// Initialize queues lazily
+let _queues: any = null
+export const queues = new Proxy({} as any, {
+  get(target, prop) {
+    if (isBuildTime()) {
+      // Return mock queue during build
+      return {
+        add: () => Promise.resolve(null),
+        process: () => Promise.resolve(null),
+      }
+    }
+    
+    if (!_queues && process.env.REDIS_HOST) {
+      _queues = {
+        orders: new Queue('orders', {
+          connection: {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT || '6379'),
+          },
+        }),
+        notifications: new Queue('notifications', {
+          connection: {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT || '6379'),
+          },
+        }),
+        analytics: new Queue('analytics', {
+          connection: {
+            host: process.env.REDIS_HOST,
+            port: parseInt(process.env.REDIS_PORT || '6379'),
+          },
+        }),
+      }
+    }
+    
+    if (_queues && prop in _queues) {
+      return _queues[prop]
+    }
+    
+    // Return mock queue if not configured
+    return {
+      add: () => Promise.resolve(null),
+      process: () => Promise.resolve(null),
+    }
+  }
+});
 
 // Cache helper functions
 export async function cacheGet<T>(key: string): Promise<T | null> {
