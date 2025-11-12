@@ -12,6 +12,7 @@ const createSupplierSchema = z.object({
   phone: z.string().regex(/^0[567]\d{8}$/, 'Invalid Algerian phone number'),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   address: z.string().min(5, 'Address must be at least 5 characters').max(500).optional(),
+  vendorId: z.string().cuid('Invalid vendor ID').optional(),
 })
 
 const updateSupplierSchema = createSupplierSchema.partial()
@@ -22,8 +23,15 @@ export async function GET(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can access suppliers')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new UnauthorizedError('Only vendors or admins can access suppliers')
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -31,6 +39,13 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const search = searchParams.get('search')
     const city = searchParams.get('city')
+    const vendorIdParam = searchParams.get('vendorId')
+
+    const vendorId = isAdmin ? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+    }
 
     // Validate and parse pagination
     const page = Math.max(1, parseInt(pageParam || '1'))
@@ -38,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      vendorId: session.user.id,
+      vendorId,
     }
 
     if (search) {
@@ -95,18 +110,33 @@ export async function POST(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can create suppliers')
+    if (!session?.user) {
+      throw new UnauthorizedError()
     }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new UnauthorizedError('Only vendors or admins can create suppliers')
+    }
+
+    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
 
     const body = await request.json()
     const validatedData = createSupplierSchema.parse(body)
-    const { name, contactPerson, phone, email, address } = validatedData
+    const { name, contactPerson, phone, email, address, vendorId: overrideVendorId } = validatedData
+
+    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId is required to create a supplier'), 400)
+    }
 
     // Create supplier
     const supplier = await prisma.supplier.create({
       data: {
-        vendorId: session.user.id,
+        vendorId,
         name,
         contactPerson,
         phone,
@@ -128,8 +158,15 @@ export async function PUT(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can update suppliers')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new UnauthorizedError('Only vendors or admins can update suppliers')
     }
 
     const body = await request.json()
@@ -158,7 +195,7 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Supplier not found'), 404)
     }
 
-    if (existingSupplier.vendorId !== session.user.id) {
+    if (isVendor && existingSupplier.vendorId !== session.user.id) {
       throw new ForbiddenError('You can only update your own suppliers')
     }
 
@@ -188,8 +225,15 @@ export async function DELETE(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can delete suppliers')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new UnauthorizedError('Only vendors or admins can delete suppliers')
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -222,7 +266,7 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Supplier not found'), 404)
     }
 
-    if (existingSupplier.vendorId !== session.user.id) {
+    if (isVendor && existingSupplier.vendorId !== session.user.id) {
       throw new ForbiddenError('You can only delete your own suppliers')
     }
 

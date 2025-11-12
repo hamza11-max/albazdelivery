@@ -1,6 +1,6 @@
 import { useDashboardData } from "./fetch-data";
 
-export async function fetchDashboardData() {
+export async function fetchDashboardData(vendorId?: string) {
   const { 
     fetchSales,
     fetchOrders,
@@ -18,12 +18,12 @@ export async function fetchDashboardData() {
     suppliersData,
     categoriesData
   ] = await Promise.all([
-    fetchSales(),
-    fetchOrders(),
-    fetchProducts(),
-    fetchCustomers(), 
-    fetchSuppliers(),
-    fetchCategories()
+    fetchSales(vendorId),
+    fetchOrders(vendorId),
+    fetchProducts(vendorId),
+    fetchCustomers(vendorId),
+    fetchSuppliers(vendorId),
+    fetchCategories(vendorId)
   ])
 
   return {
@@ -36,11 +36,11 @@ export async function fetchDashboardData() {
   }
 }
 
-export async function fetchInventory() {
+export async function fetchInventory(vendorId?: string) {
   const { fetchProducts, fetchCategories } = useDashboardData()
   const [products, categories] = await Promise.all([
-    fetchProducts(),
-    fetchCategories()
+    fetchProducts(vendorId),
+    fetchCategories(vendorId)
   ])
   return { products, categories }
 }

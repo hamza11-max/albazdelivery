@@ -1,7 +1,7 @@
 import type { NextAuthConfig } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
-import { loginSchema } from './validations/auth'
+import { loginSchema, algerianPhoneRegex } from './validations/auth'
 import { prisma } from './prisma'
 import { verifyPassword } from './password'
 
@@ -69,11 +69,14 @@ export const authConfig = {
           return null
         }
 
-        const { email, password } = validatedFields.data
+        const { identifier, password } = validatedFields.data
+        const trimmedIdentifier = identifier.trim()
+        const isPhoneLogin = algerianPhoneRegex.test(trimmedIdentifier)
+        const normalizedIdentifier = isPhoneLogin ? trimmedIdentifier : trimmedIdentifier.toLowerCase()
 
         // Find user in database
         const user = await prisma.user.findUnique({
-          where: { email },
+          where: isPhoneLogin ? { phone: normalizedIdentifier } : { email: normalizedIdentifier },
         })
 
         if (!user || !user.password) {

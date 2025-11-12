@@ -23,6 +23,7 @@ const createSaleSchema = z.object({
   paymentMethod: z.enum(['CASH', 'CARD'], {
     errorMap: () => ({ message: 'Payment method must be CASH or CARD' }),
   }),
+  vendorId: z.string().cuid('Invalid vendor ID').optional(),
 }).refine(
   (data) => {
     const calculatedTotal = data.subtotal - data.discount
@@ -40,8 +41,15 @@ export async function GET(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can access sales')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new UnauthorizedError('Only vendors or admins can access sales')
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -50,9 +58,16 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get('customerId')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 100)
+    const vendorIdParam = searchParams.get('vendorId')
+
+    const vendorId = isAdmin ? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+    }
 
     const where: any = {
-      vendorId: session.user.id,
+      vendorId,
     }
 
     if (customerId) {
@@ -81,6 +96,18 @@ export async function GET(request: NextRequest) {
               email: true,
             },
           },
+          ...(isAdmin
+            ? {
+                vendor: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    phone: true,
+                  },
+                },
+              }
+            : {}),
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -110,13 +137,28 @@ export async function POST(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can create sales')
+    if (!session?.user) {
+      throw new UnauthorizedError()
     }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new UnauthorizedError('Only vendors or admins can create sales')
+    }
+
+    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
 
     const body = await request.json()
     const validatedData = createSaleSchema.parse(body)
-    const { customerId, items, subtotal, discount, total, paymentMethod } = validatedData
+    const { customerId, items, subtotal, discount, total, paymentMethod, vendorId: overrideVendorId } = validatedData
+
+    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId is required to create a sale'), 400)
+    }
 
     // Verify customer exists if provided
     if (customerId) {
@@ -133,7 +175,7 @@ export async function POST(request: NextRequest) {
     const sale = await prisma.$transaction(async (tx: any) => {
       const newSale = await tx.sale.create({
         data: {
-          vendorId: session.user.id,
+          vendorId,
           customerId: customerId || null,
           subtotal,
           discount: discount || 0,
@@ -158,7 +200,7 @@ export async function POST(request: NextRequest) {
           await tx.inventoryProduct.updateMany({
             where: {
               id: item.productId,
-              vendorId: session.user.id,
+              vendorId,
             },
             data: {
               stock: {

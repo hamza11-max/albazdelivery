@@ -10,11 +10,23 @@ export async function GET(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can access AI insights')
+    if (!session?.user) {
+      throw new UnauthorizedError()
     }
 
-    const vendorId = session.user.id
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new UnauthorizedError('Only vendors or admins can access AI insights')
+    }
+
+    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
+    const vendorId = isAdmin ? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+    }
 
     // Get date ranges
     const today = new Date()

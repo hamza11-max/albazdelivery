@@ -14,15 +14,24 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'VENDOR') {
-      throw new ForbiddenError('Only vendors can access customers')
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can access customers')
     }
 
-    const vendorId = session.user.id
     const searchParams = request.nextUrl.searchParams
     const pageParam = searchParams.get('page')
     const limitParam = searchParams.get('limit')
     const sortParam = searchParams.get('sort') // 'totalPurchases' | 'lastPurchaseDate'
+    const vendorIdParam = searchParams.get('vendorId')
+
+    const vendorId = isAdmin ? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+    }
 
     // Validate and parse pagination
     const page = Math.max(1, parseInt(pageParam || '1'))

@@ -12,19 +12,55 @@ export async function GET(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can access inventory')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can access inventory')
     }
 
     const searchParams = request.nextUrl.searchParams
     const lowStock = searchParams.get('lowStock')
     const category = searchParams.get('category')
+    const vendorIdParam = searchParams.get('vendorId')
 
-    const where: any = { vendorId: session.user.id }
+    const targetVendorId = isAdmin ? vendorIdParam : session.user.id
+
+    if (isAdmin && !targetVendorId) {
+      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+    }
+
+    const where: any = {}
+    if (targetVendorId) {
+      where.vendorId = targetVendorId
+    }
     if (lowStock === 'true') {
       // Get products where stock <= lowStockThreshold
       const products = await prisma.inventoryProduct.findMany({
-        where: { vendorId: session.user.id },
+        where,
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          ...(isAdmin
+            ? {
+                vendor: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              }
+            : {}),
+        },
       })
       const lowStockProducts = products.filter(p => p.stock <= p.lowStockThreshold)
       return successResponse({ products: lowStockProducts })
@@ -33,17 +69,30 @@ export async function GET(request: NextRequest) {
       where.category = category
     }
 
+    const include: any = {
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    }
+
+    if (isAdmin) {
+      include.vendor = {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+        },
+      }
+    }
+
     const products = await prisma.inventoryProduct.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: {
-        supplier: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+      include,
     })
 
     return successResponse({ products })
@@ -59,20 +108,47 @@ export async function POST(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can create products')
+    if (!session?.user) {
+      throw new UnauthorizedError()
     }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can create products')
+    }
+
+    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
 
     const body = await request.json()
     const validatedData = createInventoryProductSchema.parse(body)
-    const { sku, name, category, supplierId, costPrice, sellingPrice, stock, lowStockThreshold, barcode, image } = validatedData
+    const {
+      vendorId: overrideVendorId,
+      sku,
+      name,
+      category,
+      supplierId,
+      costPrice,
+      sellingPrice,
+      stock,
+      lowStockThreshold,
+      barcode,
+      image,
+    } = validatedData
+
+    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId is required to create a product'), 400)
+    }
 
     // Verify supplier belongs to vendor if provided
     if (supplierId) {
       const supplier = await prisma.supplier.findFirst({
         where: {
           id: supplierId,
-          vendorId: session.user.id,
+          vendorId,
         },
       })
       if (!supplier) {
@@ -84,7 +160,7 @@ export async function POST(request: NextRequest) {
     const existingSku = await prisma.inventoryProduct.findFirst({
       where: {
         sku,
-        vendorId: session.user.id,
+        vendorId,
       },
     })
     if (existingSku) {
@@ -93,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     const product = await prisma.inventoryProduct.create({
       data: {
-        vendorId: session.user.id,
+        vendorId,
         sku,
         name,
         category,
@@ -103,7 +179,7 @@ export async function POST(request: NextRequest) {
         stock: Math.floor(stock),
         lowStockThreshold: Math.floor(lowStockThreshold),
         barcode: barcode || null,
-        image: image || null,
+        image: image && image.length > 0 ? image : null,
       },
       include: {
         supplier: {
@@ -112,6 +188,18 @@ export async function POST(request: NextRequest) {
             name: true,
           },
         },
+        ...(isAdmin
+          ? {
+              vendor: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            }
+          : {}),
       },
     })
 
@@ -128,8 +216,15 @@ export async function PUT(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can update products')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can update products')
     }
 
     const body = await request.json()
@@ -143,12 +238,16 @@ export async function PUT(request: NextRequest) {
     const validatedData = updateInventoryProductSchema.parse(updateData)
 
     // Verify ownership
-    const existing = await prisma.inventoryProduct.findFirst({
-      where: { id, vendorId: session.user.id },
+    const existing = await prisma.inventoryProduct.findUnique({
+      where: { id },
     })
 
     if (!existing) {
       return errorResponse(new Error('Product not found'), 404)
+    }
+
+    if (isVendor && existing.vendorId !== session.user.id) {
+      throw new ForbiddenError('You can only update your own products')
     }
 
     // Verify supplier belongs to vendor if provided
@@ -156,7 +255,7 @@ export async function PUT(request: NextRequest) {
       const supplier = await prisma.supplier.findFirst({
         where: {
           id: validatedData.supplierId,
-          vendorId: session.user.id,
+          vendorId: existing.vendorId,
         },
       })
       if (!supplier) {
@@ -173,7 +272,10 @@ export async function PUT(request: NextRequest) {
     if (validatedData.stock !== undefined) updatePayload.stock = Math.floor(validatedData.stock)
     if (validatedData.lowStockThreshold !== undefined) updatePayload.lowStockThreshold = Math.floor(validatedData.lowStockThreshold)
     if (validatedData.barcode !== undefined) updatePayload.barcode = validatedData.barcode || null
-    if (validatedData.image !== undefined) updatePayload.image = validatedData.image || null
+    if (validatedData.image !== undefined) {
+      updatePayload.image =
+        validatedData.image && validatedData.image.length > 0 ? validatedData.image : null
+    }
     if (validatedData.supplierId !== undefined) updatePayload.supplierId = validatedData.supplierId || null
 
     const updated = await prisma.inventoryProduct.update({
@@ -186,6 +288,18 @@ export async function PUT(request: NextRequest) {
             name: true,
           },
         },
+        ...(isAdmin
+          ? {
+              vendor: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            }
+          : {}),
       },
     })
 
@@ -202,8 +316,15 @@ export async function DELETE(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'VENDOR') {
-      throw new UnauthorizedError('Only vendors can delete products')
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can delete products')
     }
 
     // Get id from query parameters
@@ -221,12 +342,16 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Verify ownership
-    const existing = await prisma.inventoryProduct.findFirst({
-      where: { id, vendorId: session.user.id },
+    const existing = await prisma.inventoryProduct.findUnique({
+      where: { id },
     })
 
     if (!existing) {
       return errorResponse(new Error('Product not found'), 404)
+    }
+
+    if (isVendor && existing.vendorId !== session.user.id) {
+      throw new ForbiddenError('You can only delete your own products')
     }
 
     await prisma.inventoryProduct.delete({ where: { id } })

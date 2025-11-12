@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyPassword } from '@/lib/password'
 import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
-import { loginSchema } from '@/lib/validations/auth'
+import { loginSchema, algerianPhoneRegex } from '@/lib/validations/auth'
 import { signIn } from '@/lib/auth'
 import { auditAuthEvent } from '@/lib/security/audit-log'
 
@@ -13,11 +13,14 @@ export async function POST(request: NextRequest) {
     
     // Validate input
     const validated = loginSchema.parse(body)
-    const { email, password } = validated
+    const { identifier, password } = validated
+    const trimmedIdentifier = identifier.trim()
+    const isPhoneLogin = algerianPhoneRegex.test(trimmedIdentifier)
+    const normalizedIdentifier = isPhoneLogin ? trimmedIdentifier : trimmedIdentifier.toLowerCase()
     
     // Find user
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: isPhoneLogin ? { phone: normalizedIdentifier } : { email: normalizedIdentifier },
       select: {
         id: true,
         email: true,
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
     })
     
     if (!user) {
-      await auditAuthEvent('LOGIN_FAILED', undefined, undefined, request, 'Invalid email or password')
+      await auditAuthEvent('LOGIN_FAILED', undefined, undefined, request, 'Invalid login credentials')
       throw new UnauthorizedError('Invalid email or password')
     }
     

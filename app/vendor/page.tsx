@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import type { ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import { playSuccessSound } from "@/lib/notifications"
 import { 
   AlertTriangle,
   BarChart3,
   Camera,
+  ScanLine,
   DollarSign,
   Edit,
   History,
@@ -162,9 +164,232 @@ export default function VendorDashboard() {
   const [posCart, setPosCart] = useState<CartItem[]>([])
   const [posCustomerId, setPosCustomerId] = useState<number | null>(null)
   const [posDiscount, setPosDiscount] = useState(0)
-  const [productImages, setProductImages] = useState<string[]>([])
   const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
+const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false)
+const [barcodeScannerError, setBarcodeScannerError] = useState<string | null>(null)
+const [isBarcodeDetectorSupported, setIsBarcodeDetectorSupported] = useState(false)
+const barcodeVideoRef = useRef<HTMLVideoElement | null>(null)
+const barcodeStreamRef = useRef<MediaStream | null>(null)
+const barcodeAnimationFrameRef = useRef<number>()
+const barcodeDetectorRef = useRef<any>(null)
+const cameraVideoRef = useRef<HTMLVideoElement | null>(null)
+const cameraStreamRef = useRef<MediaStream | null>(null)
+const captureCanvasRef = useRef<HTMLCanvasElement | null>(null)
+const [capturedImage, setCapturedImage] = useState<string | null>(null)
+const [cameraError, setCameraError] = useState<string | null>(null)
+const [isCameraActive, setIsCameraActive] = useState(false)
+const [isAdmin, setIsAdmin] = useState(false)
+const [availableVendors, setAvailableVendors] = useState<Array<{ id: string; name: string }>>([])
+const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
+const [isLoadingVendors, setIsLoadingVendors] = useState(false)
+const isArabic = useMemo(() => language === "ar", [language])
+const translate = useCallback(
+  (fr: string, ar: string) => (language === "ar" ? ar : fr),
+  [language]
+)
+const activeVendorId = useMemo(
+  () => (isAdmin ? selectedVendorId ?? undefined : undefined),
+  [isAdmin, selectedVendorId]
+)
+
+useEffect(() => {
+  if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+    setIsBarcodeDetectorSupported(true)
+  }
+}, [])
+
+const stopBarcodeScanner = useCallback(() => {
+  if (barcodeAnimationFrameRef.current) {
+    cancelAnimationFrame(barcodeAnimationFrameRef.current)
+    barcodeAnimationFrameRef.current = undefined
+  }
+  if (barcodeStreamRef.current) {
+    barcodeStreamRef.current.getTracks().forEach((track) => track.stop())
+    barcodeStreamRef.current = null
+  }
+  if (barcodeVideoRef.current) {
+    barcodeVideoRef.current.srcObject = null
+  }
+}, [])
+
+const startBarcodeScanner = useCallback(async () => {
+  setBarcodeScannerError(null)
+  if (!isBarcodeDetectorSupported) {
+    setBarcodeScannerError(translate("La lecture de code-barres n'est pas prise en charge sur cet appareil.", "مسح الباركود غير مدعوم على هذا الجهاز."))
+    return
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    })
+    barcodeStreamRef.current = stream
+    if (barcodeVideoRef.current) {
+      barcodeVideoRef.current.srcObject = stream
+      await barcodeVideoRef.current.play()
+    }
+    const Detector = (window as any).BarcodeDetector
+    barcodeDetectorRef.current = new Detector({
+      formats: ["code_128", "code_39", "ean_13", "qr_code", "upc_a", "upc_e"],
+    })
+
+    const detect = async () => {
+      if (!barcodeDetectorRef.current || !barcodeVideoRef.current) {
+        barcodeAnimationFrameRef.current = requestAnimationFrame(detect)
+        return
+      }
+      try {
+        const codes = await barcodeDetectorRef.current.detect(barcodeVideoRef.current)
+        if (codes?.length) {
+          const rawValue = codes[0]?.rawValue
+          if (rawValue) {
+            setPosSearch(rawValue)
+            const matchedProduct = products.find((p) => p.barcode === rawValue)
+            if (matchedProduct) {
+              addToCart(matchedProduct)
+              playSuccessSound()
+              toast({
+                title: translate("Produit trouvé", "تم العثور على المنتج"),
+                description: translate("Le produit a été ajouté au panier.", "تمت إضافة المنتج إلى السلة."),
+              })
+            } else {
+              toast({
+                title: translate("Code-barres inconnu", "رمز غير معروف"),
+                description: translate("Aucun produit ne correspond à ce code-barres.", "لا يوجد منتج مطابق لهذا الرمز."),
+                variant: "destructive",
+              })
+            }
+            setIsBarcodeScannerOpen(false)
+            return
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Barcode detection error:", error)
+        setBarcodeScannerError(translate("Impossible de lire le code-barres.", "تعذر قراءة الرمز."))
+      }
+      barcodeAnimationFrameRef.current = requestAnimationFrame(detect)
+    }
+
+    barcodeAnimationFrameRef.current = requestAnimationFrame(detect)
+  } catch (error) {
+    console.error("[v0] Error starting barcode scanner:", error)
+    setBarcodeScannerError(translate("Impossible d'accéder à la caméra.", "تعذر الوصول إلى الكاميرا."))
+  }
+}, [addToCart, isBarcodeDetectorSupported, products, toast, translate])
+
+useEffect(() => {
+  if (!isBarcodeScannerOpen) {
+    stopBarcodeScanner()
+    return
+  }
+  startBarcodeScanner()
+  return () => {
+    stopBarcodeScanner()
+  }
+}, [isBarcodeScannerOpen, startBarcodeScanner, stopBarcodeScanner])
+
+const stopCamera = useCallback(() => {
+  if (cameraStreamRef.current) {
+    cameraStreamRef.current.getTracks().forEach((track) => track.stop())
+    cameraStreamRef.current = null
+  }
+  if (cameraVideoRef.current) {
+    cameraVideoRef.current.srcObject = null
+  }
+  setIsCameraActive(false)
+}, [])
+
+const startCamera = useCallback(async () => {
+  setCameraError(null)
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    })
+    cameraStreamRef.current = stream
+    if (cameraVideoRef.current) {
+      cameraVideoRef.current.srcObject = stream
+      await cameraVideoRef.current.play()
+      setIsCameraActive(true)
+    }
+  } catch (error) {
+    console.error("[v0] Error accessing camera:", error)
+    setCameraError(translate("Impossible d'accéder à la caméra.", "تعذر الوصول إلى الكاميرا."))
+  }
+}, [translate])
+
+const capturePhoto = useCallback(() => {
+  if (!cameraVideoRef.current) return
+  const video = cameraVideoRef.current
+  const canvas = captureCanvasRef.current ?? document.createElement("canvas")
+  captureCanvasRef.current = canvas
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+  const ctx = canvas.getContext("2d")
+  if (!ctx) return
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.9)
+  setCapturedImage(dataUrl)
+  playSuccessSound()
+}, [])
+
+const handleUseCapturedImage = () => {
+  if (!capturedImage) return
+  setProductForm((prev) => ({
+    ...prev,
+    image: capturedImage,
+  }))
+  setShowCameraDialog(false)
+  toast({
+    title: translate("Image enregistrée", "تم حفظ الصورة"),
+    description: translate("La photo du produit a été mise à jour.", "تم تحديث صورة المنتج."),
+  })
+}
+
+const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith("image/")) {
+    toast({
+      title: translate("Format non supporté", "تنسيق غير مدعوم"),
+      description: translate("Veuillez sélectionner une image valide.", "يرجى اختيار صورة صالحة."),
+      variant: "destructive",
+    })
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = () => {
+    const result = typeof reader.result === "string" ? reader.result : ""
+    setProductForm((prev) => ({
+      ...prev,
+      image: result,
+    }))
+    toast({
+      title: translate("Image importée", "تم استيراد الصورة"),
+      description: translate("La photo du produit a été ajoutée.", "تمت إضافة صورة المنتج."),
+    })
+  }
+  reader.readAsDataURL(file)
+}
+
+useEffect(() => {
+  if (!showCameraDialog) {
+    stopCamera()
+    setCapturedImage(null)
+    return
+  }
+  startCamera()
+  return () => stopCamera()
+}, [showCameraDialog, startCamera, stopCamera])
+
+useEffect(() => {
+  return () => {
+    stopBarcodeScanner()
+    stopCamera()
+  }
+}, [stopBarcodeScanner, stopCamera])
 
   // Form reset functions
   const resetProductForm = () => {
@@ -194,138 +419,135 @@ export default function VendorDashboard() {
   }
 
   // Data loading function
-  const handleDataLoad = async () => {
-    try {
-      const [
-        salesRes,
-        ordersRes,
-        productsRes,
-        customersRes,
-        suppliersRes,
-        categoriesRes
-      ] = await Promise.all([
-        fetchSales(),
-        fetchOrders(),
-        fetchProducts(),
-        fetchCustomers(),
-        fetchSuppliers(),
-        fetchCategories()
-      ])
+  const handleDataLoad = useCallback(
+    async (vendorContextId?: string) => {
+      try {
+        const [
+          salesRes,
+          ordersRes,
+          productsRes,
+          customersRes,
+          suppliersRes,
+          categoriesRes
+        ] = await Promise.all([
+          fetchSales(vendorContextId),
+          fetchOrders(vendorContextId),
+          fetchProducts(vendorContextId),
+          fetchCustomers(vendorContextId),
+          fetchSuppliers(vendorContextId),
+          fetchCategories(vendorContextId)
+        ])
 
-      // Transform responses into proper data types
-      const salesData = { sales: salesRes } as SalesData
-      const ordersData = { orders: ordersRes } as OrdersData
-      const productsData = { products: productsRes } as ProductsData
-      const customersData = { customers: customersRes } as CustomersData
-      const suppliersData = { suppliers: suppliersRes } as SuppliersData
-      const categoriesData = { categories: categoriesRes } as CategoriesData
+        // Transform responses into proper data types
+        const salesData = { sales: salesRes } as SalesData
+        const ordersData = { orders: ordersRes } as OrdersData
+        const productsData = { products: productsRes } as ProductsData
+        const customersData = { customers: customersRes } as CustomersData
+        const suppliersData = { suppliers: suppliersRes } as SuppliersData
+        const categoriesData = { categories: categoriesRes } as CategoriesData
 
-      // Update state with fetched data
-      if (salesData.sales) setSales(salesData.sales)
-      if (ordersData.orders) setOrders(ordersData.orders)
-      if (productsData.products) {
-        setProducts(productsData.products)
-        const lowStock = productsData.products.filter(
-          (p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)
-        )
-        setLowStockProducts(lowStock)
-      }
-      if (customersData.customers) setCustomers(customersData.customers)
-      if (suppliersData.suppliers) setSuppliers(suppliersData.suppliers)
-      if (categoriesData.categories) setCategories(categoriesData.categories)
-
-      // Calculate sales metrics
-      if (salesData.sales?.length) {
-        const today = new Date()
-        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-        const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-
-        // Filter sales by date periods
-        const todaySales = salesData.sales.filter((s: Sale) => 
-          new Date(s.createdAt).toDateString() === today.toDateString()
-        )
-        const weekSales = salesData.sales.filter((s: Sale) => 
-          new Date(s.createdAt) >= weekAgo
-        )
-        const monthSales = salesData.sales.filter((s: Sale) => 
-          new Date(s.createdAt) >= monthAgo
-        )
-
-        // Calculate totals
-        setTodaySales(todaySales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
-        setWeekSales(weekSales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
-        setMonthSales(monthSales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
-
-        // Calculate top products
+        // Update state with fetched data
+        if (salesData.sales) setSales(salesData.sales)
+        if (ordersData.orders) setOrders(ordersData.orders)
         if (productsData.products) {
-          const productSales = new Map<number, { quantity: number; total: number }>()
-          salesData.sales.forEach((sale: Sale) => 
-            sale.items.forEach((item: SaleItem) => {
-              const existing = productSales.get(item.productId) || { quantity: 0, total: 0 }
-              productSales.set(item.productId, {
-                quantity: existing.quantity + item.quantity,
-                total: existing.total + (item.price * item.quantity)
-              })
-            })
+          setProducts(productsData.products)
+          const lowStock = productsData.products.filter(
+            (p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)
+          )
+          setLowStockProducts(lowStock)
+        }
+        if (customersData.customers) setCustomers(customersData.customers)
+        if (suppliersData.suppliers) setSuppliers(suppliersData.suppliers)
+        if (categoriesData.categories) setCategories(categoriesData.categories)
+
+        // Calculate sales metrics
+        if (salesData.sales?.length) {
+          const today = new Date()
+          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+          const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+          // Filter sales by date periods
+          const todaySales = salesData.sales.filter((s: Sale) => 
+            new Date(s.createdAt).toDateString() === today.toDateString()
+          )
+          const weekSales = salesData.sales.filter((s: Sale) => 
+            new Date(s.createdAt) >= weekAgo
+          )
+          const monthSales = salesData.sales.filter((s: Sale) => 
+            new Date(s.createdAt) >= monthAgo
           )
 
-          const topProducts = Array.from(productSales.entries())
-            .map(([productId, sales]) => ({
-              productId,
-              productName: productsData.products.find((p: InventoryProduct) => p.id === productId)?.name || 'Unknown',
-              totalQuantity: sales.quantity,
-              totalSales: sales.total,
-              totalSold: sales.quantity
-            }))
-            .sort((a, b) => b.totalSales - a.totalSales)
-            .slice(0, 5)
+          // Calculate totals
+          setTodaySales(todaySales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
+          setWeekSales(weekSales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
+          setMonthSales(monthSales.reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
 
-          setTopProducts(topProducts)
+          // Calculate top products
+          if (productsData.products) {
+            const productSales = new Map<number, { quantity: number; total: number }>()
+            salesData.sales.forEach((sale: Sale) => 
+              sale.items.forEach((item: SaleItem) => {
+                const existing = productSales.get(item.productId) || { quantity: 0, total: 0 }
+                productSales.set(item.productId, {
+                  quantity: existing.quantity + item.quantity,
+                  total: existing.total + (item.price * item.quantity)
+                })
+              })
+            )
+
+            const topProducts = Array.from(productSales.entries())
+              .map(([productId, sales]) => ({
+                productId,
+                productName: productsData.products.find((p: InventoryProduct) => p.id === productId)?.name || 'Unknown',
+                totalQuantity: sales.quantity,
+                totalSales: sales.total,
+                totalSold: sales.quantity
+              }))
+              .sort((a, b) => b.totalSales - a.totalSales)
+              .slice(0, 5)
+
+            setTopProducts(topProducts)
+          }
         }
+
+        // Clear loading states
+        setLoadingState(prev => ({
+          ...prev,
+          products: false,
+          categories: false,
+          sales: false,
+          customers: false,
+          suppliers: false,
+          orders: false,
+          dashboard: false
+        }))
+
+      } catch (error) {
+        console.error('Error loading dashboard data:', error)
+        toast({
+          title: translate("Erreur", "خطأ"),
+          description: translate("Impossible de charger les données du tableau de bord.", "تعذر تحميل بيانات لوحة التحكم."),
+          variant: "destructive"
+        })
+        setLoadingState(prev => ({
+          ...prev,
+          products: false,
+          categories: false,
+          sales: false,
+          customers: false,
+          suppliers: false,
+          orders: false,
+          dashboard: false
+        }))
       }
-
-      // Clear loading states
-      setLoadingState(prev => ({
-        ...prev,
-        products: false,
-        categories: false,
-        sales: false,
-        customers: false,
-        suppliers: false,
-        orders: false,
-        dashboard: false
-      }))
-
-    } catch (error) {
-      console.error('Error loading dashboard data:', error)
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive"
-      })
-      setLoadingState(prev => ({
-        ...prev,
-        products: false,
-        categories: false,
-        sales: false,
-        customers: false,
-        suppliers: false,
-        orders: false,
-        dashboard: false
-      }))
-    }
-  }
-
-  // Load data on component mount
-  useEffect(() => {
-    handleDataLoad()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    },
+    [fetchSales, fetchOrders, fetchProducts, fetchCustomers, fetchSuppliers, fetchCategories, setLoadingState, toast]
+  )
 
   // Fetch AI Insights
   const fetchAIInsights = async () => {
     try {
-      const response = await fetch("/api/erp/ai-insights")
+      const response = await fetch(`/api/erp/ai-insights${activeVendorId ? `?vendorId=${activeVendorId}` : ''}`)
       const data = await response.json()
       if (data.success) {
         const d = data.data || {}
@@ -342,7 +564,8 @@ export default function VendorDashboard() {
   const saveProduct = async () => {
     try {
       const method = editingProduct ? "PUT" : "POST"
-      const response = await fetch("/api/erp/inventory", {
+      const inventoryUrl = `/api/erp/inventory${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
+      const response = await fetch(inventoryUrl, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -352,12 +575,13 @@ export default function VendorDashboard() {
           sellingPrice: Number.parseFloat(productForm.sellingPrice),
           stock: productForm.stock,
           lowStockThreshold: productForm.lowStockThreshold,
+          vendorId: activeVendorId,
         }),
       })
       const data = await response.json()
       if (data.success) {
-        fetchInventory()
-        fetchDashboardData()
+        fetchInventory(activeVendorId)
+        fetchDashboardData(activeVendorId)
         setShowProductDialog(false)
         setEditingProduct(null)
         setProductForm({
@@ -375,8 +599,10 @@ export default function VendorDashboard() {
           image: ""
         })
         toast({
-          title: editingProduct ? "Produit mis à jour" : "Produit ajouté",
-          description: "L'inventaire a été mis à jour avec succès",
+          title: editingProduct
+            ? translate("Produit mis à jour", "تم تحديث المنتج")
+            : translate("Produit ajouté", "تمت إضافة المنتج"),
+          description: translate("L'inventaire a été mis à jour avec succès", "تم تحديث المخزون بنجاح"),
         })
       }
     } catch (error) {
@@ -389,15 +615,16 @@ export default function VendorDashboard() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit?")) return
 
     try {
-      const response = await fetch(`/api/erp/inventory?id=${id}`, {
+      const url = `/api/erp/inventory?id=${id}${activeVendorId ? `&vendorId=${activeVendorId}` : ""}`
+      const response = await fetch(url, {
         method: "DELETE",
       })
       const data = await response.json()
       if (data.success) {
-        fetchInventory()
+        fetchInventory(activeVendorId)
         toast({
-          title: "Produit supprimé",
-          description: "Le produit a été supprimé de l'inventaire",
+          title: translate("Produit supprimé", "تم حذف المنتج"),
+          description: translate("Le produit a été supprimé de l'inventaire", "تم حذف المنتج من المخزون."),
         })
       }
     } catch (error) {
@@ -447,8 +674,8 @@ export default function VendorDashboard() {
   const completeSale = async (paymentMethod: "cash" | "card") => {
     if (posCart.length === 0) {
       toast({
-        title: "Panier vide",
-        description: "Ajoutez des produits au panier avant de finaliser la vente",
+        title: translate("Panier vide", "السلة فارغة"),
+        description: translate("Ajoutez des produits au panier avant de finaliser la vente", "أضِف منتجات إلى السلة قبل إتمام عملية البيع."),
         variant: "destructive",
       })
       return
@@ -458,7 +685,8 @@ export default function VendorDashboard() {
     const total = subtotal - posDiscount
 
     try {
-      const response = await fetch("/api/erp/sales", {
+      const salesUrl = `/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
+      const response = await fetch(salesUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -468,6 +696,7 @@ export default function VendorDashboard() {
           discount: posDiscount,
           total,
           paymentMethod,
+          vendorId: activeVendorId,
         }),
       })
       const data = await response.json()
@@ -477,12 +706,14 @@ export default function VendorDashboard() {
         setPosCart([])
         setPosDiscount(0)
         setPosCustomerId(null)
-        fetchDashboardData()
-        fetchInventory()
-        fetchSales()
+        fetchDashboardData(activeVendorId)
+        fetchInventory(activeVendorId)
+        fetchSales(activeVendorId)
         toast({
-          title: "Vente complétée",
-          description: `Vente de ${total} DZD enregistrée avec succès`,
+          title: translate("Vente complétée", "تمت العملية"),
+          description: isArabic
+            ? `تم تسجيل عملية بيع بقيمة ${total.toFixed(2)} ${translate("DZD", "دج")}.`
+            : `Vente de ${total.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
         })
       }
     } catch (error) {
@@ -493,19 +724,19 @@ export default function VendorDashboard() {
   // Save Customer
   const saveCustomer = async () => {
     try {
-      const response = await fetch("/api/erp/customers", {
+      const response = await fetch(`/api/erp/customers${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(customerForm),
       })
       const data = await response.json()
       if (data.success) {
-        fetchCustomers()
+        fetchCustomers(activeVendorId)
         setShowCustomerDialog(false)
         resetCustomerForm()
         toast({
-          title: "Client ajouté",
-          description: "Le client a été ajouté avec succès",
+          title: translate("Client ajouté", "تم إضافة العميل"),
+          description: translate("Le client a été ajouté avec succès", "تمت إضافة العميل بنجاح."),
         })
       }
     } catch (error) {
@@ -516,19 +747,22 @@ export default function VendorDashboard() {
   // Save Supplier
   const saveSupplier = async () => {
     try {
-      const response = await fetch("/api/erp/suppliers", {
+      const response = await fetch(`/api/erp/suppliers${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(supplierForm),
+        body: JSON.stringify({
+          ...supplierForm,
+          vendorId: activeVendorId,
+        }),
       })
       const data = await response.json()
       if (data.success) {
-        fetchSuppliers()
+        fetchSuppliers(activeVendorId)
         setShowSupplierDialog(false)
         setSupplierForm({ name: "", contactPerson: "", phone: "", email: "", address: "" })
         toast({
-          title: "Fournisseur ajouté",
-          description: "Le fournisseur a été ajouté avec succès",
+          title: translate("Fournisseur ajouté", "تم إضافة المورد"),
+          description: translate("Le fournisseur a été ajouté avec succès", "تمت إضافة المورد بنجاح."),
         })
       }
     } catch (error) {
@@ -536,26 +770,78 @@ export default function VendorDashboard() {
     }
   }
 
-  const handleImageCapture = (productId: number, imageData: string) => {
-    setProductImages({ ...productImages, [productId]: imageData })
-    playSuccessSound()
-    toast({
-      title: "Image capturée",
-      description: "L'image du produit a été enregistrée avec succès",
-    })
-  }
-
-  // Authentication check
+  // Authentication & role handling
   useEffect(() => {
     if (status === "loading") return
-    if (!isAuthenticated || user?.role !== "VENDOR") {
+    if (!isAuthenticated || !user) {
       router.push("/login")
       return
     }
 
-    // Load initial data only when authenticated
-    handleDataLoad()
+    const admin = user.role === "ADMIN"
+    const vendor = user.role === "VENDOR"
+
+    if (!admin && !vendor) {
+      router.push("/login")
+      return
+    }
+
+    setIsAdmin(admin)
+    if (!admin) {
+      setSelectedVendorId(null)
+    }
   }, [status, isAuthenticated, user, router])
+
+  // Load vendor list for admin users
+  useEffect(() => {
+    if (!isAdmin) {
+      setAvailableVendors([])
+      return
+    }
+
+    const controller = new AbortController()
+    const loadVendors = async () => {
+      try {
+        setIsLoadingVendors(true)
+        const response = await fetch('/api/admin/users?role=VENDOR&status=APPROVED&limit=500', {
+          signal: controller.signal,
+        })
+        const data = await response.json()
+        if (data?.success) {
+          const vendors = Array.isArray(data.users)
+            ? data.users.map((v: any) => ({ id: v.id, name: v.name || v.email || 'Vendor' }))
+            : []
+          setAvailableVendors(vendors)
+          if (vendors.length && !selectedVendorId) {
+            setSelectedVendorId(vendors[0].id)
+          }
+        }
+      } catch (error) {
+        if ((error as DOMException).name !== 'AbortError') {
+          console.error('[v0] Failed to load vendors:', error)
+          toast({
+            title: translate("Erreur", "خطأ"),
+            description: translate("Impossible de charger la liste des vendeurs.", "تعذر تحميل قائمة التجار."),
+            variant: "destructive",
+          })
+        }
+      } finally {
+        setIsLoadingVendors(false)
+      }
+    }
+
+    loadVendors()
+
+    return () => controller.abort()
+  }, [isAdmin, selectedVendorId, toast, translate])
+
+  // Load data when context changes
+  useEffect(() => {
+    if (status === "loading" || !isAuthenticated) return
+    if (isAdmin && !selectedVendorId) return
+    const vendorContextId = isAdmin ? selectedVendorId ?? undefined : undefined
+    handleDataLoad(vendorContextId)
+  }, [status, isAuthenticated, isAdmin, selectedVendorId, handleDataLoad])
 
   useEffect(() => {
     if (isDarkMode) {
@@ -569,7 +855,7 @@ export default function VendorDashboard() {
   const cartTotal = cartSubtotal - posDiscount
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" dir={isArabic ? "rtl" : "ltr"}>
       {/* Header */}
       <Header 
         language={language}
@@ -579,36 +865,75 @@ export default function VendorDashboard() {
       />
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6" dir={isArabic ? "rtl" : "ltr"}>
+        {isAdmin && (
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold">
+                {translate("Mode administrateur", "وضع المسؤول")}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {translate(
+                  "Sélectionnez un vendeur pour consulter et gérer ses données.",
+                  "اختر تاجراً لعرض بياناته وإدارتها."
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">
+                {translate("Vendeur", "التاجر")}
+              </Label>
+              <select
+                className="h-10 rounded-md border px-3 text-sm bg-background"
+                value={selectedVendorId ?? ""}
+                onChange={(event) => setSelectedVendorId(event.target.value || null)}
+                disabled={isLoadingVendors || availableVendors.length === 0}
+              >
+                {availableVendors.length === 0 && (
+                  <option value="">
+                    {isLoadingVendors
+                      ? translate("Chargement...", "جار التحميل...")
+                      : translate("Aucun vendeur disponible", "لا يوجد تجار متاحون")}
+                  </option>
+                )}
+                {availableVendors.map((vendor) => (
+                  <option key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-7 mb-6">
             <TabsTrigger value="dashboard">
               <LayoutDashboard className="w-4 h-4 mr-2" />
-              Tableau de bord
+              {translate("Tableau de bord", "لوحة التحكم")}
             </TabsTrigger>
             <TabsTrigger value="inventory">
               <Package className="w-4 h-4 mr-2" />
-              Inventaire
+              {translate("Inventaire", "المخزون")}
             </TabsTrigger>
             <TabsTrigger value="pos">
               <ShoppingCart className="w-4 h-4 mr-2" />
-              Point de Vente
+              {translate("Point de Vente", "نقطة البيع")}
             </TabsTrigger>
             <TabsTrigger value="sales">
               <History className="w-4 h-4 mr-2" />
-              Ventes
+              {translate("Ventes", "المبيعات")}
             </TabsTrigger>
             <TabsTrigger value="customers">
               <Users className="w-4 h-4 mr-2" />
-              Clients
+              {translate("Clients", "العملاء")}
             </TabsTrigger>
             <TabsTrigger value="suppliers">
               <Truck className="w-4 h-4 mr-2" />
-              Fournisseurs
+              {translate("Fournisseurs", "الموردون")}
             </TabsTrigger>
             <TabsTrigger value="ai">
               <BarChart3 className="w-4 h-4 mr-2" />
-              IA Insights
+              {translate("Analyse IA", "تحليلات الذكاء الاصطناعي")}
             </TabsTrigger>
           </TabsList>
 
@@ -618,33 +943,45 @@ export default function VendorDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Ventes Aujourd'hui</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {translate("Ventes d'aujourd'hui", "مبيعات اليوم")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
-                    <p className="text-3xl font-bold">{todaySales.toFixed(2)} DZD</p>
+                    <p className="text-3xl font-bold">
+                      {todaySales.toFixed(2)} {translate("DZD", "دج")}
+                    </p>
                     <DollarSign className="w-8 h-8 text-green-500" />
                   </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Ventes Cette Semaine</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {translate("Ventes cette semaine", "مبيعات هذا الأسبوع")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
-                    <p className="text-3xl font-bold">{weekSales.toFixed(2)} DZD</p>
+                    <p className="text-3xl font-bold">
+                      {weekSales.toFixed(2)} {translate("DZD", "دج")}
+                    </p>
                     <TrendingUp className="w-8 h-8 text-blue-500" />
                   </div>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Ventes Ce Mois</CardTitle>
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    {translate("Ventes ce mois", "مبيعات هذا الشهر")}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
-                    <p className="text-3xl font-bold">{monthSales.toFixed(2)} DZD</p>
+                    <p className="text-3xl font-bold">
+                      {monthSales.toFixed(2)} {translate("DZD", "دج")}
+                    </p>
                     <BarChart3 className="w-8 h-8 text-purple-500" />
                   </div>
                 </CardContent>
@@ -655,7 +992,7 @@ export default function VendorDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Produits les Plus Vendus</CardTitle>
+                  <CardTitle>{translate("Produits les plus vendus", "المنتجات الأكثر مبيعاً")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -667,14 +1004,18 @@ export default function VendorDashboard() {
                           </div>
                           <div>
                             <p className="font-medium">{product.productName}</p>
-                            <p className="text-sm text-muted-foreground">{product.totalQuantity} vendus</p>
+                            <p className="text-sm text-muted-foreground">
+                              {product.totalQuantity} {translate("vendus", "تم بيعها")}
+                            </p>
                           </div>
                         </div>
                         <TrendingUp className="w-5 h-5 text-green-500" />
                       </div>
                     ))}
                     {topProducts.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">Aucune vente enregistrée</p>
+                      <p className="text-center text-muted-foreground py-8">
+                        {translate("Aucune vente enregistrée", "لا توجد مبيعات مسجلة")}
+                      </p>
                     )}
                   </div>
                 </CardContent>
@@ -684,7 +1025,7 @@ export default function VendorDashboard() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5 text-orange-500" />
-                    Alertes Stock Faible
+                    {translate("Alertes stock faible", "تنبيهات انخفاض المخزون")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -693,13 +1034,19 @@ export default function VendorDashboard() {
                       <div key={product.id} className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {translate("Référence", "المرجع")}: {product.sku}
+                          </p>
                         </div>
-                        <Badge variant="destructive">{product.stock} restants</Badge>
+                        <Badge variant="destructive">
+                          {product.stock} {translate("restants", "متبقي")}
+                        </Badge>
                       </div>
                     ))}
                     {lowStockProducts.length === 0 && (
-                      <p className="text-center text-muted-foreground py-8">Tous les stocks sont suffisants</p>
+                      <p className="text-center text-muted-foreground py-8">
+                        {translate("Tous les stocks sont suffisants", "جميع المخزونات كافية")}
+                      </p>
                     )}
                   </div>
                 </CardContent>
@@ -709,25 +1056,25 @@ export default function VendorDashboard() {
             {/* Quick Actions */}
             <Card>
               <CardHeader>
-                <CardTitle>Actions Rapides</CardTitle>
+                <CardTitle>{translate("Actions rapides", "إجراءات سريعة")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <Button onClick={() => setActiveTab("pos")} className="h-20 flex-col gap-2">
                     <ShoppingCart className="w-6 h-6" />
-                    Nouvelle Vente
+                    {translate("Nouvelle vente", "عملية بيع جديدة")}
                   </Button>
                   <Button onClick={() => setShowProductDialog(true)} variant="outline" className="h-20 flex-col gap-2">
                     <Plus className="w-6 h-6" />
-                    Ajouter Produit
+                    {translate("Ajouter un produit", "إضافة منتج")}
                   </Button>
                   <Button onClick={() => setActiveTab("inventory")} variant="outline" className="h-20 flex-col gap-2">
                     <Package className="w-6 h-6" />
-                    Voir Inventaire
+                    {translate("Voir l'inventaire", "عرض المخزون")}
                   </Button>
                   <Button onClick={() => setActiveTab("sales")} variant="outline" className="h-20 flex-col gap-2">
                     <History className="w-6 h-6" />
-                    Historique
+                    {translate("Historique", "السجل")}
                   </Button>
                 </div>
               </CardContent>
@@ -737,10 +1084,12 @@ export default function VendorDashboard() {
           {/* Inventory Tab */}
           <TabsContent value="inventory" className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Gestion de l'Inventaire</h2>
+              <h2 className="text-2xl font-bold">
+                {translate("Gestion de l'inventaire", "إدارة المخزون")}
+              </h2>
               <Button onClick={() => setShowProductDialog(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Ajouter un Produit
+                <Plus className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
+                {translate("Ajouter un produit", "إضافة منتج")}
               </Button>
             </div>
 
@@ -824,10 +1173,12 @@ export default function VendorDashboard() {
                 {products.length === 0 && (
                   <div className="text-center py-12">
                     <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-lg text-muted-foreground mb-4">Aucun produit dans l'inventaire</p>
+                    <p className="text-lg text-muted-foreground mb-4">
+                      {translate("Aucun produit dans l'inventaire", "لا توجد منتجات في المخزون")}
+                    </p>
                     <Button onClick={() => setShowProductDialog(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Ajouter votre premier produit
+                      <Plus className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
+                      {translate("Ajouter votre premier produit", "أضف أول منتج لك")}
                     </Button>
                   </div>
                 )}
@@ -842,14 +1193,31 @@ export default function VendorDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Product Selection */}
               <div className="lg:col-span-2 space-y-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                  <Input
-                    placeholder="Rechercher un produit ou scanner un code-barres..."
-                    value={posSearch}
-                    onChange={(e) => setPosSearch(e.target.value)}
-                    className="pl-10"
-                  />
+                <div className={`flex ${isArabic ? "flex-row-reverse" : "flex-row"} items-center gap-2`}>
+                  <div className="relative flex-1">
+                    <Search
+                      className={`absolute ${isArabic ? "right-3" : "left-3"} top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5`}
+                    />
+                    <Input
+                      placeholder={translate(
+                        "Rechercher un produit ou scanner un code-barres...",
+                        "ابحث عن منتج أو امسح رمزاً شريطياً..."
+                      )}
+                      value={posSearch}
+                      onChange={(e) => setPosSearch(e.target.value)}
+                      className={`${isArabic ? "pr-10 text-right" : "pl-10"}`}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => setIsBarcodeScannerOpen(true)}
+                    disabled={!isBarcodeDetectorSupported}
+                  >
+                    <ScanLine className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
+                    {translate("Scanner", "مسح")}
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

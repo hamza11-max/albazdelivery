@@ -16,15 +16,24 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'VENDOR') {
-      throw new ForbiddenError('Only vendors can access this endpoint')
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can access this endpoint')
     }
 
-    const vendorId = session.user.id
     const searchParams = request.nextUrl.searchParams
     const statusParam = searchParams.get('status')
     const pageParam = searchParams.get('page')
     const limitParam = searchParams.get('limit')
+    const vendorIdParam = searchParams.get('vendorId')
+
+    const vendorId = isAdmin ? vendorIdParam : session.user.id
+
+    if (!vendorId) {
+      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+    }
 
     // Validate and parse pagination
     const page = Math.max(1, parseInt(pageParam || '1'))
@@ -90,6 +99,17 @@ export async function GET(request: NextRequest) {
               status: true,
             },
           },
+          ...(isAdmin
+            ? {
+                vendor: {
+                  select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                  },
+                },
+              }
+            : {}),
         },
         orderBy: {
           createdAt: 'desc',
@@ -124,8 +144,11 @@ export async function PATCH(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'VENDOR') {
-      throw new ForbiddenError('Only vendors can update orders')
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can update orders')
     }
 
     const body = await request.json()
@@ -153,13 +176,16 @@ export async function PATCH(request: NextRequest) {
     const order = await prisma.order.findFirst({
       where: {
         id: orderId,
-        vendorId: session.user.id,
       },
       select: { id: true, status: true, vendorId: true },
     })
 
     if (!order) {
       throw new NotFoundError('Order')
+    }
+
+    if (isVendor && order.vendorId !== session.user.id) {
+      throw new ForbiddenError('You can only update your own orders')
     }
 
     // Prepare update data with timestamps

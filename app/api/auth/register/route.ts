@@ -12,13 +12,15 @@ export async function POST(request: Request) {
     // Parse and validate request body
     const body = await request.json()
     const validatedData = registerSchema.parse(body)
+    const normalizedEmail = validatedData.email.toLowerCase().trim()
+    const normalizedPhone = validatedData.phone.trim()
 
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: validatedData.email },
-          { phone: validatedData.phone },
+          { email: normalizedEmail },
+          { phone: normalizedPhone },
         ],
       },
     })
@@ -31,8 +33,8 @@ export async function POST(request: Request) {
     const existingRequest = await prisma.registrationRequest.findFirst({
       where: {
         OR: [
-          { email: validatedData.email },
-          { phone: validatedData.phone },
+          { email: normalizedEmail },
+          { phone: normalizedPhone },
         ],
       },
     })
@@ -49,8 +51,8 @@ export async function POST(request: Request) {
       const user = await prisma.user.create({
         data: {
           name: validatedData.name,
-          email: validatedData.email,
-          phone: validatedData.phone,
+          email: normalizedEmail,
+          phone: normalizedPhone,
           password: hashedPassword,
           role: validatedData.role,
           status: 'APPROVED',
@@ -97,8 +99,8 @@ export async function POST(request: Request) {
     const registrationRequest = await prisma.registrationRequest.create({
       data: {
         name: validatedData.name,
-        email: validatedData.email,
-        phone: validatedData.phone,
+          email: normalizedEmail,
+          phone: normalizedPhone,
         password: hashedPassword,
         role: validatedData.role,
         licenseNumber: validatedData.licenseNumber,

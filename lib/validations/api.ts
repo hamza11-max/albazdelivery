@@ -186,6 +186,20 @@ export const createRefundSchema = z.object({
 // ERP Inventory Validation Schemas
 // ========================================
 
+const imageFieldSchema = z
+  .string()
+  .trim()
+  .refine(
+    (value) =>
+      value.length === 0 ||
+      value.startsWith('http://') ||
+      value.startsWith('https://') ||
+      value.startsWith('data:image/'),
+    {
+      message: 'Image must be a valid URL or base64 data URI',
+    }
+  )
+
 export const createInventoryProductSchema = z.object({
   sku: z.string().min(1, 'SKU is required'),
   name: z.string().min(2, 'Name is required'),
@@ -195,8 +209,9 @@ export const createInventoryProductSchema = z.object({
   stock: z.number().int().nonnegative('Stock cannot be negative'),
   lowStockThreshold: z.number().int().nonnegative('Low stock threshold cannot be negative'),
   barcode: z.string().optional(),
-  image: z.string().url().optional().or(z.literal('')),
+  image: imageFieldSchema.optional(),
   supplierId: z.string().optional(),
+  vendorId: z.string().cuid('Invalid vendor ID').optional(),
 })
 
 export const updateInventoryProductSchema = z.object({
@@ -207,7 +222,7 @@ export const updateInventoryProductSchema = z.object({
   stock: z.number().int().nonnegative().optional(),
   lowStockThreshold: z.number().int().nonnegative().optional(),
   barcode: z.string().optional(),
-  image: z.string().url().optional().or(z.literal('')),
+  image: imageFieldSchema.optional(),
   supplierId: z.string().optional(),
 })
 

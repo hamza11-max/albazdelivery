@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Phone number validation for Algeria (starts with 05, 06, or 07, followed by 8 digits)
-const algerianPhoneRegex = /^0[567]\d{8}$/
+export const algerianPhoneRegex = /^0[567]\d{8}$/
 
 export const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -21,8 +21,19 @@ export const registerSchema = z.object({
   city: z.string().optional(),
 })
 
+const loginIdentifierSchema = z
+  .string()
+  .trim()
+  .min(1, 'Email or phone is required')
+  .refine(
+    (value) => value.includes('@') || algerianPhoneRegex.test(value),
+    {
+      message: 'Enter a valid email address or Algerian phone number',
+    }
+  )
+
 export const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  identifier: loginIdentifierSchema,
   password: z.string().min(1, 'Password is required'),
 })
 
