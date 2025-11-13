@@ -1,7 +1,18 @@
 import { useState } from "react"
 import { useToast } from "@/components/ui/use-toast"
-import type { LoadingState } from "@/app/vendor/types"
 import { getCachedData, setCachedData } from "@/lib/api-cache"
+
+// Define LoadingState locally to avoid circular dependencies
+export interface LoadingState {
+  sales: boolean
+  customers: boolean
+  suppliers: boolean
+  products: boolean
+  orders: boolean
+  categories: boolean
+  dashboard: boolean
+  inventory: boolean
+}
 
 interface CacheApiResponse<T> {
   success: boolean

@@ -37,12 +37,25 @@ const config = {
       fallback: {
         ...config.resolve.fallback,
       },
+      // Add alias to help with module resolution
+      alias: {
+        ...config.resolve.alias,
+      },
     };
 
     // Fix for "Cannot access before initialization" errors
     // Disable module concatenation which can cause initialization order issues
     // This prevents webpack from combining modules in a way that breaks initialization order
     config.optimization.concatenateModules = false;
+    
+    // Add more aggressive fixes for initialization issues
+    if (!isServer) {
+      // Ensure proper handling of ES modules in client bundles
+      config.resolve.extensionAlias = {
+        '.js': ['.js', '.ts', '.tsx'],
+        '.jsx': ['.jsx', '.tsx'],
+      };
+    }
     
     return config;
   },

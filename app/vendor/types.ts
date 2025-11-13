@@ -136,16 +136,9 @@ export interface CategoriesData {
 }
 
 // UI State Types
-export interface LoadingState {
-  sales: boolean
-  customers: boolean
-  suppliers: boolean
-  products: boolean
-  orders: boolean
-  categories: boolean
-  dashboard: boolean
-  inventory: boolean
-}
+// LoadingState is now imported from hooks/use-fetch-with-cache to avoid circular dependencies
+// Re-export it here for backward compatibility
+export type { LoadingState } from "./fetch-data"
 
 // Form Types (consolidated - duplicates removed)
 // BaseProductFields is defined above for ProductUpdateData
