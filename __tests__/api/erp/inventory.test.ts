@@ -12,6 +12,7 @@ jest.mock('@/lib/prisma', () => ({
     inventoryProduct: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -307,7 +308,7 @@ describe('DELETE /api/erp/inventory', () => {
     })
 
     // Mock existing product
-    ;(prisma.inventoryProduct.findFirst as jest.Mock).mockResolvedValue({
+    ;(prisma.inventoryProduct.findUnique as jest.Mock).mockResolvedValue({
       id: productId,
       vendorId: vendorId,
     })
@@ -347,7 +348,7 @@ describe('DELETE /api/erp/inventory', () => {
     })
 
     // Mock product not found (not owned by vendor)
-    ;(prisma.inventoryProduct.findFirst as jest.Mock).mockResolvedValue(null)
+    ;(prisma.inventoryProduct.findUnique as jest.Mock).mockResolvedValue(null)
 
     // Import route handler
     const { DELETE } = await import('@/app/api/erp/inventory/route')
