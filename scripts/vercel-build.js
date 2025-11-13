@@ -14,8 +14,20 @@ const fs = require('fs');
 
 function resolveBin(name) {
   // prefer local node_modules/.bin/<name>(.cmd on Windows)
-  const binName = process.platform === 'win32' ? `${name}.cmd` : name;
-  const local = path.join(process.cwd(), 'node_modules', '.bin', binName);
+  if (process.platform === 'win32') {
+    // Try .cmd first, then .bat, then just the name
+    const cmdPath = path.join(process.cwd(), 'node_modules', '.bin', `${name}.cmd`);
+    const batPath = path.join(process.cwd(), 'node_modules', '.bin', `${name}.bat`);
+    const exePath = path.join(process.cwd(), 'node_modules', '.bin', `${name}.exe`);
+    const jsPath = path.join(process.cwd(), 'node_modules', '.bin', name);
+    
+    if (fs.existsSync(cmdPath)) return cmdPath;
+    if (fs.existsSync(batPath)) return batPath;
+    if (fs.existsSync(exePath)) return exePath;
+    if (fs.existsSync(jsPath)) return jsPath;
+    return name; // fall back to PATH
+  }
+  const local = path.join(process.cwd(), 'node_modules', '.bin', name);
   if (fs.existsSync(local)) return local;
   return name; // fall back to PATH
 }
@@ -23,7 +35,13 @@ function resolveBin(name) {
 function run(program, args, allowFailure = false) {
   const prog = resolveBin(program);
   console.log(`> Running: ${prog} ${args.join(' ')}`);
-  const res = spawnSync(prog, args, { stdio: 'inherit', env: process.env });
+  // On Windows, use shell: true for .cmd files
+  const options = {
+    stdio: 'inherit',
+    env: process.env,
+    shell: process.platform === 'win32' && prog.endsWith('.cmd')
+  };
+  const res = spawnSync(prog, args, options);
   if (res.error) {
     console.error(res.error);
     if (!allowFailure) {

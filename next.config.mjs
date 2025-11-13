@@ -20,11 +20,19 @@ const config = {
       // Ensure proper chunk splitting to avoid initialization order issues
       splitChunks: {
         ...config.optimization.splitChunks,
+        chunks: 'all',
         cacheGroups: {
           ...config.optimization.splitChunks?.cacheGroups,
           default: {
             minChunks: 2,
             priority: -20,
+            reuseExistingChunk: true,
+          },
+          // Separate vendor chunks to avoid initialization issues
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            priority: 10,
             reuseExistingChunk: true,
           },
         },

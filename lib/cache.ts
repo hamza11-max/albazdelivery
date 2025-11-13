@@ -11,7 +11,10 @@ const isBuildTime = () => {
 
 // Initialize Redis client lazily
 let _redis: Redis | null = null
-export const redis = new Proxy({} as Redis, {
+
+// Use function to ensure proper initialization order
+function createRedisProxy(): Redis {
+  return new Proxy({} as Redis, {
   get(target, prop) {
     if (isBuildTime()) {
       // Return no-op functions during build
@@ -32,11 +35,16 @@ export const redis = new Proxy({} as Redis, {
     // Return no-op if Redis not configured
     return () => Promise.resolve(null)
   }
-})
+  });
+}
+
+export const redis = createRedisProxy();
 
 // Initialize queues lazily
 let _queues: any = null
-export const queues = new Proxy({} as any, {
+
+function createQueuesProxy() {
+  return new Proxy({} as any, {
   get(target, prop) {
     if (isBuildTime()) {
       // Return mock queue during build
@@ -79,7 +87,10 @@ export const queues = new Proxy({} as any, {
       process: () => Promise.resolve(null),
     }
   }
-});
+  });
+}
+
+export const queues = createQueuesProxy();
 
 // Cache helper functions
 export async function cacheGet<T>(key: string): Promise<T | null> {
