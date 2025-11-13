@@ -202,32 +202,9 @@ export default function AlBazApp() {
   const { data: session, status } = useSession()
   const user = session?.user
   const isAuthenticated = status === "authenticated"
+  
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [isDarkMode, setIsDarkMode] = useState(false)
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login")
-    }
-  }, [status, router])
-
-  // Show loading or nothing while checking authentication
-  if (status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Don't render the app if not authenticated (will redirect)
-  if (status === "unauthenticated") {
-    return null
-  }
-
   const [currentPage, setCurrentPage] = useState("home")
   const [selectedCity] = useState("Tamanrasset")
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
@@ -238,13 +215,19 @@ export default function AlBazApp() {
   const [paymentMethod, setPaymentMethod] = useState("cash")
   const [selectedLanguage, setSelectedLanguage] = useState("fr")
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
 
   // New state for customer ID and current order
   const customerId = user?.id || "customer-1"
-  const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
-
   const shouldUseSSE = currentPage === "tracking" && !!orderId
   const { data: sseData } = useSSE(`/api/notifications/sse?role=customer&userId=${customerId}`, shouldUseSSE)
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login")
+    }
+  }, [status, router])
 
   useEffect(() => {
     if (sseData?.type === "order_updated" && sseData.order?.id === orderId) {
@@ -300,6 +283,24 @@ export default function AlBazApp() {
     document.documentElement.lang = selectedLanguage
     document.documentElement.dir = selectedLanguage === "ar" ? "rtl" : "ltr"
   }, [selectedLanguage])
+
+  // Show loading or nothing while checking authentication
+  // IMPORTANT: All hooks must be called before conditional returns
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Don't render the app if not authenticated (will redirect)
+  if (status === "unauthenticated") {
+    return null
+  }
 
   const t = (key: string, fr: string, ar: string) => {
     if (selectedLanguage === "ar") return ar
