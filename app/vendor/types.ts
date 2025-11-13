@@ -45,22 +45,14 @@ export interface SalesForecast {
   trend: 'up' | 'down' | 'stable'
 }
 
+// BaseProductFields is defined in the Form Types section below
+// Forward declaration for ProductUpdateData
 export interface BaseProductFields {
   name: string
+  description: string
   category: string
   stock: number
   lowStockThreshold: number
-}
-
-export interface ProductForm extends BaseProductFields {
-  sku: string
-  supplierId: string
-  costPrice: string
-  sellingPrice: string
-  barcode: string
-  image: string
-  description: string
-  price: string
 }
 
 export interface ProductUpdateData extends BaseProductFields {
@@ -155,14 +147,8 @@ export interface LoadingState {
   inventory: boolean
 }
 
-// Form Types
-export interface BaseProductFields {
-  name: string
-  description: string
-  category: string
-  stock: number
-  lowStockThreshold: number
-}
+// Form Types (consolidated - duplicates removed)
+// BaseProductFields is defined above for ProductUpdateData
 
 export interface ProductForm extends BaseProductFields {
   sku: string
@@ -171,23 +157,7 @@ export interface ProductForm extends BaseProductFields {
   sellingPrice: string
   barcode: string
   image: string
-  description: string
   price: string
-}
-
-export interface CustomerForm {
-  name: string
-  email: string
-  phone: string
-  address: string
-}
-
-export interface SupplierForm {
-  name: string
-  contactPerson: string
-  phone: string
-  email: string
-  address: string
 }
 
 // Filter Types
