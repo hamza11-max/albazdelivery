@@ -55,6 +55,12 @@ const config = {
         '.js': ['.js', '.ts', '.tsx'],
         '.jsx': ['.jsx', '.tsx'],
       };
+      
+      // Prevent hoisting issues that can cause initialization errors
+      config.optimization.usedExports = true;
+      
+      // Ensure proper module ordering
+      config.optimization.providedExports = true;
     }
     
     return config;
