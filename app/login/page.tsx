@@ -50,18 +50,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-teal-400 to-orange-500 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Logo Section */}
         <div className="flex flex-col items-center pt-8 pb-6 px-6">
           <div className="mb-4">
-            <img src="/logo.png" alt="AL-BAZ FAST DELIVERY" className="h-24 w-auto" />
+            <img src="/logo.png" alt="AL-BAZ FAST DELIVERY" className="h-20 w-auto" />
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-1" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            <h1 className="text-4xl font-bold text-gray-900 mb-1 tracking-tight">
               AL-BAZ
             </h1>
-            <p className="text-xs uppercase tracking-wider text-gray-600 font-medium">
+            <p className="text-xs uppercase tracking-[0.15em] text-gray-600 font-semibold">
               FAST DELIVERY
             </p>
           </div>
@@ -89,7 +89,7 @@ export default function LoginPage() {
                 placeholder="votre@email.com"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                className="h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg"
+                className="h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg bg-white"
                 required
               />
             </div>
@@ -104,7 +104,7 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg"
+                className="h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg bg-white"
                 required
               />
             </div>
@@ -117,7 +117,7 @@ export default function LoginPage() {
 
             <Button 
               type="submit" 
-              className="w-full h-12 bg-gradient-to-r from-teal-700 via-teal-600 to-orange-500 hover:from-teal-800 hover:to-orange-600 text-white font-semibold rounded-lg shadow-lg transition-all duration-200 transform hover:scale-[1.02]"
+              className="w-full h-12 bg-gradient-to-r from-teal-700 to-orange-500 hover:from-teal-800 hover:to-orange-600 text-white font-semibold rounded-lg shadow-md transition-all duration-200"
               disabled={loading}
             >
               {loading ? "Connexion..." : "Se connecter"}
