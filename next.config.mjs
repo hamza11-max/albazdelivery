@@ -13,31 +13,32 @@ const config = {
     styledComponents: true
   },
   webpack: (config, { isServer, webpack }) => {
-    // Fix for module initialization order issues
-    config.optimization = {
-      ...config.optimization,
-      moduleIds: 'deterministic',
-      // Ensure proper chunk splitting to avoid initialization order issues
-      splitChunks: {
-        ...config.optimization.splitChunks,
-        chunks: 'all',
-        cacheGroups: {
-          ...config.optimization.splitChunks?.cacheGroups,
-          default: {
-            minChunks: 2,
-            priority: -20,
-            reuseExistingChunk: true,
+        // Fix for module initialization order issues
+        config.optimization = {
+          ...config.optimization,
+          // Use 'natural' for client bundles to ensure proper initialization order
+          moduleIds: isServer ? 'deterministic' : 'natural',
+          // Ensure proper chunk splitting to avoid initialization order issues
+          splitChunks: {
+            ...config.optimization.splitChunks,
+            chunks: 'all',
+            cacheGroups: {
+              ...config.optimization.splitChunks?.cacheGroups,
+              default: {
+                minChunks: 2,
+                priority: -20,
+                reuseExistingChunk: true,
+              },
+              // Separate vendor chunks to avoid initialization issues
+              vendor: {
+                test: /[\\/]node_modules[\\/]/,
+                name: 'vendors',
+                priority: 10,
+                reuseExistingChunk: true,
+              },
+            },
           },
-          // Separate vendor chunks to avoid initialization issues
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            priority: 10,
-            reuseExistingChunk: true,
-          },
-        },
-      },
-    };
+        };
     
     // Prevent circular dependency warnings from breaking the build
     config.resolve = {
@@ -64,11 +65,9 @@ const config = {
         '.jsx': ['.jsx', '.tsx'],
       };
       
-      // Prevent hoisting issues that can cause initialization errors
-      config.optimization.usedExports = true;
-      
-      // Ensure proper module ordering
-      config.optimization.providedExports = true;
+      // Disable problematic optimizations that can cause initialization issues
+      config.optimization.usedExports = false;
+      config.optimization.providedExports = false;
     }
     
     return config;

@@ -18,9 +18,6 @@ import type {
   CategoriesData
 } from "./types"
 
-// Re-export LoadingState for use in vendor types
-export type { LoadingState }
-
 export function useDashboardData() {
   const [loadingState, setLoadingStateInternal] = useState<LoadingState>({
     sales: false,

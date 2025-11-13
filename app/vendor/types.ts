@@ -136,9 +136,9 @@ export interface CategoriesData {
 }
 
 // UI State Types
-// LoadingState is now imported from hooks/use-fetch-with-cache to avoid circular dependencies
-// Re-export it here for backward compatibility
-export type { LoadingState } from "./fetch-data"
+// LoadingState is imported directly from hooks to avoid circular dependencies
+// This breaks the cycle: types.ts -> fetch-data.ts -> types.ts
+export type { LoadingState } from "@/hooks/use-fetch-with-cache"
 
 // Form Types (consolidated - duplicates removed)
 // BaseProductFields is defined above for ProductUpdateData
