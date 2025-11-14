@@ -30,11 +30,17 @@ const config = {
     // Fix for module initialization order issues
     config.optimization = {
       ...config.optimization,
-      moduleIds: isServer ? 'deterministic' : 'natural',
+      // Use 'named' for better module ordering
+      moduleIds: isServer ? 'deterministic' : 'named',
+      // Disable module concatenation to prevent hoisting issues
       concatenateModules: false,
+      // Disable side effects optimization for client
+      sideEffects: false,
       splitChunks: {
         ...config.optimization.splitChunks,
         chunks: 'all',
+        maxInitialRequests: 25,
+        minSize: 20000,
         cacheGroups: {
           ...config.optimization.splitChunks?.cacheGroups,
           default: {
@@ -47,15 +53,35 @@ const config = {
             name: 'vendors',
             priority: 10,
             reuseExistingChunk: true,
+            enforce: true,
+          },
+          // Separate chunk for shared code
+          common: {
+            name: 'common',
+            minChunks: 2,
+            priority: 5,
+            reuseExistingChunk: true,
           },
         },
       },
     };
     
     if (!isServer) {
+      // Disable tree shaking optimizations that can cause initialization issues
       config.optimization.usedExports = false;
       config.optimization.providedExports = false;
+      config.optimization.mangleExports = false;
+      // Ensure proper module evaluation order - already set above, but enforce here
+      if (!config.optimization.moduleIds) {
+        config.optimization.moduleIds = 'named';
+      }
     }
+    
+    // Additional webpack configuration to prevent module initialization issues
+    if (!config.resolve) {
+      config.resolve = {}
+    }
+    config.resolve.fullySpecified = false
     
     return config;
   },
