@@ -83,9 +83,10 @@ import type {
 
 export default function VendorDashboard() {
   const router = useRouter()
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
   
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // UI States
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [activeTab, setActiveTab] = useState("dashboard")
@@ -850,6 +851,23 @@ useEffect(() => {
       document.documentElement.classList.remove("dark")
     }
   }, [isDarkMode])
+
+  // Show loading state while checking authentication
+  if (isLoading || status === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
+  
+  // Redirect if not authenticated (handled in useEffect, but show nothing while redirecting)
+  if (!isAuthenticated || !user) {
+    return null
+  }
 
   const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const cartTotal = cartSubtotal - posDiscount
