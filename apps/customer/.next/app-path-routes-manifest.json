@@ -1,0 +1,18 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/auth/login/route": "/api/auth/login",
+  "/api/auth/register/route": "/api/auth/register",
+  "/api/orders/[id]/route": "/api/orders/[id]",
+  "/api/orders/[id]/status/route": "/api/orders/[id]/status",
+  "/api/orders/create/route": "/api/orders/create",
+  "/api/orders/route": "/api/orders",
+  "/api/orders/track/route": "/api/orders/track",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/package-delivery/page": "/package-delivery",
+  "/login/login/page": "/login/login",
+  "/login/page": "/login",
+  "/signup/page": "/signup",
+  "/page": "/",
+  "/checkout/page": "/checkout",
+  "/checkout/checkout/page": "/checkout/checkout"
+}

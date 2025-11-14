@@ -1,18 +1,23 @@
 {
-  "name": "my-v0-project",
+  "name": "albazdelivery-monorepo",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
   },
   "scripts": {
-    "clean": "rimraf .next dist",
-    "build": "cross-env NODE_ENV=production swc src -d dist",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean",
     "vercel-build": "node ./scripts/vercel-build.js",
-    "dev": "cross-env NODE_ENV=development next dev",
-    "lint": "next lint",
-    "start": "next start",
     "postinstall": "prisma generate",
     "prepare": "prisma generate || exit 0",
     "db:generate": "cross-env NODE_ENV=development prisma generate",
@@ -148,6 +153,7 @@
     "ts-jest": "^29.0.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
+    "turbo": "^2.6.1",
     "tw-animate-css": "1.3.3",
     "typescript": "^5",
     "undici": "^7.16.0",
