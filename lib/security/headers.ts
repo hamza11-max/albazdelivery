@@ -39,6 +39,10 @@ export function getSecurityHeaders(): SecurityHeaders {
   }
 
   // Content Security Policy
+  // Get the app's origin from NEXTAUTH_URL or use defaults
+  const nextAuthUrl = process.env.NEXTAUTH_URL || (isProduction ? 'https://albazdelivery.vercel.app' : 'http://localhost:3000')
+  const appOrigin = new URL(nextAuthUrl).origin
+  
   if (isProduction) {
     headers['Content-Security-Policy'] = [
       "default-src 'self'",
@@ -46,7 +50,7 @@ export function getSecurityHeaders(): SecurityHeaders {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://api.supabase.co https://*.supabase.co",
+      `connect-src 'self' ${appOrigin} https://api.supabase.co https://*.supabase.co`,
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -59,7 +63,7 @@ export function getSecurityHeaders(): SecurityHeaders {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https: http:",
       "font-src 'self' data:",
-      "connect-src 'self' http://localhost:* https://api.supabase.co https://*.supabase.co ws://localhost:* wss://localhost:*",
+      `connect-src 'self' ${appOrigin} http://localhost:* https://api.supabase.co https://*.supabase.co ws://localhost:* wss://localhost:*`,
       "frame-ancestors 'none'",
     ].join('; ')
   }

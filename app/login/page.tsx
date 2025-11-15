@@ -1,8 +1,9 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,6 +18,26 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // Handle error query parameter from NextAuth redirects
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      // Clear the error query parameter from URL to prevent loops
+      const newUrl = window.location.pathname
+      window.history.replaceState({}, '', newUrl)
+      
+      // Handle different error types
+      if (errorParam === 'MissingCSRF') {
+        setError("Erreur de sécurité. Veuillez actualiser la page et réessayer.")
+      } else if (errorParam === 'Configuration') {
+        setError("Erreur de configuration. Veuillez contacter le support.")
+      } else {
+        setError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")
+      }
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,49 +45,37 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Use Next-Auth v5 built-in signin endpoint
-      // The endpoint /api/auth/signin/credentials is handled by the catch-all route
-      const formData = new URLSearchParams()
-      formData.append('identifier', identifier)
-      formData.append('password', password)
-      formData.append('callbackUrl', '/')
-      formData.append('redirect', 'false')
-      formData.append('json', 'true')
-
-      const response = await fetch('/api/auth/signin/credentials', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData.toString(),
-        credentials: 'include', // Important: include cookies
+      // Use Next-Auth's client-side signIn function
+      // This properly handles session creation and cookie setting
+      const result = await signIn('credentials', {
+        identifier,
+        password,
+        redirect: false, // Don't redirect automatically, we'll handle it
       })
 
-      // Check if response was redirected (success)
-      if (response.redirected || response.url.includes('/')) {
-        // Success - cookies should be set, redirect to home
-        window.location.href = '/'
-        return
-      }
+      console.log('[Login] SignIn result:', result)
 
-      let data: any = {}
-      try {
-        const text = await response.text()
-        if (text) {
-          data = JSON.parse(text)
-        }
-      } catch {
-        // Response might not be JSON
-      }
-      
-      console.log('[Login] Response:', { ok: response.ok, status: response.status, redirected: response.redirected, data })
-      
-      if (response.ok && !data.error) {
-        // Success - session should be set now
-        window.location.href = '/'
+      if (result?.error) {
+        // Authentication failed
+        console.error('[Login] Failed:', result.error)
+        setError(result.error === 'CredentialsSignin' 
+          ? "Email ou mot de passe incorrect" 
+          : "Une erreur s'est produite. Veuillez réessayer.")
+        setLoading(false)
+      } else if (result?.ok) {
+        // Success - session is now established
+        console.log('[Login] Success - redirecting to home')
+        // Use router.push and then refresh to ensure session is loaded
+        router.push('/')
+        router.refresh()
+        // Also do a full reload after a short delay to ensure everything is synced
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 100)
       } else {
-        console.error('[Login] Failed:', data)
-        setError(data.error || data.message || "Email ou mot de passe incorrect")
+        // Unexpected result
+        console.error('[Login] Unexpected result:', result)
+        setError("Une erreur s'est produite. Veuillez réessayer.")
         setLoading(false)
       }
     } catch (err) {

@@ -226,12 +226,27 @@ export default function AlBazApp() {
   const { data: sseData } = useSSE(`/api/notifications/sse?role=customer&userId=${customerId}`, shouldUseSSE)
 
   // Add timeout for loading state to prevent infinite loading
+  // But only if we're not coming from a login (give more time after login)
   useEffect(() => {
     if (status === "loading") {
+      // Check if we have a session cookie (might be setting up after login)
+      const hasSessionCookie = document.cookie.includes('next-auth.session-token') || 
+                                document.cookie.includes('__Secure-next-auth.session-token')
+      
+      // Check if we're on the login page (don't redirect if already there)
+      const isOnLoginPage = window.location.pathname === '/login'
+      
+      // Give more time if we have a cookie (likely just logged in)
+      // Don't redirect if already on login page
+      const timeoutDuration = hasSessionCookie ? 15000 : 8000
+      
       const timeout = setTimeout(() => {
-        console.warn('[Auth] Session loading timeout - redirecting to login')
-        router.push("/login")
-      }, 5000) // 5 second timeout
+        // Only redirect if still loading, no cookie found, and not already on login page
+        if (status === "loading" && !hasSessionCookie && !isOnLoginPage) {
+          console.warn('[Auth] Session loading timeout - redirecting to login')
+          router.push("/login")
+        }
+      }, timeoutDuration)
       return () => clearTimeout(timeout)
     }
   }, [status, router])
