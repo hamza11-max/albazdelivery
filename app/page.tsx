@@ -273,14 +273,22 @@ export default function AlBazApp() {
   useEffect(() => {
     if (status === "loading") return
 
+    console.log('[Root Page] Auth status:', { status, user: user?.email, role: user?.role })
+
     if (status === "unauthenticated") {
+      console.log('[Root Page] Unauthenticated - redirecting to login')
       router.push("/login")
       return
     }
 
-    if (status === "authenticated" && user?.role && user.role !== "CUSTOMER") {
-      const dest = user.role === "ADMIN" ? "/admin" : user.role === "VENDOR" ? "/vendor" : user.role === "DRIVER" ? "/driver" : "/"
-      router.push(dest)
+    if (status === "authenticated" && user?.role) {
+      console.log('[Root Page] Authenticated - role:', user.role)
+      if (user.role !== "CUSTOMER") {
+        const dest = user.role === "ADMIN" ? "/admin" : user.role === "VENDOR" ? "/vendor" : user.role === "DRIVER" ? "/driver" : "/"
+        console.log('[Root Page] Redirecting to:', dest)
+        router.push(dest)
+      }
+      // If CUSTOMER, stay on this page (home page)
     }
   }, [status, user, router])
 

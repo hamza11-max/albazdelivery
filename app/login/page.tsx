@@ -24,26 +24,48 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Use Next-Auth v5 signin endpoint
+      // Use Next-Auth v5 built-in signin endpoint
+      // The endpoint /api/auth/signin/credentials is handled by the catch-all route
+      const formData = new URLSearchParams()
+      formData.append('identifier', identifier)
+      formData.append('password', password)
+      formData.append('callbackUrl', '/')
+      formData.append('redirect', 'false')
+      formData.append('json', 'true')
+
       const response = await fetch('/api/auth/signin/credentials', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier,
-          password,
-          callbackUrl: '/',
-          redirect: false,
-        }),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
         credentials: 'include', // Important: include cookies
       })
 
-      const data = await response.json()
+      // Check if response was redirected (success)
+      if (response.redirected || response.url.includes('/')) {
+        // Success - cookies should be set, redirect to home
+        window.location.href = '/'
+        return
+      }
+
+      let data: any = {}
+      try {
+        const text = await response.text()
+        if (text) {
+          data = JSON.parse(text)
+        }
+      } catch {
+        // Response might not be JSON
+      }
+      
+      console.log('[Login] Response:', { ok: response.ok, status: response.status, redirected: response.redirected, data })
       
       if (response.ok && !data.error) {
-        // Force a page reload to refresh the session
-        // Use window.location to ensure cookies are sent
+        // Success - session should be set now
         window.location.href = '/'
       } else {
+        console.error('[Login] Failed:', data)
         setError(data.error || data.message || "Email ou mot de passe incorrect")
         setLoading(false)
       }
