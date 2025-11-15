@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
 
     // If driver, verify they can only optimize their own routes
     if (session.user.role === 'DRIVER' && session.user.id) {
-      // Verify driver exists and is active
-      const driver = await prisma.driver.findUnique({
-        where: { userId: session.user.id },
+      // Verify driver exists and is active (drivers are Users with role DRIVER)
+      const driver = await prisma.user.findUnique({
+        where: { id: session.user.id, role: 'DRIVER' },
       })
       if (!driver) {
         throw new ForbiddenError('Driver profile not found')
@@ -47,7 +47,13 @@ export async function POST(request: NextRequest) {
         status: { in: ['READY', 'ASSIGNED'] },
       },
       include: {
-        deliveryAddress: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
       },
     })
 
@@ -55,11 +61,11 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('Some orders are invalid or not ready for delivery'), 400)
     }
 
-    // Verify driver exists
-    const driver = await prisma.driver.findUnique({
-      where: { userId: driverId },
+    // Verify driver exists (drivers are Users with role DRIVER)
+    const driver = await prisma.user.findUnique({
+      where: { id: driverId, role: 'DRIVER' },
       include: {
-        location: true,
+        driverLocation: true,
       },
     })
 

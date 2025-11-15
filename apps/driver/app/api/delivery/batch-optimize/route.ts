@@ -40,7 +40,13 @@ export async function POST(request: NextRequest) {
         status: { in: ['READY', 'ASSIGNED'] },
       },
       include: {
-        deliveryAddress: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
         store: {
           select: {
             id: true,
@@ -55,18 +61,19 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('Some orders are invalid or not ready for delivery'), 400)
     }
 
-    // Get all available drivers with their locations
-    const drivers = await prisma.driver.findMany({
+    // Get all available drivers with their locations (drivers are Users with role DRIVER)
+    const drivers = await prisma.user.findMany({
       where: {
-        location: {
+        role: 'DRIVER',
+        driverLocation: {
           isActive: true,
         },
       },
       include: {
-        location: true,
+        driverLocation: true,
         _count: {
           select: {
-            orders: {
+            driverDeliveries: {
               where: {
                 status: { in: ['ASSIGNED', 'IN_DELIVERY'] },
               },
@@ -100,22 +107,22 @@ export async function POST(request: NextRequest) {
       .map(o => o.orderId)
 
     // Sort drivers by current workload (least busy first)
-    const sortedDrivers = drivers.sort((a, b) => 
-      (a._count.orders || 0) - (b._count.orders || 0)
+    const sortedDrivers = drivers.sort((a: typeof drivers[0], b: typeof drivers[0]) => 
+      (a._count.driverDeliveries || 0) - (b._count.driverDeliveries || 0)
     )
 
     // Assign unassigned orders to drivers in round-robin fashion
     unassignedOrders.forEach((orderId, index) => {
       const driver = sortedDrivers[index % sortedDrivers.length]
-      if (!driverOrdersMap.has(driver.userId)) {
-        driverOrdersMap.set(driver.userId, [])
+      if (!driverOrdersMap.has(driver.id)) {
+        driverOrdersMap.set(driver.id, [])
       }
-      driverOrdersMap.get(driver.userId)!.push(orderId)
+      driverOrdersMap.get(driver.id)!.push(orderId)
     })
 
     // Create optimized routes for each driver
     for (const [driverId, orderIdsForDriver] of driverOrdersMap.entries()) {
-      const driver = drivers.find(d => d.userId === driverId)
+      const driver = drivers.find((d: typeof drivers[0]) => d.id === driverId)
       if (!driver) continue
 
       const driverOrders = ordersData.filter(o => orderIdsForDriver.includes(o.id))
@@ -138,7 +145,7 @@ export async function POST(request: NextRequest) {
         totalDistance,
         estimatedTime,
         ordersCount: driverOrders.length,
-        currentWorkload: driver._count.orders || 0,
+        currentWorkload: driver._count.driverDeliveries || 0,
       })
     }
 

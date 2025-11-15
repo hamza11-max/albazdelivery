@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState } from "react"
-import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button, Input, Label } from "@albaz/ui"
 import Link from "next/link"
@@ -23,24 +22,25 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const result = await signIn("credentials", {
-        identifier,
-        password,
-        redirect: false,
-        callbackUrl: "/",
+      // Use Next-Auth v5 signin endpoint
+      const response = await fetch('/api/auth/signin/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier,
+          password,
+          callbackUrl: '/',
+        }),
       })
 
-      if (result && typeof result === 'object' && 'error' in result) {
-        const res = result as { error?: string }
-        if (res.error) {
-          setError("Email ou mot de passe incorrect")
-          setLoading(false)
-          return
-        }
+      if (response.ok) {
+        router.push('/')
+        router.refresh()
+      } else {
+        const data = await response.json()
+        setError(data.error || "Email ou mot de passe incorrect")
+        setLoading(false)
       }
-
-      // If signIn didn't return an error, navigate to home
-      router.push('/')
     } catch (err) {
       setError("Une erreur s'est produite. Veuillez réessayer.")
       setLoading(false)

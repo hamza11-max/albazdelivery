@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Input } from "@albaz/ui"
 import { useSSE } from "@/lib/use-sse"
-import type { Order } from "@albaz/shared/types"
+import type { Order } from "@albaz/shared"
 import {
   ShoppingCart,
   User,
@@ -1335,7 +1335,7 @@ export default function AlBazApp() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t("payment", "Paiement", "الدفع")}</span>
                     <span className="font-semibold text-foreground">
-                      {currentOrder.paymentMethod === "cash"
+                      {currentOrder.paymentMethod === "CASH"
                         ? t("cash", "Espèces", "نقدي")
                         : t("card", "Carte", "بطاقة")}
                     </span>

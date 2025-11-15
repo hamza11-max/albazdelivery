@@ -200,6 +200,28 @@ useEffect(() => {
   }
 }, [])
 
+// Add to POS Cart - moved before useCallback that uses it
+const addToCart = useCallback((product: InventoryProduct) => {
+  setPosCart((prevCart) => {
+    const existing = prevCart.find((item) => item.id === product.id)
+    if (existing) {
+      return prevCart.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item))
+    } else {
+      return [
+        ...prevCart,
+        {
+          id: product.id,
+          productId: product.id,
+          productName: product.name,
+          quantity: 1,
+          price: product.sellingPrice || 0,
+          discount: 0,
+        },
+      ]
+    }
+  })
+}, [])
+
 const stopBarcodeScanner = useCallback(() => {
   if (barcodeAnimationFrameRef.current) {
     cancelAnimationFrame(barcodeAnimationFrameRef.current)
@@ -633,27 +655,7 @@ useEffect(() => {
     }
   }
 
-  // Add to POS Cart
-  const addToCart = (product: InventoryProduct) => {
-    const existing = posCart.find((item) => item.id === product.id)
-    if (existing) {
-      setPosCart(
-        posCart.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item)),
-      )
-    } else {
-      setPosCart([
-        ...posCart,
-        {
-          id: product.id,
-          productId: product.id,
-          productName: product.name,
-          quantity: 1,
-          price: product.sellingPrice || 0,
-          discount: 0,
-        },
-      ])
-    }
-  }
+  // Add to POS Cart - moved to top of component (already defined above)
 
   // Remove from Cart
   const removeFromCart = (id: number) => {

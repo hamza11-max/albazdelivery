@@ -155,16 +155,37 @@ cd apps/customer && npm test
 
 ## 📝 Environment Variables
 
-Each app may require specific environment variables. See:
-- `apps/customer/.env.example`
-- `apps/vendor/.env.example`
-- `apps/driver/.env.example`
-- `apps/admin/.env.example`
+Environment variables are configured at both root and app levels. See the [Environment Setup Guide](./ENV_SETUP_GUIDE.md) for detailed instructions.
 
-Common variables:
+### Quick Setup
+
+1. **Root level** (shared):
+   ```bash
+   cp .env.example .env
+   # Edit .env with your values
+   ```
+
+2. **App level** (optional, app-specific overrides):
+   ```bash
+   cp apps/customer/.env.example apps/customer/.env.local
+   cp apps/vendor/.env.example apps/vendor/.env.local
+   cp apps/driver/.env.example apps/driver/.env.local
+   cp apps/admin/.env.example apps/admin/.env.local
+   ```
+
+### Required Variables
+
 - `DATABASE_URL` - PostgreSQL connection string
-- `NEXTAUTH_SECRET` - NextAuth secret key
-- `NEXTAUTH_URL` - Application URL
+- `NEXTAUTH_SECRET` - NextAuth secret key (generate with `openssl rand -base64 32`)
+- `NEXTAUTH_URL` - Application base URL
+
+### Optional Variables
+
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - For OAuth login
+- `REDIS_URL` / `REDIS_TOKEN` - For caching and rate limiting
+- `ALLOWED_ORIGINS` - CORS configuration
+
+See [ENV_SETUP_GUIDE.md](./ENV_SETUP_GUIDE.md) for complete documentation.
 
 ## 🚢 Deployment
 
@@ -179,6 +200,7 @@ See [MONOREPO_NEXT_STEPS.md](./MONOREPO_NEXT_STEPS.md) for detailed deployment i
 
 ## 📖 Documentation
 
+- [Environment Setup Guide](./ENV_SETUP_GUIDE.md) - **Start here!** Configure environment variables
 - [Monorepo Next Steps](./MONOREPO_NEXT_STEPS.md) - What to do next
 - [Architecture Proposal](./ARCHITECTURE_PROPOSAL.md) - System architecture
 - [API Documentation](./API_DOCUMENTATION.md) - API endpoints

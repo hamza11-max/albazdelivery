@@ -24,12 +24,12 @@ export async function fetchDashboardData(vendorId?: string) {
     suppliersResponse,
     categoriesResponse
   ] = await Promise.all([
-    fetchFromAPI(buildUrl('/api/erp/sales')),
-    fetchFromAPI(buildUrl('/api/vendors/orders')),
-    fetchFromAPI(buildUrl('/api/erp/inventory')),
-    fetchFromAPI(buildUrl('/api/erp/customers')),
-    fetchFromAPI(buildUrl('/api/erp/suppliers')),
-    fetchFromAPI(buildUrl('/api/erp/categories'))
+    fetchFromAPI<{ sales?: unknown[] }>(buildUrl('/api/erp/sales')),
+    fetchFromAPI<{ orders?: unknown[] }>(buildUrl('/api/vendors/orders')),
+    fetchFromAPI<{ products?: unknown[] }>(buildUrl('/api/erp/inventory')),
+    fetchFromAPI<{ customers?: unknown[] }>(buildUrl('/api/erp/customers')),
+    fetchFromAPI<{ suppliers?: unknown[] }>(buildUrl('/api/erp/suppliers')),
+    fetchFromAPI<{ categories?: unknown[] }>(buildUrl('/api/erp/categories'))
   ])
 
   return {
@@ -50,8 +50,8 @@ export async function fetchInventory(vendorId?: string) {
   }
 
   const [productsResponse, categoriesResponse] = await Promise.all([
-    fetchFromAPI(buildUrl('/api/erp/inventory')),
-    fetchFromAPI(buildUrl('/api/erp/categories'))
+    fetchFromAPI<{ products?: unknown[] }>(buildUrl('/api/erp/inventory')),
+    fetchFromAPI<{ categories?: unknown[] }>(buildUrl('/api/erp/categories'))
   ])
 
   return {

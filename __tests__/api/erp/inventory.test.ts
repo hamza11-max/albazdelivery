@@ -55,7 +55,7 @@ describe('POST /api/erp/inventory', () => {
     const productId = generateCuid()
 
     // Mock authenticated vendor
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: vendorId,
         role: 'VENDOR',
@@ -63,10 +63,10 @@ describe('POST /api/erp/inventory', () => {
     })
 
     // Mock supplier check (no supplier)
-    ;(prisma.supplier.findFirst as jest.Mock).mockResolvedValue(null)
+    ;(prisma.supplier.findFirst as jest.Mock<any>).mockResolvedValue(null)
 
     // Mock SKU check (unique)
-    ;(prisma.inventoryProduct.findFirst as jest.Mock).mockResolvedValue(null)
+    ;(prisma.inventoryProduct.findFirst as jest.Mock<any>).mockResolvedValue(null)
 
     // Mock product creation
     const mockProduct = {
@@ -81,7 +81,7 @@ describe('POST /api/erp/inventory', () => {
       lowStockThreshold: 10,
       supplier: null,
     }
-    ;(prisma.inventoryProduct.create as jest.Mock).mockResolvedValue(mockProduct)
+    ;(prisma.inventoryProduct.create as jest.Mock<any>).mockResolvedValue(mockProduct)
 
     // Import route handler
     const { POST } = await import('@/app/api/erp/inventory/route')
@@ -118,7 +118,7 @@ describe('POST /api/erp/inventory', () => {
     const vendorId = generateCuid()
 
     // Mock authenticated vendor
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: vendorId,
         role: 'VENDOR',
@@ -126,7 +126,7 @@ describe('POST /api/erp/inventory', () => {
     })
 
     // Mock duplicate SKU
-    ;(prisma.inventoryProduct.findFirst as jest.Mock).mockResolvedValue({
+    ;(prisma.inventoryProduct.findFirst as jest.Mock<any>).mockResolvedValue({
       id: generateCuid(),
       sku: 'SKU001',
     })
@@ -166,7 +166,7 @@ describe('POST /api/erp/inventory', () => {
     const vendorId = generateCuid()
 
     // Mock authenticated vendor
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: vendorId,
         role: 'VENDOR',
@@ -197,7 +197,7 @@ describe('POST /api/erp/inventory', () => {
     const { auth } = await import('@/lib/auth')
 
     // Mock unauthenticated user
-    ;(auth as jest.Mock).mockResolvedValue(null)
+    ;(auth as jest.Mock<any>).mockResolvedValue(null)
 
     // Import route handler
     const { POST } = await import('@/app/api/erp/inventory/route')
@@ -235,7 +235,7 @@ describe('GET /api/erp/inventory', () => {
     const vendorId = generateCuid()
 
     // Mock authenticated vendor
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: vendorId,
         role: 'VENDOR',
@@ -261,7 +261,7 @@ describe('GET /api/erp/inventory', () => {
         supplier: null,
       },
     ]
-    ;(prisma.inventoryProduct.findMany as jest.Mock).mockResolvedValue(mockProducts)
+    ;(prisma.inventoryProduct.findMany as jest.Mock<any>).mockResolvedValue(mockProducts)
 
     // Import route handler
     const { GET } = await import('@/app/api/erp/inventory/route')
@@ -300,7 +300,7 @@ describe('DELETE /api/erp/inventory', () => {
     const productId = generateCuid()
 
     // Mock authenticated vendor
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: vendorId,
         role: 'VENDOR',
@@ -308,13 +308,13 @@ describe('DELETE /api/erp/inventory', () => {
     })
 
     // Mock existing product
-    ;(prisma.inventoryProduct.findUnique as jest.Mock).mockResolvedValue({
+    ;(prisma.inventoryProduct.findUnique as jest.Mock<any>).mockResolvedValue({
       id: productId,
       vendorId: vendorId,
     })
 
     // Mock deletion
-    ;(prisma.inventoryProduct.delete as jest.Mock).mockResolvedValue({})
+    ;(prisma.inventoryProduct.delete as jest.Mock<any>).mockResolvedValue({})
 
     // Import route handler
     const { DELETE } = await import('@/app/api/erp/inventory/route')
@@ -340,7 +340,7 @@ describe('DELETE /api/erp/inventory', () => {
     const otherProductId = generateCuid()
 
     // Mock authenticated vendor
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: vendorId,
         role: 'VENDOR',
@@ -348,7 +348,7 @@ describe('DELETE /api/erp/inventory', () => {
     })
 
     // Mock product not found (not owned by vendor)
-    ;(prisma.inventoryProduct.findUnique as jest.Mock).mockResolvedValue(null)
+    ;(prisma.inventoryProduct.findUnique as jest.Mock<any>).mockResolvedValue(null)
 
     // Import route handler
     const { DELETE } = await import('@/app/api/erp/inventory/route')
@@ -376,7 +376,7 @@ describe('DELETE /api/erp/inventory', () => {
     const vendorId = generateCuid()
 
     // Mock authenticated vendor
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: vendorId,
         role: 'VENDOR',

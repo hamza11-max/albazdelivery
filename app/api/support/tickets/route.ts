@@ -67,13 +67,6 @@ export async function GET(request: NextRequest) {
               email: true,
             },
           },
-          assignedToUser: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
         },
         orderBy: {
           createdAt: 'desc',

@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
 
     const driverId = session.user.id
 
-    // Verify driver exists
-    const driver = await prisma.driver.findUnique({
-      where: { userId: driverId },
+    // Verify driver exists (drivers are Users with role DRIVER)
+    const driver = await prisma.user.findUnique({
+      where: { id: driverId, role: 'DRIVER' },
       select: { id: true },
     })
 

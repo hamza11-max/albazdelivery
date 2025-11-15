@@ -6,7 +6,7 @@ import { test, describe, jest, beforeEach } from '@jest/globals';
 import { screen, waitFor, render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Session } from 'next-auth/core/types';
-import { SessionProvider } from 'next-auth/react';
+// SessionProvider removed - Next-Auth v5 doesn't use it
 import { Elements } from '@stripe/react-stripe-js';
 import { CheckoutPage } from '@/app/checkout/client';
 
@@ -138,11 +138,9 @@ describe('Payment Flow Integration Tests', () => {
     return {
       user: userEvent.setup(),
       ...render(
-        <SessionProvider session={mockSession}>
-          <Elements stripe={null}>
-            <CheckoutPage order={order} />
-          </Elements>
-        </SessionProvider>
+        <Elements stripe={null}>
+          <CheckoutPage order={order} />
+        </Elements>
       )
     };
   };

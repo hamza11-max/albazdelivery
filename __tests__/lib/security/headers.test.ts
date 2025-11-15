@@ -6,7 +6,12 @@ describe('Security Headers', () => {
   const originalEnv = process.env.NODE_ENV
 
   afterEach(() => {
-    process.env.NODE_ENV = originalEnv
+    // Use Object.defineProperty to bypass readonly restriction
+    Object.defineProperty(process, 'env', {
+      value: { ...process.env, NODE_ENV: originalEnv },
+      writable: true,
+      configurable: true,
+    })
   })
 
   describe('getSecurityHeaders', () => {
@@ -20,27 +25,43 @@ describe('Security Headers', () => {
     })
 
     it('should include CSP in production', () => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process, 'env', {
+        value: { ...process.env, NODE_ENV: 'production' },
+        writable: true,
+        configurable: true,
+      })
       const headers = getSecurityHeaders()
       expect(headers['Content-Security-Policy']).toBeDefined()
       expect(headers['Content-Security-Policy']).toContain("default-src 'self'")
     })
 
     it('should include CSP in development', () => {
-      process.env.NODE_ENV = 'development'
+      Object.defineProperty(process, 'env', {
+        value: { ...process.env, NODE_ENV: 'development' },
+        writable: true,
+        configurable: true,
+      })
       const headers = getSecurityHeaders()
       expect(headers['Content-Security-Policy']).toBeDefined()
     })
 
     it('should include HSTS in production', () => {
-      process.env.NODE_ENV = 'production'
+      Object.defineProperty(process, 'env', {
+        value: { ...process.env, NODE_ENV: 'production' },
+        writable: true,
+        configurable: true,
+      })
       const headers = getSecurityHeaders()
       expect(headers['Strict-Transport-Security']).toBeDefined()
       expect(headers['Strict-Transport-Security']).toContain('max-age=31536000')
     })
 
     it('should not include HSTS in development', () => {
-      process.env.NODE_ENV = 'development'
+      Object.defineProperty(process, 'env', {
+        value: { ...process.env, NODE_ENV: 'development' },
+        writable: true,
+        configurable: true,
+      })
       const headers = getSecurityHeaders()
       expect(headers['Strict-Transport-Security']).toBeUndefined()
     })

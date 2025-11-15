@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If vendor, verify order belongs to their store
-    if (session.user.role === 'VENDOR' && order.store.vendorId !== session.user.id) {
+    if (session.user.role === 'VENDOR' && order.store && order.store.vendorId !== session.user.id) {
       throw new ForbiddenError('You can only assign drivers to your own orders')
     }
 
@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
     if (order.driverId && order.driverId !== driverId) {
       // Reassignment - verify new driver exists
       if (driverId) {
-        const newDriver = await prisma.driver.findUnique({
-          where: { userId: driverId },
-          select: { id: true, userId: true },
+        const newDriver = await prisma.user.findUnique({
+          where: { id: driverId, role: 'DRIVER' },
+          select: { id: true, name: true },
         })
         if (!newDriver) {
           return errorResponse(new Error('Driver not found'), 404)
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
           },
           // Exclude drivers with too many active orders
           driver: {
-            orders: {
+            driverDeliveries: {
               none: {
                 status: { in: ['ASSIGNED', 'IN_DELIVERY'] },
               },
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         include: {
           driver: {
             select: {
-              userId: true,
+              id: true,
               name: true,
               phone: true,
             },
@@ -110,13 +110,13 @@ export async function POST(request: NextRequest) {
       }
 
       // Select first available driver (in production, use distance calculation)
-      selectedDriverId = driverLocations[0].driver.userId
+      selectedDriverId = driverLocations[0].driver.id
     } else {
       // Verify specified driver exists and is active
-      const driver = await prisma.driver.findUnique({
-        where: { userId: selectedDriverId },
+      const driver = await prisma.user.findUnique({
+        where: { id: selectedDriverId, role: 'DRIVER' },
         include: {
-          location: true,
+          driverLocation: true,
         },
       })
 
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         return errorResponse(new Error('Driver not found'), 404)
       }
 
-      if (!driver.location?.isActive) {
+      if (!driver.driverLocation?.isActive) {
         return errorResponse(new Error('Driver is not active'), 400)
       }
     }
@@ -154,19 +154,23 @@ export async function POST(request: NextRequest) {
     })
 
     // Emit event for real-time updates
-    emitOrderAssigned(updatedOrder, selectedDriverId)
+    if (selectedDriverId) {
+      emitOrderAssigned(updatedOrder, selectedDriverId)
+    }
 
     // Create notification for driver
-    await prisma.notification.create({
-      data: {
-        recipientId: selectedDriverId,
-        recipientRole: 'DRIVER',
-        type: 'ORDER_ASSIGNED',
-        title: 'New Delivery Assignment',
-        message: `You have been assigned to deliver order #${orderId}`,
-        relatedOrderId: orderId,
-      },
-    })
+    if (selectedDriverId) {
+      await prisma.notification.create({
+        data: {
+          recipientId: selectedDriverId,
+          recipientRole: 'DRIVER',
+          type: 'DELIVERY_UPDATE',
+          title: 'New Delivery Assignment',
+          message: `You have been assigned to deliver order #${orderId}`,
+          relatedOrderId: orderId,
+        },
+      })
+    }
 
     // Create notification for customer
     await prisma.notification.create({

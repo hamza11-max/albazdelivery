@@ -26,14 +26,15 @@ export async function POST(request: NextRequest) {
     const driverId = session.user.id
 
     // Update driver location
+    // Provide defaults for optional fields that Prisma requires as numbers
     const location = await prisma.driverLocation.upsert({
       where: { driverId },
       update: {
         latitude,
         longitude,
-        accuracy,
-        heading,
-        speed,
+        accuracy: accuracy ?? 0,
+        heading: heading ?? 0,
+        speed: speed ?? 0,
         isActive: isActive !== undefined ? isActive : true,
         status: status || "online",
         currentOrderId,
@@ -43,9 +44,9 @@ export async function POST(request: NextRequest) {
         driverId,
         latitude,
         longitude,
-        accuracy,
-        heading,
-        speed,
+        accuracy: accuracy ?? 0,
+        heading: heading ?? 0,
+        speed: speed ?? 0,
         isActive: isActive !== undefined ? isActive : true,
         status: status || "online",
         currentOrderId,

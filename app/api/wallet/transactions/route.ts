@@ -92,11 +92,10 @@ export async function GET(request: NextRequest) {
         skip: (page - 1) * limit,
         take: limit,
         include: {
-          order: {
+          wallet: {
             select: {
               id: true,
-              total: true,
-              status: true,
+              customerId: true,
             },
           },
         },

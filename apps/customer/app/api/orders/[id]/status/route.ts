@@ -96,8 +96,8 @@ export async function PUT(
 
     // Validate driver assignment
     if (status === 'ASSIGNED' && driverId) {
-      const driver = await prisma.driver.findUnique({
-        where: { userId: driverId },
+      const driver = await prisma.user.findUnique({
+        where: { id: driverId, role: 'DRIVER' },
         select: { id: true },
       })
       if (!driver) {

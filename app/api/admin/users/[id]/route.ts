@@ -29,11 +29,11 @@ export async function GET(
     const user = await prisma.user.findUnique({
       where: { id },
       include: {
-        store: true,
+        stores: true,
         _count: {
           select: {
             orders: true,
-            driverOrders: true,
+            driverDeliveries: true,
           },
         },
       },

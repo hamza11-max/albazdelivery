@@ -89,13 +89,6 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           items: true,
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
           ...(isAdmin
             ? {
                 vendor: {

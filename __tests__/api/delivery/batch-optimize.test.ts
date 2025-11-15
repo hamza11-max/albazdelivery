@@ -12,7 +12,7 @@ jest.mock('@/lib/prisma', () => ({
     order: {
       findMany: jest.fn(),
     },
-    driver: {
+    user: {
       findMany: jest.fn(),
     },
   },
@@ -52,7 +52,7 @@ describe('POST /api/delivery/batch-optimize', () => {
     const driverId2 = generateCuid()
 
     // Mock authenticated admin
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: adminId,
         role: 'ADMIN',
@@ -65,35 +65,35 @@ describe('POST /api/delivery/batch-optimize', () => {
         id: orderId1,
         status: 'READY',
         createdAt: new Date('2024-01-01'),
-        deliveryAddress: {},
+        customer: { id: generateCuid(), name: 'Customer 1', phone: '0551234567' },
         store: { id: generateCuid(), address: 'Store 1', city: 'Algiers' },
       },
       {
         id: orderId2,
         status: 'READY',
         createdAt: new Date('2024-01-02'),
-        deliveryAddress: {},
+        customer: { id: generateCuid(), name: 'Customer 2', phone: '0551234568' },
         store: { id: generateCuid(), address: 'Store 2', city: 'Algiers' },
       },
     ]
-    ;(prisma.order.findMany as jest.Mock).mockResolvedValue(mockOrders)
+    ;(prisma.order.findMany as jest.Mock<any>).mockResolvedValue(mockOrders)
 
-    // Mock drivers
+    // Mock drivers (drivers are Users with role DRIVER)
     const mockDrivers = [
       {
-        userId: driverId1,
+        id: driverId1,
         name: 'Driver 1',
-        location: { isActive: true },
-        _count: { orders: 0 },
+        driverLocation: { isActive: true },
+        _count: { driverDeliveries: 0 },
       },
       {
-        userId: driverId2,
+        id: driverId2,
         name: 'Driver 2',
-        location: { isActive: true },
-        _count: { orders: 1 },
+        driverLocation: { isActive: true },
+        _count: { driverDeliveries: 1 },
       },
     ]
-    ;(prisma.driver.findMany as jest.Mock).mockResolvedValue(mockDrivers)
+    ;(prisma.user.findMany as jest.Mock<any>).mockResolvedValue(mockDrivers)
 
     // Import route handler
     const { POST } = await import('@/app/api/delivery/batch-optimize/route')
@@ -126,7 +126,7 @@ describe('POST /api/delivery/batch-optimize', () => {
     const adminId = generateCuid()
 
     // Mock authenticated admin
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: adminId,
         role: 'ADMIN',
@@ -134,7 +134,7 @@ describe('POST /api/delivery/batch-optimize', () => {
     })
 
     // Mock orders not found (invalid IDs won't pass validation, but if they do, return empty)
-    ;(prisma.order.findMany as jest.Mock).mockResolvedValue([])
+    ;(prisma.order.findMany as jest.Mock<any>).mockResolvedValue([])
 
     // Import route handler
     const { POST } = await import('@/app/api/delivery/batch-optimize/route')
@@ -164,7 +164,7 @@ describe('POST /api/delivery/batch-optimize', () => {
     const orderId = generateCuid()
 
     // Mock customer role (not allowed)
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: customerId,
         role: 'CUSTOMER',
@@ -203,7 +203,7 @@ describe('POST /api/delivery/batch-optimize', () => {
     const orderId = generateCuid()
 
     // Mock authenticated admin
-    ;(auth as jest.Mock).mockResolvedValue({
+    ;(auth as jest.Mock<any>).mockResolvedValue({
       user: {
         id: adminId,
         role: 'ADMIN',
@@ -211,18 +211,18 @@ describe('POST /api/delivery/batch-optimize', () => {
     })
 
     // Mock orders
-    ;(prisma.order.findMany as jest.Mock).mockResolvedValue([
+    ;(prisma.order.findMany as jest.Mock<any>).mockResolvedValue([
       {
         id: orderId,
         status: 'READY',
         createdAt: new Date(),
-        deliveryAddress: {},
+        customer: { id: generateCuid(), name: 'Customer 1', phone: '0551234567' },
         store: { id: generateCuid(), address: 'Store 1', city: 'Algiers' },
       },
     ])
 
     // Mock no drivers available
-    ;(prisma.driver.findMany as jest.Mock).mockResolvedValue([])
+    ;(prisma.user.findMany as jest.Mock<any>).mockResolvedValue([])
 
     // Import route handler
     const { POST } = await import('@/app/api/delivery/batch-optimize/route')

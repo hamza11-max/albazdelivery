@@ -38,13 +38,6 @@ export async function GET(
             email: true,
           },
         },
-        assignedToUser: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
       },
     })
 
@@ -140,13 +133,6 @@ export async function PATCH(
       data: updateData,
       include: {
         customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        assignedToUser: {
           select: {
             id: true,
             name: true,

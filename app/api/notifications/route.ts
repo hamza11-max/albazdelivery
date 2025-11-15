@@ -1,8 +1,10 @@
 import { type NextRequest } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { markNotificationReadSchema } from '@/lib/validations/api'
 
 // GET /api/notifications - Get user notifications
 export async function GET(request: NextRequest) {

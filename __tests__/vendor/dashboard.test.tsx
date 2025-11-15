@@ -3,7 +3,7 @@
  */
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
-import { SessionProvider } from 'next-auth/react';
+// SessionProvider removed - Next-Auth v5 doesn't use it
 import React from 'react';
 
 // Create a simple test component that we'll use for our mock

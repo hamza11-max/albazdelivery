@@ -100,11 +100,13 @@ export async function GET(request: NextRequest) {
             comment: true,
             createdAt: true,
           },
-        },
-        vendor: {
-          select: {
-            id: true,
-            name: true,
+          include: {
+            vendor: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },

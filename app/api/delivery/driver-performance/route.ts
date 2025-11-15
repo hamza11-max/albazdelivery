@@ -118,9 +118,9 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('earnings must be a non-negative number'), 400)
     }
 
-    // Verify driver exists
-    const driver = await prisma.driver.findUnique({
-      where: { userId: driverId },
+    // Verify driver exists (drivers are Users with role DRIVER)
+    const driver = await prisma.user.findUnique({
+      where: { id: driverId, role: 'DRIVER' },
       select: { id: true },
     })
 

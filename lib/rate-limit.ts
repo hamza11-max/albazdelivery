@@ -56,8 +56,9 @@ const shouldInitializeRedis = () => {
 if (shouldInitializeRedis()) {
   try {
     // Only validate URL if it's not a placeholder
-    if (process.env.UPSTASH_REDIS_REST_URL.startsWith('http')) {
-      new URL(process.env.UPSTASH_REDIS_REST_URL)
+    const redisUrl = process.env.UPSTASH_REDIS_REST_URL
+    if (redisUrl && redisUrl.startsWith('http')) {
+      new URL(redisUrl)
     }
 
     const { Ratelimit } = require("@upstash/ratelimit")

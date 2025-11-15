@@ -185,7 +185,7 @@ export async function POST(request: NextRequest) {
         deliveryFee,
         total,
         status: 'PENDING',
-        paymentMethod: paymentMethod?.toUpperCase() || 'CASH',
+        paymentMethod: (paymentMethod?.toUpperCase() as 'CASH' | 'CARD' | 'WALLET') || 'CASH',
         deliveryAddress,
         city,
         customerPhone,

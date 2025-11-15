@@ -137,7 +137,7 @@ export async function addToQueue(
     });
     return true;
   } catch (error) {
-    console.error(`[Queue] Error adding job to ${queueName}:`, error);
+    console.error(`[Queue] Error adding job to ${String(queueName)}:`, error);
     return false;
   }
 }
