@@ -34,9 +34,7 @@ export const dynamic = 'force-dynamic'
 
 export default function AdminPanel() {
   const router = useRouter()
-  const { data: session, status } = useSession()
-  const user = session?.user
-  const isAuthenticated = status === "authenticated"
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [language, setLanguage] = useState("fr")
   const { toast } = useToast()
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -48,6 +46,14 @@ export default function AdminPanel() {
   const [registrationRequests, setRegistrationRequests] = useState<RegistrationRequest[]>([])
   const [selectedRequest, setSelectedRequest] = useState<RegistrationRequest | null>(null)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
+  
+  // Safely handle useSession during build time - it may return undefined during static generation
+  const sessionResult = useSession()
+  // Handle case where useSession might return undefined during build
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "loading"
+  const user = session?.user ?? null
+  const isAuthenticated = status === "authenticated"
 
   useEffect(() => {
     if (status === "loading") return
