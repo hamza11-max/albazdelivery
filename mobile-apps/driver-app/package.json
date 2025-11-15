@@ -1,0 +1,50 @@
+{
+  "name": "driver-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "albaz driver app",
+  "homepage": "https://github.com/hamza11-max/albazdelivery#readme",
+  "bugs": {
+    "url": "https://github.com/hamza11-max/albazdelivery/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hamza11-max/albazdelivery.git"
+  },
+  "license": "ISC",
+  "author": "Hamza Ariallah",
+  "type": "commonjs",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "axios": "^1.13.0",
+    "expo": "~54.0.14",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-native": "^0.81.5",
+    "react-native-web": "^0.21.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.5",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/netinfo": "^11.4.1",
+    "@react-navigation/bottom-tabs": "^7.7.1",
+    "@react-navigation/native": "^7.1.19",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.9.2",
+    "@types/react": "~19.1.0",
+    "@types/react-native": "^0.72.8",
+    "@types/react-native-maps": "^0.24.1",
+    "expo-secure-store": "^15.0.7",
+    "expo-status-bar": "^3.0.8",
+    "typescript": "~5.9.2"
+  }
+}
+
