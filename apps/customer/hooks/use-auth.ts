@@ -2,7 +2,10 @@ import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 
 export function useAuth() {
-  const { data: session, status } = useSession()
+  // Safely handle useSession during build time
+  const sessionResult = useSession()
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "loading"
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {

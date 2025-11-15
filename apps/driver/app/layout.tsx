@@ -7,6 +7,10 @@ import { ThemeInitializer } from "../../../components/ThemeInitializer"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const runtime = 'nodejs'
+
 export const metadata: Metadata = {
   title: "AL-baz Driver App",
   description: "Driver app for AL-baz delivery platform",

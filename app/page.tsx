@@ -199,11 +199,14 @@ const cities = ["Alger", "Ouargla", "Ghardaïa", "Tamanrasset"]
 
 export default function AlBazApp() {
   const router = useRouter()
-  const { data: session, status } = useSession()
-  const user = session?.user
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // Safely handle useSession during build time
+  const sessionResult = useSession()
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "loading"
+  const user = session?.user ?? null
   const isAuthenticated = status === "authenticated"
   
-  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [currentPage, setCurrentPage] = useState("home")
   const [selectedCity] = useState("Tamanrasset")

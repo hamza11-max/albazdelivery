@@ -34,9 +34,7 @@ export const dynamic = 'force-dynamic'
 
 export default function DriverApp() {
   const router = useRouter()
-  const { data: session, status } = useSession()
-  const user = session?.user
-  const isAuthenticated = status === "authenticated"
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [language, setLanguage] = useState("fr")
   const [currentView, setCurrentView] = useState<"dashboard" | "active" | "history">("dashboard")
   const [availableDeliveries, setAvailableDeliveries] = useState<Order[]>([])
@@ -46,9 +44,17 @@ export default function DriverApp() {
   const [driverId] = useState("driver-1")
   const { toast } = useToast()
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const { data: sseData, isConnected } = useSSE(`/api/notifications/sse?role=driver&userId=${driverId}`, false)
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [isTrackingLocation, setIsTrackingLocation] = useState(false)
+  
+  // Safely handle useSession during build time - it may return undefined during static generation
+  const sessionResult = useSession()
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "loading"
+  const user = session?.user ?? null
+  const isAuthenticated = status === "authenticated"
+  
+  const { data: sseData, isConnected } = useSSE(`/api/notifications/sse?role=driver&userId=${driverId}`, false)
 
   const startLocationTracking = () => {
     if (!navigator.geolocation) {
