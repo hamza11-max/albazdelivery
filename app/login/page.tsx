@@ -32,18 +32,23 @@ export default function LoginPage() {
           identifier,
           password,
           callbackUrl: '/',
+          redirect: false,
         }),
+        credentials: 'include', // Important: include cookies
       })
 
-      if (response.ok) {
-        router.push('/')
-        router.refresh()
+      const data = await response.json()
+      
+      if (response.ok && !data.error) {
+        // Force a page reload to refresh the session
+        // Use window.location to ensure cookies are sent
+        window.location.href = '/'
       } else {
-        const data = await response.json()
-        setError(data.error || "Email ou mot de passe incorrect")
+        setError(data.error || data.message || "Email ou mot de passe incorrect")
         setLoading(false)
       }
     } catch (err) {
+      console.error('Login error:', err)
       setError("Une erreur s'est produite. Veuillez réessayer.")
       setLoading(false)
     }

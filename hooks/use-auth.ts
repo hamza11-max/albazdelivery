@@ -2,7 +2,10 @@ import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 
 export function useAuth() {
-  const { data: session, status } = useSession()
+  // Safely handle useSession - it may return undefined during build/runtime
+  const sessionResult = useSession()
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "loading"
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -12,7 +15,7 @@ export function useAuth() {
   }, [status])
 
   return {
-    user: session?.user,
+    user: session?.user ?? null,
     isAuthenticated: !!session?.user,
     isLoading,
     session,

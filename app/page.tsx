@@ -225,6 +225,17 @@ export default function AlBazApp() {
   const shouldUseSSE = currentPage === "tracking" && !!orderId
   const { data: sseData } = useSSE(`/api/notifications/sse?role=customer&userId=${customerId}`, shouldUseSSE)
 
+  // Add timeout for loading state to prevent infinite loading
+  useEffect(() => {
+    if (status === "loading") {
+      const timeout = setTimeout(() => {
+        console.warn('[Auth] Session loading timeout - redirecting to login')
+        router.push("/login")
+      }, 5000) // 5 second timeout
+      return () => clearTimeout(timeout)
+    }
+  }, [status, router])
+
   // Redirect to login if not authenticated
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -289,12 +300,14 @@ export default function AlBazApp() {
 
   // Show loading or nothing while checking authentication
   // IMPORTANT: All hooks must be called before conditional returns
+  // Add a timeout to prevent infinite loading
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Chargement...</p>
+          <p className="mt-2 text-xs text-gray-400">Si cette page ne se charge pas, <a href="/login" className="text-teal-600 underline">cliquez ici</a></p>
         </div>
       </div>
     )

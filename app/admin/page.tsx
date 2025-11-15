@@ -70,7 +70,12 @@ export default function AdminPanel() {
     if (status === "loading") return
     if (!isAuthenticated || user?.role !== "ADMIN") {
       router.push("/login")
+      return
     }
+    // Only fetch data after authentication is confirmed and user is ADMIN
+    fetchOrders()
+    fetchUsers()
+    fetchRegistrationRequests()
   }, [status, isAuthenticated, user, router])
 
   useEffect(() => {
@@ -81,15 +86,11 @@ export default function AdminPanel() {
     }
   }, [isDarkMode])
 
-  useEffect(() => {
-    fetchOrders()
-    fetchUsers()
-    fetchRegistrationRequests()
-  }, [])
-
   const fetchOrders = async () => {
     try {
-      const response = await fetch("/api/orders")
+      const response = await fetch("/api/orders", {
+        credentials: 'include', // Ensure cookies are sent
+      })
       const data = await response.json()
       
       console.log("[Admin] Fetched orders data:", data)
@@ -104,7 +105,9 @@ export default function AdminPanel() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/admin/users")
+      const response = await fetch("/api/admin/users", {
+        credentials: 'include', // Ensure cookies are sent
+      })
       const data = await response.json()
       
       console.log("[Admin] Fetched users data:", data)
@@ -126,7 +129,9 @@ export default function AdminPanel() {
 
   const fetchRegistrationRequests = async () => {
     try {
-      const response = await fetch("/api/admin/registration-requests")
+      const response = await fetch("/api/admin/registration-requests", {
+        credentials: 'include', // Ensure cookies are sent
+      })
       const data = await response.json()
       
       console.log("[Admin] Fetched registration requests:", data)
@@ -144,6 +149,7 @@ export default function AdminPanel() {
       const response = await fetch("/api/admin/registration-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include', // Ensure cookies are sent
         body: JSON.stringify({
           requestId,
           action: "approve",
@@ -182,6 +188,7 @@ export default function AdminPanel() {
       const response = await fetch("/api/admin/registration-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include', // Ensure cookies are sent
         body: JSON.stringify({
           requestId,
           action: "reject",
