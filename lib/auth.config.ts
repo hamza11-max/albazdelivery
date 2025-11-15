@@ -141,5 +141,10 @@ export const authConfig = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || (() => {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[Auth] NEXTAUTH_SECRET is missing! This will cause authentication to fail.')
+    }
+    return undefined
+  })(),
 }
