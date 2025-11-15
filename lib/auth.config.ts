@@ -144,9 +144,17 @@ export const authConfig = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET || (() => {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[Auth] NEXTAUTH_SECRET is missing! This will cause authentication to fail.')
+    // Generate a fallback secret for development (not secure for production!)
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[Auth] ⚠️  NEXTAUTH_SECRET is missing!')
+      console.warn('[Auth] Using a temporary development secret. Sessions may not persist across restarts.')
+      console.warn('[Auth] Run: node scripts/generate-nextauth-secret.js to generate a secret.')
+      console.warn('[Auth] Then add it to your .env.local file: NEXTAUTH_SECRET="your-secret"')
+      // Return a fixed development secret (not secure, but allows development)
+      // This will cause sessions to reset on server restart, but allows development
+      return 'dev-secret-not-for-production-' + process.cwd().replace(/[^a-zA-Z0-9]/g, '').substring(0, 16)
     }
-    return undefined
+    console.error('[Auth] ❌ NEXTAUTH_SECRET is missing! This will cause authentication to fail.')
+    throw new Error('NEXTAUTH_SECRET environment variable is required for production')
   })(),
 }
