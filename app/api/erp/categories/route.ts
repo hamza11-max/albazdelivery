@@ -35,23 +35,32 @@ export async function GET(request: NextRequest) {
     if (targetVendorId) {
       where.vendorId = targetVendorId
     }
-    where.category = { not: null }
+    where.category = { 
+      not: null
+    }
 
-    // Get unique categories from products
+    // Get all products with categories
     const products = await prisma.inventoryProduct.findMany({
       where,
       select: {
         category: true,
       },
-      distinct: ['category'],
+    })
+
+    // Get unique categories by using a Set
+    const uniqueCategories = new Set<string>()
+    products.forEach((p) => {
+      if (p.category && p.category.trim() !== '') {
+        uniqueCategories.add(p.category.trim())
+      }
     })
 
     // Transform to Category format
-    const categories = products
-      .filter((p) => p.category && p.category.trim() !== '')
-      .map((p, index) => ({
+    const categories = Array.from(uniqueCategories)
+      .sort()
+      .map((categoryName, index) => ({
         id: index + 1,
-        name: p.category!,
+        name: categoryName,
         description: undefined,
         parentId: undefined,
         icon: undefined,
