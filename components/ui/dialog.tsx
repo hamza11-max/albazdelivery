@@ -54,6 +54,15 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  // Generate a unique ID for the description fallback
+  const descriptionId = React.useId()
+  
+  // Extract aria-describedby from props if provided
+  const { 'aria-describedby': ariaDescribedBy, ...restProps } = props
+  
+  // If aria-describedby is explicitly provided, use it; otherwise use our fallback
+  const finalAriaDescribedBy = ariaDescribedBy || descriptionId
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -63,9 +72,20 @@ function DialogContent({
           'bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 sm:max-w-lg',
           className,
         )}
-        {...props}
+        aria-describedby={finalAriaDescribedBy}
+        {...restProps}
       >
         {children}
+        {/* Always provide a fallback description for accessibility */}
+        {/* If a DialogDescription is present in children, it will override this */}
+        {!ariaDescribedBy && (
+          <DialogPrimitive.Description
+            id={descriptionId}
+            className="sr-only"
+          >
+            Dialog content
+          </DialogPrimitive.Description>
+        )}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

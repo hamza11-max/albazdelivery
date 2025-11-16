@@ -38,7 +38,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Header from "@/components/Header"
@@ -1639,6 +1639,11 @@ useEffect(() => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingProduct ? "Modifier le Produit" : "Ajouter un Produit"}</DialogTitle>
+            <DialogDescription>
+              {editingProduct 
+                ? translate("Modifiez les informations du produit", "قم بتعديل معلومات المنتج")
+                : translate("Remplissez les informations pour ajouter un nouveau produit à l'inventaire", "املأ المعلومات لإضافة منتج جديد إلى المخزون")}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -1740,6 +1745,9 @@ useEffect(() => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ajouter un Client</DialogTitle>
+            <DialogDescription>
+              {translate("Ajoutez un nouveau client à votre base de données", "أضف عميلاً جديداً إلى قاعدة البيانات الخاصة بك")}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1779,6 +1787,9 @@ useEffect(() => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Ajouter un Fournisseur</DialogTitle>
+            <DialogDescription>
+              {translate("Ajoutez un nouveau fournisseur pour gérer vos approvisionnements", "أضف مورداً جديداً لإدارة التوريدات الخاصة بك")}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1832,6 +1843,9 @@ useEffect(() => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reçu de Vente</DialogTitle>
+            <DialogDescription>
+              {translate("Détails de la transaction complétée", "تفاصيل المعاملة المكتملة")}
+            </DialogDescription>
           </DialogHeader>
           {lastSale && (
             <div className="space-y-4">
@@ -1888,6 +1902,9 @@ useEffect(() => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Capturez une image du produit</DialogTitle>
+            <DialogDescription>
+              {translate("Utilisez la caméra pour capturer une photo du produit", "استخدم الكاميرا لالتقاط صورة للمنتج")}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="text-center">
