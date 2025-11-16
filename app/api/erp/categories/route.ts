@@ -26,17 +26,13 @@ export async function GET(request: NextRequest) {
 
     const targetVendorId = isAdmin ? vendorIdParam : session.user.id
 
-    if (isAdmin && !targetVendorId) {
-      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+    if (!targetVendorId) {
+      return errorResponse(new Error('vendorId is required'), 400)
     }
 
-    // Build where clause
-    const where: any = {}
-    if (targetVendorId) {
-      where.vendorId = targetVendorId
-    }
-    where.category = { 
-      not: null
+    // Build where clause - category is required (String, not nullable) so we just filter by vendorId
+    const where = {
+      vendorId: targetVendorId,
     }
 
     // Get all products with categories
@@ -49,11 +45,11 @@ export async function GET(request: NextRequest) {
 
     // Get unique categories by using a Set
     const uniqueCategories = new Set<string>()
-    products.forEach((p) => {
-      if (p.category && p.category.trim() !== '') {
-        uniqueCategories.add(p.category.trim())
+    for (const product of products) {
+      if (product.category && typeof product.category === 'string' && product.category.trim() !== '') {
+        uniqueCategories.add(product.category.trim())
       }
-    })
+    }
 
     // Transform to Category format
     const categories = Array.from(uniqueCategories)

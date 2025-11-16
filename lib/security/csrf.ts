@@ -4,10 +4,15 @@ import { cookies } from 'next/headers'
 /**
  * CSRF Token Generation and Validation
  * Implements Double Submit Cookie pattern for CSRF protection
+ * 
+ * Consistent with middleware.ts:
+ * - Cookie: __Host-csrf-token (httpOnly, secure, sameSite: strict)
+ * - Header: X-CSRF-Token
+ * - Protection: Only for public API mutations (POST, PUT, PATCH, DELETE)
  */
 
-const CSRF_TOKEN_NAME = 'X-CSRF-Token'
-const CSRF_COOKIE_NAME = '__Host-csrf-token'
+export const CSRF_TOKEN_HEADER = 'X-CSRF-Token'
+export const CSRF_COOKIE_NAME = '__Host-csrf-token'
 
 /**
  * Generate a secure random CSRF token
@@ -50,16 +55,18 @@ export function getCsrfTokenSync(): string {
 /**
  * Validate CSRF token from request
  * Compares token from header with token from cookie
+ * 
+ * Matches middleware.ts validation logic
  */
 export function validateCsrfToken(request: NextRequest): boolean {
-  // Skip CSRF validation for GET, HEAD, OPTIONS requests
+  // Skip CSRF validation for safe methods (idempotent)
   const method = request.method.toUpperCase()
   if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     return true
   }
 
   // Get token from header
-  const headerToken = request.headers.get(CSRF_TOKEN_NAME)
+  const headerToken = request.headers.get(CSRF_TOKEN_HEADER)
   
   // Get token from cookie
   const cookieToken = request.cookies.get(CSRF_COOKIE_NAME)?.value
@@ -123,13 +130,25 @@ export function csrfProtection(request: NextRequest): NextResponse | null {
 
 /**
  * Set CSRF token in response cookie
+ * 
+ * Cookie settings match middleware.ts:
+ * - httpOnly: true (not accessible via JavaScript)
+ * - secure: true in production (HTTPS only)
+ * - sameSite: 'strict' (CSRF protection)
+ * - path: '/' (available site-wide)
+ * - maxAge: 24 hours
+ * 
+ * Note: __Host- prefix requires secure=true and path='/'
  */
 export function setCsrfTokenCookie(response: NextResponse, token: string): void {
+  const isProduction = process.env.NODE_ENV === 'production'
+  
   response.cookies.set(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
     sameSite: 'strict',
     path: '/',
     maxAge: 60 * 60 * 24, // 24 hours
+    // __Host- prefix requires secure and path='/'
   })
 }

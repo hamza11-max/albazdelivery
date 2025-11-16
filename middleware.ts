@@ -1,12 +1,23 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { csrfProtection, setCsrfTokenCookie, generateCsrfToken } from '@/lib/security/csrf'
-import { securityHeadersMiddleware, handleCorsPreflight, applySecurityHeaders } from '@/lib/security/headers'
-import { auditSecurityEvent, getClientInfo } from '@/lib/security/audit-log'
+import {
+  csrfProtection,
+  setCsrfTokenCookie,
+  generateCsrfToken,
+} from '@/lib/security/csrf'
+import {
+  securityHeadersMiddleware,
+  handleCorsPreflight,
+  applySecurityHeaders,
+} from '@/lib/security/headers'
+import {
+  auditSecurityEvent,
+  getClientInfo,
+} from '@/lib/security/audit-log'
 
 /**
- * Middleware with security features:
- * - CSRF protection
+ * Global middleware with:
+ * - Conditional CSRF protection
  * - Security headers
  * - CORS handling
  * - Audit logging
@@ -14,60 +25,85 @@ import { auditSecurityEvent, getClientInfo } from '@/lib/security/audit-log'
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Handle CORS preflight requests
-  const corsResponse = handleCorsPreflight(request)
-  if (corsResponse) {
-    return applySecurityHeaders(corsResponse)
-  }
+  // ---------------------------------------------------------
+  // 0. Handle CORS preflight
+  // ---------------------------------------------------------
+  const corsPreflight = handleCorsPreflight(request)
+  if (corsPreflight) return applySecurityHeaders(corsPreflight)
 
-  // Skip security for static files and Next.js internals
+  // ---------------------------------------------------------
+  // 1. Skip middleware entirely for static files, Next internals, images, auth
+  // ---------------------------------------------------------
   if (
     pathname.startsWith('/_next/') ||
-    pathname.startsWith('/api/auth/') || // NextAuth handles its own security
+    pathname.startsWith('/api/auth/') || // NextAuth handles its own CSRF
     pathname.match(/\.(ico|png|jpg|jpeg|gif|svg|webp|css|js)$/)
   ) {
     const response = NextResponse.next()
     return applySecurityHeaders(response)
   }
 
-  // CSRF protection for API routes (except auth routes)
-  if (pathname.startsWith('/api/')) {
+  // ---------------------------------------------------------
+  // 2. CONDITIONAL CSRF
+  //
+  // Only enable CSRF for:
+  // - Public API endpoints
+  // - Mutation requests (POST, PATCH, PUT, DELETE)
+  //
+  // Disable CSRF for:
+  // - ERP routes (/api/erp/*)
+  // - GET requests (idempotent)
+  // ---------------------------------------------------------
+
+  const isPublicApi = pathname.startsWith('/api/public/')
+  const isMutation =
+    request.method === 'POST' ||
+    request.method === 'PUT' ||
+    request.method === 'PATCH' ||
+    request.method === 'DELETE'
+
+  if (pathname.startsWith('/api/') && isPublicApi && isMutation) {
     const csrfResponse = csrfProtection(request)
     if (csrfResponse) {
       // Log CSRF violation
       const clientInfo = getClientInfo(request)
-      await auditSecurityEvent('CSRF_TOKEN_INVALID', undefined, undefined, request, {
-        path: pathname,
-        method: request.method,
-        ...clientInfo,
-      })
+      await auditSecurityEvent(
+        'CSRF_TOKEN_INVALID',
+        undefined,
+        undefined,
+        request,
+        {
+          path: pathname,
+          method: request.method,
+          ...clientInfo,
+        }
+      )
       return applySecurityHeaders(csrfResponse)
     }
   }
 
-  // Create response
+  // ---------------------------------------------------------
+  // 3. Create main response
+  // ---------------------------------------------------------
   const response = NextResponse.next()
 
-  // Set CSRF token cookie if not present
+  // ---------------------------------------------------------
+  // 4. Set CSRF token if absent (for frontend to use)
+  // ---------------------------------------------------------
   const existingToken = request.cookies.get('__Host-csrf-token')?.value
   if (!existingToken) {
     const token = generateCsrfToken()
     setCsrfTokenCookie(response, token)
   }
 
-  // Apply security headers
+  // ---------------------------------------------------------
+  // 5. Apply security headers to all valid responses
+  // ---------------------------------------------------------
   return securityHeadersMiddleware(request, response)
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public folder
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
