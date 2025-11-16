@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -220,6 +220,10 @@ export default function AlBazApp() {
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
 
+  // Track if we've already handled auth redirect to prevent infinite loops
+  const authRedirectHandled = useRef(false)
+  const lastProcessedRole = useRef<string | null>(null)
+
   // New state for customer ID and current order
   const customerId = user?.id || "customer-1"
   const shouldUseSSE = currentPage === "tracking" && !!orderId
@@ -262,7 +266,8 @@ export default function AlBazApp() {
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (status === "unauthenticated") {
+    if (status === "unauthenticated" && !authRedirectHandled.current) {
+      authRedirectHandled.current = true
       router.push("/login")
     }
   }, [status, router])
@@ -294,27 +299,58 @@ export default function AlBazApp() {
     }
   }, [orderId, currentPage])
 
+  // Handle authentication and role-based redirects
+  // Use stable dependencies to prevent infinite loops
   useEffect(() => {
-    if (status === "loading") return
-
-    console.log('[Root Page] Auth status:', { status, user: user?.email, role: user?.role })
-
-    if (status === "unauthenticated") {
-      console.log('[Root Page] Unauthenticated - redirecting to login')
-      router.push("/login")
+    if (status === "loading") {
+      authRedirectHandled.current = false
+      lastProcessedRole.current = null
       return
     }
 
-    if (status === "authenticated" && user?.role) {
-      console.log('[Root Page] Authenticated - role:', user.role)
-      if (user.role !== "CUSTOMER") {
-        const dest = user.role === "ADMIN" ? "/admin" : user.role === "VENDOR" ? "/vendor" : user.role === "DRIVER" ? "/driver" : "/"
-        console.log('[Root Page] Redirecting to:', dest)
-        router.push(dest)
-      }
-      // If CUSTOMER, stay on this page (home page)
+    const userRole = user?.role
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+
+    // Skip if we've already processed this exact state
+    if (status === "authenticated" && userRole === lastProcessedRole.current && authRedirectHandled.current) {
+      return
     }
-  }, [status, user, router])
+
+    if (status === "unauthenticated") {
+      if (!authRedirectHandled.current && currentPath !== '/login') {
+        authRedirectHandled.current = true
+        lastProcessedRole.current = null
+        router.push("/login")
+      }
+      return
+    }
+
+    if (status === "authenticated" && userRole) {
+      // Only process if role changed or not yet handled
+      if (userRole !== lastProcessedRole.current || !authRedirectHandled.current) {
+        lastProcessedRole.current = userRole
+        
+        if (userRole !== "CUSTOMER") {
+          const dest = userRole === "ADMIN" ? "/admin" 
+                     : userRole === "VENDOR" ? "/vendor" 
+                     : userRole === "DRIVER" ? "/driver" 
+                     : "/"
+          
+          // Only redirect if not already on the destination
+          if (currentPath !== dest) {
+            authRedirectHandled.current = true
+            router.push(dest)
+          } else {
+            // Already on destination, mark as handled
+            authRedirectHandled.current = true
+          }
+        } else {
+          // CUSTOMER - stay on home page, reset redirect flag
+          authRedirectHandled.current = false
+        }
+      }
+    }
+  }, [status, user?.role, router])
 
   useEffect(() => {
     if (isDarkMode) {

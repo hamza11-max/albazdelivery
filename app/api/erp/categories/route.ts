@@ -36,12 +36,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all products with categories
-    const products = await prisma.inventoryProduct.findMany({
-      where,
-      select: {
-        category: true,
-      },
-    })
+    let products
+    try {
+      products = await prisma.inventoryProduct.findMany({
+        where,
+        select: {
+          category: true,
+        },
+      })
+    } catch (dbError) {
+      console.error('[Categories API] Database error:', dbError)
+      return errorResponse(
+        new Error(`Database query failed: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`),
+        500
+      )
+    }
+
+    // Handle empty products array (valid scenario)
+    if (!products || products.length === 0) {
+      return successResponse({ categories: [] })
+    }
 
     // Get unique categories by using a Set
     const uniqueCategories = new Set<string>()
@@ -67,8 +81,14 @@ export async function GET(request: NextRequest) {
 
     return successResponse({ categories })
   } catch (error) {
-    console.error('[Categories API] Error:', error)
-    return errorResponse(error)
+    console.error('[Categories API] Unexpected error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('[Categories API] Error stack:', errorStack)
+    return errorResponse(
+      new Error(`Failed to fetch categories: ${errorMessage}`),
+      500
+    )
   }
 }
 

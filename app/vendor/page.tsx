@@ -689,19 +689,30 @@ useEffect(() => {
 
     try {
       const salesUrl = `/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
+      
+      // Transform cart items to match API schema
+      const items = posCart.map(item => ({
+        productId: item.productId || undefined,
+        productName: item.productName,
+        quantity: item.quantity,
+        price: item.price,
+        discount: item.discount || 0,
+      }))
+      
       const response = await fetch(salesUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerId: posCustomerId || undefined,
-          items: posCart,
+          items,
           subtotal,
           discount: posDiscount,
           total,
-          paymentMethod,
+          paymentMethod: paymentMethod.toUpperCase(), // Schema expects CASH or CARD
           vendorId: activeVendorId,
         }),
       })
+      
       const data = await response.json()
       if (data.success) {
         setLastSale(data.sale)
@@ -718,9 +729,23 @@ useEffect(() => {
             ? `تم تسجيل عملية بيع بقيمة ${total.toFixed(2)} ${translate("DZD", "دج")}.`
             : `Vente de ${total.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
         })
+      } else {
+        // Handle API error response
+        const errorMessage = data.error?.message || translate("Erreur lors de la vente", "خطأ في عملية البيع")
+        toast({
+          title: translate("Erreur", "خطأ"),
+          description: errorMessage,
+          variant: "destructive",
+        })
+        console.error("[v0] Sale API error:", data.error)
       }
     } catch (error) {
       console.error("[v0] Error completing sale:", error)
+      toast({
+        title: translate("Erreur", "خطأ"),
+        description: translate("Une erreur est survenue lors de la vente", "حدث خطأ أثناء عملية البيع"),
+        variant: "destructive",
+      })
     }
   }
 
