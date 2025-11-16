@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const isVendor = session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
-      throw new UnauthorizedError('Only vendors or admins can access AI insights')
+      throw new ForbiddenError('Only vendors or admins can access AI insights')
     }
 
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')

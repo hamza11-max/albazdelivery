@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { z } from 'zod'
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     const isVendor = session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
-      throw new UnauthorizedError('Only vendors or admins can access sales')
+      throw new ForbiddenError('Only vendors or admins can access sales')
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
     const isVendor = session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
-      throw new UnauthorizedError('Only vendors or admins can create sales')
+      throw new ForbiddenError('Only vendors or admins can create sales')
     }
 
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')

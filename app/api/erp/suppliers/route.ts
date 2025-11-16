@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const isVendor = session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
-      throw new UnauthorizedError('Only vendors or admins can access suppliers')
+      throw new ForbiddenError('Only vendors or admins can access suppliers')
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     const isVendor = session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
-      throw new UnauthorizedError('Only vendors or admins can create suppliers')
+      throw new ForbiddenError('Only vendors or admins can create suppliers')
     }
 
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
@@ -166,7 +166,7 @@ export async function PUT(request: NextRequest) {
     const isVendor = session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
-      throw new UnauthorizedError('Only vendors or admins can update suppliers')
+      throw new ForbiddenError('Only vendors or admins can update suppliers')
     }
 
     const body = await request.json()
@@ -233,7 +233,7 @@ export async function DELETE(request: NextRequest) {
     const isVendor = session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
-      throw new UnauthorizedError('Only vendors or admins can delete suppliers')
+      throw new ForbiddenError('Only vendors or admins can delete suppliers')
     }
 
     const searchParams = request.nextUrl.searchParams
