@@ -52,7 +52,7 @@ const config = {
       },
     };
 
-    // Fix for "Cannot access before initialization" errors
+    // Fix for "Cannot access before initialization" errors (e.g., 'tw' variable)
     // Disable module concatenation which can cause initialization order issues
     // This prevents webpack from combining modules in a way that breaks initialization order
     config.optimization.concatenateModules = false;
@@ -68,6 +68,14 @@ const config = {
       // Disable problematic optimizations that can cause initialization issues
       config.optimization.usedExports = false;
       config.optimization.providedExports = false;
+      
+      // Force strict module ordering to prevent 'tw' initialization errors
+      // This ensures modules are loaded in the correct order
+      config.optimization.moduleIds = 'natural';
+      config.optimization.chunkIds = 'natural';
+      
+      // Disable sideEffects optimization that can reorder modules incorrectly
+      config.optimization.sideEffects = false;
     }
     
     return config;
