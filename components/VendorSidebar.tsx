@@ -15,7 +15,8 @@ import {
   Users,
   Truck,
   BarChart3,
-  Settings
+  Settings,
+  ShoppingBag
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -65,6 +66,12 @@ export default function VendorSidebar({
       icon: ShoppingCart,
       labelFr: "Point de Vente",
       labelAr: "نقطة البيع",
+    },
+    {
+      id: "orders",
+      icon: ShoppingBag,
+      labelFr: "Commandes",
+      labelAr: "الطلبات",
     },
     {
       id: "sales",
