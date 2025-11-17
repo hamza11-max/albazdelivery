@@ -92,7 +92,7 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
   future: {
     respectDefaultRingColorOpacity: true,
   },
