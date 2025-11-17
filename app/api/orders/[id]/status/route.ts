@@ -62,16 +62,27 @@ export async function PUT(
       existingOrder.vendorId = existingOrder.store?.vendorId || existingOrder.vendorId
     }
 
+    // Ensure order has a vendorId from store if missing
+    if (!existingOrder.vendorId && existingOrder.store?.vendorId) {
+      await prisma.order.update({
+        where: { id },
+        data: { vendorId: existingOrder.store.vendorId },
+      })
+      existingOrder.vendorId = existingOrder.store.vendorId
+    }
+
     // Authorization check based on role and status transition
     const role = session.user.role
     const userId = session.user.id
 
     if (role === 'VENDOR') {
-      if (existingOrder.vendorId !== userId) {
+      // Check if vendor owns this order either directly or through the store
+      const orderVendorId = existingOrder.vendorId || existingOrder.store?.vendorId
+      if (orderVendorId !== userId) {
         throw new ForbiddenError('You can only update your own orders')
       }
-      // Vendors can only set: ACCEPTED, PREPARING, READY
-      if (!['ACCEPTED', 'PREPARING', 'READY'].includes(status)) {
+      // Vendors can only set: ACCEPTED, PREPARING, READY, CANCELLED
+      if (!['ACCEPTED', 'PREPARING', 'READY', 'CANCELLED'].includes(status)) {
         throw new ForbiddenError('Invalid status transition for vendor')
       }
     } else if (role === 'DRIVER') {

@@ -117,7 +117,7 @@ export default function VendorSidebar({
 
   return (
     <aside 
-      className="fixed left-0 top-0 h-full bg-white/95 backdrop-blur-sm border-r border-gray-200 shadow-lg z-50 flex flex-col items-center py-4 transition-all duration-300 hidden md:flex"
+      className="fixed left-0 top-0 h-full bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-r border-gray-200 dark:border-gray-800 shadow-lg z-50 flex flex-col items-center py-4 transition-all duration-300 hidden md:flex"
       style={{ width: isExpanded ? '16rem' : '5rem' }}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
@@ -147,7 +147,7 @@ export default function VendorSidebar({
                   "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 relative overflow-hidden group/item",
                   isActive
                     ? "bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 text-white shadow-lg"
-                    : "text-gray-700 hover:bg-gradient-to-br hover:from-teal-50 hover:via-cyan-50 hover:to-orange-50 hover:text-teal-700"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gradient-to-br hover:from-teal-50 hover:via-cyan-50 hover:to-orange-50 dark:hover:from-teal-900/30 dark:hover:via-cyan-900/30 dark:hover:to-orange-900/30 hover:text-teal-700 dark:hover:text-teal-300"
                 )}
               >
                 {/* Icon */}
@@ -185,16 +185,16 @@ export default function VendorSidebar({
         })}
       </nav>
 
-      {/* Bottom Actions */}
-      <div className="w-full space-y-2 px-2 border-t border-gray-200 pt-4">
+        {/* Bottom Actions */}
+        <div className="w-full space-y-2 px-2 border-t border-gray-200 dark:border-gray-800 pt-4">
         {/* Language Toggle */}
         <div className="relative">
           <button
             onClick={handleLanguageToggle}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gradient-to-br hover:from-teal-50 hover:via-cyan-50 hover:to-orange-50 hover:text-teal-700 transition-all duration-200 group/item"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gradient-to-br hover:from-teal-50 hover:via-cyan-50 hover:to-orange-50 dark:hover:from-teal-900/30 dark:hover:via-cyan-900/30 dark:hover:to-orange-900/30 hover:text-teal-700 dark:hover:text-teal-300 transition-all duration-200 group/item"
           >
-            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 group-hover/item:bg-gradient-to-br group-hover/item:from-teal-100 group-hover/item:to-orange-100 transition-all">
-              <Globe className="w-5 h-5 text-gray-600 group-hover/item:text-teal-600 transition-colors" />
+              <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 group-hover/item:bg-gradient-to-br group-hover/item:from-teal-100 group-hover/item:to-orange-100 dark:group-hover/item:from-teal-900/30 dark:group-hover/item:to-orange-900/30 transition-all">
+                <Globe className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover/item:text-teal-600 dark:group-hover/item:text-teal-400 transition-colors" />
             </div>
             <span
               className={cn(
@@ -213,14 +213,14 @@ export default function VendorSidebar({
         <div className="relative">
           <button
             onClick={handleThemeToggle}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 hover:bg-gradient-to-br hover:from-teal-50 hover:via-cyan-50 hover:to-orange-50 hover:text-teal-700 transition-all duration-200 group/item"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gradient-to-br hover:from-teal-50 hover:via-cyan-50 hover:to-orange-50 dark:hover:from-teal-900/30 dark:hover:via-cyan-900/30 dark:hover:to-orange-900/30 hover:text-teal-700 dark:hover:text-teal-300 transition-all duration-200 group/item"
           >
-            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 group-hover/item:bg-gradient-to-br group-hover/item:from-teal-100 group-hover/item:to-orange-100 transition-all">
-              {isDarkMode ? (
-                <Sun className="w-5 h-5 text-gray-600 group-hover/item:text-teal-600 transition-colors" />
-              ) : (
-                <Moon className="w-5 h-5 text-gray-600 group-hover/item:text-teal-600 transition-colors" />
-              )}
+              <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 group-hover/item:bg-gradient-to-br group-hover/item:from-teal-100 group-hover/item:to-orange-100 dark:group-hover/item:from-teal-900/30 dark:group-hover/item:to-orange-900/30 transition-all">
+                {isDarkMode ? (
+                  <Sun className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover/item:text-teal-600 dark:group-hover/item:text-teal-400 transition-colors" />
+                ) : (
+                  <Moon className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover/item:text-teal-600 dark:group-hover/item:text-teal-400 transition-colors" />
+                )}
             </div>
             <span
               className={cn(
@@ -238,11 +238,11 @@ export default function VendorSidebar({
         {/* Logout */}
         <div className="relative">
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-200 group/item"
-          >
-            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 group-hover/item:bg-red-200 transition-all">
-              <LogOut className="w-5 h-5 text-red-600 transition-colors" />
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all duration-200 group/item"
+            >
+              <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30 group-hover/item:bg-red-200 dark:group-hover/item:bg-red-900/50 transition-all">
+                <LogOut className="w-5 h-5 text-red-600 dark:text-red-400 transition-colors" />
             </div>
             <span
               className={cn(

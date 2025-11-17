@@ -102,7 +102,13 @@ export default function VendorDashboard() {
   
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   // UI States
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vendor-dark-mode')
+      return saved === 'true'
+    }
+    return false
+  })
   const [activeTab, setActiveTab] = useState("dashboard")
   const [language, setLanguage] = useState("fr")
   const [showProductDialog, setShowProductDialog] = useState(false)
@@ -185,6 +191,8 @@ export default function VendorDashboard() {
   const [posCustomerId, setPosCustomerId] = useState<number | null>(null)
   const [posDiscount, setPosDiscount] = useState(0)
   const [posTax, setPosTax] = useState(0)
+  const [posDiscountPercent, setPosDiscountPercent] = useState(5) // Default 5%
+  const [posTaxPercent, setPosTaxPercent] = useState(2) // Default 2%
   const [posSelectedCategory, setPosSelectedCategory] = useState<string>("all")
   const [posOrderNumber, setPosOrderNumber] = useState<string>(() => {
     return `ORD-${Date.now().toString().slice(-6)}`
@@ -193,13 +201,23 @@ export default function VendorDashboard() {
   
   // Update discount when keypad value changes
   useEffect(() => {
-    if (posKeypadValue) {
+    if (posKeypadValue && cartSubtotal > 0) {
       const discountValue = parseFloat(posKeypadValue) || 0
       setPosDiscount(discountValue)
+      // Calculate percentage from discount amount
+      if (discountValue > 0) {
+        const calculatedPercent = (discountValue / cartSubtotal) * 100
+        setPosDiscountPercent(calculatedPercent)
+      } else {
+        setPosDiscountPercent(0)
+      }
     } else {
       setPosDiscount(0)
+      if (!posKeypadValue) {
+        setPosDiscountPercent(0)
+      }
     }
-  }, [posKeypadValue])
+  }, [posKeypadValue, cartSubtotal])
   const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
   const [showSaleSuccessDialog, setShowSaleSuccessDialog] = useState(false)
@@ -877,7 +895,7 @@ useEffect(() => {
     }
 
     const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const tax = (subtotal - posDiscount) * 0.02 // 2% tax
+    const tax = (subtotal - posDiscount) * (posTaxPercent / 100) // Adjustable tax percentage
     // API expects: total === subtotal - discount (without tax)
     // But we display total with tax in UI
     const totalForAPI = subtotal - posDiscount
@@ -1145,20 +1163,38 @@ useEffect(() => {
   }, [status, isAuthenticated, isAdmin, selectedVendorId, handleDataLoad])
 
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
+    if (typeof window !== 'undefined') {
+      if (isDarkMode) {
+        document.documentElement.classList.add("dark")
+        localStorage.setItem('vendor-dark-mode', 'true')
+      } else {
+        document.documentElement.classList.remove("dark")
+        localStorage.setItem('vendor-dark-mode', 'false')
+      }
     }
   }, [isDarkMode])
+
+  // Initialize dark mode on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vendor-dark-mode')
+      if (saved === 'true') {
+        setIsDarkMode(true)
+        document.documentElement.classList.add("dark")
+      } else {
+        setIsDarkMode(false)
+        document.documentElement.classList.remove("dark")
+      }
+    }
+  }, [])
 
   // ALL HOOKS MUST BE CALLED BEFORE CONDITIONAL RETURNS
   // Calculate cart values using hooks (must be before conditional returns)
   const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const cartTax = useMemo(() => {
     const subtotalAfterDiscount = cartSubtotal - posDiscount
-    return subtotalAfterDiscount * 0.02 // 2% tax
-  }, [cartSubtotal, posDiscount])
+    return subtotalAfterDiscount * (posTaxPercent / 100) // Adjustable tax percentage
+  }, [cartSubtotal, posDiscount, posTaxPercent])
   const cartTotal = cartSubtotal - posDiscount + cartTax
   
   // Update posTax when cart changes
@@ -1184,7 +1220,7 @@ useEffect(() => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex" dir={isArabic ? "rtl" : "ltr"}>
+    <div className={`min-h-screen bg-background flex ${isDarkMode ? 'dark' : ''}`} dir={isArabic ? "rtl" : "ltr"}>
       {/* Vertical Sidebar */}
       <VendorSidebar
         activeTab={activeTab}
@@ -1733,12 +1769,51 @@ useEffect(() => {
                         <span className="text-gray-600 dark:text-gray-400">{translate("Sous-total", "المجموع الفرعي")}:</span>
                         <span className="font-semibold text-gray-900 dark:text-gray-100">{cartSubtotal.toFixed(2)} {translate("DZD", "دج")}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">{translate("Remise (5%)", "الخصم (5%)")}:</span>
+                      <div className="flex items-center justify-between text-sm gap-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-gray-600 dark:text-gray-400">{translate("Remise", "الخصم")}:</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={posDiscountPercent}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0
+                              setPosDiscountPercent(value)
+                              // Calculate discount from percentage
+                              if (value > 0 && cartSubtotal > 0) {
+                                const calculatedDiscount = cartSubtotal * (value / 100)
+                                setPosDiscount(calculatedDiscount)
+                                setPosKeypadValue(calculatedDiscount.toFixed(2))
+                              } else {
+                                setPosDiscount(0)
+                                setPosKeypadValue("")
+                              }
+                            }}
+                            className="w-16 h-7 text-xs px-2 py-0"
+                          />
+                          <span className="text-gray-600 dark:text-gray-400">%</span>
+                        </div>
                         <span className="font-semibold text-red-600 dark:text-red-400">-{posDiscount.toFixed(2)} {translate("DZD", "دج")}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600 dark:text-gray-400">{translate("Taxe (2%)", "الضريبة (2%)")}:</span>
+                      <div className="flex items-center justify-between text-sm gap-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-gray-600 dark:text-gray-400">{translate("Taxe", "الضريبة")}:</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={posTaxPercent}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0
+                              setPosTaxPercent(value)
+                            }}
+                            className="w-16 h-7 text-xs px-2 py-0"
+                          />
+                          <span className="text-gray-600 dark:text-gray-400">%</span>
+                        </div>
                         <span className="font-semibold text-gray-900 dark:text-gray-100">{cartTax.toFixed(2)} {translate("DZD", "دج")}</span>
                       </div>
                       <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-200 dark:border-gray-800">
@@ -1752,6 +1827,7 @@ useEffect(() => {
                       <div className="mb-3">
                         <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                           {translate("Montant de remise", "مبلغ الخصم")}: {posKeypadValue || "0"} {translate("DZD", "دج")}
+                          {posDiscountPercent > 0 && cartSubtotal > 0 && ` (${posDiscountPercent.toFixed(1)}%)`}
                         </Label>
                       </div>
                       <div className="grid grid-cols-3 gap-2 md:gap-3">
@@ -1783,6 +1859,7 @@ useEffect(() => {
                           onClick={() => {
                             setPosKeypadValue("")
                             setPosDiscount(0)
+                            setPosDiscountPercent(0)
                           }}
                         >
                           {translate("Effacer", "مسح")}
@@ -1801,6 +1878,8 @@ useEffect(() => {
                             setPosCart([])
                             setPosDiscount(0)
                             setPosTax(0)
+                            setPosDiscountPercent(5)
+                            setPosTaxPercent(2)
                             setPosKeypadValue("")
                             setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
                           }}
@@ -1825,6 +1904,8 @@ useEffect(() => {
                             setPosCart([])
                             setPosDiscount(0)
                             setPosTax(0)
+                            setPosDiscountPercent(5)
+                            setPosTaxPercent(2)
                             setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
                           }}
                         >
@@ -2382,17 +2463,17 @@ useEffect(() => {
 
       {/* Sale Success Dialog */}
       <Dialog open={showSaleSuccessDialog} onOpenChange={setShowSaleSuccessDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white dark:bg-gray-900">
           <DialogHeader>
             <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="w-10 h-10 text-green-600" />
+              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <CheckCircle2 className="w-10 h-10 text-green-600 dark:text-green-400" />
               </div>
             </div>
-            <DialogTitle className="text-center text-xl">
+            <DialogTitle className="text-center text-xl text-gray-900 dark:text-white">
               {translate("Vente complétée", "تمت العملية")}
             </DialogTitle>
-            <DialogDescription className="text-center text-base">
+            <DialogDescription className="text-center text-base text-gray-700 dark:text-gray-300">
               {translate("Sale completed; the transaction has been completed successfully", "تم إتمام البيع؛ تمت العملية بنجاح")}
             </DialogDescription>
           </DialogHeader>
@@ -2601,22 +2682,39 @@ useEffect(() => {
               />
             </div>
             <div className="col-span-2 space-y-2">
-              <Label>Photo du Produit (URL)</Label>
-              <Input
-                type="url"
-                placeholder="https://exemple.com/produit.jpg ou /placeholder.jpg"
-                value={productForm.image}
-                onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
-              />
+              <Label>{translate("Photo du Produit", "صورة المنتج")}</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-albaz-green-50 file:text-albaz-green-700 hover:file:bg-albaz-green-100 dark:file:bg-albaz-green-900/30 dark:file:text-albaz-green-300"
+                />
+                {productForm.image && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setProductForm({ ...productForm, image: "" })}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    {translate("Supprimer", "حذف")}
+                  </Button>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">
-                Fournissez une URL de l'image du produit. Cette photo sera visible dans l'inventaire et pour les clients.
+                {translate(
+                  "Téléchargez une image du produit. Cette photo sera visible dans l'inventaire et pour les clients.",
+                  "قم بتحميل صورة المنتج. ستكون هذه الصورة مرئية في المخزون وللعملاء."
+                )}
               </p>
               {productForm.image && (
                 <div className="mt-2">
                   <img
                     src={productForm.image}
-                    alt="Aperçu"
-                    className="w-32 h-32 object-cover rounded-lg border"
+                    alt={translate("Aperçu", "معاينة")}
+                    className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = '/placeholder.jpg'
                     }}
