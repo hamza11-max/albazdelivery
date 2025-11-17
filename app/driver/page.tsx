@@ -98,8 +98,9 @@ export default function DriverApp() {
               accuracy,
               heading: heading || 0,
               speed: speed || 0,
-          }),
-        }).catch((error) => console.error("[v0] Error sending location:", error))
+            }),
+          }).catch((error) => console.error("[v0] Error sending location:", error))
+        }
       },
       (error) => {
         console.error("[v0] Geolocation error:", error)
