@@ -732,36 +732,78 @@ useEffect(() => {
 
     const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
     const tax = (subtotal - posDiscount) * 0.02 // 2% tax
-    const total = subtotal - posDiscount + tax
+    // API expects: total === subtotal - discount (without tax)
+    // But we display total with tax in UI
+    const totalForAPI = subtotal - posDiscount
+    const totalWithTax = subtotal - posDiscount + tax
 
     try {
       const salesUrl = `/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
       
       // Transform cart items to match API schema
-      const items = posCart.map(item => ({
-        productId: item.productId || undefined,
-        productName: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        discount: item.discount || 0,
-      }))
+      // Products from API have string IDs (CUIDs), ensure they're strings
+      const items = posCart.map(item => {
+        // ProductId should already be a string from API, but ensure it's a string
+        const productId = item.productId 
+          ? (typeof item.productId === 'string' ? item.productId : String(item.productId))
+          : undefined
+        
+        return {
+          productId: productId && productId.length > 0 ? productId : undefined,
+          productName: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount || 0,
+        }
+      })
+      
+      // Prepare payload - API expects CUID strings or undefined
+      // Don't send customerId or vendorId if they're null/empty
+      const payload: any = {
+        items,
+        subtotal,
+        discount: posDiscount || 0,
+        total: totalForAPI, // API expects: total === subtotal - discount (no tax)
+        paymentMethod: paymentMethod.toUpperCase() as 'CASH' | 'CARD',
+      }
+      
+      // Only include customerId if it's a valid string
+      if (posCustomerId) {
+        payload.customerId = typeof posCustomerId === 'string' 
+          ? posCustomerId 
+          : String(posCustomerId)
+      }
+      
+      // Only include vendorId in body if admin (non-admin uses session)
+      if (isAdmin && activeVendorId) {
+        payload.vendorId = typeof activeVendorId === 'string'
+          ? activeVendorId
+          : String(activeVendorId)
+      }
+      
+      console.log('[v0] Sale payload:', JSON.stringify(payload, null, 2))
+      console.log('[v0] Calculated values:', { subtotal, discount: posDiscount, totalForAPI, totalWithTax })
       
       const response = await fetch(salesUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: posCustomerId || undefined,
-          items,
-          subtotal,
-          discount: posDiscount,
-          tax: tax,
-          total,
-          paymentMethod: paymentMethod.toUpperCase(), // Schema expects CASH or CARD
-          vendorId: activeVendorId,
-        }),
+        body: JSON.stringify(payload),
       })
       
       const data = await response.json()
+      console.log('[v0] Sale API response:', { status: response.status, ok: response.ok, data })
+      
+      if (!response.ok) {
+        console.error('[v0] Sale API error response:', data)
+        const errorMessage = data.error?.message || data.message || `HTTP ${response.status}: ${response.statusText}`
+        toast({
+          title: translate("Erreur", "خطأ"),
+          description: errorMessage,
+          variant: "destructive",
+        })
+        return
+      }
+      
       if (data.success) {
         setLastSale(data.sale)
         setCompletedSale(data.sale)
@@ -777,8 +819,8 @@ useEffect(() => {
         toast({
           title: translate("Vente complétée", "تمت العملية"),
           description: isArabic
-            ? `تم تسجيل عملية بيع بقيمة ${total.toFixed(2)} ${translate("DZD", "دج")}.`
-            : `Vente de ${total.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
+            ? `تم تسجيل عملية بيع بقيمة ${totalWithTax.toFixed(2)} ${translate("DZD", "دج")}.`
+            : `Vente de ${totalWithTax.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
         })
       } else {
         // Handle API error response
