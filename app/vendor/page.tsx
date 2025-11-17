@@ -898,6 +898,20 @@ useEffect(() => {
     }
   }, [isDarkMode])
 
+  // ALL HOOKS MUST BE CALLED BEFORE CONDITIONAL RETURNS
+  // Calculate cart values using hooks (must be before conditional returns)
+  const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const cartTax = useMemo(() => {
+    const subtotalAfterDiscount = cartSubtotal - posDiscount
+    return subtotalAfterDiscount * 0.02 // 2% tax
+  }, [cartSubtotal, posDiscount])
+  const cartTotal = cartSubtotal - posDiscount + cartTax
+  
+  // Update posTax when cart changes
+  useEffect(() => {
+    setPosTax(cartTax)
+  }, [cartTax])
+
   // Show loading state while checking authentication
   if (isLoading || status === "loading") {
     return (
@@ -914,18 +928,6 @@ useEffect(() => {
   if (!isAuthenticated || !user) {
     return null
   }
-
-  const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const cartTax = useMemo(() => {
-    const subtotalAfterDiscount = cartSubtotal - posDiscount
-    return subtotalAfterDiscount * 0.02 // 2% tax
-  }, [cartSubtotal, posDiscount])
-  const cartTotal = cartSubtotal - posDiscount + cartTax
-  
-  // Update posTax when cart changes
-  useEffect(() => {
-    setPosTax(cartTax)
-  }, [cartTax])
 
   return (
     <div className="min-h-screen bg-background" dir={isArabic ? "rtl" : "ltr"}>
