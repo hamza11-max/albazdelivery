@@ -27,7 +27,16 @@ import {
   TrendingDown,
   TrendingUp,
   Truck,
-  Users
+  Users,
+  HelpCircle,
+  Sparkles,
+  X,
+  Percent,
+  Calculator,
+  CreditCard,
+  Wallet,
+  RotateCcw,
+  LogOut
 } from "lucide-react"
 
 // UI Components
@@ -165,6 +174,12 @@ export default function VendorDashboard() {
   const [posCart, setPosCart] = useState<CartItem[]>([])
   const [posCustomerId, setPosCustomerId] = useState<number | null>(null)
   const [posDiscount, setPosDiscount] = useState(0)
+  const [posTax, setPosTax] = useState(0)
+  const [posSelectedCategory, setPosSelectedCategory] = useState<string>("all")
+  const [posOrderNumber, setPosOrderNumber] = useState<string>(() => {
+    return `ORD-${Date.now().toString().slice(-6)}`
+  })
+  const [posKeypadValue, setPosKeypadValue] = useState<string>("")
   const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
 const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false)
@@ -685,7 +700,8 @@ useEffect(() => {
     }
 
     const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const total = subtotal - posDiscount
+    const tax = (subtotal - posDiscount) * 0.02 // 2% tax
+    const total = subtotal - posDiscount + tax
 
     try {
       const salesUrl = `/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
@@ -707,6 +723,7 @@ useEffect(() => {
           items,
           subtotal,
           discount: posDiscount,
+          tax: tax,
           total,
           paymentMethod: paymentMethod.toUpperCase(), // Schema expects CASH or CARD
           vendorId: activeVendorId,
@@ -719,7 +736,9 @@ useEffect(() => {
         setShowReceiptDialog(true)
         setPosCart([])
         setPosDiscount(0)
+        setPosTax(0)
         setPosCustomerId(null)
+        setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
         fetchDashboardData(activeVendorId)
         fetchInventory(activeVendorId)
         fetchSales(activeVendorId)
@@ -897,7 +916,16 @@ useEffect(() => {
   }
 
   const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const cartTotal = cartSubtotal - posDiscount
+  const cartTax = useMemo(() => {
+    const subtotalAfterDiscount = cartSubtotal - posDiscount
+    return subtotalAfterDiscount * 0.02 // 2% tax
+  }, [cartSubtotal, posDiscount])
+  const cartTotal = cartSubtotal - posDiscount + cartTax
+  
+  // Update posTax when cart changes
+  useEffect(() => {
+    setPosTax(cartTax)
+  }, [cartTax])
 
   return (
     <div className="min-h-screen bg-background" dir={isArabic ? "rtl" : "ltr"}>
@@ -1231,158 +1259,390 @@ useEffect(() => {
             </Card>
           </TabsContent>
 
-          {/* POS Tab */}
-          <TabsContent value="pos" className="space-y-6">
-            <h2 className="text-2xl font-bold">Point de Vente</h2>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Product Selection */}
-              <div className="lg:col-span-2 space-y-4">
-                <div className={`flex ${isArabic ? "flex-row-reverse" : "flex-row"} items-center gap-2`}>
-                  <div className="relative flex-1">
-                    <Search
-                      className={`absolute ${isArabic ? "right-3" : "left-3"} top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5`}
-                    />
-                    <Input
-                      placeholder={translate(
-                        "Rechercher un produit ou scanner un code-barres...",
-                        "ابحث عن منتج أو امسح رمزاً شريطياً..."
-                      )}
-                      value={posSearch}
-                      onChange={(e) => setPosSearch(e.target.value)}
-                      className={`${isArabic ? "pr-10 text-right" : "pl-10"}`}
-                    />
+          {/* POS Tab - Modern ALBAZ Design */}
+          <TabsContent value="pos" className="space-y-0 p-0">
+            <div className="flex h-[calc(100vh-200px)] bg-albaz-bg-gradient dark:bg-albaz-bg-gradient-dark">
+              {/* Left Navigation Menu - Deep Green */}
+              <aside className="w-64 bg-albaz-green-gradient dark:bg-albaz-green-700 shadow-albaz-green flex flex-col">
+                <div className="p-6 border-b border-albaz-green-600 dark:border-albaz-green-800">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-lg bg-albaz-orange-gradient flex items-center justify-center albaz-glow-orange">
+                      <Store className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-white font-bold text-lg">ALBAZ</h2>
+                      <p className="text-albaz-green-200 text-xs">Point de Vente</p>
+                    </div>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() => setIsBarcodeScannerOpen(true)}
-                    disabled={!isBarcodeDetectorSupported}
+                </div>
+                <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+                  <button
+                    onClick={() => setActiveTab("dashboard")}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                      activeTab === "dashboard"
+                        ? "bg-albaz-orange-gradient text-white albaz-glow-orange"
+                        : "text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800"
+                    }`}
                   >
-                    <ScanLine className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
-                    {translate("Scanner", "مسح")}
-                  </Button>
-                </div>
+                    <LayoutDashboard className="w-5 h-5" />
+                    <span className="font-medium">{translate("Tableau de bord", "لوحة التحكم")}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("pos")}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                      activeTab === "pos"
+                        ? "bg-albaz-orange-gradient text-white albaz-glow-orange"
+                        : "text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800"
+                    }`}
+                  >
+                    <ShoppingBag className="w-5 h-5" />
+                    <span className="font-medium">{translate("POS", "نقطة البيع")}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("sales")}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800 transition-all"
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                    <span className="font-medium">{translate("Ventes", "المبيعات")}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("customers")}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800 transition-all"
+                  >
+                    <Users className="w-5 h-5" />
+                    <span className="font-medium">{translate("Clients", "العملاء")}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("suppliers")}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800 transition-all"
+                  >
+                    <Truck className="w-5 h-5" />
+                    <span className="font-medium">{translate("Fournisseurs", "الموردون")}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("ai")}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800 transition-all"
+                  >
+                    <Sparkles className="w-5 h-5" />
+                    <span className="font-medium">{translate("Analyse IA", "تحليلات الذكاء الاصطناعي")}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("inventory")}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800 transition-all"
+                  >
+                    <Package className="w-5 h-5" />
+                    <span className="font-medium">{translate("Inventaire", "المخزون")}</span>
+                  </button>
+                  <div className="pt-4 border-t border-albaz-green-600 dark:border-albaz-green-800 mt-4">
+                    <button
+                      onClick={() => setActiveTab("settings")}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800 transition-all"
+                    >
+                      <Settings className="w-5 h-5" />
+                      <span className="font-medium">{translate("Paramètres", "الإعدادات")}</span>
+                    </button>
+                    <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-albaz-green-100 hover:bg-albaz-green-600 dark:hover:bg-albaz-green-800 transition-all">
+                      <HelpCircle className="w-5 h-5" />
+                      <span className="font-medium">{translate("Aide", "المساعدة")}</span>
+                    </button>
+                  </div>
+                </nav>
+              </aside>
 
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {products
-                    .filter(
-                      (p) =>
-                        p.stock > 0 &&
-                        (p.name.toLowerCase().includes(posSearch.toLowerCase()) ||
-                          p.sku.toLowerCase().includes(posSearch.toLowerCase()) ||
-                          p.barcode?.includes(posSearch)),
-                    )
-                    .map((product) => (
-                      <Card
-                        key={product.id}
-                        className="cursor-pointer hover:shadow-lg transition-shadow"
-                        onClick={() => addToCart(product)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="aspect-square bg-muted rounded-lg mb-3 flex items-center justify-center">
-                            <Package className="w-12 h-12 text-muted-foreground" />
-                          </div>
-                          <h3 className="font-semibold text-sm mb-1">{product.name}</h3>
-                          <p className="text-xs text-muted-foreground mb-2">SKU: {product.sku}</p>
-                          <div className="flex items-center justify-between">
-                            <p className="text-lg font-bold text-primary">{product.sellingPrice} DZD</p>
-                            <Badge variant="secondary">{product.stock}</Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                </div>
-              </div>
-
-              {/* Cart */}
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Panier</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {posCart.map((item) => (
-                      <div key={item.productId} className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.productName}</p>
-                          <p className="text-xs text-muted-foreground">{item.price} DZD</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 bg-transparent"
-                            onClick={() => updateCartQuantity(item.productId, -1)}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          <span className="w-8 text-center font-semibold">{item.quantity}</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 bg-transparent"
-                            onClick={() => updateCartQuantity(item.productId, 1)}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-red-600"
-                            onClick={() => removeFromCart(item.productId)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+              {/* Main Content Area */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Top Header */}
+                <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h1 className="text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
+                        {translate("Bienvenue, ", "مرحباً، ")}{user?.name || "Vendeur"} 👋
+                      </h1>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {translate("Voici ce qui se passe dans votre magasin.", "إليك ما يحدث في متجرك.")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300">
+                        <History className="w-4 h-4 mr-2" />
+                        {translate("Voir toutes les commandes", "عرض جميع الطلبات")}
+                      </Button>
+                      <div className="w-10 h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold">
+                        {user?.name?.charAt(0) || "V"}
                       </div>
-                    ))}
+                    </div>
+                  </div>
+                </header>
 
-                    {posCart.length === 0 && (
-                      <div className="text-center py-8">
-                        <ShoppingCart className="w-12 h-12 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground">Panier vide</p>
-                      </div>
-                    )}
-
-                    <div className="border-t pt-4 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Sous-total:</span>
-                        <span className="font-semibold">{cartSubtotal.toFixed(2)} DZD</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm">Remise:</Label>
+                {/* Product Area */}
+                <div className="flex-1 flex overflow-hidden">
+                  <div className="flex-1 flex flex-col overflow-hidden p-6">
+                    {/* Search and Barcode */}
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="relative flex-1">
+                        <Search className={`absolute ${isArabic ? "right-3" : "left-3"} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
                         <Input
-                          type="number"
-                          value={posDiscount}
-                          onChange={(e) => setPosDiscount(Number.parseFloat(e.target.value) || 0)}
-                          className="h-8"
+                          placeholder={translate("Rechercher un produit...", "ابحث عن منتج...")}
+                          value={posSearch}
+                          onChange={(e) => setPosSearch(e.target.value)}
+                          className={`${isArabic ? "pr-10 text-right" : "pl-10"} bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700`}
                         />
-                        <span className="text-sm">DZD</span>
                       </div>
-                      <div className="flex justify-between text-lg font-bold border-t pt-2">
-                        <span>Total:</span>
-                        <span className="text-primary">{cartTotal.toFixed(2)} DZD</span>
+                      <Button
+                        onClick={() => setIsBarcodeScannerOpen(true)}
+                        disabled={!isBarcodeDetectorSupported}
+                        className="bg-albaz-green-gradient hover:opacity-90 text-white shadow-albaz-green"
+                      >
+                        <ScanLine className="w-4 h-4 mr-2" />
+                        {translate("Scanner le code-barres", "مسح الباركود")}
+                      </Button>
+                    </div>
+
+                    {/* Category Filter Bar */}
+                    <div className="mb-6">
+                      <div className="flex items-center gap-3 overflow-x-auto pb-2">
+                        <button
+                          onClick={() => setPosSelectedCategory("all")}
+                          className={`px-6 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                            posSelectedCategory === "all"
+                              ? "bg-albaz-orange-gradient text-white albaz-glow-orange shadow-albaz-orange"
+                              : "bg-white dark:bg-gray-800 text-albaz-green-700 dark:text-albaz-green-300 border border-gray-200 dark:border-gray-700 hover:border-albaz-orange-400"
+                          }`}
+                        >
+                          {translate("Tous", "الكل")} ({products.length})
+                        </button>
+                        {categories.map((cat) => {
+                          const count = products.filter((p) => p.category === cat.name).length
+                          return (
+                            <button
+                              key={cat.id}
+                              onClick={() => setPosSelectedCategory(cat.name)}
+                              className={`px-6 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                                posSelectedCategory === cat.name
+                                  ? "bg-albaz-orange-gradient text-white albaz-glow-orange shadow-albaz-orange"
+                                  : "bg-white dark:bg-gray-800 text-albaz-green-700 dark:text-albaz-green-300 border border-gray-200 dark:border-gray-700 hover:border-albaz-orange-400"
+                              }`}
+                            >
+                              {cat.name} ({count})
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Button className="w-full" onClick={() => completeSale("cash")} disabled={posCart.length === 0}>
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        Payer en Espèces
-                      </Button>
+                    {/* Product Grid */}
+                    <div className="flex-1 overflow-y-auto">
+                      <h3 className="text-lg font-semibold text-albaz-green-700 dark:text-albaz-green-300 mb-4">
+                        {translate("Choisir des produits", "اختر المنتجات")}
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {products
+                          .filter(
+                            (p) =>
+                              p.stock > 0 &&
+                              (posSelectedCategory === "all" || p.category === posSelectedCategory) &&
+                              (p.name.toLowerCase().includes(posSearch.toLowerCase()) ||
+                                p.sku.toLowerCase().includes(posSearch.toLowerCase()) ||
+                                p.barcode?.includes(posSearch)),
+                          )
+                          .map((product) => (
+                            <Card
+                              key={product.id}
+                              className="cursor-pointer hover:shadow-xl transition-all duration-300 border-gray-200 dark:border-gray-700 hover:border-albaz-orange-400 group"
+                              onClick={() => addToCart(product)}
+                            >
+                              <CardContent className="p-4">
+                                <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
+                                  {product.image ? (
+                                    <img
+                                      src={product.image}
+                                      alt={product.name}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = "none"
+                                      }}
+                                    />
+                                  ) : (
+                                    <Package className="w-12 h-12 text-gray-400" />
+                                  )}
+                                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="w-8 h-8 rounded-full bg-albaz-orange-gradient flex items-center justify-center text-white albaz-glow-orange">
+                                      <Plus className="w-4 h-4" />
+                                    </div>
+                                  </div>
+                                </div>
+                                <h3 className="font-semibold text-sm mb-1 text-gray-900 dark:text-gray-100 line-clamp-2">
+                                  {product.name}
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                  {translate("Code", "رمز")}: {product.sku}
+                                </p>
+                                <div className="flex items-center justify-between">
+                                  <p className="text-lg font-bold text-albaz-green-700 dark:text-albaz-green-300">
+                                    {product.sellingPrice} {translate("DZD", "دج")}
+                                  </p>
+                                  <Badge variant="secondary" className="bg-albaz-green-100 dark:bg-albaz-green-900 text-albaz-green-700 dark:text-albaz-green-300">
+                                    {translate("Disponible", "متوفر")}: {product.stock}
+                                  </Badge>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Summary Panel - Right Side */}
+                  <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl">
+                    <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+                      <h2 className="text-xl font-bold text-albaz-green-700 dark:text-albaz-green-300 mb-2">
+                        {translate("Résumé de la commande", "ملخص الطلب")}
+                      </h2>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {translate("Commande N°", "طلب رقم")}: <span className="font-mono font-semibold">{posOrderNumber}</span>
+                      </p>
+                    </div>
+
+                    {/* Order Items */}
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                      {posCart.map((item) => (
+                        <div key={item.productId} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                          <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center flex-shrink-0">
+                            <Package className="w-8 h-8 text-gray-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{item.productName}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {translate("Code", "رمز")}: {products.find((p) => p.id === item.productId)?.sku || "N/A"}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {translate("Quantité", "الكمية")}: {item.quantity}
+                            </p>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <p className="font-bold text-albaz-green-700 dark:text-albaz-green-300">
+                              {(item.price * item.quantity).toFixed(2)} {translate("DZD", "دج")}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 mt-1"
+                              onClick={() => removeFromCart(item.productId)}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {posCart.length === 0 && (
+                        <div className="text-center py-12">
+                          <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">{translate("Panier vide", "السلة فارغة")}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Order Summary Totals */}
+                    <div className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">{translate("Sous-total", "المجموع الفرعي")}:</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{cartSubtotal.toFixed(2)} {translate("DZD", "دج")}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">{translate("Remise (5%)", "الخصم (5%)")}:</span>
+                        <span className="font-semibold text-red-600 dark:text-red-400">-{posDiscount.toFixed(2)} {translate("DZD", "دج")}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">{translate("Taxe (2%)", "الضريبة (2%)")}:</span>
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{cartTax.toFixed(2)} {translate("DZD", "دج")}</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-bold pt-3 border-t border-gray-200 dark:border-gray-800">
+                        <span className="text-albaz-green-700 dark:text-albaz-green-300">{translate("Montant total", "المبلغ الإجمالي")}:</span>
+                        <span className="text-albaz-orange-600 dark:text-albaz-orange-400 albaz-text-glow-orange">{cartTotal.toFixed(2)} {translate("DZD", "دج")}</span>
+                      </div>
+                    </div>
+
+                    {/* Calculator Keypad */}
+                    <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                      <div className="grid grid-cols-4 gap-2 mb-4">
+                        {["Quantity", "Tax", "Discount", "Coupon"].map((label) => (
+                          <Button
+                            key={label}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-albaz-green-50 dark:hover:bg-albaz-green-900/20"
+                          >
+                            {label === "Quantity" && <Plus className="w-3 h-3 mr-1" />}
+                            {label === "Tax" && <Percent className="w-3 h-3 mr-1" />}
+                            {label === "Discount" && <Percent className="w-3 h-3 mr-1" />}
+                            {label === "Coupon" && <Receipt className="w-3 h-3 mr-1" />}
+                            {translate(label, label)}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        {["7", "8", "9", "C", "4", "5", "6", "+", "1", "2", "3", "-", ".", "0"].map((key) => (
+                          <Button
+                            key={key}
+                            variant={key === "C" ? "destructive" : "outline"}
+                            size="lg"
+                            className={`font-mono ${
+                              key === "C"
+                                ? "bg-red-500 hover:bg-red-600 text-white"
+                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            }`}
+                            onClick={() => {
+                              if (key === "C") {
+                                setPosKeypadValue("")
+                                setPosDiscount(0)
+                                setPosTax(0)
+                              } else {
+                                setPosKeypadValue((prev) => prev + key)
+                              }
+                            }}
+                          >
+                            {key}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Payment Button */}
+                    <div className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
                       <Button
-                        className="w-full bg-transparent"
-                        variant="outline"
-                        onClick={() => completeSale("card")}
+                        className="w-full h-14 bg-albaz-orange-gradient hover:opacity-90 text-white font-bold text-lg albaz-glow-orange shadow-albaz-orange"
+                        onClick={() => completeSale("cash")}
                         disabled={posCart.length === 0}
                       >
-                        Payer par Carte
+                        <Wallet className="w-5 h-5 mr-2" />
+                        {translate("Paiement", "الدفع")}
                       </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          className="border-albaz-green-300 dark:border-albaz-green-700 text-albaz-green-700 dark:text-albaz-green-300 hover:bg-albaz-green-50 dark:hover:bg-albaz-green-900/20"
+                          onClick={() => {
+                            setPosCart([])
+                            setPosDiscount(0)
+                            setPosTax(0)
+                            setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
+                          }}
+                        >
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          {translate("Remboursement", "استرداد")}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="border-albaz-green-300 dark:border-albaz-green-700 text-albaz-green-700 dark:text-albaz-green-300 hover:bg-albaz-green-50 dark:hover:bg-albaz-green-900/20"
+                        >
+                          <LogOut className="w-4 h-4 mr-2" />
+                          {translate("Terminer la session", "إنهاء الجلسة")}
+                        </Button>
+                      </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             </div>
           </TabsContent>
