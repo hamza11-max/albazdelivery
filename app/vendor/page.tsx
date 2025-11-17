@@ -783,6 +783,8 @@ useEffect(() => {
       
       console.log('[v0] Sale payload:', JSON.stringify(payload, null, 2))
       console.log('[v0] Calculated values:', { subtotal, discount: posDiscount, totalForAPI, totalWithTax })
+      console.log('[v0] Sale URL:', salesUrl)
+      console.log('[v0] User info:', { isAdmin, activeVendorId, vendorIdParam: activeVendorId })
       
       const response = await fetch(salesUrl, {
         method: "POST",
@@ -791,11 +793,42 @@ useEffect(() => {
       })
       
       const data = await response.json()
-      console.log('[v0] Sale API response:', { status: response.status, ok: response.ok, data })
+      console.log('[v0] Sale API response status:', response.status)
+      console.log('[v0] Sale API response ok:', response.ok)
+      console.log('[v0] Sale API response data:', JSON.stringify(data, null, 2))
       
       if (!response.ok) {
-        console.error('[v0] Sale API error response:', data)
-        const errorMessage = data.error?.message || data.message || `HTTP ${response.status}: ${response.statusText}`
+        console.error('[v0] Sale API error response:', JSON.stringify(data, null, 2))
+        
+        // Extract error message from validation errors or general error
+        let errorMessage = data.error?.message || data.message || 'Unknown error'
+        
+        // If it's a Zod validation error with details array
+        if (data.error?.details && Array.isArray(data.error.details)) {
+          const validationErrors = data.error.details.map((detail: any) => {
+            const path = detail.path || 'unknown'
+            return `${path}: ${detail.message}`
+          }).join(', ')
+          errorMessage = `Validation error: ${validationErrors}`
+        } 
+        // If it's a Zod validation error with issues array (alternative format)
+        else if (data.error?.issues && Array.isArray(data.error.issues)) {
+          const validationErrors = data.error.issues.map((issue: any) => {
+            const path = issue.path?.join('.') || 'unknown'
+            return `${path}: ${issue.message}`
+          }).join(', ')
+          errorMessage = `Validation error: ${validationErrors}`
+        } 
+        else if (data.error?.message) {
+          errorMessage = data.error.message
+        } 
+        else if (data.message) {
+          errorMessage = data.message
+        } 
+        else {
+          errorMessage = `HTTP ${response.status}: ${response.statusText || 'Unknown error'}`
+        }
+        
         toast({
           title: translate("Erreur", "خطأ"),
           description: errorMessage,
