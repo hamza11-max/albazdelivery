@@ -50,7 +50,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import Header from "@/components/Header"
+import VendorSidebar from "@/components/VendorSidebar"
 
 // Hooks
 // Use custom hooks
@@ -930,17 +930,21 @@ useEffect(() => {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir={isArabic ? "rtl" : "ltr"}>
-      {/* Header */}
-      <Header 
+    <div className="min-h-screen bg-background flex" dir={isArabic ? "rtl" : "ltr"}>
+      {/* Vertical Sidebar */}
+      <VendorSidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         language={language}
         setLanguage={setLanguage}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
+        translate={translate}
       />
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6" dir={isArabic ? "rtl" : "ltr"}>
+      <main className="flex-1 transition-all duration-300 md:ml-20" dir={isArabic ? "rtl" : "ltr"}>
+        <div className="container mx-auto px-4 py-6">
         {isAdmin && (
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
             <div>
@@ -981,36 +985,7 @@ useEffect(() => {
           </div>
         )}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7 mb-6">
-            <TabsTrigger value="dashboard">
-              <LayoutDashboard className="w-4 h-4 mr-2" />
-              {translate("Tableau de bord", "لوحة التحكم")}
-            </TabsTrigger>
-            <TabsTrigger value="inventory">
-              <Package className="w-4 h-4 mr-2" />
-              {translate("Inventaire", "المخزون")}
-            </TabsTrigger>
-            <TabsTrigger value="pos">
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              {translate("Point de Vente", "نقطة البيع")}
-            </TabsTrigger>
-            <TabsTrigger value="sales">
-              <History className="w-4 h-4 mr-2" />
-              {translate("Ventes", "المبيعات")}
-            </TabsTrigger>
-            <TabsTrigger value="customers">
-              <Users className="w-4 h-4 mr-2" />
-              {translate("Clients", "العملاء")}
-            </TabsTrigger>
-            <TabsTrigger value="suppliers">
-              <Truck className="w-4 h-4 mr-2" />
-              {translate("Fournisseurs", "الموردون")}
-            </TabsTrigger>
-            <TabsTrigger value="ai">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              {translate("Analyse IA", "تحليلات الذكاء الاصطناعي")}
-            </TabsTrigger>
-          </TabsList>
+          {/* Horizontal tabs removed - navigation now in vertical sidebar */}
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
@@ -1894,6 +1869,7 @@ useEffect(() => {
             </Card>
           </TabsContent>
         </Tabs>
+        </div>
       </main>
 
       {/* Product Dialog */}
