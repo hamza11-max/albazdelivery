@@ -36,7 +36,8 @@ import {
   CreditCard,
   Wallet,
   RotateCcw,
-  LogOut
+  LogOut,
+  CheckCircle2
 } from "lucide-react"
 
 // UI Components
@@ -182,6 +183,9 @@ export default function VendorDashboard() {
   const [posKeypadValue, setPosKeypadValue] = useState<string>("")
   const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
+  const [showSaleSuccessDialog, setShowSaleSuccessDialog] = useState(false)
+  const [showReceipt, setShowReceipt] = useState(false)
+  const [completedSale, setCompletedSale] = useState<Sale | null>(null)
 const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false)
 const [barcodeScannerError, setBarcodeScannerError] = useState<string | null>(null)
 const [isBarcodeDetectorSupported, setIsBarcodeDetectorSupported] = useState(false)
@@ -733,7 +737,8 @@ useEffect(() => {
       const data = await response.json()
       if (data.success) {
         setLastSale(data.sale)
-        setShowReceiptDialog(true)
+        setCompletedSale(data.sale)
+        setShowSaleSuccessDialog(true)
         setPosCart([])
         setPosDiscount(0)
         setPosTax(0)
@@ -984,6 +989,32 @@ useEffect(() => {
             </div>
           </div>
         )}
+        
+        {/* Vendor Header - Appears in all tabs except POS (POS has its own header) */}
+        {activeTab !== "pos" && (
+          <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 shadow-sm mb-6 -mx-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
+                  {translate("Bienvenue, ", "مرحباً، ")}{user?.name || "Vendeur"} 👋
+                </h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {translate("Voici ce qui se passe dans votre magasin.", "إليك ما يحدث في متجرك.")}
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300">
+                  <History className="w-4 h-4 mr-2" />
+                  {translate("Voir toutes les commandes", "عرض جميع الطلبات")}
+                </Button>
+                <div className="w-10 h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold">
+                  {user?.name?.charAt(0) || "V"}
+                </div>
+              </div>
+            </div>
+          </header>
+        )}
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Horizontal tabs removed - navigation now in vertical sidebar */}
 
@@ -1453,40 +1484,20 @@ useEffect(() => {
                       </div>
                     </div>
 
-                    {/* Calculator Keypad */}
+                    {/* Numeric Keyboard for Touchscreen */}
                     <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-                      <div className="grid grid-cols-4 gap-2 mb-4">
-                        {["Quantity", "Tax", "Discount", "Coupon"].map((label) => (
-                          <Button
-                            key={label}
-                            variant="outline"
-                            size="sm"
-                            className="text-xs border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-albaz-green-50 dark:hover:bg-albaz-green-900/20"
-                          >
-                            {label === "Quantity" && <Plus className="w-3 h-3 mr-1" />}
-                            {label === "Tax" && <Percent className="w-3 h-3 mr-1" />}
-                            {label === "Discount" && <Percent className="w-3 h-3 mr-1" />}
-                            {label === "Coupon" && <Receipt className="w-3 h-3 mr-1" />}
-                            {translate(label, label)}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        {["7", "8", "9", "C", "4", "5", "6", "+", "1", "2", "3", "-", ".", "0"].map((key) => (
+                      <div className="grid grid-cols-3 gap-3">
+                        {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((key) => (
                           <Button
                             key={key}
-                            variant={key === "C" ? "destructive" : "outline"}
+                            variant="outline"
                             size="lg"
-                            className={`font-mono ${
-                              key === "C"
-                                ? "bg-red-500 hover:bg-red-600 text-white"
-                                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className={`h-16 text-2xl font-mono bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                              key === "⌫" ? "col-span-1" : ""
                             }`}
                             onClick={() => {
-                              if (key === "C") {
-                                setPosKeypadValue("")
-                                setPosDiscount(0)
-                                setPosTax(0)
+                              if (key === "⌫") {
+                                setPosKeypadValue((prev) => prev.slice(0, -1))
                               } else {
                                 setPosKeypadValue((prev) => prev + key)
                               }
@@ -1496,18 +1507,48 @@ useEffect(() => {
                           </Button>
                         ))}
                       </div>
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="flex-1 h-12 bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
+                          onClick={() => {
+                            setPosKeypadValue("")
+                            setPosDiscount(0)
+                          }}
+                        >
+                          {translate("Effacer", "مسح")}
+                        </Button>
+                      </div>
                     </div>
 
-                    {/* Payment Button */}
+                    {/* Action Buttons */}
                     <div className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
-                      <Button
-                        className="w-full h-14 bg-albaz-orange-gradient hover:opacity-90 text-white font-bold text-lg albaz-glow-orange shadow-albaz-orange"
-                        onClick={() => completeSale("cash")}
-                        disabled={posCart.length === 0}
-                      >
-                        <Wallet className="w-5 h-5 mr-2" />
-                        {translate("Paiement", "الدفع")}
-                      </Button>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Button
+                          variant="outline"
+                          size="lg"
+                          className="h-14 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          onClick={() => {
+                            setPosCart([])
+                            setPosDiscount(0)
+                            setPosTax(0)
+                            setPosKeypadValue("")
+                            setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
+                          }}
+                        >
+                          <X className="w-5 h-5 mr-2" />
+                          {translate("Annuler", "إلغاء")}
+                        </Button>
+                        <Button
+                          className="h-14 bg-albaz-green-gradient hover:opacity-90 text-white font-bold text-lg"
+                          onClick={() => completeSale("cash")}
+                          disabled={posCart.length === 0}
+                        >
+                          <CheckCircle2 className="w-5 h-5 mr-2" />
+                          {translate("Confirmer", "تأكيد")}
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           variant="outline"
@@ -1784,6 +1825,154 @@ useEffect(() => {
         </Tabs>
         </div>
       </main>
+
+      {/* Sale Success Dialog */}
+      <Dialog open={showSaleSuccessDialog} onOpenChange={setShowSaleSuccessDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle2 className="w-10 h-10 text-green-600" />
+              </div>
+            </div>
+            <DialogTitle className="text-center text-xl">
+              {translate("Vente complétée", "تمت العملية")}
+            </DialogTitle>
+            <DialogDescription className="text-center text-base">
+              {translate("Sale completed; the transaction has been completed successfully", "تم إتمام البيع؛ تمت العملية بنجاح")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowSaleSuccessDialog(false)
+                setCompletedSale(null)
+              }}
+              className="w-full sm:w-auto"
+            >
+              {translate("Fermer", "إغلاق")}
+            </Button>
+            <Button
+              onClick={() => {
+                setShowSaleSuccessDialog(false)
+                setShowReceipt(true)
+              }}
+              className="w-full sm:w-auto bg-albaz-green-gradient hover:opacity-90 text-white"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              {translate("Imprimer le reçu", "طباعة الإيصال")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt View */}
+      {showReceipt && completedSale && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              {/* Logo */}
+              <div className="flex justify-center mb-6">
+                <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center shadow-lg">
+                  <img src="/logo.png" alt="ALBAZ" className="h-16 w-auto" />
+                </div>
+              </div>
+              <div className="text-center mb-2">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ALBAZ</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-400">DELIVERY</p>
+              </div>
+
+              {/* Receipt Details */}
+              <div className="border-t border-b border-gray-200 dark:border-gray-700 py-4 my-6">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">{translate("Date", "التاريخ")}:</span>
+                    <span className="font-medium">{new Date(completedSale.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600 dark:text-gray-400">{translate("Numéro de vente", "رقم البيع")}:</span>
+                    <span className="font-medium font-mono">{completedSale.id.slice(0, 8)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="mb-6">
+                <h2 className="font-bold text-lg mb-4">{translate("Articles", "العناصر")}</h2>
+                <div className="space-y-3">
+                  {completedSale.items.map((item, index) => (
+                    <div key={index} className="flex justify-between items-start py-2 border-b border-gray-100 dark:border-gray-800">
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white">{item.productName}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {item.quantity} × {item.price.toFixed(2)} {translate("DZD", "دج")}
+                        </p>
+                      </div>
+                      <p className="font-bold text-gray-900 dark:text-white">
+                        {(item.quantity * item.price).toFixed(2)} {translate("DZD", "دج")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Totals */}
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{translate("Sous-total", "المجموع الفرعي")}:</span>
+                  <span className="font-medium">{completedSale.subtotal.toFixed(2)} {translate("DZD", "دج")}</span>
+                </div>
+                {completedSale.discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600 dark:text-gray-400">{translate("Remise", "الخصم")}:</span>
+                    <span className="font-medium text-red-600">-{completedSale.discount.toFixed(2)} {translate("DZD", "دج")}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">{translate("Taxe", "الضريبة")}:</span>
+                  <span className="font-medium">{(completedSale.tax || 0).toFixed(2)} {translate("DZD", "دج")}</span>
+                </div>
+                <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <span>{translate("Total", "المجموع")}:</span>
+                  <span className="text-albaz-green-700 dark:text-albaz-green-300">{completedSale.total.toFixed(2)} {translate("DZD", "دج")}</span>
+                </div>
+              </div>
+
+              {/* Thank You Message */}
+              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
+                <p className="text-gray-700 dark:text-gray-300 font-medium">
+                  {translate("Thank you for visiting us", "شكرا لزيارتكم")}
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                  {translate("See you soon", "نراكم قريبا")}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="mt-6 flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowReceipt(false)
+                    setCompletedSale(null)
+                  }}
+                  className="flex-1"
+                >
+                  {translate("Fermer", "إغلاق")}
+                </Button>
+                <Button
+                  onClick={() => window.print()}
+                  className="flex-1 bg-albaz-green-gradient hover:opacity-90 text-white"
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  {translate("Imprimer", "طباعة")}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Product Dialog */}
       <Dialog open={showProductDialog} onOpenChange={setShowProductDialog}>
