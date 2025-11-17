@@ -181,6 +181,16 @@ export default function VendorDashboard() {
     return `ORD-${Date.now().toString().slice(-6)}`
   })
   const [posKeypadValue, setPosKeypadValue] = useState<string>("")
+  
+  // Update discount when keypad value changes
+  useEffect(() => {
+    if (posKeypadValue) {
+      const discountValue = parseFloat(posKeypadValue) || 0
+      setPosDiscount(discountValue)
+    } else {
+      setPosDiscount(0)
+    }
+  }, [posKeypadValue])
   const [editingProduct, setEditingProduct] = useState<InventoryProduct | null>(null)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
   const [showSaleSuccessDialog, setShowSaleSuccessDialog] = useState(false)
@@ -622,10 +632,7 @@ useEffect(() => {
       })
       const data = await response.json()
       if (data.success) {
-        fetchInventory(activeVendorId)
-        fetchDashboardData(activeVendorId)
-        setShowProductDialog(false)
-        setEditingProduct(null)
+        // Reset form first
         setProductForm({
           sku: "",
           name: "",
@@ -640,15 +647,35 @@ useEffect(() => {
           barcode: "",
           image: ""
         })
+        setEditingProduct(null)
+        setShowProductDialog(false)
+        
+        // Refresh data
+        await fetchInventory(activeVendorId)
+        await fetchDashboardData(activeVendorId)
+        await fetchProducts(activeVendorId)
+        
         toast({
           title: editingProduct
             ? translate("Produit mis à jour", "تم تحديث المنتج")
             : translate("Produit ajouté", "تمت إضافة المنتج"),
           description: translate("L'inventaire a été mis à jour avec succès", "تم تحديث المخزون بنجاح"),
         })
+      } else {
+        toast({
+          title: translate("Erreur", "خطأ"),
+          description: data.error?.message || translate("Impossible d'ajouter le produit", "تعذر إضافة المنتج"),
+          variant: "destructive",
+        })
+        console.error("[v0] Product save error:", data.error)
       }
     } catch (error) {
       console.error("[v0] Error saving product:", error)
+      toast({
+        title: translate("Erreur", "خطأ"),
+        description: error instanceof Error ? error.message : translate("Une erreur est survenue", "حدث خطأ"),
+        variant: "destructive",
+      })
     }
   }
 
@@ -765,9 +792,10 @@ useEffect(() => {
       }
     } catch (error) {
       console.error("[v0] Error completing sale:", error)
+      const errorMessage = error instanceof Error ? error.message : translate("Une erreur est survenue lors de la vente", "حدث خطأ أثناء عملية البيع")
       toast({
         title: translate("Erreur", "خطأ"),
-        description: translate("Une erreur est survenue lors de la vente", "حدث خطأ أثناء عملية البيع"),
+        description: errorMessage,
         variant: "destructive",
       })
     }
@@ -992,22 +1020,23 @@ useEffect(() => {
         
         {/* Vendor Header - Appears in all tabs except POS (POS has its own header) */}
         {activeTab !== "pos" && (
-          <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 shadow-sm mb-6 -mx-4">
-            <div className="flex items-center justify-between">
+          <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-3 md:px-6 py-3 md:py-4 shadow-sm mb-6 -mx-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h1 className="text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
+                <h1 className="text-xl md:text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
                   {translate("Bienvenue, ", "مرحباً، ")}{user?.name || "Vendeur"} 👋
                 </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
                   {translate("Voici ce qui se passe dans votre magasin.", "إليك ما يحدث في متجرك.")}
                 </p>
               </div>
-              <div className="flex items-center gap-4">
-                <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300">
-                  <History className="w-4 h-4 mr-2" />
-                  {translate("Voir toutes les commandes", "عرض جميع الطلبات")}
+              <div className="flex items-center gap-2 md:gap-4">
+                <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300 text-xs md:text-sm">
+                  <History className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                  <span className="hidden sm:inline">{translate("Voir toutes les commandes", "عرض جميع الطلبات")}</span>
+                  <span className="sm:hidden">{translate("Commandes", "الطلبات")}</span>
                 </Button>
-                <div className="w-10 h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold text-sm md:text-base">
                   {user?.name?.charAt(0) || "V"}
                 </div>
               </div>
@@ -1269,26 +1298,27 @@ useEffect(() => {
 
           {/* POS Tab - Modern ALBAZ Design */}
           <TabsContent value="pos" className="space-y-0 p-0">
-            <div className="flex h-[calc(100vh-200px)] bg-albaz-bg-gradient dark:bg-albaz-bg-gradient-dark">
+            <div className="flex flex-col lg:flex-row min-h-[calc(100vh-200px)] bg-albaz-bg-gradient dark:bg-albaz-bg-gradient-dark">
               {/* Main Content Area */}
               <div className="flex-1 flex flex-col overflow-hidden w-full">
                 {/* Top Header */}
-                <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 shadow-sm">
-                  <div className="flex items-center justify-between">
+                <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-3 md:px-6 py-3 md:py-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
-                      <h1 className="text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
+                      <h1 className="text-xl md:text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
                         {translate("Bienvenue, ", "مرحباً، ")}{user?.name || "Vendeur"} 👋
                       </h1>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
                         {translate("Voici ce qui se passe dans votre magasin.", "إليك ما يحدث في متجرك.")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300">
-                        <History className="w-4 h-4 mr-2" />
-                        {translate("Voir toutes les commandes", "عرض جميع الطلبات")}
+                    <div className="flex items-center gap-2 md:gap-4">
+                      <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300 text-xs md:text-sm">
+                        <History className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                        <span className="hidden sm:inline">{translate("Voir toutes les commandes", "عرض جميع الطلبات")}</span>
+                        <span className="sm:hidden">{translate("Commandes", "الطلبات")}</span>
                       </Button>
-                      <div className="w-10 h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold">
+                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold text-sm md:text-base">
                         {user?.name?.charAt(0) || "V"}
                       </div>
                     </div>
@@ -1296,8 +1326,8 @@ useEffect(() => {
                 </header>
 
                 {/* Product Area */}
-                <div className="flex-1 flex overflow-hidden">
-                  <div className="flex-1 flex flex-col overflow-hidden p-6">
+                <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+                  <div className="flex-1 flex flex-col overflow-hidden p-3 md:p-6">
                     {/* Search and Barcode */}
                     <div className="flex items-center gap-4 mb-6">
                       <div className="relative flex-1">
@@ -1414,7 +1444,7 @@ useEffect(() => {
                   </div>
 
                   {/* Order Summary Panel - Right Side */}
-                  <div className="w-96 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl">
+                  <div className="w-full lg:w-96 bg-white dark:bg-gray-900 border-t lg:border-t-0 lg:border-l border-gray-200 dark:border-gray-800 flex flex-col shadow-xl">
                     <div className="p-6 border-b border-gray-200 dark:border-gray-800">
                       <h2 className="text-xl font-bold text-albaz-green-700 dark:text-albaz-green-300 mb-2">
                         {translate("Résumé de la commande", "ملخص الطلب")}
@@ -1484,15 +1514,20 @@ useEffect(() => {
                       </div>
                     </div>
 
-                    {/* Numeric Keyboard for Touchscreen */}
-                    <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
-                      <div className="grid grid-cols-3 gap-3">
+                    {/* Numeric Keyboard for Touchscreen - Always visible */}
+                    <div className="p-3 md:p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900">
+                      <div className="mb-3">
+                        <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {translate("Montant de remise", "مبلغ الخصم")}: {posKeypadValue || "0"} {translate("DZD", "دج")}
+                        </Label>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 md:gap-3">
                         {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((key) => (
                           <Button
                             key={key}
                             variant="outline"
                             size="lg"
-                            className={`h-16 text-2xl font-mono bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                            className={`h-12 md:h-16 text-xl md:text-2xl font-mono bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 ${
                               key === "⌫" ? "col-span-1" : ""
                             }`}
                             onClick={() => {
@@ -1511,7 +1546,7 @@ useEffect(() => {
                         <Button
                           variant="outline"
                           size="lg"
-                          className="flex-1 h-12 bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
+                          className="flex-1 h-10 md:h-12 bg-red-50 hover:bg-red-100 text-red-600 border-red-200 text-sm md:text-base"
                           onClick={() => {
                             setPosKeypadValue("")
                             setPosDiscount(0)
@@ -1523,12 +1558,12 @@ useEffect(() => {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 md:p-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
+                      <div className="grid grid-cols-2 gap-2 md:gap-3">
                         <Button
                           variant="outline"
                           size="lg"
-                          className="h-14 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          className="h-12 md:h-14 text-sm md:text-base border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
                           onClick={() => {
                             setPosCart([])
                             setPosDiscount(0)
@@ -1541,7 +1576,7 @@ useEffect(() => {
                           {translate("Annuler", "إلغاء")}
                         </Button>
                         <Button
-                          className="h-14 bg-albaz-green-gradient hover:opacity-90 text-white font-bold text-lg"
+                          className="h-12 md:h-14 bg-albaz-green-gradient hover:opacity-90 text-white font-bold text-sm md:text-lg"
                           onClick={() => completeSale("cash")}
                           disabled={posCart.length === 0}
                         >
@@ -1931,7 +1966,7 @@ useEffect(() => {
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">{translate("Taxe", "الضريبة")}:</span>
-                  <span className="font-medium">{(completedSale.tax || 0).toFixed(2)} {translate("DZD", "دج")}</span>
+                  <span className="font-medium">{((completedSale as any).tax || 0).toFixed(2)} {translate("DZD", "دج")}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200 dark:border-gray-700">
                   <span>{translate("Total", "المجموع")}:</span>
@@ -1976,7 +2011,7 @@ useEffect(() => {
 
       {/* Product Dialog */}
       <Dialog open={showProductDialog} onOpenChange={setShowProductDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl bg-white dark:bg-gray-900">
           <DialogHeader>
             <DialogTitle>{editingProduct ? "Modifier le Produit" : "Ajouter un Produit"}</DialogTitle>
             <DialogDescription>
