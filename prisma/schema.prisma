@@ -49,6 +49,8 @@ model User {
   notifications       Notification[]
   driverLocation      DriverLocation?
   driverPerformance   DriverPerformance?
+  driverConnections   DriverVendorConnection[] @relation("DriverConnections")
+  vendorConnections   DriverVendorConnection[] @relation("VendorConnections")
   
   @@index([email])
   @@index([phone])
@@ -721,6 +723,35 @@ model Sale {
   
   @@index([vendorId])
   @@index([createdAt])
+}
+
+// ========================================
+// Driver-Vendor Connections
+// ========================================
+
+model DriverVendorConnection {
+  id        String   @id @default(cuid())
+  driverId  String
+  vendorId  String
+  status    ConnectionStatus @default(PENDING)
+  requestedAt DateTime @default(now())
+  respondedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  driver User @relation("DriverConnections", fields: [driverId], references: [id])
+  vendor User @relation("VendorConnections", fields: [vendorId], references: [id])
+  
+  @@unique([driverId, vendorId])
+  @@index([driverId])
+  @@index([vendorId])
+  @@index([status])
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 model SaleItem {

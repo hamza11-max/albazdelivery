@@ -45,10 +45,40 @@ export async function GET(request: NextRequest) {
     }
 
     if (available === 'true') {
-      // Get orders that are ready for pickup and not assigned to any driver
+      // Get driver's accepted vendor connections
+      const connections = await prisma.driverVendorConnection.findMany({
+        where: {
+          driverId: session.user.id,
+          status: 'ACCEPTED',
+        },
+        select: {
+          vendorId: true,
+        },
+      })
+
+      const connectedVendorIds = connections.map((c) => c.vendorId)
+
+      // If driver has no connections, return empty
+      if (connectedVendorIds.length === 0) {
+        return successResponse({
+          deliveries: [],
+          pagination: {
+            page: 1,
+            limit,
+            total: 0,
+            pages: 0,
+          },
+        })
+      }
+
+      // Get orders that are ready for pickup, not assigned to any driver,
+      // and from vendors that the driver is connected to
       const where: any = {
         status: OrderStatus.READY,
         driverId: null,
+        vendorId: {
+          in: connectedVendorIds,
+        },
       }
 
       // Add date range filter if provided
@@ -81,6 +111,12 @@ export async function GET(request: NextRequest) {
                 name: true,
                 address: true,
                 city: true,
+              },
+            },
+            vendor: {
+              select: {
+                id: true,
+                name: true,
               },
             },
             items: {

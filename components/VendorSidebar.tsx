@@ -16,7 +16,8 @@ import {
   Truck,
   BarChart3,
   Settings,
-  ShoppingBag
+  ShoppingBag,
+  UserCog
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -84,6 +85,12 @@ export default function VendorSidebar({
       icon: Users,
       labelFr: "Clients",
       labelAr: "العملاء",
+    },
+    {
+      id: "drivers",
+      icon: UserCog,
+      labelFr: "Chauffeurs",
+      labelAr: "السائقون",
     },
     {
       id: "suppliers",
