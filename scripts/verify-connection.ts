@@ -96,7 +96,7 @@ async function testDatabaseConnection(): Promise<ConnectionTest> {
 
 async function runTests() {
   console.log('\n🔍 Backend-Frontend Connection Verification\n')
-  console.log('=' .repeat(60))
+  console.log('='.repeat(60))
 
   // Test 1: Health Check
   console.log('\n1. Testing Health Endpoint...')
@@ -146,8 +146,8 @@ async function runTests() {
   // Summary
   console.log('\n' + '='.repeat(60))
   console.log('\n📊 Test Summary:')
-  const passed = tests.filter((t) => t.status === 'pass').length
-  const failed = tests.filter((t) => t.status === 'fail').length
+  const passed = tests.filter((t: ConnectionTest) => t.status === 'pass').length
+  const failed = tests.filter((t: ConnectionTest) => t.status === 'fail').length
   const total = tests.length
 
   console.log(`   Total Tests: ${total}`)
