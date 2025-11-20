@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/root/lib/prisma'
 
 /**
  * Audit Logging

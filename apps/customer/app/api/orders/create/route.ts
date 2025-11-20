@@ -1,11 +1,11 @@
 import { type NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
-import { emitOrderCreated, emitNotificationSent } from '@/lib/events'
-import { createOrderSchema } from '@/lib/validations/order'
-import { OrderStatus } from '@/lib/constants'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { emitOrderCreated, emitNotificationSent } from '@/root/lib/events'
+import { createOrderSchema } from '@/root/lib/validations/order'
+import { OrderStatus } from '@/root/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {

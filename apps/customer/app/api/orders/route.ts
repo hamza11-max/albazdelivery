@@ -1,11 +1,11 @@
 import { type NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
-import { createOrderSchema } from '@/lib/validations/order'
-import { emitOrderCreated } from '@/lib/events'
-import { OrderStatus } from '@/lib/constants'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { createOrderSchema } from '@/root/lib/validations/order'
+import { emitOrderCreated } from '@/root/lib/events'
+import { OrderStatus } from '@/root/lib/constants'
 
 // GET /api/orders - Get all orders or filter by customer
 export async function GET(request: NextRequest) {

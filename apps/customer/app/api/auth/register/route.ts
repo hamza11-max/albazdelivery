@@ -1,8 +1,8 @@
-import { prisma } from '@/lib/prisma'
-import { registerSchema } from '@/lib/validations/auth'
-import { hashPassword } from '@/lib/password'
-import { successResponse, errorResponse, ConflictError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { prisma } from '@/root/lib/prisma'
+import { registerSchema } from '@/root/lib/validations/auth'
+import { hashPassword } from '@/root/lib/password'
+import { successResponse, errorResponse, ConflictError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 
 export async function POST(request: Request) {
   try {

@@ -23,9 +23,12 @@ const config = {
     // Allow imports from root directories
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@/lib': path.resolve(__dirname, '../../lib'),
-      '@/components': path.resolve(__dirname, '../../components'),
-      '@/hooks': path.resolve(__dirname, '../../hooks'),
+      '@/root/lib': path.resolve(__dirname, '../../lib'),
+      '@/root/components': path.resolve(__dirname, '../../components'),
+      '@/root/hooks': path.resolve(__dirname, '../../hooks'),
+      '@/lib': path.resolve(__dirname, './lib'),
+      '@/components': path.resolve(__dirname, './components'),
+      '@/hooks': path.resolve(__dirname, './hooks'),
     }
     // Fix for module initialization order issues
     config.optimization = {
