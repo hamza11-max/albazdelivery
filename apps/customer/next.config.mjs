@@ -34,8 +34,8 @@ const config = {
       moduleIds: isServer ? 'deterministic' : 'named',
       // Disable module concatenation to prevent hoisting issues
       concatenateModules: false,
-      // Disable side effects optimization for client
-      sideEffects: false,
+      // Keep side effects to preserve initialization order
+      sideEffects: true,
       splitChunks: {
         ...config.optimization.splitChunks,
         chunks: 'all',
@@ -74,6 +74,10 @@ const config = {
       // Ensure proper module evaluation order - already set above, but enforce here
       if (!config.optimization.moduleIds) {
         config.optimization.moduleIds = 'named';
+      }
+      // Disable minimize to avoid initialization issues in development
+      if (process.env.NODE_ENV !== 'production') {
+        config.optimization.minimize = false;
       }
     }
     

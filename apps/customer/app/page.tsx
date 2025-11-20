@@ -6,7 +6,6 @@ import { useSession, signOut } from 'next-auth/react'
 import type { Order } from '@albaz/shared'
 
 import { useSSE } from '@/lib/use-sse'
-import { DEFAULT_DELIVERY_FEE } from '@/lib/constants'
 import { AppHeader } from '../components/layout/AppHeader'
 import { BottomNav } from '../components/navigation/BottomNav'
 import { HomePage } from '../components/views/HomePage'
@@ -170,7 +169,7 @@ export default function AlBazApp() {
     setCart((prev) => prev.filter((item) => item.productId !== productId))
   }
 
-  const deliveryFee = DEFAULT_DELIVERY_FEE
+  const deliveryFee = 500 // DZD - TODO: import from constants after webpack config fix
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
   const placeOrder = async () => {
