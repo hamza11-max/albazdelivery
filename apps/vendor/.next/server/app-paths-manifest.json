@@ -1,0 +1,11 @@
+{
+  "/api/erp/ai-insights/route": "app/api/erp/ai-insights/route.js",
+  "/api/erp/customers/route": "app/api/erp/customers/route.js",
+  "/api/erp/dashboard/route": "app/api/erp/dashboard/route.js",
+  "/api/erp/inventory/route": "app/api/erp/inventory/route.js",
+  "/api/erp/sales/route": "app/api/erp/sales/route.js",
+  "/api/erp/suppliers/route": "app/api/erp/suppliers/route.js",
+  "/api/vendors/orders/route": "app/api/vendors/orders/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/vendor/page": "app/vendor/page.js"
+}

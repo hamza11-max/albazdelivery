@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { stripePromise } from "@/lib/stripe";
 import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Label, useToast } from "@albaz/ui"
 import { Loader2 } from "lucide-react"
 import { formatPrice } from "@albaz/shared/utils"

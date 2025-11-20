@@ -41,7 +41,7 @@ export default function LoginPage() {
         setError(data.error || "Email ou mot de passe incorrect")
         setLoading(false)
       }
-    } catch (err) {
+    } catch {
       setError("Une erreur s'est produite. Veuillez réessayer.")
       setLoading(false)
     }

@@ -1,0 +1,16 @@
+{
+  "/api/delivery/assign-nearest-driver/route": "app/api/delivery/assign-nearest-driver/route.js",
+  "/api/delivery/batch-optimize/route": "app/api/delivery/batch-optimize/route.js",
+  "/api/delivery/driver-performance/route": "app/api/delivery/driver-performance/route.js",
+  "/api/delivery/optimize-route/route": "app/api/delivery/optimize-route/route.js",
+  "/api/delivery/predictions/route": "app/api/delivery/predictions/route.js",
+  "/api/delivery/zones/route": "app/api/delivery/zones/route.js",
+  "/api/driver/nearby/route": "app/api/driver/nearby/route.js",
+  "/api/driver/location/route": "app/api/driver/location/route.js",
+  "/api/driver/privacy/route": "app/api/driver/privacy/route.js",
+  "/api/drivers/deliveries/[id]/status/route": "app/api/drivers/deliveries/[id]/status/route.js",
+  "/api/drivers/deliveries/accept/route": "app/api/drivers/deliveries/accept/route.js",
+  "/api/drivers/deliveries/route": "app/api/drivers/deliveries/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/driver/page": "app/driver/page.js"
+}

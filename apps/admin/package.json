@@ -6,7 +6,7 @@
     "dev": "next dev -p 3003",
     "build": "next build",
     "start": "next start -p 3003",
-    "lint": "next lint",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .js,.jsx,.ts,.tsx --config .eslintrc.json --no-eslintrc",
     "type-check": "tsc --noEmit",
     "test": "cross-env NODE_ENV=test jest --config ../../jest.config.ts",
     "test:watch": "cross-env NODE_ENV=test jest --config ../../jest.config.ts --watch",

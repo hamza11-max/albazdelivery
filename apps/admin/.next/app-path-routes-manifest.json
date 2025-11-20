@@ -1,0 +1,13 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/api/admin/ads/[id]/route": "/api/admin/ads/[id]",
+  "/api/admin/ads/route": "/api/admin/ads",
+  "/api/admin/orders/route": "/api/admin/orders",
+  "/api/admin/registration-requests/route": "/api/admin/registration-requests",
+  "/api/admin/users/[id]/reset-password/route": "/api/admin/users/[id]/reset-password",
+  "/api/admin/users/[id]/route": "/api/admin/users/[id]",
+  "/api/admin/users/[id]/suspend/route": "/api/admin/users/[id]/suspend",
+  "/api/admin/users/[id]/unsuspend/route": "/api/admin/users/[id]/unsuspend",
+  "/api/admin/users/route": "/api/admin/users",
+  "/admin/page": "/admin"
+}

@@ -2,8 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { CheckoutPage } from './client';
 
-export default async function Page({ params, searchParams }: {
-  params: { [key: string]: string }
+export default async function Page({ searchParams }: {
   searchParams: { [key: string]: string | string[] | undefined }
 }) {
   // Here you would normally fetch the order from your API or database

@@ -10,15 +10,26 @@ interface RateLimitRecord {
 
 const rateLimitStore = new Map<string, RateLimitRecord>()
 
-// Clean up old entries every 5 minutes
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, record] of rateLimitStore.entries()) {
-    if (record.resetTime < now) {
-      rateLimitStore.delete(key)
-    }
+// Clean up old entries every 5 minutes (only once per runtime)
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000
+if (typeof globalThis !== 'undefined') {
+  const globalWithCleanup = globalThis as typeof globalThis & {
+    __albazRateLimitCleanup?: ReturnType<typeof setInterval>
   }
-}, 5 * 60 * 1000)
+
+  if (!globalWithCleanup.__albazRateLimitCleanup) {
+    const interval = setInterval(() => {
+      const now = Date.now()
+      for (const [key, record] of rateLimitStore.entries()) {
+        if (record.resetTime < now) {
+          rateLimitStore.delete(key)
+        }
+      }
+    }, CLEANUP_INTERVAL_MS)
+
+    globalWithCleanup.__albazRateLimitCleanup = interval
+  }
+}
 
 // Production-ready Redis-based rate limiter using Upstash
 // Only initialize if environment variables are properly set and not during build time
@@ -34,22 +45,22 @@ let relaxedRateLimit: any = null
 const shouldInitializeRedis = () => {
   // Skip if not in Node environment
   if (typeof window !== 'undefined') return false
-  
-  // Skip during Vercel build
-  if (process.env.VERCEL_ENV === 'production' || 
-      process.env.__NEXT_PRIVATE_PREBUILD === 'true' ||
-      process.env.NODE_ENV === 'production') {
+
+  // Skip during Vercel build (only allow runtime environments)
+  if (process.env.__NEXT_PRIVATE_PREBUILD === 'true') {
     return false
   }
-  
+
   // Skip if Redis credentials are missing or invalid
-  if (!process.env.UPSTASH_REDIS_REST_URL ||
-      !process.env.UPSTASH_REDIS_REST_TOKEN ||
-      process.env.UPSTASH_REDIS_REST_URL === 'your-upstash-url' ||
-      process.env.UPSTASH_REDIS_REST_TOKEN === 'your-upstash-token') {
+  if (
+    !process.env.UPSTASH_REDIS_REST_URL ||
+    !process.env.UPSTASH_REDIS_REST_TOKEN ||
+    process.env.UPSTASH_REDIS_REST_URL === 'your-upstash-url' ||
+    process.env.UPSTASH_REDIS_REST_TOKEN === 'your-upstash-token'
+  ) {
     return false
   }
-  
+
   return true
 }
 
@@ -104,6 +115,11 @@ if (shouldInitializeRedis()) {
 export interface RateLimitConfig {
   maxRequests: number
   windowMs: number // time window in milliseconds
+}
+
+export interface RateLimitOptions {
+  ratelimit?: any
+  config?: RateLimitConfig
 }
 
 export const defaultRateLimitConfig: RateLimitConfig = {
@@ -169,7 +185,7 @@ export async function applyRedisRateLimit(
   identifier: string,
   ratelimit: any
 ): Promise<{ success: boolean; remaining: number; reset: Date }> {
-  const { success, limit, remaining, reset } = await ratelimit.limit(identifier)
+  const { success, remaining, reset } = await ratelimit.limit(identifier)
 
   return {
     success,
@@ -202,30 +218,62 @@ export function getClientIdentifier(req: Request): string {
  * @param ratelimit - Ratelimit instance (optional)
  * @throws TooManyRequestsError if rate limit exceeded
  */
+const isRateLimitInstance = (value: unknown): value is { limit: (identifier: string) => Promise<unknown> } =>
+  typeof value === 'object' && value !== null && typeof (value as { limit?: unknown }).limit === 'function'
+
+const isRateLimitConfig = (value: unknown): value is RateLimitConfig =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as RateLimitConfig).maxRequests === 'number' &&
+  typeof (value as RateLimitConfig).windowMs === 'number'
+
+const normalizeOptions = (
+  input?: RateLimitConfig | RateLimitOptions | any
+): { ratelimit?: any; config: RateLimitConfig } => {
+  if (!input) {
+    return { config: defaultRateLimitConfig }
+  }
+
+  if (isRateLimitInstance(input)) {
+    return { ratelimit: input, config: defaultRateLimitConfig }
+  }
+
+  if (isRateLimitConfig(input)) {
+    return { config: input }
+  }
+
+  const options = input as RateLimitOptions
+  const result: { ratelimit?: any; config: RateLimitConfig } = {
+    config: options.config ?? defaultRateLimitConfig,
+  }
+
+  if (options.ratelimit && isRateLimitInstance(options.ratelimit)) {
+    result.ratelimit = options.ratelimit
+  }
+
+  return result
+}
+
 export async function applyRateLimit(
   req: Request,
-  ratelimit?: any
+  input?: RateLimitConfig | RateLimitOptions | any
 ): Promise<void> {
   const identifier = getClientIdentifier(req)
+  const { ratelimit: ratelimitInstance, config } = normalizeOptions(input)
 
-  if (ratelimit) {
-    // Use Redis rate limiting
-    const result = await applyRedisRateLimit(identifier, ratelimit)
+  if (ratelimitInstance) {
+    const result = await applyRedisRateLimit(identifier, ratelimitInstance)
     if (!result.success) {
       const resetIn = Math.ceil((result.reset.getTime() - Date.now()) / 1000)
-      throw new TooManyRequestsError(
-        `Rate limit exceeded. Try again in ${resetIn} seconds.`
-      )
+      throw new TooManyRequestsError(`Rate limit exceeded. Try again in ${resetIn} seconds.`)
     }
-  } else {
-    // Fallback to in-memory rate limiting
-    const result = checkRateLimit(identifier)
-    if (!result.success) {
-      const resetIn = Math.ceil((result.resetTime - Date.now()) / 1000)
-      throw new TooManyRequestsError(
-        `Rate limit exceeded. Try again in ${resetIn} seconds.`
-      )
-    }
+    return
+  }
+
+  const result = checkRateLimit(identifier, config)
+  if (!result.success) {
+    const resetIn = Math.ceil((result.resetTime - Date.now()) / 1000)
+    throw new TooManyRequestsError(`Rate limit exceeded. Try again in ${resetIn} seconds.`)
   }
 }
 

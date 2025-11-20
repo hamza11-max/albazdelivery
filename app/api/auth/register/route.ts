@@ -7,7 +7,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 export async function POST(request: Request) {
   try {
     // Apply rate limiting for registration
-    applyRateLimit(request, rateLimitConfigs.auth)
+    await applyRateLimit(request, rateLimitConfigs.auth)
 
     // Parse and validate request body
     const body = await request.json()

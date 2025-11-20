@@ -5,11 +5,17 @@
       "dom.iterable",
       "esnext"
     ],
+    "types": ["node", "jest", "@testing-library/jest-dom"],
     "allowJs": true,
     "target": "ES2020",
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -35,8 +41,6 @@
     "jest.setup.ts",
     "next-env.d.ts",
     "types/global.d.ts",
-    "types/jest-dom.d.ts",
-    "types/jest.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [

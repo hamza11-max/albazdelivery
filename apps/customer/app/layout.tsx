@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import "./globals.css"
 import { Toaster } from "@albaz/ui"
 import { ThemeInitializer } from "../../../components/ThemeInitializer"
+import { ErrorBoundary } from "../../../components/ErrorBoundary"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -22,7 +23,9 @@ export default function CustomerLayout({
     <html lang="fr" suppressHydrationWarning>
       <body className={inter.variable}>
         <ThemeInitializer />
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
         <Toaster />
       </body>
     </html>

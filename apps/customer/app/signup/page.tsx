@@ -97,7 +97,7 @@ export default function SignUpPage() {
         const message = typeof data.error === "string" ? data.error : data.error?.message || "Une erreur s'est produite"
         toast({ title: "Erreur", description: message, variant: "destructive" })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Erreur",
         description: "Impossible de soumettre la demande",

@@ -1,3 +1,82 @@
+import type { Order } from '@albaz/shared'
+import type { ProductDefinition, CategoryDefinition, StoreDefinition } from './mock-data'
+
+export type PageView = 'home' | 'category' | 'store' | 'checkout' | 'tracking' | 'orders' | 'profile'
+
+export interface CartItem {
+  productId: number
+  quantity: number
+}
+
+export interface TranslationFn {
+  (key: string, fr: string, ar: string): string
+}
+
+export interface HomePageProps {
+  categories: CategoryDefinition[]
+  selectedLanguage: string
+  searchQuery: string
+  onSearchChange: (value: string) => void
+  onCategorySelect: (categoryId: number) => void
+  onPackageDelivery: () => void
+  t: TranslationFn
+}
+
+export interface CategoryViewProps {
+  selectedCategory: number | null
+  categories: CategoryDefinition[]
+  filteredStores: StoreDefinition[]
+  onBack: () => void
+  onStoreSelect: (storeId: number) => void
+  selectedLanguage: string
+  t: TranslationFn
+}
+
+export interface StoreViewProps {
+  selectedStore: number | null
+  stores: StoreDefinition[]
+  products: ProductDefinition[]
+  onBack: () => void
+  addToCart: (productId: number) => void
+  t: TranslationFn
+}
+
+export interface CheckoutViewProps {
+  cart: CartItem[]
+  products: ProductDefinition[]
+  subtotal: number
+  deliveryFee: number
+  paymentMethod: string
+  onPaymentMethodChange: (method: string) => void
+  onUpdateQuantity: (productId: number, delta: number) => void
+  onRemoveFromCart: (productId: number) => void
+  onPlaceOrder: () => void
+  onContinueShopping: () => void
+  t: TranslationFn
+}
+
+export interface TrackingViewProps {
+  currentOrder: Order | null
+  orderId: string | null
+  onBackHome: () => void
+  t: TranslationFn
+}
+
+export interface ProfileViewProps {
+  user: any
+  selectedLanguage: string
+  onSelectLanguage: (lang: string) => void
+  onBackHome: () => void
+  onSignOut: () => void
+  t: TranslationFn
+}
+
+export interface MyOrdersViewProps {
+  customerId: string
+  onBack: () => void
+  onOrderSelect: (order: Order) => void
+  t: TranslationFn
+}
 // API types
 export interface ApiResponse<T> {
   success: boolean
