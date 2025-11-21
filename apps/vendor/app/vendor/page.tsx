@@ -211,16 +211,9 @@ const translate = useCallback(
     [isAdmin, selectedVendorId]
   )
 
-  // Calculate cartSubtotal as functions to prevent webpack hoisting issues
-  // CRITICAL: Define these functions immediately after state declarations
-  // Using function declarations (not arrow functions assigned to const) prevents hoisting
-  // This prevents "Cannot access 'sw'/'tw' before initialization" errors
-  function getCartSubtotal() {
-    return posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  }
-  function getCartTotal() {
-    return getCartSubtotal() - posDiscount
-  }
+  // NOTE: Cart calculations are now done inline in JSX using IIFE to prevent webpack hoisting
+  // This ensures values are computed at render time, not during module evaluation
+  // No module-level variables = no hoisting issues
 
 // Add to POS Cart - moved before useCallback that uses it
 const addToCart = useCallback((product: InventoryProduct) => {
@@ -1349,7 +1342,12 @@ useEffect(() => {
                     <div className="border-t pt-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Sous-total:</span>
-                        <span className="font-semibold">{getCartSubtotal().toFixed(2)} DZD</span>
+                        <span className="font-semibold">
+                          {(() => {
+                            const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+                            return subtotal.toFixed(2)
+                          })()} DZD
+                        </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Label className="text-sm">Remise:</Label>
@@ -1363,7 +1361,13 @@ useEffect(() => {
                       </div>
                       <div className="flex justify-between text-lg font-bold border-t pt-2">
                         <span>Total:</span>
-                        <span className="text-primary">{getCartTotal().toFixed(2)} DZD</span>
+                        <span className="text-primary">
+                          {(() => {
+                            const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+                            const total = subtotal - posDiscount
+                            return total.toFixed(2)
+                          })()} DZD
+                        </span>
                       </div>
                     </div>
 
