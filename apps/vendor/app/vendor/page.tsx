@@ -211,11 +211,16 @@ const translate = useCallback(
     [isAdmin, selectedVendorId]
   )
 
-  // Calculate cartSubtotal early as a regular const to prevent "tw" initialization errors
-  // Using regular const instead of useMemo to avoid webpack hoisting/reordering issues
-  // This ensures it's always defined before any useEffects that might reference it
-  const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const cartTotal = cartSubtotal - posDiscount
+  // Calculate cartSubtotal using useMemo to ensure it's computed after state is initialized
+  // This prevents webpack from hoisting and creating "Cannot access 'tw' before initialization" errors
+  const cartSubtotal = useMemo(
+    () => posCart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [posCart]
+  )
+  const cartTotal = useMemo(
+    () => cartSubtotal - posDiscount,
+    [cartSubtotal, posDiscount]
+  )
 
 // Add to POS Cart - moved before useCallback that uses it
 const addToCart = useCallback((product: InventoryProduct) => {
