@@ -19,6 +19,10 @@ const config = {
     styledComponents: true
   },
   transpilePackages: ['@albaz/shared', '@albaz/ui', '@albaz/auth'],
+  experimental: {
+    // Ensure proper module resolution for shared packages
+    serverComponentsExternalPackages: ['tailwind-merge', 'clsx'],
+  },
   webpack: (config, { isServer }) => {
     // Allow imports from root directories
     config.resolve.alias = {
@@ -33,12 +37,12 @@ const config = {
     // Fix for module initialization order issues
     config.optimization = {
       ...config.optimization,
-      // Use 'named' for better module ordering
-      moduleIds: isServer ? 'deterministic' : 'named',
+      // Use 'deterministic' for consistent module ordering
+      moduleIds: 'deterministic',
       // Disable module concatenation to prevent hoisting issues
       concatenateModules: false,
-      // Disable side effects optimization for client
-      sideEffects: false,
+      // Enable side effects to ensure proper initialization order
+      sideEffects: true,
       splitChunks: {
         ...config.optimization.splitChunks,
         chunks: 'all',
@@ -70,14 +74,17 @@ const config = {
     };
     
     if (!isServer) {
-      // Disable tree shaking optimizations that can cause initialization issues
-      config.optimization.usedExports = false;
-      config.optimization.providedExports = false;
-      config.optimization.mangleExports = false;
-      // Ensure proper module evaluation order - already set above, but enforce here
-      if (!config.optimization.moduleIds) {
-        config.optimization.moduleIds = 'named';
-      }
+      // Ensure proper module evaluation order
+      config.optimization.moduleIds = 'deterministic';
+      // Keep exports for proper module resolution
+      config.optimization.usedExports = true;
+      config.optimization.providedExports = true;
+    }
+    
+    // Ensure tailwind-merge and clsx are properly resolved
+    config.resolve.extensionAlias = {
+      '.js': ['.js', '.ts', '.tsx'],
+      '.jsx': ['.jsx', '.tsx'],
     }
     
     // Additional webpack configuration to prevent module initialization issues
@@ -85,6 +92,9 @@ const config = {
       config.resolve = {}
     }
     config.resolve.fullySpecified = false
+    
+    // Prevent circular dependencies by ensuring proper module resolution order
+    config.resolve.symlinks = false
     
     return config;
   },
