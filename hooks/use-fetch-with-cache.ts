@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react"
-import { useToast } from "@/components/ui/use-toast"
-import { getCachedData, setCachedData } from "@/lib/api-cache"
+import { useToast } from "@/root/components/ui/use-toast"
+import { getCachedData, setCachedData } from "@/root/lib/api-cache"
 
 // Define LoadingState locally to avoid circular dependencies
 export interface LoadingState {

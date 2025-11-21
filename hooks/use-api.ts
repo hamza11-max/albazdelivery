@@ -14,7 +14,7 @@ import {
   adminAPI,
   productsAPI,
   type APIError,
-} from '@/lib/api-client'
+} from '@/root/lib/api-client'
 
 // ============================================
 // GENERIC HOOK FOR API CALLS

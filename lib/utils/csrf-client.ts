@@ -8,7 +8,7 @@
  * Since the cookie is httpOnly, we need to fetch it from the server
  */
 
-import { CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER } from '@/lib/security/csrf'
+import { CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER } from '@/root/lib/security/csrf'
 
 /**
  * Get CSRF token from cookie (if accessible)

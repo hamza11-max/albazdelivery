@@ -33,8 +33,8 @@ const config = {
     // Fix for module initialization order issues
     config.optimization = {
       ...config.optimization,
-      // Use 'deterministic' for consistent module ordering
-      moduleIds: 'deterministic',
+      // Use 'natural' for better module ordering that respects import order
+      moduleIds: 'natural',
       // Disable module concatenation to prevent hoisting issues that cause "tw" initialization errors
       concatenateModules: false,
       // Mark all files as having side effects to prevent aggressive tree-shaking
@@ -79,11 +79,17 @@ const config = {
     };
     
     if (!isServer) {
-      // Ensure proper module evaluation order
-      config.optimization.moduleIds = 'deterministic';
+      // Use natural ordering to respect import order
+      config.optimization.moduleIds = 'natural';
       // Keep exports for proper module resolution
       config.optimization.usedExports = true;
       config.optimization.providedExports = true;
+    }
+    
+    // Ensure tailwind-merge loads before any code that uses it
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      'tailwind-merge': path.resolve(__dirname, '../../node_modules/tailwind-merge'),
     }
     
     // Ensure tailwind-merge and clsx are properly resolved

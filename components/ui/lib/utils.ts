@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 /**
  * Utility for merging Tailwind CSS classes
@@ -7,17 +8,11 @@ import { type ClassValue, clsx } from "clsx"
  * This is a local copy to avoid module initialization issues
  * when components are imported across different apps
  * 
- * Uses a function-scoped import to prevent webpack from hoisting
- * and causing "Cannot access 'tw' before initialization" errors
+ * CRITICAL: This file must be imported BEFORE any component that uses cn()
+ * to prevent "Cannot access 'tw' before initialization" errors.
+ * The import order is enforced by webpack chunk configuration.
  */
-function getTwMerge() {
-  // Import inside function to prevent hoisting and ensure proper initialization order
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const tailwindMerge = require("tailwind-merge")
-  return tailwindMerge.twMerge || tailwindMerge.default?.twMerge || tailwindMerge.default
-}
-
 export function cn(...inputs: ClassValue[]) {
-  return getTwMerge()(clsx(inputs))
+  return twMerge(clsx(inputs))
 }
 

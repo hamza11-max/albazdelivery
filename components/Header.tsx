@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/root/components/ui/button"
 import { signOut } from "next-auth/react"
 import { Sun, Moon, LogOut, Globe, RefreshCw } from "lucide-react"
-import { toggleTheme, getStoredTheme, toggleLanguage, getStoredLanguage } from "@/lib/theme"
+import { toggleTheme, getStoredTheme, toggleLanguage, getStoredLanguage } from "@/root/lib/theme"
 
 interface HeaderProps {
   title?: string

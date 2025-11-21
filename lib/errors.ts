@@ -95,7 +95,7 @@ export function errorResponse(
 
   // Import audit logging dynamically to avoid circular dependencies
   if (request && error instanceof Error) {
-    import('@/lib/security/audit-log').then(({ auditSecurityEvent, getClientInfo }) => {
+    import('@/root/lib/security/audit-log').then(({ auditSecurityEvent, getClientInfo }) => {
       if (error instanceof UnauthorizedError) {
         auditSecurityEvent('UNAUTHORIZED_ACCESS', undefined, undefined, request as any, {
           message: error.message,

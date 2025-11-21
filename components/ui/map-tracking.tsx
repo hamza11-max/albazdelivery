@@ -5,7 +5,7 @@ import { Card } from './card'
 import { Badge } from './badge'
 import { Button } from './button'
 import { Spinner } from './spinner'
-import { useSSE } from '@/lib/use-sse'
+import { useSSE } from '@/root/lib/use-sse'
 import { MapPin, Navigation, Phone, Clock } from 'lucide-react'
 
 interface MapTrackingProps {

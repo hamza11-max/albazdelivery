@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { initializeThemeAndLanguage } from '@/lib/theme'
+import { initializeThemeAndLanguage } from '@/root/lib/theme'
 
 /**
  * Client-side component to initialize theme and language on app load

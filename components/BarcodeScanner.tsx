@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/root/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/root/components/ui/dialog'
 import { Camera, X, ScanLine } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { useToast } from '@/root/hooks/use-toast'
 
 interface BarcodeScannerProps {
   isOpen: boolean

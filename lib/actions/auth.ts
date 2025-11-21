@@ -1,6 +1,6 @@
 'use server'
 
-import { signIn } from '@/lib/auth'
+import { signIn } from '@/root/lib/auth'
 // Note: This file may not be used - sign-in is handled via API endpoint
 // If redirect is needed, use NextResponse.redirect() in API routes instead
 

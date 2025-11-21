@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
-import { CSRF_TOKEN_HEADER } from '@/lib/security/csrf'
-import { fetchCsrfToken } from '@/lib/utils/csrf-client'
+import { CSRF_TOKEN_HEADER } from '@/root/lib/security/csrf'
+import { fetchCsrfToken } from '@/root/lib/utils/csrf-client'
 
 /**
  * React hook for CSRF token management

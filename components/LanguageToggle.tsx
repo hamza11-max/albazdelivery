@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Globe } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { getStoredLanguage, setStoredLanguage } from '@/lib/theme'
+import { Button } from '@/root/components/ui/button'
+import { getStoredLanguage, setStoredLanguage } from '@/root/lib/theme'
 
 interface LanguageToggleProps {
   onLanguageChange?: (language: string) => void

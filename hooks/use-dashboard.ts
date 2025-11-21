@@ -4,8 +4,8 @@ import type {
   Supplier,
   Product,
   Order,
-} from '@/lib/types'
-import type { Category } from '@/lib/types/category'
+} from '@/root/lib/types'
+import type { Category } from '@/root/lib/types/category'
 
 export interface LoadingState {
   [key: string]: boolean

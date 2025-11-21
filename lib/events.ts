@@ -1,6 +1,6 @@
 // Use local application-level types to avoid depending on generated Prisma client types
 // being available to the editor/TS server at analysis time.
-import type { Order, Notification, Payment, ChatMessage, User } from '@/lib/types'
+import type { Order, Notification, Payment, ChatMessage, User } from '@/root/lib/types'
 
 type EventType =
   | "order_created"
