@@ -1344,10 +1344,7 @@ useEffect(() => {
                       <div className="flex justify-between text-sm">
                         <span>Sous-total:</span>
                         <span className="font-semibold">
-                          {(() => {
-                            const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-                            return subtotal.toFixed(2)
-                          })()} DZD
+                          {(posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)).toFixed(2)} DZD
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1363,11 +1360,7 @@ useEffect(() => {
                       <div className="flex justify-between text-lg font-bold border-t pt-2">
                         <span>Total:</span>
                         <span className="text-primary">
-                          {(() => {
-                            const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-                            const total = subtotal - posDiscount
-                            return total.toFixed(2)
-                          })()} DZD
+                          {(posCart.reduce((sum, item) => sum + item.price * item.quantity, 0) - posDiscount).toFixed(2)} DZD
                         </span>
                       </div>
                     </div>
