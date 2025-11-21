@@ -31,7 +31,7 @@ const config = {
       '@/hooks': path.resolve(__dirname, './hooks'),
     }
 
-    // Prevent module initialization order issues
+    // Prevent module initialization order issues - AGGRESSIVE SETTINGS
     config.optimization = {
       ...config.optimization,
       // Use deterministic module IDs for consistent ordering
@@ -39,8 +39,16 @@ const config = {
       // Disable module concatenation to prevent hoisting issues
       concatenateModules: false,
       // Mark all modules as having side effects to prevent aggressive tree-shaking
-      // This ensures proper module initialization order
       sideEffects: true,
+      // Disable minimize in development to help debug (optional)
+      // minimize: !isServer && process.env.NODE_ENV === 'production',
+    }
+    
+    // Additional webpack settings to prevent hoisting
+    if (!isServer) {
+      // Ensure proper module evaluation order
+      config.optimization.usedExports = false // Disable tree-shaking of exports
+      config.optimization.providedExports = false // Don't analyze provided exports
     }
 
     return config;
