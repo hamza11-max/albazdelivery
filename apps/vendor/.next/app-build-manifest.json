@@ -1,3 +1,94 @@
 {
-  "pages": {}
+  "pages": {
+    "/_not-found/page": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/_not-found/page-8249882413780de1.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/css/11c1444a83dc1493.css",
+      "static/chunks/724-4bf26cdcd70b8a59.js",
+      "static/chunks/590-414d53bc6c69cdc6.js",
+      "static/chunks/app/layout-e7c50fcd7a69d330.js"
+    ],
+    "/api/erp/ai-insights/route": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/api/erp/ai-insights/route-bb7ebabc2e38bd8e.js"
+    ],
+    "/api/erp/inventory/route": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/api/erp/inventory/route-bb7ebabc2e38bd8e.js"
+    ],
+    "/api/erp/sales/route": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/api/erp/sales/route-bb7ebabc2e38bd8e.js"
+    ],
+    "/api/erp/suppliers/route": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/api/erp/suppliers/route-bb7ebabc2e38bd8e.js"
+    ],
+    "/api/vendors/orders/route": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/api/vendors/orders/route-bb7ebabc2e38bd8e.js"
+    ],
+    "/api/erp/customers/route": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/api/erp/customers/route-bb7ebabc2e38bd8e.js"
+    ],
+    "/api/erp/dashboard/route": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/api/erp/dashboard/route-bb7ebabc2e38bd8e.js"
+    ],
+    "/vendor/layout": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/vendor/layout-bb7ebabc2e38bd8e.js"
+    ],
+    "/vendor/loading": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/app/vendor/loading-bb7ebabc2e38bd8e.js"
+    ],
+    "/vendor/page": [
+      "static/chunks/webpack-5ce251dc444579c0.js",
+      "static/chunks/87c73c54-09e1ba5c70e60a51.js",
+      "static/chunks/18-d37811144e5fdc5d.js",
+      "static/chunks/main-app-e137818a1ecbae2d.js",
+      "static/chunks/724-4bf26cdcd70b8a59.js",
+      "static/chunks/693-b61f718eef735e1b.js",
+      "static/chunks/590-414d53bc6c69cdc6.js",
+      "static/chunks/app/vendor/page-d2c34ddfc4a1e7c6.js"
+    ]
+  }
 }

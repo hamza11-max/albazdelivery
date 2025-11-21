@@ -13,10 +13,19 @@ let twMergeCache: ReturnType<typeof import("tailwind-merge").twMerge> | null = n
 
 function getTwMerge() {
   if (twMergeCache === null) {
-    // Access the module at runtime, not during module evaluation
-    // This prevents webpack from hoisting and creating circular dependencies
-    const tailwindMergeModule = require("tailwind-merge")
-    twMergeCache = tailwindMergeModule.twMerge || tailwindMergeModule.default?.twMerge || tailwindMergeModule.default
+    try {
+      // Access the module at runtime, not during module evaluation
+      // This prevents webpack from hoisting and creating circular dependencies
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const tailwindMergeModule = require("tailwind-merge")
+      twMergeCache = tailwindMergeModule.twMerge || tailwindMergeModule.default?.twMerge || tailwindMergeModule.default
+      if (!twMergeCache) {
+        twMergeCache = ((...args: string[]) => args.join(" ")) as any
+      }
+    } catch (error) {
+      // Fallback: return a function that just uses clsx
+      twMergeCache = ((...args: string[]) => args.join(" ")) as any
+    }
   }
   return twMergeCache
 }

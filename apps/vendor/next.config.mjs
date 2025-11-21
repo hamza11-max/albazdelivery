@@ -31,6 +31,18 @@ const config = {
       '@/hooks': path.resolve(__dirname, './hooks'),
     }
 
+    // Prevent module initialization order issues
+    config.optimization = {
+      ...config.optimization,
+      // Use deterministic module IDs for consistent ordering
+      moduleIds: 'deterministic',
+      // Disable module concatenation to prevent hoisting issues
+      concatenateModules: false,
+      // Mark all modules as having side effects to prevent aggressive tree-shaking
+      // This ensures proper module initialization order
+      sideEffects: true,
+    }
+
     return config;
   },
 };
