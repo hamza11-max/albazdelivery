@@ -211,16 +211,16 @@ const translate = useCallback(
     [isAdmin, selectedVendorId]
   )
 
-  // Calculate cartSubtotal using useMemo to ensure it's computed after state is initialized
-  // This prevents webpack from hoisting and creating "Cannot access 'tw' before initialization" errors
-  const cartSubtotal = useMemo(
-    () => posCart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [posCart]
-  )
-  const cartTotal = useMemo(
-    () => cartSubtotal - posDiscount,
-    [cartSubtotal, posDiscount]
-  )
+  // Calculate cartSubtotal as functions to prevent webpack hoisting issues
+  // Using functions ensures they're always computed at render time, not during module evaluation
+  // This prevents "Cannot access 'sw'/'tw' before initialization" errors
+  // Functions are called directly in JSX to avoid webpack reordering
+  const getCartSubtotal = () => {
+    return posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  }
+  const getCartTotal = () => {
+    return getCartSubtotal() - posDiscount
+  }
 
 // Add to POS Cart - moved before useCallback that uses it
 const addToCart = useCallback((product: InventoryProduct) => {
@@ -1347,7 +1347,7 @@ useEffect(() => {
                     <div className="border-t pt-4 space-y-2">
                       <div className="flex justify-between text-sm">
                         <span>Sous-total:</span>
-                        <span className="font-semibold">{cartSubtotal.toFixed(2)} DZD</span>
+                        <span className="font-semibold">{getCartSubtotal().toFixed(2)} DZD</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Label className="text-sm">Remise:</Label>
@@ -1361,7 +1361,7 @@ useEffect(() => {
                       </div>
                       <div className="flex justify-between text-lg font-bold border-t pt-2">
                         <span>Total:</span>
-                        <span className="text-primary">{cartTotal.toFixed(2)} DZD</span>
+                        <span className="text-primary">{getCartTotal().toFixed(2)} DZD</span>
                       </div>
                     </div>
 
