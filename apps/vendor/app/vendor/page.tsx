@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react"
 import type { ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
-import { playSuccessSound } from "@/lib/notifications"
+import { playSuccessSound } from "@/root/lib/notifications"
 import { 
   AlertTriangle,
   BarChart3,
@@ -57,12 +57,12 @@ import {
   TabsList,
   TabsTrigger
 } from "@albaz/ui"
-import { useToast } from "@/hooks/use-toast"
-import Header from "@/components/Header"
+import { useToast } from "@/root/hooks/use-toast"
+import Header from "@/root/components/Header"
 
 // Hooks
 // Use custom hooks
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/root/hooks/use-auth"
 import { useDashboardData } from "./fetch-data"
 import { fetchDashboardData, fetchInventory } from "./refresh-data"
 
@@ -74,7 +74,7 @@ import type {
   Supplier,
   Order,
   SaleItem
-} from "@/lib/types"
+} from "@/root/lib/types"
 
 import { type Category } from "./types"
 
@@ -1831,7 +1831,7 @@ useEffect(() => {
                 <p className="text-xs text-muted-foreground">{new Date(lastSale.createdAt).toLocaleString("fr-FR")}</p>
               </div>
               <div className="space-y-2">
-                {lastSale.items.map((item, index) => (
+                {lastSale.items.map((item: SaleItem, index: number) => (
                   <div key={index} className="flex justify-between text-sm">
                     <span>
                       {item.quantity}x {item.productName}
