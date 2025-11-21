@@ -732,12 +732,12 @@ useEffect(() => {
         fetchDashboardData(activeVendorId)
         fetchInventory(activeVendorId)
         fetchSales(activeVendorId)
-        // Compute total completely inline in toast - NO variables at all
+        // Use data.sale.total directly from response - NO variables, NO state access
         toast({
           title: translate("Vente complétée", "تمت العملية"),
           description: isArabic
-            ? `تم تسجيل عملية بيع بقيمة ${(posCart.reduce((sum, item) => sum + item.price * item.quantity, 0) - posDiscount).toFixed(2)} ${translate("DZD", "دج")}.`
-            : `Vente de ${(posCart.reduce((sum, item) => sum + item.price * item.quantity, 0) - posDiscount).toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
+            ? `تم تسجيل عملية بيع بقيمة ${((data.sale?.total ?? 0) as number).toFixed(2)} ${translate("DZD", "دج")}.`
+            : `Vente de ${((data.sale?.total ?? 0) as number).toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
         })
       }
     } catch (error) {
