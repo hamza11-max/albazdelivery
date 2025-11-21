@@ -212,13 +212,13 @@ const translate = useCallback(
   )
 
   // Calculate cartSubtotal as functions to prevent webpack hoisting issues
-  // Using functions ensures they're always computed at render time, not during module evaluation
+  // CRITICAL: Define these functions immediately after state declarations
+  // Using function declarations (not arrow functions assigned to const) prevents hoisting
   // This prevents "Cannot access 'sw'/'tw' before initialization" errors
-  // Functions are called directly in JSX to avoid webpack reordering
-  const getCartSubtotal = () => {
+  function getCartSubtotal() {
     return posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   }
-  const getCartTotal = () => {
+  function getCartTotal() {
     return getCartSubtotal() - posDiscount
   }
 
@@ -710,8 +710,10 @@ useEffect(() => {
       return
     }
 
-    const subtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-    const total = subtotal - posDiscount
+    // Calculate subtotal and total inside function to prevent webpack hoisting
+    // Using immediate calculation instead of const to avoid initialization order issues
+    const calculatedSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+    const calculatedTotal = calculatedSubtotal - posDiscount
 
     try {
       const salesUrl = `/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
@@ -721,9 +723,9 @@ useEffect(() => {
         body: JSON.stringify({
           customerId: posCustomerId || undefined,
           items: posCart,
-          subtotal,
+          subtotal: calculatedSubtotal,
           discount: posDiscount,
-          total,
+          total: calculatedTotal,
           paymentMethod,
           vendorId: activeVendorId,
         }),
@@ -741,8 +743,8 @@ useEffect(() => {
         toast({
           title: translate("Vente complétée", "تمت العملية"),
           description: isArabic
-            ? `تم تسجيل عملية بيع بقيمة ${total.toFixed(2)} ${translate("DZD", "دج")}.`
-            : `Vente de ${total.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
+            ? `تم تسجيل عملية بيع بقيمة ${calculatedTotal.toFixed(2)} ${translate("DZD", "دج")}.`
+            : `Vente de ${calculatedTotal.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
         })
       }
     } catch (error) {
