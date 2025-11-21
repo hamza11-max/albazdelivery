@@ -19,10 +19,6 @@ const config = {
     styledComponents: true
   },
   transpilePackages: ['@albaz/shared', '@albaz/ui', '@albaz/auth'],
-  experimental: {
-    // Ensure proper module resolution for shared packages
-    serverComponentsExternalPackages: ['tailwind-merge', 'clsx'],
-  },
   webpack: (config, { isServer }) => {
     // Allow imports from root directories
     config.resolve.alias = {
@@ -39,10 +35,16 @@ const config = {
       ...config.optimization,
       // Use 'deterministic' for consistent module ordering
       moduleIds: 'deterministic',
-      // Disable module concatenation to prevent hoisting issues
+      // Disable module concatenation to prevent hoisting issues that cause "tw" initialization errors
       concatenateModules: false,
-      // Enable side effects to ensure proper initialization order
-      sideEffects: true,
+      // Mark tailwind-merge and clsx as having side effects to prevent tree-shaking issues
+      sideEffects: (filePath) => {
+        // Ensure tailwind-merge and clsx are always included
+        if (filePath.includes('tailwind-merge') || filePath.includes('clsx')) {
+          return true
+        }
+        return false
+      },
       splitChunks: {
         ...config.optimization.splitChunks,
         chunks: 'all',
