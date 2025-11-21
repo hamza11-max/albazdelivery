@@ -33,13 +33,18 @@ const config = {
     // Fix for module initialization order issues
     config.optimization = {
       ...config.optimization,
-      // Use 'natural' for better module ordering that respects import order
-      moduleIds: 'natural',
+      // Use 'deterministic' for consistent builds
+      moduleIds: 'deterministic',
       // Disable module concatenation to prevent hoisting issues that cause "tw" initialization errors
       concatenateModules: false,
-      // Mark all files as having side effects to prevent aggressive tree-shaking
-      // This ensures proper module initialization order
-      sideEffects: true,
+      // Mark tailwind-merge as having side effects to prevent tree-shaking
+      sideEffects: (filePath) => {
+        // Ensure tailwind-merge and utils files are always included
+        if (filePath.includes('tailwind-merge') || filePath.includes('utils.ts')) {
+          return true
+        }
+        return false
+      },
       splitChunks: {
         ...config.optimization.splitChunks,
         chunks: 'all',
@@ -79,17 +84,11 @@ const config = {
     };
     
     if (!isServer) {
-      // Use natural ordering to respect import order
-      config.optimization.moduleIds = 'natural';
+      // Use deterministic ordering for consistent builds
+      config.optimization.moduleIds = 'deterministic';
       // Keep exports for proper module resolution
       config.optimization.usedExports = true;
       config.optimization.providedExports = true;
-    }
-    
-    // Ensure tailwind-merge loads before any code that uses it
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      'tailwind-merge': path.resolve(__dirname, '../../node_modules/tailwind-merge'),
     }
     
     // Ensure tailwind-merge and clsx are properly resolved
