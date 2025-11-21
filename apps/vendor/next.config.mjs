@@ -52,10 +52,13 @@ const config = {
       config.optimization.usedExports = false // Disable tree-shaking of exports
       config.optimization.providedExports = false // Don't analyze provided exports
       
-      // TEMPORARY: Disable minification to help identify the 'sw' variable
-      // Remove this after identifying the issue
-      if (process.env.DEBUG_BUILD === 'true') {
-        config.optimization.minimize = false
+      // CRITICAL: Disable all optimizations that could cause hoisting
+      config.optimization.mangleExports = false // Don't mangle export names
+      config.optimization.innerGraph = false // Disable inner graph optimization
+      
+      // Force runtime chunk to prevent initialization order issues
+      config.optimization.runtimeChunk = {
+        name: 'runtime'
       }
     }
     
