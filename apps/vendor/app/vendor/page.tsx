@@ -206,10 +206,21 @@ const translate = useCallback(
   (fr: string, ar: string) => (language === "ar" ? ar : fr),
   [language]
 )
-const activeVendorId = useMemo(
-  () => (isAdmin ? selectedVendorId ?? undefined : undefined),
-  [isAdmin, selectedVendorId]
-)
+  const activeVendorId = useMemo(
+    () => (isAdmin ? selectedVendorId ?? undefined : undefined),
+    [isAdmin, selectedVendorId]
+  )
+
+  // Calculate cartSubtotal early using useMemo to prevent "tw" initialization errors
+  // This ensures it's defined before any useEffects that might reference it
+  const cartSubtotal = useMemo(
+    () => posCart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+    [posCart]
+  )
+  const cartTotal = useMemo(
+    () => cartSubtotal - posDiscount,
+    [cartSubtotal, posDiscount]
+  )
 
 // Add to POS Cart - moved before useCallback that uses it
 const addToCart = useCallback((product: InventoryProduct) => {
@@ -885,9 +896,6 @@ useEffect(() => {
   if (!isAuthenticated || !user) {
     return null
   }
-
-  const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const cartTotal = cartSubtotal - posDiscount
 
   return (
     <div className="min-h-screen bg-background" dir={isArabic ? "rtl" : "ltr"}>
