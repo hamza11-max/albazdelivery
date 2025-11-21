@@ -19,6 +19,10 @@ export interface HomePageProps {
   onSearchChange: (value: string) => void
   onCategorySelect: (categoryId: number) => void
   onPackageDelivery: () => void
+  selectedCity: string
+  isDarkMode: boolean
+  onToggleDarkMode: () => void
+  onGoHome: () => void
   t: TranslationFn
 }
 

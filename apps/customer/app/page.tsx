@@ -6,7 +6,6 @@ import { useSession, signOut } from 'next-auth/react'
 import type { Order } from '@albaz/shared'
 
 import { useSSE } from '@/lib/use-sse'
-import { AppHeader } from '../components/layout/AppHeader'
 import { BottomNav } from '../components/navigation/BottomNav'
 import { HomePage } from '../components/views/HomePage'
 import { CategoryView } from '../components/views/CategoryView'
@@ -246,13 +245,6 @@ export default function AlBazApp() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader
-        selectedCity={selectedCity}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
-        onGoHome={handleGoHome}
-      />
-
       <main>
         {currentPage === 'home' && (
           <HomePage
@@ -265,6 +257,10 @@ export default function AlBazApp() {
               setCurrentPage('category')
             }}
             onPackageDelivery={() => router.push('/package-delivery')}
+            selectedCity={selectedCity}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
+            onGoHome={handleGoHome}
             t={t}
           />
         )}
