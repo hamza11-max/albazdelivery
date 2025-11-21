@@ -37,14 +37,9 @@ const config = {
       moduleIds: 'deterministic',
       // Disable module concatenation to prevent hoisting issues that cause "tw" initialization errors
       concatenateModules: false,
-      // Mark tailwind-merge and clsx as having side effects to prevent tree-shaking issues
-      sideEffects: (filePath) => {
-        // Ensure tailwind-merge and clsx are always included
-        if (filePath.includes('tailwind-merge') || filePath.includes('clsx')) {
-          return true
-        }
-        return false
-      },
+      // Mark all files as having side effects to prevent aggressive tree-shaking
+      // This ensures proper module initialization order
+      sideEffects: true,
       splitChunks: {
         ...config.optimization.splitChunks,
         chunks: 'all',
@@ -56,6 +51,14 @@ const config = {
             minChunks: 2,
             priority: -20,
             reuseExistingChunk: true,
+          },
+          // Critical: tailwind-merge must be in its own chunk and load first
+          tailwindMerge: {
+            test: /[\\/]node_modules[\\/]tailwind-merge[\\/]/,
+            name: 'tailwind-merge',
+            priority: 30,
+            enforce: true,
+            chunks: 'all',
           },
           vendor: {
             test: /[\\/]node_modules[\\/]/,
