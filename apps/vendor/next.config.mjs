@@ -18,6 +18,8 @@ const config = {
   compiler: {
     styledComponents: true
   },
+  // Enable source maps for debugging
+  productionBrowserSourceMaps: true,
   transpilePackages: ['@albaz/shared', '@albaz/ui', '@albaz/auth'],
   webpack: (config, { isServer }) => {
     // Allow imports from root directories
@@ -49,7 +51,17 @@ const config = {
       // Ensure proper module evaluation order
       config.optimization.usedExports = false // Disable tree-shaking of exports
       config.optimization.providedExports = false // Don't analyze provided exports
+      
+      // TEMPORARY: Disable minification to help identify the 'sw' variable
+      // Remove this after identifying the issue
+      if (process.env.DEBUG_BUILD === 'true') {
+        config.optimization.minimize = false
+      }
     }
+    
+    // Ensure proper module resolution
+    config.resolve.fullySpecified = false
+    config.resolve.symlinks = false
 
     return config;
   },

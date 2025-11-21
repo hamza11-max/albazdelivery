@@ -703,25 +703,24 @@ useEffect(() => {
       return
     }
 
-    // Calculate values inline to prevent webpack hoisting - no const declarations
+    // Calculate values completely inline - ABSOLUTELY NO const/let/var declarations
+    // All computations happen directly in expressions to prevent webpack hoisting
     try {
       const salesUrl = `/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
-      
-      // Compute values directly in the request body to avoid variable hoisting
-      const requestBody = {
-        customerId: posCustomerId || undefined,
-        items: posCart,
-        subtotal: posCart.reduce((sum, item) => sum + item.price * item.quantity, 0),
-        discount: posDiscount,
-        total: posCart.reduce((sum, item) => sum + item.price * item.quantity, 0) - posDiscount,
-        paymentMethod,
-        vendorId: activeVendorId,
-      }
       
       const response = await fetch(salesUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
+        // Compute ALL values inline - no variables whatsoever
+        body: JSON.stringify({
+          customerId: posCustomerId || undefined,
+          items: posCart,
+          subtotal: posCart.reduce((sum, item) => sum + item.price * item.quantity, 0),
+          discount: posDiscount,
+          total: posCart.reduce((sum, item) => sum + item.price * item.quantity, 0) - posDiscount,
+          paymentMethod,
+          vendorId: activeVendorId,
+        }),
       })
       const data = await response.json()
       if (data.success) {
@@ -733,12 +732,12 @@ useEffect(() => {
         fetchDashboardData(activeVendorId)
         fetchInventory(activeVendorId)
         fetchSales(activeVendorId)
-        // Compute total inline in toast message to avoid variable hoisting
+        // Compute total completely inline in toast - NO variables at all
         toast({
           title: translate("Vente complétée", "تمت العملية"),
           description: isArabic
-            ? `تم تسجيل عملية بيع بقيمة ${(requestBody.total).toFixed(2)} ${translate("DZD", "دج")}.`
-            : `Vente de ${(requestBody.total).toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
+            ? `تم تسجيل عملية بيع بقيمة ${(posCart.reduce((sum, item) => sum + item.price * item.quantity, 0) - posDiscount).toFixed(2)} ${translate("DZD", "دج")}.`
+            : `Vente de ${(posCart.reduce((sum, item) => sum + item.price * item.quantity, 0) - posDiscount).toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
         })
       }
     } catch (error) {
