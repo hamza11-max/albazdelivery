@@ -201,15 +201,20 @@ const [isAdmin, setIsAdmin] = useState(false)
 const [availableVendors, setAvailableVendors] = useState<Array<{ id: string; name: string }>>([])
 const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null)
 const [isLoadingVendors, setIsLoadingVendors] = useState(false)
+
+// Computed values - MUST be defined after all state declarations
+// Using useMemo to prevent webpack hoisting issues
+const activeVendorId = useMemo(
+  () => (isAdmin ? selectedVendorId ?? undefined : undefined),
+  [isAdmin, selectedVendorId]
+)
+
 const isArabic = useMemo(() => language === "ar", [language])
+
 const translate = useCallback(
   (fr: string, ar: string) => (language === "ar" ? ar : fr),
   [language]
 )
-  const activeVendorId = useMemo(
-    () => (isAdmin ? selectedVendorId ?? undefined : undefined),
-    [isAdmin, selectedVendorId]
-  )
 
   // NOTE: Cart calculations are now done inline in JSX using IIFE to prevent webpack hoisting
   // This ensures values are computed at render time, not during module evaluation
@@ -371,9 +376,9 @@ const capturePhoto = useCallback(() => {
   captureCanvasRef.current = canvas
   canvas.width = video.videoWidth
   canvas.height = video.videoHeight
-  const ctx = canvas.getContext("2d")
-  if (!ctx) return
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+  const canvasContext = canvas.getContext("2d")
+  if (!canvasContext) return
+  canvasContext.drawImage(video, 0, 0, canvas.width, canvas.height)
   const dataUrl = canvas.toDataURL("image/jpeg", 0.9)
   setCapturedImage(dataUrl)
   playSuccessSound()
@@ -594,10 +599,10 @@ useEffect(() => {
       const response = await fetch(`/api/erp/ai-insights${activeVendorId ? `?vendorId=${activeVendorId}` : ''}`)
       const data = await response.json()
       if (data.success) {
-        const d = data.data || {}
-        setSalesForecast(d.forecast || null)
-        setInventoryRecommendations(Array.isArray(d.recommendations) ? d.recommendations : [])
-        setProductBundles(Array.isArray(d.bundles) ? d.bundles : [])
+        const insightsData = data.data || {}
+        setSalesForecast(insightsData.forecast || null)
+        setInventoryRecommendations(Array.isArray(insightsData.recommendations) ? insightsData.recommendations : [])
+        setProductBundles(Array.isArray(insightsData.bundles) ? insightsData.bundles : [])
       }
     } catch (error) {
       console.error("[v0] Error fetching AI insights:", error)
@@ -659,8 +664,8 @@ useEffect(() => {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce produit?")) return
 
     try {
-      const url = `/api/erp/inventory?id=${id}${activeVendorId ? `&vendorId=${activeVendorId}` : ""}`
-      const response = await fetch(url, {
+      const deleteUrl = `/api/erp/inventory?id=${id}${activeVendorId ? `&vendorId=${activeVendorId}` : ""}`
+      const response = await fetch(deleteUrl, {
         method: "DELETE",
       })
       const data = await response.json()

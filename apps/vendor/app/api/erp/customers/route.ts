@@ -72,11 +72,11 @@ export async function GET(request: NextRequest) {
     })
 
     const customers = paginatedAggregates.map((a: any) => {
-      const u = users.find((x: any) => x.id === a.customerId)
+      const matchedUser = users.find((x: any) => x.id === a.customerId)
       return {
-        id: u?.id || a.customerId!,
-        name: u?.name || 'Client',
-        email: u?.email || undefined,
+        id: matchedUser?.id || a.customerId!,
+        name: matchedUser?.name || 'Client',
+        email: matchedUser?.email || undefined,
         phone: u?.phone || '',
         totalPurchases: a._sum.total || 0,
         orderCount: a._count.id || 0,
