@@ -6,6 +6,8 @@ const __dirname = path.dirname(__filename)
 
 /** @type {import('next').NextConfig} */
 const config = {
+  // For Electron: use standalone output to bundle Next.js server
+  output: process.env.ELECTRON_BUILD ? 'standalone' : undefined,
   eslint: {
     ignoreDuringBuilds: true,
   },
