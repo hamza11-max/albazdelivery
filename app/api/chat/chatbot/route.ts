@@ -3,6 +3,7 @@ import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { z } from 'zod'
+import generateText from '@/lib/llm'
 
 const chatbotResponses: Record<string, string> = {
   "how to track order":
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
     const lowerMessage = message.toLowerCase()
 
     // Find matching response
+    // Default fallback
     let response = "I'm not sure about that. Please contact our support team for assistance."
     let matchedKeyword: string | null = null
 
@@ -45,6 +47,21 @@ export async function POST(request: NextRequest) {
         matchedKeyword = key
         break
       }
+    }
+
+    // If an LLM provider is configured, prefer calling it (falls back to static responses)
+    try {
+      if (process.env.LLM_PROVIDER) {
+        // Use the raw user message as a prompt; callers may wish to improve prompt engineering later
+        const llmText = await generateText(message, { model: process.env.LLM_DEFAULT_MODEL })
+        if (llmText && llmText.trim().length > 0) {
+          response = llmText.trim()
+          matchedKeyword = matchedKeyword || 'llm'
+        }
+      }
+    } catch (err) {
+      // Log LLM errors but do not block — fall back to static response
+      console.error('[LLM] Error generating response (falling back):', err)
     }
 
     return successResponse({
