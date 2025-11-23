@@ -36,23 +36,25 @@ declare module 'next-auth/jwt' {
   }
 }
 
-// Ensure secret is available - NextAuth v5 requires this at initialization
+// Ensure secret is available - NextAuth v5 uses AUTH_SECRET (not NEXTAUTH_SECRET)
 const getSecret = () => {
-  if (process.env.NEXTAUTH_SECRET) {
-    return process.env.NEXTAUTH_SECRET
+  // NextAuth v5 uses AUTH_SECRET, but also supports NEXTAUTH_SECRET for backwards compatibility
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (secret) {
+    return secret
   }
   // Generate a fallback secret for development (not secure for production!)
   if (process.env.NODE_ENV === 'development') {
-    console.warn('[Auth] ⚠️  NEXTAUTH_SECRET is missing!')
+    console.warn('[Auth] ⚠️  AUTH_SECRET (or NEXTAUTH_SECRET) is missing!')
     console.warn('[Auth] Using a temporary development secret. Sessions may not persist across restarts.')
     // Return a fixed development secret (not secure, but allows development)
     return 'dev-secret-not-for-production-' + process.cwd().replace(/[^a-zA-Z0-9]/g, '').substring(0, 16)
   }
-  console.error('[Auth] ❌ NEXTAUTH_SECRET is missing! This will cause authentication to fail.')
-  throw new Error('NEXTAUTH_SECRET environment variable is required for production')
+  console.error('[Auth] ❌ AUTH_SECRET (or NEXTAUTH_SECRET) is missing! This will cause authentication to fail.')
+  throw new Error('AUTH_SECRET environment variable is required for production (NextAuth v5)')
 }
 
-export const authConfig = {
+export const authConfig: NextAuthConfig = {
   // Add pages config to ensure correct redirect URLs
   pages: {
     signIn: '/login',
@@ -67,7 +69,7 @@ export const authConfig = {
         : `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production', // Only secure in production (HTTPS required)
       }
@@ -165,7 +167,7 @@ export const authConfig = {
     },
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: getSecret(),

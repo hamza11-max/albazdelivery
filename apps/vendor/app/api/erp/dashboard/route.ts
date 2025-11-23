@@ -11,17 +11,19 @@ export async function GET(request: NextRequest) {
     // Apply rate limiting
     applyRateLimit(request, rateLimitConfigs.api)
 
-    // Check authentication
-    const session = await auth()
-    if (!session?.user) {
-      throw new UnauthorizedError()
-    }
+    // DISABLED for Electron app (no authentication)
+    // const session = await auth()
+    // if (!session?.user) {
+    //   throw new UnauthorizedError()
+    // }
 
     const searchParams = request.nextUrl.searchParams
     const vendorIdParam = searchParams.get('vendorId')
 
-    // Determine vendorId - vendors see their own, admins can specify
-    let vendorId = session.user.role === 'VENDOR' ? session.user.id : null
+    // DISABLED for Electron app - default to admin mode
+    // let vendorId = session.user.role === 'VENDOR' ? session.user.id : null
+
+    let vendorId = null // Default for admin mode
 
     if (vendorIdParam) {
       // Validate vendorId format
@@ -33,18 +35,29 @@ export async function GET(request: NextRequest) {
       vendorId = vendorIdParam
     }
 
+    // If no vendorId provided, get first approved vendor
     if (!vendorId) {
-      return errorResponse(new Error('vendorId is required'), 400)
+      const firstVendor = await prisma.user.findFirst({
+        where: { role: 'VENDOR', status: 'APPROVED' },
+        select: { id: true },
+      })
+      if (firstVendor) {
+        vendorId = firstVendor.id
+      }
     }
 
-    // Only vendors can access their own dashboard, admins can access any
-    if (session.user.role !== 'VENDOR' && session.user.role !== 'ADMIN') {
-      throw new ForbiddenError('Only vendors and admins can access this dashboard')
+    if (!vendorId) {
+      return errorResponse(new Error('No vendor found. Please create a vendor first.'), 400)
     }
 
-    if (session.user.role === 'VENDOR' && session.user.id !== vendorId) {
-      throw new ForbiddenError('You can only access your own dashboard')
-    }
+    // DISABLED for Electron app
+    // if (session.user.role !== 'VENDOR' && session.user.role !== 'ADMIN') {
+    //   throw new ForbiddenError('Only vendors and admins can access this dashboard')
+    // }
+
+    // if (session.user.role === 'VENDOR' && session.user.id !== vendorId) {
+    //   throw new ForbiddenError('You can only access your own dashboard')
+    // }
 
     // Verify vendor exists
     const vendor = await prisma.user.findUnique({

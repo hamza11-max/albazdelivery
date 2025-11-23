@@ -11,27 +11,40 @@ export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
-    if (!session?.user) {
-      throw new UnauthorizedError()
-    }
+    // DISABLED for Electron app (no authentication)
+    // const session = await auth()
+    // if (!session?.user) {
+    //   throw new UnauthorizedError()
+    // }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    // For Electron app, default to admin mode
+    const isAdmin = true // session.user.role === 'ADMIN'
+    const isVendor = false // session.user.role === 'VENDOR'
 
-    if (!isAdmin && !isVendor) {
-      throw new ForbiddenError('Only vendors or admins can access inventory')
-    }
+    // if (!isAdmin && !isVendor) {
+    //   throw new ForbiddenError('Only vendors or admins can access inventory')
+    // }
 
     const searchParams = request.nextUrl.searchParams
     const lowStock = searchParams.get('lowStock')
     const category = searchParams.get('category')
     const vendorIdParam = searchParams.get('vendorId')
 
-    const targetVendorId = isAdmin ? vendorIdParam : session.user.id
+    let targetVendorId = isAdmin ? vendorIdParam : null // session.user.id
+
+    // If no vendorId provided in admin mode, get first approved vendor
+    if (isAdmin && !targetVendorId) {
+      const firstVendor = await prisma.user.findFirst({
+        where: { role: 'VENDOR', status: 'APPROVED' },
+        select: { id: true },
+      })
+      if (firstVendor) {
+        targetVendorId = firstVendor.id
+      }
+    }
 
     if (isAdmin && !targetVendorId) {
-      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+      return errorResponse(new Error('No vendor found. Please create a vendor first.'), 400)
     }
 
     const where: any = {}
@@ -112,8 +125,9 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    // DISABLED for Electron app
+    const isAdmin = true // session.user.role === 'ADMIN'
+    const isVendor = false // session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can create products')
@@ -137,10 +151,21 @@ export async function POST(request: NextRequest) {
       image,
     } = validatedData
 
-    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+    let vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : null // session.user.id
+
+    // If no vendorId provided in admin mode, get first approved vendor
+    if (isAdmin && !vendorId) {
+      const firstVendor = await prisma.user.findFirst({
+        where: { role: 'VENDOR', status: 'APPROVED' },
+        select: { id: true },
+      })
+      if (firstVendor) {
+        vendorId = firstVendor.id
+      }
+    }
 
     if (!vendorId) {
-      return errorResponse(new Error('vendorId is required to create a product'), 400)
+      return errorResponse(new Error('No vendor found. Please create a vendor first.'), 400)
     }
 
     // Verify supplier belongs to vendor if provided
@@ -220,8 +245,9 @@ export async function PUT(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    // DISABLED for Electron app
+    const isAdmin = true // session.user.role === 'ADMIN'
+    const isVendor = false // session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can update products')
@@ -246,9 +272,10 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
-      throw new ForbiddenError('You can only update your own products')
-    }
+    // DISABLED for Electron app
+    // if (isVendor && existing.vendorId !== session.user.id) {
+    //   throw new ForbiddenError('You can only update your own products')
+    // }
 
     // Verify supplier belongs to vendor if provided
     if (validatedData.supplierId) {
@@ -320,8 +347,9 @@ export async function DELETE(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    // DISABLED for Electron app
+    const isAdmin = true // session.user.role === 'ADMIN'
+    const isVendor = false // session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can delete products')
@@ -350,9 +378,11 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
-      throw new ForbiddenError('You can only delete your own products')
-    }
+    // DISABLED for Electron app
+    // DISABLED for Electron app
+    // if (isVendor && existing.vendorId !== session.user.id) {
+    //   throw new ForbiddenError('You can only delete your own products')
+    // }
 
     await prisma.inventoryProduct.delete({ where: { id } })
 

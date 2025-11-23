@@ -799,26 +799,29 @@ useEffect(() => {
     }
   }
 
-  // Authentication & role handling
+  // Authentication & role handling - DISABLED for Electron app (no login page)
   useEffect(() => {
-    if (status === "loading") return
-    if (!isAuthenticated || !user) {
-      router.push("/login")
-      return
-    }
+    // Skip authentication checks for Electron app
+    // if (status === "loading") return
+    // if (!isAuthenticated || !user) {
+    //   router.push("/login")
+    //   return
+    // }
 
-    const admin = user.role === "ADMIN"
-    const vendor = user.role === "VENDOR"
+    // const admin = user.role === "ADMIN"
+    // const vendor = user.role === "VENDOR"
 
-    if (!admin && !vendor) {
-      router.push("/login")
-      return
-    }
+    // if (!admin && !vendor) {
+    //   router.push("/login")
+    //   return
+    // }
 
-    setIsAdmin(admin)
-    if (!admin) {
-      setSelectedVendorId(null)
-    }
+    // For Electron app, default to admin mode or vendor mode
+    setIsAdmin(true) // Set to true to enable admin features, or false for vendor-only
+    // setIsAdmin(admin)
+    // if (!admin) {
+    //   setSelectedVendorId(null)
+    // }
   }, [status, isAuthenticated, user, router])
 
   // Load vendor list for admin users
@@ -864,10 +867,12 @@ useEffect(() => {
     return () => controller.abort()
   }, [isAdmin, selectedVendorId, toast, translate])
 
-  // Load data when context changes
+  // Load data when context changes - DISABLED auth check for Electron app
   useEffect(() => {
-    if (status === "loading" || !isAuthenticated) return
-    if (isAdmin && !selectedVendorId) return
+    // Skip auth check for Electron app
+    // if (status === "loading" || !isAuthenticated) return
+    // For Electron app, if admin mode and no vendor selected, load data without vendorId
+    // The API will automatically use the first vendor
     const vendorContextId = isAdmin ? selectedVendorId ?? undefined : undefined
     handleDataLoad(vendorContextId)
   }, [status, isAuthenticated, isAdmin, selectedVendorId, handleDataLoad])
@@ -880,8 +885,8 @@ useEffect(() => {
     }
   }, [isDarkMode])
 
-  // Show loading state while checking authentication
-  if (isLoading || status === "loading") {
+  // Show loading state - DISABLED auth check for Electron app
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -892,10 +897,10 @@ useEffect(() => {
     )
   }
   
-  // Redirect if not authenticated (handled in useEffect, but show nothing while redirecting)
-  if (!isAuthenticated || !user) {
-    return null
-  }
+  // Skip authentication check for Electron app
+  // if (!isAuthenticated || !user) {
+  //   return null
+  // }
 
   return (
     <div className="min-h-screen bg-background" dir={isArabic ? "rtl" : "ltr"}>

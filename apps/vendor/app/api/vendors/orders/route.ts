@@ -11,13 +11,15 @@ export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
-    if (!session?.user) {
-      throw new UnauthorizedError()
-    }
+    // DISABLED for Electron app (no authentication)
+    // const session = await auth()
+    // if (!session?.user) {
+    //   throw new UnauthorizedError()
+    // }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    // DISABLED for Electron app
+    const isAdmin = true // session.user.role === 'ADMIN'
+    const isVendor = false // session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can access this endpoint')
@@ -29,10 +31,21 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const vendorIdParam = searchParams.get('vendorId')
 
-    const vendorId = isAdmin ? vendorIdParam : session.user.id
+    let vendorId = isAdmin ? vendorIdParam : null // session.user.id
+
+    // If no vendorId provided in admin mode, get first approved vendor
+    if (isAdmin && !vendorId) {
+      const firstVendor = await prisma.user.findFirst({
+        where: { role: 'VENDOR', status: 'APPROVED' },
+        select: { id: true },
+      })
+      if (firstVendor) {
+        vendorId = firstVendor.id
+      }
+    }
 
     if (!vendorId) {
-      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+      return errorResponse(new Error('No vendor found. Please create a vendor first.'), 400)
     }
 
     // Validate and parse pagination
@@ -139,13 +152,15 @@ export async function PATCH(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
-    if (!session?.user) {
-      throw new UnauthorizedError()
-    }
+    // DISABLED for Electron app (no authentication)
+    // const session = await auth()
+    // if (!session?.user) {
+    //   throw new UnauthorizedError()
+    // }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    // DISABLED for Electron app
+    const isAdmin = true // session.user.role === 'ADMIN'
+    const isVendor = false // session.user.role === 'VENDOR'
 
     if (!isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can update orders')
@@ -184,9 +199,10 @@ export async function PATCH(request: NextRequest) {
       throw new NotFoundError('Order')
     }
 
-    if (isVendor && order.vendorId !== session.user.id) {
-      throw new ForbiddenError('You can only update your own orders')
-    }
+    // DISABLED for Electron app
+    // if (isVendor && order.vendorId !== session.user.id) {
+    //   throw new ForbiddenError('You can only update your own orders')
+    // }
 
     // Prepare update data with timestamps
     const updateData: any = { status: normalizedStatus }
