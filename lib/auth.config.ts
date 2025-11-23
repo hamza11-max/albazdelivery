@@ -36,6 +36,22 @@ declare module 'next-auth/jwt' {
   }
 }
 
+// Ensure secret is available - NextAuth v5 requires this at initialization
+const getSecret = () => {
+  if (process.env.NEXTAUTH_SECRET) {
+    return process.env.NEXTAUTH_SECRET
+  }
+  // Generate a fallback secret for development (not secure for production!)
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[Auth] ⚠️  NEXTAUTH_SECRET is missing!')
+    console.warn('[Auth] Using a temporary development secret. Sessions may not persist across restarts.')
+    // Return a fixed development secret (not secure, but allows development)
+    return 'dev-secret-not-for-production-' + process.cwd().replace(/[^a-zA-Z0-9]/g, '').substring(0, 16)
+  }
+  console.error('[Auth] ❌ NEXTAUTH_SECRET is missing! This will cause authentication to fail.')
+  throw new Error('NEXTAUTH_SECRET environment variable is required for production')
+}
+
 export const authConfig = {
   // Add pages config to ensure correct redirect URLs
   pages: {
@@ -58,12 +74,16 @@ export const authConfig = {
     }
   },
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [
+          Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     Credentials({
-      async authorize(credentials: Record<string, string> | undefined) {
+      async authorize(credentials: any) {
         // Validate credentials
         const validatedFields = loginSchema.safeParse(credentials)
 
@@ -87,7 +107,9 @@ export const authConfig = {
 
         // Check if user is approved
         if (user.status !== 'APPROVED') {
-          throw new Error('Your account is pending approval')
+          // Throw error - NextAuth will convert this to CredentialsSignin
+          // The error message won't be passed to client, but we handle status via API check
+          throw new Error('Account pending approval')
         }
 
         // Verify password
@@ -126,6 +148,9 @@ export const authConfig = {
       }
       return session
     },
+    async signIn({ user, account, profile, email, credentials }: any) {
+      return true
+    },
     async authorized({ auth, request: { nextUrl } }: { auth: any; request: { nextUrl: URL } }) {
       const isLoggedIn = !!auth?.user
       const isOnDashboard = nextUrl.pathname.startsWith('/dashboard')
@@ -143,18 +168,5 @@ export const authConfig = {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET || (() => {
-    // Generate a fallback secret for development (not secure for production!)
-    if (process.env.NODE_ENV === 'development') {
-      console.warn('[Auth] ⚠️  NEXTAUTH_SECRET is missing!')
-      console.warn('[Auth] Using a temporary development secret. Sessions may not persist across restarts.')
-      console.warn('[Auth] Run: node scripts/generate-nextauth-secret.js to generate a secret.')
-      console.warn('[Auth] Then add it to your .env.local file: NEXTAUTH_SECRET="your-secret"')
-      // Return a fixed development secret (not secure, but allows development)
-      // This will cause sessions to reset on server restart, but allows development
-      return 'dev-secret-not-for-production-' + process.cwd().replace(/[^a-zA-Z0-9]/g, '').substring(0, 16)
-    }
-    console.error('[Auth] ❌ NEXTAUTH_SECRET is missing! This will cause authentication to fail.')
-    throw new Error('NEXTAUTH_SECRET environment variable is required for production')
-  })(),
+  secret: getSecret(),
 }
