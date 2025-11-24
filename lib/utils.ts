@@ -16,9 +16,11 @@ import { type ClassValue, clsx } from "clsx"
  * 4. Handles different module export formats
  * 5. Includes error handling and fallback
  */
-let twMergeCache: ReturnType<typeof import("tailwind-merge").twMerge> | null = null
+// Use a permissive function type for the cached twMerge to avoid
+// brittle inference from different module export shapes.
+let twMergeCache: ((...args: any[]) => string) | null = null
 
-function getTwMerge() {
+function getTwMerge(): (...args: any[]) => string {
   if (twMergeCache === null) {
     try {
       // Access the module at runtime, not during module evaluation
@@ -38,13 +40,15 @@ function getTwMerge() {
       twMergeCache = ((...args: string[]) => args.join(" ")) as any
     }
   }
-  return twMergeCache
+  return twMergeCache!
 }
 
 export function cn(...inputs: ClassValue[]) {
-  const merged = clsx(inputs)
-  const twMerge = getTwMerge()
-  return twMerge(merged)
+  const merged = clsx(...inputs)
+  // Call tailwind-merge while avoiding a TypeScript callable/type mismatch.
+  // We assert as `any` here because runtime behavior is correct and the
+  // types in this monorepo sometimes infer String objects for the module.
+  return (getTwMerge() as any)(merged)
 }
 
 export function formatPrice(amount: number, currency: string = 'USD'): string {

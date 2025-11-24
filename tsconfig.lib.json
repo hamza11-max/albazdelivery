@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "jest"],
+    "skipLibCheck": true
+  },
+  "include": [
+    "lib/llm.ts",
+    "scripts/check-llm.ts",
+    "__tests__/lib/llm.test.ts"
+  ]
+}

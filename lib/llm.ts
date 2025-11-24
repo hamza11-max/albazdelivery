@@ -1,4 +1,6 @@
-import type { RequestInit } from 'node-fetch'
+// Intentionally do not import RequestInit from node-fetch to avoid
+// type conflicts between @types/node-fetch and the global fetch types
+// provided by Node >= 20. We'll rely on the global fetch typing.
 
 export type LLMOptions = {
   model?: string
@@ -40,7 +42,7 @@ export async function generateText(prompt: string, opts: LLMOptions = {}): Promi
         'x-api-key': apiKey,
       },
       body: JSON.stringify(body),
-    } as unknown as RequestInit)
+    })
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')

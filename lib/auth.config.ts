@@ -28,13 +28,9 @@ declare module 'next-auth' {
   }
 }
 
-declare module 'next-auth/jwt' {
-  interface JWT {
-    id: string
-    role: UserRole
-    status: 'PENDING' | 'APPROVED' | 'REJECTED'
-  }
-}
+// Note: JWT augmentation is declared centrally in `types/next-auth.d.ts`.
+// Removing a duplicate augmentation here avoids the "Invalid module name in augmentation"
+// TypeScript diagnostic when the module's types are provided elsewhere.
 
 // Ensure secret is available - NextAuth v5 uses AUTH_SECRET (not NEXTAUTH_SECRET)
 const getSecret = () => {

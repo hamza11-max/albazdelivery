@@ -9,9 +9,9 @@ import { type ClassValue, clsx } from "clsx"
  * This pattern ensures tailwind-merge is only accessed when cn() is called,
  * not during module evaluation, preventing "Cannot access 'tw' before initialization" errors.
  */
-let twMergeCache: ReturnType<typeof import("tailwind-merge").twMerge> | null = null
+let twMergeCache: ((...args: any[]) => string) | null = null
 
-function getTwMerge() {
+function getTwMerge(): (...args: any[]) => string {
   if (twMergeCache === null) {
     try {
       // Access the module at runtime, not during module evaluation
@@ -27,10 +27,10 @@ function getTwMerge() {
       twMergeCache = ((...args: string[]) => args.join(" ")) as any
     }
   }
-  return twMergeCache
+  return twMergeCache!
 }
 
 export function cn(...inputs: ClassValue[]) {
-  return getTwMerge()(clsx(inputs))
+  return getTwMerge()(clsx(...inputs))
 }
 

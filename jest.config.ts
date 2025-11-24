@@ -39,6 +39,23 @@ const config: Config.InitialOptions = {
         '^.+\\.module\\.(css|sass|scss)$',
       ],
     },
+    {
+      displayName: 'lib',
+      testEnvironment: 'node',
+      // Narrow test match to LLM-related unit tests to avoid loading unrelated suites
+      testMatch: ['**/__tests__/lib/llm*.test.[jt]s?(x)'],
+      setupFiles: ['<rootDir>/jest.polyfills.js'],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.api.ts'],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/$1',
+      },
+      transform: {
+        '^.+\.[jt]sx?$': ['babel-jest', { presets: ['next/babel'] }],
+      },
+      transformIgnorePatterns: [
+        '/node_modules/(?!(next|@babel/runtime|msw|@mswjs|@bundled-es-modules|until-async)/)',
+      ],
+    },
   ],
   testTimeout: 10000,
   testPathIgnorePatterns: [
