@@ -10,3 +10,12 @@ declare module '@jest/globals' {
     // ... other properties from jest's expect
   };
 }
+
+declare global {
+  interface Window {
+    // google maps namespace (loaded dynamically in browser)
+    google?: any
+  }
+}
+
+export {}

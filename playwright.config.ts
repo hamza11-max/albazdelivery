@@ -53,7 +53,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    timeout: 120 * 1000,
+    // Increased timeout to allow the full dev stack to initialize in CI
+    // (e.g., Prisma generate/migrations, webpack build). Set to 5 minutes.
+    timeout: 300 * 1000,
     reuseExistingServer: !process.env.CI,
   },
 });

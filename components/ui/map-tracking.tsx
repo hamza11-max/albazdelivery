@@ -119,7 +119,7 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
     if (!trackingData?.tracking?.currentLocation || !mapRef.current) return
 
     const initMap = async () => {
-      if (!window.google) {
+    if (!(window as any).google) {
         const script = document.createElement('script')
         script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`
         script.async = true
@@ -145,11 +145,11 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
         zoomControl: true
       }
 
-      mapInstanceRef.current = new window.google.maps.Map(mapRef.current, mapOptions)
+  mapInstanceRef.current = new (window as any).google.maps.Map(mapRef.current, mapOptions)
       
       // Create driver marker
       const driverIcon = {
-        path: window.google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+        path: (window as any).google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
         scale: 6,
         fillColor: "#4285F4",
         fillOpacity: 1,
@@ -157,7 +157,7 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
         rotation: trackingData.tracking!.currentLocation.heading || 0
       }
       
-      markerRef.current = new window.google.maps.Marker({
+  markerRef.current = new (window as any).google.maps.Marker({
         position: { lat: latitude, lng: longitude },
         map: mapInstanceRef.current,
         icon: driverIcon,
@@ -166,7 +166,7 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
       
       // Add customer marker if available
       if (customerLocation) {
-        new window.google.maps.Marker({
+  new (window as any).google.maps.Marker({
           position: { lat: customerLocation.lat, lng: customerLocation.lng },
           map: mapInstanceRef.current,
           icon: {
@@ -183,7 +183,7 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
           lng: point.longitude
         }))
         
-        new window.google.maps.Polyline({
+  new (window as any).google.maps.Polyline({
           path,
           geodesic: true,
           strokeColor: '#4285F4',
@@ -201,7 +201,7 @@ export function MapTracking({ orderId, customerLocation }: MapTrackingProps) {
   const updateMarkerPosition = (lat: number, lng: number, heading: number) => {
     if (!markerRef.current || !mapInstanceRef.current) return
     
-    const newPosition = new window.google.maps.LatLng(lat, lng)
+  const newPosition = new (window as any).google.maps.LatLng(lat, lng)
     markerRef.current.setPosition(newPosition)
     
     // Update marker rotation based on heading

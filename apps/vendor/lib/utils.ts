@@ -15,9 +15,9 @@ import { type ClassValue, clsx } from "clsx"
  * 3. Works in both development and production builds
  * 4. Handles different module export formats
  */
-let twMergeCache: ReturnType<typeof import("tailwind-merge").twMerge> | null = null
+let twMergeCache: ((...args: any[]) => string) | null = null
 
-function getTwMerge() {
+function getTwMerge(): (...args: any[]) => string {
   if (twMergeCache === null) {
     try {
       // Access the module at runtime, not during module evaluation
@@ -37,12 +37,12 @@ function getTwMerge() {
       twMergeCache = ((...args: string[]) => args.join(" ")) as any
     }
   }
-  return twMergeCache
+  return twMergeCache!
 }
 
 export function cn(...inputs: ClassValue[]) {
-  const merged = clsx(inputs)
-  const twMerge = getTwMerge()
-  return twMerge(merged)
+  const merged = clsx(...inputs)
+  // Avoid a TypeScript callable/type mismatch by asserting as `any` here.
+  return (getTwMerge() as any)(merged)
 }
 

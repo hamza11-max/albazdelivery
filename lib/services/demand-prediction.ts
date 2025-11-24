@@ -1,5 +1,5 @@
-import { prisma } from '@/root/lib/prisma';
-import { cacheGet, cacheSet } from '@/root/lib/cache';
+import { prisma } from '@/lib/prisma';
+import { cacheGet, cacheSet } from '@/lib/cache';
 
 interface DemandZone {
   zoneId: string;

@@ -2,7 +2,6 @@ import { http, HttpResponse } from 'msw';
 import type { HttpHandler } from 'msw';
 
 export const handlers: HttpHandler[] = [
-  // @ts-expect-error - MSW v2 has strict type requirements for response resolvers
   http.post('/api/auth/login', async ({ request }) => {
     const body = await request.json() as { email: string; password: string };
     const { email, password } = body;
@@ -22,7 +21,6 @@ export const handlers: HttpHandler[] = [
     return new HttpResponse(null, { status: 401 });
   }),
 
-  // @ts-expect-error - MSW v2 has strict type requirements for response resolvers
   http.get('/api/vendor/orders', () => {
     return HttpResponse.json({
       orders: [
@@ -32,7 +30,6 @@ export const handlers: HttpHandler[] = [
     });
   }),
 
-  // @ts-expect-error - MSW v2 has strict type requirements for response resolvers
   http.get('/api/vendor/inventory', () => {
     return HttpResponse.json({
       inventory: [
@@ -42,7 +39,6 @@ export const handlers: HttpHandler[] = [
     });
   }),
 
-  // @ts-expect-error - MSW v2 has strict type requirements for response resolvers
   http.get('/api/driver/deliveries', () => {
     return HttpResponse.json({
       deliveries: [
@@ -52,7 +48,6 @@ export const handlers: HttpHandler[] = [
     });
   }),
 
-  // @ts-expect-error - MSW v2 has strict type requirements for response resolvers
   http.get('/api/customer/orders', () => {
     return HttpResponse.json({
       orders: [

@@ -28,8 +28,9 @@ try {
     restoreHandlers: () => {},
   };
   // Only warn in development/test environments
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn('[MSW] Could not load MSW server, using mock implementation:', error?.message || error);
+  // Only log debug information; tests will run fine without MSW if it's unavailable.
+  if (process.env.NODE_ENV !== 'production' && process.env.DEBUG_MSW === '1') {
+    console.debug('[MSW] Could not load MSW server, using mock implementation:', error?.message || error);
   }
 }
 
