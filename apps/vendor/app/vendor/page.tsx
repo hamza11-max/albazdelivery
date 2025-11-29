@@ -550,103 +550,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     })
   }
 
-<<<<<<< Updated upstream
-  // Authentication & role handling
-  useEffect(() => {
-    if (status === "loading") return
-    if (!isAuthenticated || !user) {
-      router.push("/login")
-      return
-    }
-
-    const admin = user.role === "ADMIN"
-    const vendor = user.role === "VENDOR"
-
-    if (!admin && !vendor) {
-      router.push("/login")
-      return
-    }
-
-    setIsAdmin(admin)
-    if (!admin) {
-      setSelectedVendorId(null)
-    }
-  }, [status, isAuthenticated, user, router])
-
-  // Load vendor list for admin users
-  useEffect(() => {
-    if (!isAdmin) {
-      setAvailableVendors([])
-      return
-    }
-
-    const controller = new AbortController()
-    const loadVendors = async () => {
-      try {
-        setIsLoadingVendors(true)
-        const response = await fetch('/api/admin/users?role=VENDOR&status=APPROVED&limit=500', {
-          signal: controller.signal,
-        })
-        const data = await response.json()
-        if (data?.success) {
-          const vendors = Array.isArray(data.users)
-            ? data.users.map((v: any) => ({ id: v.id, name: v.name || v.email || 'Vendor' }))
-            : []
-          setAvailableVendors(vendors)
-          if (vendors.length && !selectedVendorId) {
-            setSelectedVendorId(vendors[0].id)
-          }
-        }
-      } catch (error) {
-        if ((error as DOMException).name !== 'AbortError') {
-          console.error('[v0] Failed to load vendors:', error)
-          toast({
-            title: translate("Erreur", "خطأ"),
-            description: translate("Impossible de charger la liste des vendeurs.", "تعذر تحميل قائمة التجار."),
-            variant: "destructive",
-          })
-        }
-      } finally {
-        setIsLoadingVendors(false)
-      }
-    }
-
-    loadVendors()
-
-    return () => controller.abort()
-  }, [isAdmin, selectedVendorId, toast, translate])
-
-  // Load data when context changes
-  useEffect(() => {
-    if (status === "loading" || !isAuthenticated) return
-    if (isAdmin && !selectedVendorId) return
-    const vendorContextId = isAdmin ? selectedVendorId ?? undefined : undefined
-    handleDataLoad(vendorContextId)
-  }, [status, isAuthenticated, isAdmin, selectedVendorId, handleDataLoad])
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-    }
-  }, [isDarkMode])
-
-  // Show loading state while checking authentication
-  if (isLoading || status === "loading") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement...</p>
-        </div>
-      </div>
-    )
-  }
-  
-  // Redirect if not authenticated (handled in useEffect, but show nothing while redirecting)
-  if (!isAuthenticated || !user) {
-=======
   // Data loading effects - using custom hook
   useDataLoading({
     status,
@@ -713,7 +616,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   // Redirect if not authenticated (handled in useEffect, but show nothing while redirecting)
   // Skip auth check in Electron for development
   if (!isElectronRuntime && (!isAuthenticated || !user)) {
->>>>>>> Stashed changes
     return null
   }
 

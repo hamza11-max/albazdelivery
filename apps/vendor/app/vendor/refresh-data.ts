@@ -59,3 +59,36 @@ export async function fetchInventory(vendorId?: string) {
     categories: Array.isArray(categoriesResponse?.categories) ? categoriesResponse.categories : []
   }
 }
+
+export async function fetchProducts(vendorId?: string) {
+  const buildUrl = (basePath: string) => {
+    if (!vendorId) return basePath
+    const separator = basePath.includes('?') ? '&' : '?'
+    return `${basePath}${separator}vendorId=${vendorId}`
+  }
+
+  const response = await fetchFromAPI<{ products?: unknown[] }>(buildUrl('/api/erp/inventory'))
+  return Array.isArray(response?.products) ? response.products : []
+}
+
+export async function fetchCustomers(vendorId?: string) {
+  const buildUrl = (basePath: string) => {
+    if (!vendorId) return basePath
+    const separator = basePath.includes('?') ? '&' : '?'
+    return `${basePath}${separator}vendorId=${vendorId}`
+  }
+
+  const response = await fetchFromAPI<{ customers?: unknown[] }>(buildUrl('/api/erp/customers'))
+  return Array.isArray(response?.customers) ? response.customers : []
+}
+
+export async function fetchSuppliers(vendorId?: string) {
+  const buildUrl = (basePath: string) => {
+    if (!vendorId) return basePath
+    const separator = basePath.includes('?') ? '&' : '?'
+    return `${basePath}${separator}vendorId=${vendorId}`
+  }
+
+  const response = await fetchFromAPI<{ suppliers?: unknown[] }>(buildUrl('/api/erp/suppliers'))
+  return Array.isArray(response?.suppliers) ? response.suppliers : []
+}

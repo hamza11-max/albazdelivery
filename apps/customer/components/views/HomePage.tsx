@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Search, MapPin, Moon, Sun } from 'lucide-react'
 import { Input, Card } from '@albaz/ui'
 import type { HomePageProps } from '@/app/lib/types'
+import { CategoryIcon } from '../CategoryIcon'
 
 export function HomePage({
   categories,
@@ -108,7 +109,6 @@ export function HomePage({
         <div className="relative w-full max-w-2xl aspect-square flex items-center justify-center">
           {categories.map((category, index) => {
             const categoryName = selectedLanguage === 'ar' ? category.nameAr : category.nameFr
-            const Icon = category.icon
             const { x, y } = getCategoryPosition(index, categoryCount)
 
             const handleClick = () => {
@@ -131,10 +131,14 @@ export function HomePage({
                 }}
               >
                 <div
-                  className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl rotate-45 group-hover:rotate-0 transition-transform duration-300 ${category.color} dark:bg-gray-700 flex items-center justify-center shadow-lg group-hover:shadow-xl border-2 border-white dark:border-gray-600`}
+                  className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl rotate-45 group-hover:rotate-0 transition-transform duration-300 ${category.color} dark:bg-gray-700 flex items-center justify-center shadow-lg group-hover:shadow-xl border-2 border-white dark:border-gray-600 overflow-hidden`}
                 >
-                  <div className="-rotate-45 group-hover:rotate-0 transition-transform duration-300">
-                    <Icon className={`w-8 h-8 md:w-9 md:h-9 ${category.iconColor} dark:text-gray-200 stroke-[2]`} />
+                  <div className="-rotate-45 group-hover:rotate-0 transition-transform duration-300 w-full h-full flex items-center justify-center p-2">
+                    <CategoryIcon
+                      category={category}
+                      size={64}
+                      className="w-full h-full"
+                    />
                   </div>
                 </div>
                 <span className="text-xs md:text-sm font-bold text-center text-gray-700 dark:text-gray-300 max-w-[90px] bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm px-2 py-1 rounded-lg">

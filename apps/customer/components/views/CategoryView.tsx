@@ -1,6 +1,7 @@
 import { ArrowLeft, Clock, Star } from 'lucide-react'
 import { Badge, Button, Card, CardContent } from '@albaz/ui'
 import type { CategoryViewProps } from '@/app/lib/types'
+import { CategoryIcon } from '../CategoryIcon'
 
 export function CategoryView({
   selectedCategory,
@@ -15,7 +16,6 @@ export function CategoryView({
   if (!category) return null
 
   const categoryName = selectedLanguage === 'ar' ? category.nameAr : category.nameFr
-  const Icon = category.icon
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -34,7 +34,7 @@ export function CategoryView({
           <p className="text-white/90 text-sm">{t('fast-delivery', 'Livraison rapide à votre porte', 'توصيل سريع إلى بابك')}</p>
         </div>
         <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20">
-          <Icon className="w-32 h-32 text-white" />
+          <CategoryIcon category={category} size={128} className="text-white" />
         </div>
       </div>
 

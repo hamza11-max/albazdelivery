@@ -1,17 +1,10 @@
-import {
-  ShoppingCart,
-  Store,
-  Pill,
-  Pizza,
-  Bike,
-} from 'lucide-react'
-
 export interface CategoryDefinition {
   id: number
   name: string
   nameAr: string
   nameFr: string
-  icon: typeof Store
+  icon?: any // Optional for backward compatibility
+  iconImage?: string // Path to icon image
   color: string
   iconColor: string
 }
@@ -41,7 +34,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Shops',
     nameAr: 'متاجر',
     nameFr: 'Boutiques',
-    icon: Store,
+    iconImage: '/icons/gifts.jpg', // Smartphone with storefront and shopping cart
     color: 'bg-gradient-to-br from-emerald-100 to-green-50',
     iconColor: 'text-emerald-600',
   },
@@ -50,7 +43,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Pharmacy & Beauty',
     nameAr: 'صيدلية وتجميل',
     nameFr: 'Pharmacie & Beauté',
-    icon: Pill,
+    iconImage: '/icons/beauty.jpg', // Makeup products (lipstick, compacts)
     color: 'bg-gradient-to-br from-pink-100 to-rose-50',
     iconColor: 'text-pink-500',
   },
@@ -59,7 +52,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Groceries',
     nameAr: 'بقالة',
     nameFr: 'Épicerie',
-    icon: ShoppingCart,
+    iconImage: '/icons/groceries.jpg', // Shopping cart with groceries
     color: 'bg-gradient-to-br from-orange-100 to-amber-50',
     iconColor: 'text-orange-500',
   },
@@ -68,7 +61,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Food',
     nameAr: 'طعام',
     nameFr: 'Nourriture',
-    icon: Pizza,
+    iconImage: '/icons/restaurants.jpg', // Food items (hamburger, pizza, etc.)
     color: 'bg-gradient-to-br from-orange-100 to-yellow-50',
     iconColor: 'text-orange-600',
   },
@@ -77,7 +70,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Package Delivery',
     nameAr: 'توصيل الطرود',
     nameFr: 'Livraison de colis',
-    icon: Bike,
+    iconImage: '/icons/package-delivery.jpg', // Delivery scooter with package
     color: 'bg-gradient-to-br from-yellow-100 to-amber-50',
     iconColor: 'text-yellow-600',
   },
