@@ -34,11 +34,22 @@ export function CategoryIcon({ category, size = 64, className = '' }: CategoryIc
         width={size}
         height={size}
         className={`object-contain ${className}`}
+        style={{ maxWidth: '100%', maxHeight: '100%' }}
         onError={(e) => {
+          // Log error for debugging
+          if (process.env.NODE_ENV === 'development') {
+            console.warn(`Failed to load icon: ${category.iconImage}`, e)
+          }
           // Fallback: try sprite sheet if individual image fails
           const target = e.target as HTMLImageElement
           target.style.display = 'none'
-          // You could show a fallback icon here
+          // Show fallback if icon component is available
+          if (category.icon) {
+            const Icon = category.icon
+            const fallback = document.createElement('div')
+            fallback.className = className
+            target.parentElement?.appendChild(fallback)
+          }
         }}
       />
     )

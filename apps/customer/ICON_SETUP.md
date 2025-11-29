@@ -6,15 +6,15 @@ This guide explains how to set up the service category icons for the customer ap
 
 The customer app is configured to use the following icon images:
 
-1. **Shops** → `/public/icons/gifts.jpg` (Smartphone with storefront and shopping cart)
-2. **Pharmacy & Beauty** → `/public/icons/beauty.jpg` (Makeup products: lipstick, compacts)
-3. **Groceries** → `/public/icons/groceries.jpg` (Shopping cart with grocery items)
-4. **Food** → `/public/icons/restaurants.jpg` (Food items: hamburger, pizza, etc.)
-5. **Package Delivery** → `/public/icons/package-delivery.jpg` (Delivery scooter with package)
+1. **Shops** → `/public/icons/gifts.png` (Smartphone with storefront and shopping cart)
+2. **Pharmacy & Beauty** → `/public/icons/beauty.png` (Makeup products: lipstick, compacts)
+3. **Groceries** → `/public/icons/groceries.png` (Shopping cart with grocery items)
+4. **Food** → `/public/icons/restaurants.png` (Food items: hamburger, pizza, etc.)
+5. **Package Delivery** → `/public/icons/package-delivery.png` (Delivery scooter with package)
 
 ## Icon Specifications
 
-- **Format**: JPG or PNG
+- **Format**: PNG (with transparent background preferred)
 - **Recommended size**: 200x200px to 400x400px (square format works best)
 - **Background**: Transparent or white background preferred
 - **Location**: All icons should be placed in `/public/icons/` directory
@@ -24,14 +24,29 @@ The customer app is configured to use the following icon images:
 ```
 public/
   icons/
-    gifts.jpg          # Shops icon
-    beauty.jpg         # Pharmacy & Beauty icon
-    groceries.jpg      # Groceries icon
-    restaurants.jpg    # Food icon
-    package-delivery.jpg # Package Delivery icon
+    gifts.png          # Shops icon
+    beauty.png         # Pharmacy & Beauty icon
+    groceries.png      # Groceries icon
+    restaurants.png    # Food icon
+    package-delivery.png # Package Delivery icon
 ```
 
 The icons are configured in `apps/customer/lib/mock-data.ts`.
+
+## Troubleshooting
+
+If icons are not showing up:
+
+1. **Clear browser cache**: Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)
+2. **Restart dev server**: Stop and restart `npm run dev` or `pnpm dev`
+3. **Check file paths**: Ensure files are in `/public/icons/` with exact names:
+   - `gifts.png`
+   - `beauty.png`
+   - `groceries.png`
+   - `restaurants.png`
+   - `package-delivery.png`
+4. **Check browser console**: Look for 404 errors for missing image files
+5. **Verify file extensions**: Files should be `.png` (not `.jpg` or `.jpeg`)
 
 ## Option 2: Sprite Sheet
 

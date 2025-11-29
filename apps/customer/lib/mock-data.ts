@@ -34,7 +34,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Shops',
     nameAr: 'متاجر',
     nameFr: 'Boutiques',
-    iconImage: '/icons/gifts.jpg', // Smartphone with storefront and shopping cart
+    iconImage: '/icons/gifts.png', // Smartphone with storefront and shopping cart
     color: 'bg-gradient-to-br from-emerald-100 to-green-50',
     iconColor: 'text-emerald-600',
   },
@@ -43,7 +43,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Pharmacy & Beauty',
     nameAr: 'صيدلية وتجميل',
     nameFr: 'Pharmacie & Beauté',
-    iconImage: '/icons/beauty.jpg', // Makeup products (lipstick, compacts)
+    iconImage: '/icons/beauty.png', // Makeup products (lipstick, compacts)
     color: 'bg-gradient-to-br from-pink-100 to-rose-50',
     iconColor: 'text-pink-500',
   },
@@ -52,7 +52,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Groceries',
     nameAr: 'بقالة',
     nameFr: 'Épicerie',
-    iconImage: '/icons/groceries.jpg', // Shopping cart with groceries
+    iconImage: '/icons/groceries.png', // Shopping cart with groceries
     color: 'bg-gradient-to-br from-orange-100 to-amber-50',
     iconColor: 'text-orange-500',
   },
@@ -61,7 +61,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Food',
     nameAr: 'طعام',
     nameFr: 'Nourriture',
-    iconImage: '/icons/restaurants.jpg', // Food items (hamburger, pizza, etc.)
+    iconImage: '/icons/restaurants.png', // Food items (hamburger, pizza, etc.)
     color: 'bg-gradient-to-br from-orange-100 to-yellow-50',
     iconColor: 'text-orange-600',
   },
@@ -70,7 +70,7 @@ export const categories: CategoryDefinition[] = [
     name: 'Package Delivery',
     nameAr: 'توصيل الطرود',
     nameFr: 'Livraison de colis',
-    iconImage: '/icons/package-delivery.jpg', // Delivery scooter with package
+    iconImage: '/icons/package-delivery.png', // Delivery scooter with package
     color: 'bg-gradient-to-br from-yellow-100 to-amber-50',
     iconColor: 'text-yellow-600',
   },
