@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage } = require('electron')
 const path = require('path')
-const { spawn } = require('child_process')
+const { spawn, exec } = require('child_process')
 const { createAuthWindow, closeAuthWindow } = require('./auth-window')
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
@@ -88,46 +88,92 @@ function createWindow() {
   })
 }
 
-function startNextDevServer() {
-  // Start Next.js dev server
-  nextProcess = spawn('npm', ['run', 'dev'], {
-    cwd: path.join(__dirname, '..'),
-    shell: true,
-    stdio: 'pipe',
-  })
-
-  let serverReady = false
-
-  nextProcess.stdout.on('data', (data) => {
-    const output = data.toString()
-    console.log('[Next.js]', output)
-    
-    // Check if server is ready
-    if (!serverReady && (output.includes('Ready') || output.includes('Local:') || output.includes('localhost:3001'))) {
-      serverReady = true
-      // Wait a bit for server to be fully ready
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL('http://localhost:3001/vendor')
+// Helper function to kill process on port 3001
+function killPort3001() {
+  return new Promise((resolve) => {
+    if (process.platform === 'win32') {
+      // Windows: Use netstat to find and kill process
+      exec('netstat -ano | findstr :3001', (error, stdout) => {
+        if (stdout) {
+          const lines = stdout.trim().split('\n')
+          const pids = new Set()
+          lines.forEach(line => {
+            const match = line.match(/\s+(\d+)\s*$/)
+            if (match) {
+              pids.add(match[1])
+            }
+          })
+          pids.forEach(pid => {
+            try {
+              exec(`taskkill /F /PID ${pid}`, () => {})
+            } catch (e) {
+              // Ignore errors
+            }
+          })
         }
-      }, 2000)
+        setTimeout(resolve, 500) // Wait a bit for port to be freed
+      })
+    } else {
+      // Unix-like: Use lsof to find and kill process
+      exec('lsof -ti:3001 | xargs kill -9 2>/dev/null || true', () => {
+        setTimeout(resolve, 500)
+      })
     }
   })
+}
 
-  nextProcess.stderr.on('data', (data) => {
-    console.error('[Next.js Error]', data.toString())
-  })
+function startNextDevServer() {
+  // Kill any process using port 3001 first
+  killPort3001().then(() => {
+    // Start Next.js dev server
+    nextProcess = spawn('npm', ['run', 'dev'], {
+      cwd: path.join(__dirname, '..'),
+      shell: true,
+      stdio: 'pipe',
+    })
 
-  nextProcess.on('close', (code) => {
-    console.log(`[Next.js] Process exited with code ${code}`)
-    nextProcess = null
-  })
+    let serverReady = false
 
-  nextProcess.on('error', (error) => {
-    console.error('[Next.js] Failed to start:', error)
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL('http://localhost:3001/vendor')
-    }
+    nextProcess.stdout.on('data', (data) => {
+      const output = data.toString()
+      console.log('[Next.js]', output)
+      
+      // Check if server is ready
+      if (!serverReady && (output.includes('Ready') || output.includes('Local:') || output.includes('localhost:3001'))) {
+        serverReady = true
+        // Wait a bit for server to be fully ready
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.loadURL('http://localhost:3001/vendor')
+          }
+        }, 2000)
+      }
+    })
+
+    nextProcess.stderr.on('data', (data) => {
+      const output = data.toString()
+      console.error('[Next.js Error]', output)
+      
+      // If port is in use, try to kill it and restart
+      if (output.includes('EADDRINUSE') || output.includes('address already in use')) {
+        console.log('[Next.js] Port 3001 is in use, attempting to free it...')
+        killPort3001().then(() => {
+          console.log('[Next.js] Port freed, please restart the app')
+        })
+      }
+    })
+
+    nextProcess.on('close', (code) => {
+      console.log(`[Next.js] Process exited with code ${code}`)
+      nextProcess = null
+    })
+
+    nextProcess.on('error', (error) => {
+      console.error('[Next.js] Failed to start:', error)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL('http://localhost:3001/vendor')
+      }
+    })
   })
 }
 
