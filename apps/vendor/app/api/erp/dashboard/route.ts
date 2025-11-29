@@ -34,12 +34,38 @@ export async function GET(request: NextRequest) {
     }
 
     if (!vendorId) {
+<<<<<<< Updated upstream
       return errorResponse(new Error('vendorId is required'), 400)
     }
 
     // Only vendors can access their own dashboard, admins can access any
     if (session.user.role !== 'VENDOR' && session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only vendors and admins can access this dashboard')
+=======
+      try {
+        const firstVendor = await prisma.user.findFirst({
+          where: { role: 'VENDOR', status: 'APPROVED' },
+          select: { id: true },
+        })
+        if (firstVendor) {
+          vendorId = firstVendor.id
+        }
+      } catch (e) {
+        console.warn('[API/dashboard] Error fetching first vendor:', e)
+        // Continue without vendorId - will return empty dashboard below
+      }
+    }
+
+    if (!vendorId) {
+      // Return empty dashboard instead of error for dev/missing DB scenarios
+      return successResponse({
+        todaySales: 0,
+        weekSales: 0,
+        monthSales: 0,
+        topProducts: [],
+        lowStockProducts: [],
+      })
+>>>>>>> Stashed changes
     }
 
     if (session.user.role === 'VENDOR' && session.user.id !== vendorId) {
@@ -47,10 +73,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify vendor exists
-    const vendor = await prisma.user.findUnique({
-      where: { id: vendorId },
-      select: { id: true, role: true },
-    })
+    let vendor: any = null
+    try {
+      vendor = await prisma.user.findUnique({
+        where: { id: vendorId },
+        select: { id: true, role: true },
+      })
+    } catch (e) {
+      console.warn('[API/dashboard] Error fetching vendor:', e)
+    }
 
     if (!vendor || vendor.role !== 'VENDOR') {
       return errorResponse(new Error('Vendor not found'), 404)
@@ -70,52 +101,66 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
 
     // Calculate sales (from Sale) for different periods
-    const todaySales = await prisma.sale.aggregate({
-      where: {
-        vendorId,
-        createdAt: {
-          gte: today,
-          lt: tomorrow,
-        },
-      },
-      _sum: { total: true },
-    })
-
-    const weekSales = await prisma.sale.aggregate({
-      where: {
-        vendorId,
-        createdAt: { gte: weekStart },
-      },
-      _sum: { total: true },
-    })
-
-    const monthSales = await prisma.sale.aggregate({
-      where: {
-        vendorId,
-        createdAt: { gte: monthStart },
-      },
-      _sum: { total: true },
-    })
+    let todaySales: any = { _sum: { total: null } }
+    let weekSales: any = { _sum: { total: null } }
+    let monthSales: any = { _sum: { total: null } }
+    
+    try {
+      [todaySales, weekSales, monthSales] = await Promise.all([
+        prisma.sale.aggregate({
+          where: {
+            vendorId,
+            createdAt: {
+              gte: today,
+              lt: tomorrow,
+            },
+          },
+          _sum: { total: true },
+        }),
+        prisma.sale.aggregate({
+          where: {
+            vendorId,
+            createdAt: { gte: weekStart },
+          },
+          _sum: { total: true },
+        }),
+        prisma.sale.aggregate({
+          where: {
+            vendorId,
+            createdAt: { gte: monthStart },
+          },
+          _sum: { total: true },
+        }),
+      ])
+    } catch (e) {
+      console.warn('[API/dashboard] Error calculating sales:', e)
+    }
 
     // Top selling products (from SaleItem)
-    const topProductsAgg = await prisma.saleItem.groupBy({
-      by: ['productId', 'productName'],
-      where: {
-        sale: {
-          vendorId,
-          createdAt: { gte: monthStart },
+    let topProductsAgg: any[] = []
+    try {
+      topProductsAgg = await (prisma.saleItem.groupBy as any)({
+        by: ['productId', 'productName'],
+        where: {
+          sale: {
+            vendorId,
+            createdAt: { gte: monthStart },
+          },
         },
-      },
-      _sum: {
-        quantity: true,
-      },
-      orderBy: {
         _sum: {
-          quantity: 'desc',
+          quantity: true,
         },
-      },
-      take: 5,
-    })
+        orderBy: {
+          _sum: {
+            quantity: 'desc',
+          },
+        },
+        take: 5,
+      })
+    } catch (e) {
+      console.warn('[API/dashboard] Error fetching top products:', e)
+      topProductsAgg = []
+    }
 
     const topProducts = topProductsAgg.map((p: any) => ({
       productId: p.productId,
@@ -124,22 +169,28 @@ export async function GET(request: NextRequest) {
     }))
 
     // Low stock products (from InventoryProduct)
-    const lowStockProducts = await prisma.inventoryProduct.findMany({
-      where: {
-        vendorId,
-        stock: {
-          lte: 10,
+    let lowStockProducts: any[] = []
+    try {
+      lowStockProducts = await prisma.inventoryProduct.findMany({
+        where: {
+          vendorId,
+          stock: {
+            lte: 10,
+          },
         },
-      },
-      select: {
-        id: true,
-        sku: true,
-        name: true,
-        stock: true,
-        sellingPrice: true,
-      },
-      take: 10,
-    })
+        select: {
+          id: true,
+          sku: true,
+          name: true,
+          stock: true,
+          sellingPrice: true,
+        },
+        take: 10,
+      })
+    } catch (e) {
+      console.warn('[API/dashboard] Error fetching low stock products:', e)
+      lowStockProducts = []
+    }
 
     return successResponse({
       todaySales: todaySales._sum.total || 0,

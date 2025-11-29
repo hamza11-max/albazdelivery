@@ -109,6 +109,20 @@ export default function VendorDashboard() {
     }
     return false
   })
+
+  // Persist and apply dark-mode immediately when toggled
+  useEffect(() => {
+    try {
+      localStorage.setItem('vendor-dark-mode', isDarkMode ? 'true' : 'false')
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [isDarkMode])
   const [activeTab, setActiveTab] = useState("dashboard")
   const [language, setLanguage] = useState("fr")
   const [showProductDialog, setShowProductDialog] = useState(false)
@@ -198,6 +212,11 @@ export default function VendorDashboard() {
     return `ORD-${Date.now().toString().slice(-6)}`
   })
   const [posKeypadValue, setPosKeypadValue] = useState<string>("")
+
+  // Computed cart subtotal (useMemo to avoid using block-scoped variables before declaration)
+  const cartSubtotal = useMemo(() => {
+    return posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  }, [posCart])
   
   // Update discount when keypad value changes
   useEffect(() => {
@@ -714,9 +733,9 @@ useEffect(() => {
   }
 
   // Post Product to Delivery
-  const postProductToDelivery = async (inventoryProductId: string) => {
+  const postProductToDelivery = async (inventoryProductId: string | number) => {
     try {
-      const response = await fetch(`/api/erp/inventory/${inventoryProductId}/post-to-delivery`, {
+      const response = await fetch(`/api/erp/inventory/${String(inventoryProductId)}/post-to-delivery`, {
         method: "POST",
       })
       const data = await response.json()
@@ -1189,8 +1208,7 @@ useEffect(() => {
   }, [])
 
   // ALL HOOKS MUST BE CALLED BEFORE CONDITIONAL RETURNS
-  // Calculate cart values using hooks (must be before conditional returns)
-  const cartSubtotal = posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  // Calculate remaining cart values derived from subtotal
   const cartTax = useMemo(() => {
     const subtotalAfterDiscount = cartSubtotal - posDiscount
     return subtotalAfterDiscount * (posTaxPercent / 100) // Adjustable tax percentage
@@ -1275,31 +1293,7 @@ useEffect(() => {
           </div>
         )}
         
-        {/* Vendor Header - Appears in all tabs except POS (POS has its own header) */}
-        {activeTab !== "pos" && (
-          <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-3 md:px-6 py-3 md:py-4 shadow-sm mb-6 -mx-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <h1 className="text-xl md:text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
-                  {translate("Bienvenue, ", "مرحباً، ")}{user?.name || "Vendeur"} 👋
-                </h1>
-                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {translate("Voici ce qui se passe dans votre magasin.", "إليك ما يحدث في متجرك.")}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 md:gap-4">
-                <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300 text-xs md:text-sm">
-                  <History className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                  <span className="hidden sm:inline">{translate("Voir toutes les commandes", "عرض جميع الطلبات")}</span>
-                  <span className="sm:hidden">{translate("Commandes", "الطلبات")}</span>
-                </Button>
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold text-sm md:text-base">
-                  {user?.name?.charAt(0) || "V"}
-                </div>
-              </div>
-            </div>
-          </header>
-        )}
+        {/* Topbar removed — navigation is handled by the left sidebar */}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Horizontal tabs removed - navigation now in vertical sidebar */}
@@ -1570,29 +1564,7 @@ useEffect(() => {
             <div className="flex flex-col lg:flex-row min-h-[calc(100vh-200px)] bg-albaz-bg-gradient dark:bg-albaz-bg-gradient-dark">
               {/* Main Content Area */}
               <div className="flex-1 flex flex-col overflow-hidden w-full">
-                {/* Top Header */}
-                <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-3 md:px-6 py-3 md:py-4 shadow-sm">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div>
-                      <h1 className="text-xl md:text-2xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
-                        {translate("Bienvenue, ", "مرحباً، ")}{user?.name || "Vendeur"} 👋
-                      </h1>
-                      <p className="text-xs md:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {translate("Voici ce qui se passe dans votre magasin.", "إليك ما يحدث في متجرك.")}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 md:gap-4">
-                      <Button variant="outline" size="sm" className="border-albaz-green-300 text-albaz-green-700 dark:text-albaz-green-300 text-xs md:text-sm">
-                        <History className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                        <span className="hidden sm:inline">{translate("Voir toutes les commandes", "عرض جميع الطلبات")}</span>
-                        <span className="sm:hidden">{translate("Commandes", "الطلبات")}</span>
-                      </Button>
-                      <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-albaz-green-gradient flex items-center justify-center text-white font-semibold text-sm md:text-base">
-                        {user?.name?.charAt(0) || "V"}
-                      </div>
-                    </div>
-                  </div>
-                </header>
+                {/* Topbar removed for POS — navigation is via left sidebar */}
 
                 {/* Product Area */}
                 <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">

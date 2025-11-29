@@ -62,7 +62,7 @@ export default function Header({
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="AL-baz" className="h-10 w-auto" />
+            <img src="/logo.svg" alt="AL-baz" className="h-10 w-auto" onError={(e) => { e.currentTarget.style.display = 'none' }} />
             <div>
               <h1 className="text-lg font-bold">{title}</h1>
               <p className="text-xs text-white/80">{subtitle}</p>

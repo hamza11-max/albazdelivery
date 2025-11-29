@@ -35,36 +35,25 @@ const config = {
       '@/hooks': path.resolve(__dirname, './hooks'),
     }
 
-    // Prevent module initialization order issues - AGGRESSIVE SETTINGS
+    // Webpack optimization settings - simplified after modularization
+    // The previous aggressive settings were needed for the monolithic component
+    // Now that the code is modular, we can use more standard settings
     config.optimization = {
       ...config.optimization,
-      // Use deterministic module IDs for consistent ordering
       moduleIds: 'deterministic',
-      // Disable module concatenation to prevent hoisting issues
-      concatenateModules: false,
-      // Mark all modules as having side effects to prevent aggressive tree-shaking
-      sideEffects: true,
-      // Disable minimize in development to help debug (optional)
-      // minimize: !isServer && process.env.NODE_ENV === 'production',
+      // Re-enable module concatenation for better performance
+      concatenateModules: true,
     }
     
-    // Additional webpack settings to prevent hoisting
+    // Client-side optimizations
     if (!isServer) {
-      // Ensure proper module evaluation order
-      config.optimization.usedExports = false // Disable tree-shaking of exports
-      config.optimization.providedExports = false // Don't analyze provided exports
-      
-      // CRITICAL: Disable all optimizations that could cause hoisting
-      config.optimization.mangleExports = false // Don't mangle export names
-      config.optimization.innerGraph = false // Disable inner graph optimization
-      
-      // Force runtime chunk to prevent initialization order issues
+      // Use runtime chunk for better caching
       config.optimization.runtimeChunk = {
         name: 'runtime'
       }
     }
     
-    // Ensure proper module resolution
+    // Module resolution
     config.resolve.fullySpecified = false
     config.resolve.symlinks = false
 

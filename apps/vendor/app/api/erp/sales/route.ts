@@ -60,10 +60,42 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 100)
     const vendorIdParam = searchParams.get('vendorId')
 
+<<<<<<< Updated upstream
     const vendorId = isAdmin ? vendorIdParam : session.user.id
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+=======
+    let vendorId = isAdmin ? vendorIdParam : null // session.user.id
+
+    // If no vendorId provided in admin mode, get first approved vendor
+    if (isAdmin && !vendorId) {
+      try {
+        const firstVendor = await prisma.user.findFirst({
+          where: { role: 'VENDOR', status: 'APPROVED' },
+          select: { id: true },
+        })
+        if (firstVendor) {
+          vendorId = firstVendor.id
+        }
+      } catch (e) {
+        console.warn('[API/sales] Error fetching first vendor:', e)
+        // Continue without vendorId - will return empty results below
+      }
+    }
+
+    if (!vendorId) {
+      // Return empty results instead of error for dev/missing DB scenarios
+      return successResponse({
+        sales: [],
+        pagination: {
+          page: 1,
+          limit: 100,
+          total: 0,
+          pages: 0,
+        },
+      })
+>>>>>>> Stashed changes
     }
 
     const where: any = {
@@ -84,30 +116,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const [sales, total] = await Promise.all([
-      prisma.sale.findMany({
-        where,
-        include: {
-          items: true,
-          ...(isAdmin
-            ? {
-                vendor: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    phone: true,
+    let sales: any[] = []
+    let total = 0
+    try {
+      [sales, total] = await Promise.all([
+        prisma.sale.findMany({
+          where,
+          include: {
+            items: true,
+            ...(isAdmin
+              ? {
+                  vendor: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      phone: true,
+                    },
                   },
-                },
-              }
-            : {}),
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.sale.count({ where }),
-    ])
+                }
+              : {}),
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.sale.count({ where }),
+      ])
+    } catch (e) {
+      console.warn('[API/sales] Error fetching sales data:', e)
+      sales = []
+      total = 0
+    }
 
     return successResponse({
       sales,

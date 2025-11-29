@@ -11,6 +11,7 @@ const config: Config.InitialOptions = {
       setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.api.ts'],
       moduleNameMapper: {
+        '^@/root/(.*)$': '<rootDir>/$1',
         '^@/(.*)$': '<rootDir>/$1',
       },
       transform: {
@@ -23,7 +24,7 @@ const config: Config.InitialOptions = {
     {
       displayName: 'ui',
       testEnvironment: 'jsdom',
-      testMatch: ['**/__tests__/**/*.test.[jt]sx', '!**/__tests__/api/**', '!**/__tests__/lib/security/**'],
+      testMatch: ['**/__tests__/**/*.test.[jt]sx', '**/__tests__/**/*.test.[jt]s', '!**/__tests__/api/**', '!**/__tests__/lib/security/**'],
       setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       moduleNameMapper: {

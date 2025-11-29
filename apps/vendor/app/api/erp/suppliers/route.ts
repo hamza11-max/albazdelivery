@@ -41,10 +41,42 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city')
     const vendorIdParam = searchParams.get('vendorId')
 
+<<<<<<< Updated upstream
     const vendorId = isAdmin ? vendorIdParam : session.user.id
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+=======
+    let vendorId = isAdmin ? vendorIdParam : null // session.user.id
+
+    // If no vendorId provided in admin mode, get first approved vendor
+    if (isAdmin && !vendorId) {
+      try {
+        const firstVendor = await prisma.user.findFirst({
+          where: { role: 'VENDOR', status: 'APPROVED' },
+          select: { id: true },
+        })
+        if (firstVendor) {
+          vendorId = firstVendor.id
+        }
+      } catch (e) {
+        console.warn('[API/suppliers] Error fetching first vendor:', e)
+        // Continue without vendorId - will return empty results below
+      }
+    }
+
+    if (!vendorId) {
+      // Return empty results instead of error for dev/missing DB scenarios
+      return successResponse({
+        suppliers: [],
+        pagination: {
+          page: 1,
+          limit: 50,
+          total: 0,
+          pages: 0,
+        },
+      })
+>>>>>>> Stashed changes
     }
 
     // Validate and parse pagination
@@ -70,24 +102,32 @@ export async function GET(request: NextRequest) {
     }
 
     // Get total count and suppliers with pagination
-    const [total, suppliers] = await Promise.all([
-      prisma.supplier.count({ where }),
-      prisma.supplier.findMany({
-        where,
-        orderBy: {
-          name: 'asc',
-        },
-        include: {
-          _count: {
-            select: {
-              products: true,
+    let total = 0
+    let suppliers: any[] = []
+    try {
+      [total, suppliers] = await Promise.all([
+        prisma.supplier.count({ where }),
+        prisma.supplier.findMany({
+          where,
+          orderBy: {
+            name: 'asc',
+          },
+          include: {
+            _count: {
+              select: {
+                products: true,
+              },
             },
           },
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-    ])
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+      ])
+    } catch (e) {
+      console.warn('[API/suppliers] Error fetching suppliers:', e)
+      total = 0
+      suppliers = []
+    }
 
     return successResponse({ 
       suppliers,

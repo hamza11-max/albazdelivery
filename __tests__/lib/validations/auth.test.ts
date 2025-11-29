@@ -114,7 +114,7 @@ describe('Auth Validation Schemas', () => {
   describe('loginSchema', () => {
     it('should validate correct login data', () => {
       const result = loginSchema.safeParse({
-        email: 'user@example.com',
+        identifier: 'user@example.com',
         password: 'password123',
       })
 
@@ -123,7 +123,7 @@ describe('Auth Validation Schemas', () => {
 
     it('should reject invalid email', () => {
       const result = loginSchema.safeParse({
-        email: 'invalid',
+        identifier: 'invalid',
         password: 'password123',
       })
 
@@ -132,7 +132,7 @@ describe('Auth Validation Schemas', () => {
 
     it('should reject empty password', () => {
       const result = loginSchema.safeParse({
-        email: 'user@example.com',
+        identifier: 'user@example.com',
         password: '',
       })
 

@@ -25,7 +25,7 @@ win:
       arch:
         - x64
         - ia32
-  icon: assets/icon.ico
+  icon: assets/logo.ico
   artifactName: ${productName}-${version}-${arch}.${ext}
   requestedExecutionLevel: asInvoker
 
@@ -35,9 +35,9 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: AlBaz Vendor
-  installerIcon: assets/icon.ico
-  uninstallerIcon: assets/icon.ico
-  installerHeaderIcon: assets/icon.ico
+  installerIcon: assets/logo.ico
+  uninstallerIcon: assets/logo.ico
+  installerHeaderIcon: assets/logo.ico
   deleteAppDataOnUninstall: false
   include: build/installer.nsh
 
@@ -47,14 +47,14 @@ mac:
       arch:
         - x64
         - arm64
-  icon: assets/icon.icns
+  icon: assets/logo.icns
   category: public.app-category.business
 
 linux:
   target:
     - AppImage
     - deb
-  icon: assets/icon.png
+  icon: assets/logo.png
   category: Office
 
 publish:

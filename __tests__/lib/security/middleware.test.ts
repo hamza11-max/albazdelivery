@@ -91,7 +91,16 @@ describe('Security Middleware Integration', () => {
       // Full middleware testing requires Next.js runtime
       const fs = require('fs')
       const path = require('path')
-      const middlewarePath = path.join(process.cwd(), 'middleware.ts')
+      
+      // Find monorepo root (where middleware.ts lives)
+      let searchDir = process.cwd()
+      let middlewarePath = path.join(searchDir, 'middleware.ts')
+      
+      // Walk up to find middleware.ts at monorepo root
+      while (!fs.existsSync(middlewarePath) && searchDir !== path.dirname(searchDir)) {
+        searchDir = path.dirname(searchDir)
+        middlewarePath = path.join(searchDir, 'middleware.ts')
+      }
       
       expect(fs.existsSync(middlewarePath)).toBe(true)
     })

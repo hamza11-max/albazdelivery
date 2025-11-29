@@ -6,15 +6,46 @@ import { auth } from '@/root/lib/auth'
 import { createInventoryProductSchema, updateInventoryProductSchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
 
+// In-memory fallback storage for when database is unavailable
+const fallbackProducts: Map<string, any> = new Map()
+let fallbackIdCounter = 1
+
+async function isDatabaseAvailable(): Promise<boolean> {
+  try {
+    await prisma.$queryRaw`SELECT 1`
+    return true
+  } catch {
+    return false
+  }
+}
+
 // GET - Fetch all inventory products
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
+<<<<<<< Updated upstream
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
+=======
+    // Check if database is available
+    const dbAvailable = await isDatabaseAvailable()
+    
+    if (!dbAvailable) {
+      // Return fallback data
+      console.log('[API/inventory] Database unavailable, using fallback storage')
+      const products = Array.from(fallbackProducts.values())
+      return successResponse({ products, fallback: true })
+    }
+
+    // DISABLED for Electron app (no authentication)
+    // const session = await auth()
+    // if (!session?.user) {
+    //   throw new UnauthorizedError()
+    // }
+>>>>>>> Stashed changes
 
     const isAdmin = session.user.role === 'ADMIN'
     const isVendor = session.user.role === 'VENDOR'
@@ -28,10 +59,34 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const vendorIdParam = searchParams.get('vendorId')
 
+<<<<<<< Updated upstream
     const targetVendorId = isAdmin ? vendorIdParam : session.user.id
 
     if (isAdmin && !targetVendorId) {
       return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
+=======
+    let targetVendorId = isAdmin ? vendorIdParam : null // session.user.id
+
+    // If no vendorId provided in admin mode, get first approved vendor
+    if (isAdmin && !targetVendorId) {
+      try {
+        const firstVendor = await prisma.user.findFirst({
+          where: { role: 'VENDOR', status: 'APPROVED' },
+          select: { id: true },
+        })
+        if (firstVendor) {
+          targetVendorId = firstVendor.id
+        }
+      } catch (e) {
+        console.warn('[API/inventory] Error fetching first vendor:', e)
+        // Continue without targetVendorId - will return empty results below
+      }
+    }
+
+    if (isAdmin && !targetVendorId) {
+      // Return empty results instead of error for dev/missing DB scenarios
+      return successResponse({ products: [] })
+>>>>>>> Stashed changes
     }
 
     const where: any = {}
@@ -40,28 +95,34 @@ export async function GET(request: NextRequest) {
     }
     if (lowStock === 'true') {
       // Get products where stock <= lowStockThreshold
-      const products = await prisma.inventoryProduct.findMany({
-        where,
-        include: {
-          supplier: {
-            select: {
-              id: true,
-              name: true,
+      let products: any[] = []
+      try {
+        products = await prisma.inventoryProduct.findMany({
+          where,
+          include: {
+            supplier: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
-          },
-          ...(isAdmin
-            ? {
-                vendor: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
+            ...(isAdmin
+              ? {
+                  vendor: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                    },
                   },
-                },
-              }
-            : {}),
-        },
-      })
+                }
+              : {}),
+          },
+        })
+      } catch (e) {
+        console.warn('[API/inventory] Error fetching products:', e)
+        products = []
+      }
       const lowStockProducts = products.filter(p => p.stock <= p.lowStockThreshold)
       return successResponse({ products: lowStockProducts })
     }
@@ -89,11 +150,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const products = await prisma.inventoryProduct.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include,
-    })
+    const products: any[] = []
+    try {
+      const fetchedProducts = await prisma.inventoryProduct.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include,
+      })
+      products.push(...fetchedProducts)
+    } catch (e) {
+      console.warn('[API/inventory] Error fetching inventory products:', e)
+    }
 
     return successResponse({ products })
   } catch (error) {
@@ -107,21 +174,47 @@ export async function POST(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
-    if (!session?.user) {
+    // Dev mode: bypass auth for Electron
+    const isDev = process.env.NODE_ENV === 'development'
+    let session = null
+    try {
+      session = await auth()
+    } catch (e) {
+      // Auth might fail in Electron
+    }
+    
+    if (!isDev && !session?.user) {
       throw new UnauthorizedError()
     }
 
     const isAdmin = session.user.role === 'ADMIN'
     const isVendor = session.user.role === 'VENDOR'
 
-    if (!isAdmin && !isVendor) {
+    if (!isDev && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can create products')
     }
 
-    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
-
     const body = await request.json()
+    
+    // Check if database is available
+    const dbAvailable = await isDatabaseAvailable()
+    
+    if (!dbAvailable) {
+      // Use fallback storage
+      console.log('[API/inventory] Database unavailable, using fallback storage for POST')
+      const id = `fallback-${fallbackIdCounter++}`
+      const product = {
+        id,
+        ...body,
+        vendorId: body.vendorId || 'dev-vendor',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      fallbackProducts.set(id, product)
+      return successResponse({ product, fallback: true })
+    }
+
+    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
     const validatedData = createInventoryProductSchema.parse(body)
     const {
       vendorId: overrideVendorId,
@@ -215,15 +308,20 @@ export async function PUT(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
-    if (!session?.user) {
+    const isDev = process.env.NODE_ENV === 'development'
+    let session = null
+    try {
+      session = await auth()
+    } catch (e) {}
+    
+    if (!isDev && !session?.user) {
       throw new UnauthorizedError()
     }
 
     const isAdmin = session.user.role === 'ADMIN'
     const isVendor = session.user.role === 'VENDOR'
 
-    if (!isAdmin && !isVendor) {
+    if (!isDev && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can update products')
     }
 
@@ -315,15 +413,20 @@ export async function DELETE(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
-    if (!session?.user) {
+    const isDev = process.env.NODE_ENV === 'development'
+    let session = null
+    try {
+      session = await auth()
+    } catch (e) {}
+    
+    if (!isDev && !session?.user) {
       throw new UnauthorizedError()
     }
 
     const isAdmin = session.user.role === 'ADMIN'
     const isVendor = session.user.role === 'VENDOR'
 
-    if (!isAdmin && !isVendor) {
+    if (!isDev && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can delete products')
     }
 

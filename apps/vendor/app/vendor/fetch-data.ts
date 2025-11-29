@@ -38,15 +38,15 @@ export function useDashboardData() {
 
   const { fetchData, fetchWithCache } = useFetchWithCache()
 
-  const buildUrl = (basePath: string, vendorId?: string) => {
+  const buildUrl = useCallback((basePath: string, vendorId?: string) => {
     if (!vendorId) return basePath
     const separator = basePath.includes('?') ? '&' : '?'
     return `${basePath}${separator}vendorId=${vendorId}`
-  }
+  }, [])
 
-  const buildCacheKey = (key: string, vendorId?: string) => (vendorId ? `${key}:${vendorId}` : key)
+  const buildCacheKey = useCallback((key: string, vendorId?: string) => (vendorId ? `${key}:${vendorId}` : key), [])
 
-  const fetchSales = async (vendorId?: string): Promise<Sale[]> => {
+  const fetchSales = useCallback(async (vendorId?: string): Promise<Sale[]> => {
     const url = buildUrl('/api/erp/sales', vendorId)
     const cacheKey = buildCacheKey('sales', vendorId)
     const data = await fetchData<SalesData>('sales', url, cacheKey, (data) => {
@@ -59,9 +59,9 @@ export function useDashboardData() {
       }
     })
     return data?.sales || []
-  }
+  }, [fetchData, buildUrl, buildCacheKey])
 
-  const fetchCustomers = async (vendorId?: string): Promise<Customer[]> => {
+  const fetchCustomers = useCallback(async (vendorId?: string): Promise<Customer[]> => {
     const url = buildUrl('/api/erp/customers', vendorId)
     const cacheKey = buildCacheKey('customers', vendorId)
     const data = await fetchData<CustomersData>(
@@ -73,9 +73,9 @@ export function useDashboardData() {
       })
     )
     return data?.customers || []
-  }
+  }, [fetchData, buildUrl, buildCacheKey])
 
-  const fetchSuppliers = async (vendorId?: string): Promise<Supplier[]> => {
+  const fetchSuppliers = useCallback(async (vendorId?: string): Promise<Supplier[]> => {
     const url = buildUrl('/api/erp/suppliers', vendorId)
     const cacheKey = buildCacheKey('suppliers', vendorId)
     const data = await fetchData<SuppliersData>(
@@ -87,9 +87,9 @@ export function useDashboardData() {
       })
     )
     return data?.suppliers || []
-  }
+  }, [fetchData, buildUrl, buildCacheKey])
 
-  const fetchProducts = async (vendorId?: string): Promise<InventoryProduct[]> => {
+  const fetchProducts = useCallback(async (vendorId?: string): Promise<InventoryProduct[]> => {
     const url = buildUrl('/api/erp/inventory', vendorId)
     const cacheKey = buildCacheKey('products', vendorId)
     const data = await fetchData<ProductsData>(
@@ -101,9 +101,9 @@ export function useDashboardData() {
       })
     )
     return data?.products || []
-  }
+  }, [fetchData, buildUrl, buildCacheKey])
 
-  const fetchOrders = async (vendorId?: string): Promise<Order[]> => {
+  const fetchOrders = useCallback(async (vendorId?: string): Promise<Order[]> => {
     const url = buildUrl('/api/vendors/orders', vendorId)
     const cacheKey = buildCacheKey('orders', vendorId)
     const data = await fetchData<OrdersData>(
@@ -115,9 +115,9 @@ export function useDashboardData() {
       })
     )
     return data?.orders || []
-  }
+  }, [fetchData, buildUrl, buildCacheKey])
 
-  const fetchCategories = async (vendorId?: string): Promise<Category[]> => {
+  const fetchCategories = useCallback(async (vendorId?: string): Promise<Category[]> => {
     const url = buildUrl('/api/erp/categories', vendorId)
     const cacheKey = buildCacheKey('categories', vendorId)
     const data = await fetchData<CategoriesData>(
@@ -129,7 +129,7 @@ export function useDashboardData() {
       })
     )
     return data?.categories || []
-  }
+  }, [fetchData, buildUrl, buildCacheKey])
 
   return {
     loadingState,

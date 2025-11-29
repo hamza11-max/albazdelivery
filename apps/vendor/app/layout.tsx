@@ -12,6 +12,10 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 export const metadata: Metadata = {
   title: "AL-baz Vendor Dashboard",
   description: "Vendor dashboard for AL-baz delivery platform",
+  icons: {
+    icon: '/logo.svg',
+    apple: '/logo.svg',
+  },
 }
 
 export default function VendorLayout({
@@ -25,7 +29,10 @@ export default function VendorLayout({
         <SessionProvider>
           <ThemeInitializer />
           <ErrorBoundary>
-            {children}
+            <div className="min-h-screen bg-slate-50">
+              {/* Sidebar is handled inside the vendor page component */}
+              {children}
+            </div>
           </ErrorBoundary>
           <Toaster />
         </SessionProvider>
