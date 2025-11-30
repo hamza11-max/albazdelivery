@@ -6,6 +6,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ALBAZ Design System Colors */
+:root {
+  --albaz-dark-green: #1a4d1a;
+  --albaz-orange: #ff9933;
+  --albaz-light-green: #c8e6c9;
+  --albaz-white: #ffffff;
+}
+
 /* Theme and RTL support */
 html {
   color-scheme: light;
@@ -33,6 +41,10 @@ html[dir="ltr"] {
     @apply antialiased;
   }
 
+  body {
+    @apply bg-white text-gray-900;
+  }
+
   /* Ensure proper scrollbar styling in dark mode */
   html.dark {
     color-scheme: dark;
@@ -40,13 +52,6 @@ html[dir="ltr"] {
 
   html.light {
     color-scheme: light;
-  }
-}
-
-/* Custom components */
-@layer components {
-  .btn-primary {
-    @apply px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600;
   }
 }
 

@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Search, MapPin, Moon, Sun } from 'lucide-react'
-import { Input, Card } from '@albaz/ui'
+import { Search, MapPin, Settings, Shield, Building2 } from 'lucide-react'
+import { Input } from '@albaz/ui'
 import type { HomePageProps } from '@/app/lib/types'
 import { CategoryIcon } from '../CategoryIcon'
 
@@ -17,99 +16,68 @@ export function HomePage({
   onGoHome,
   t,
 }: HomePageProps) {
-  // Calculate positions for circular arrangement - responsive radius
-  const categoryCount = categories.length
-  const getRadius = () => {
-    if (typeof window === 'undefined') return 130
-    return window.innerWidth < 640 ? 110 : window.innerWidth < 1024 ? 150 : 170
-  }
-  const [radius, setRadius] = useState(getRadius())
-
-  // Update radius on window resize
-  useEffect(() => {
-    const handleResize = () => setRadius(getRadius())
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  const getCategoryPosition = (index: number, total: number) => {
-    const angle = (index / total) * 2 * Math.PI - Math.PI / 2 // Start from top
-    const x = radius * Math.cos(angle)
-    const y = radius * Math.sin(angle)
-    return { x, y }
-  }
+  // First row categories (5 main categories)
+  const firstRowCategories = categories.slice(0, 5)
+  
+  // Second row icons (additional features)
+  const secondRowIcons = [
+    { id: 'settings', icon: Settings, label: t('settings', 'Settings', 'الإعدادات') },
+    { id: 'shield', icon: Shield, label: t('security', 'Security', 'الأمان') },
+    { id: 'building', icon: Building2, label: t('business', 'Business', 'الأعمال') },
+  ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 via-cyan-50 to-orange-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 pb-20 flex flex-col">
-      {/* Top Bar: Location (left) and Theme Toggle (right) */}
-      <div className="px-4 py-4 flex items-center justify-between z-50">
-        {/* Location Section - Top Left */}
-        <div className="flex items-center gap-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm border border-teal-100 dark:border-teal-900">
-          <MapPin className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-          <span className="text-sm font-medium text-teal-800 dark:text-teal-200">{selectedCity}</span>
+    <div className="min-h-screen bg-white pb-20 flex flex-col">
+      {/* Header with Logo */}
+      <div className="px-4 pt-6 pb-4 flex justify-center">
+        <div className="flex items-center gap-2">
+          <img 
+            src="/logo.png" 
+            alt="ALBAZ" 
+            className="h-10 w-auto"
+            onError={(e) => {
+              // Fallback to text logo if image fails
+              const target = e.target as HTMLImageElement
+              target.style.display = 'none'
+              const parent = target.parentElement
+              if (parent && !parent.querySelector('.text-logo')) {
+                const textLogo = document.createElement('div')
+                textLogo.className = 'text-logo text-3xl font-bold text-[#1a4d1a]'
+                textLogo.textContent = 'ALBAZ'
+                parent.appendChild(textLogo)
+              }
+            }}
+          />
+          <span className="text-3xl font-bold text-[#1a4d1a] tracking-tight">ALBAZ</span>
+        </div>
+      </div>
+
+      {/* Search Bar and Location Selector */}
+      <div className="px-4 mb-6 flex items-center gap-3">
+        {/* Search Bar */}
+        <div className="flex-1 relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1a4d1a]" />
+          <Input
+            type="text"
+            placeholder={t('search', 'Search...', 'بحث...')}
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="pl-12 pr-4 py-3 w-full rounded-full bg-[#c8e6c9] border-0 focus:ring-2 focus:ring-[#ff9933] text-[#1a4d1a] placeholder:text-[#1a4d1a]/60"
+          />
         </div>
 
-        {/* Theme Toggle - Top Right */}
-        <button
-          onClick={onToggleDarkMode}
-          className="p-2 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm hover:bg-orange-50 dark:hover:bg-gray-700 transition-all shadow-sm border border-orange-100 dark:border-orange-900"
-          aria-label="Toggle theme"
-        >
-          {isDarkMode ? (
-            <Sun className="w-5 h-5 text-orange-500 dark:text-orange-400" />
-          ) : (
-            <Moon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-          )}
+        {/* Location Selector */}
+        <button className="flex items-center gap-2 px-4 py-3 rounded-full bg-[#ff9933] text-white font-medium hover:bg-[#ff8800] transition-colors">
+          <MapPin className="w-4 h-4" />
+          <span className="text-sm whitespace-nowrap">{selectedCity}</span>
         </button>
       </div>
 
-      {/* Ads Section - Moved Up */}
-      <div className="px-4 mb-8">
-        <div className="space-y-3 max-w-2xl mx-auto">
-          <Card className="overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 border-0 shadow-lg bg-gradient-to-r from-teal-500 via-cyan-400 to-orange-500 rounded-2xl">
-            <div className="relative h-32 md:h-40">
-              <img src="/placeholder.jpg" alt="Promotion" className="w-full h-full object-cover opacity-20 mix-blend-overlay" />
-              <div className="absolute inset-0 flex items-center justify-between px-6 md:px-10">
-                <div className="text-white max-w-[70%]">
-                  <h3 className="text-2xl md:text-3xl font-bold mb-1 drop-shadow-md">
-                    {t('promo-title', 'Livraison Gratuite', 'توصيل مجاني')}
-                  </h3>
-                  <p className="text-sm md:text-lg font-medium opacity-90">
-                    {t('promo-desc', 'Sur votre première commande', 'على طلبك الأول')}
-                  </p>
-                </div>
-                <div className="hidden md:block text-4xl">🛵</div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Main Central Hub: Search & Circular Categories */}
-      <div className="flex-1 flex items-center justify-center relative min-h-[400px] md:min-h-[500px] overflow-hidden">
-        
-        {/* Center Search Bar */}
-        <div className="absolute z-20 w-64 md:w-80 transform -translate-y-4">
-          <div className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-teal-400 to-orange-400 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-200"></div>
-            <div className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-xl">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-teal-500 transition-colors" />
-              <Input
-                type="text"
-                placeholder={t('search', 'Que cherchez-vous ?', 'ما الذي تبحث عنه؟')}
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="pl-12 pr-4 py-6 w-full border-0 bg-transparent focus:ring-0 text-lg placeholder:text-gray-400 text-gray-800 dark:text-gray-100"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Circular Categories */}
-        <div className="relative w-full max-w-2xl aspect-square flex items-center justify-center">
-          {categories.map((category, index) => {
+      {/* First Row of Category Icons */}
+      <div className="px-4 mb-6">
+        <div className="flex items-center justify-between gap-3">
+          {firstRowCategories.map((category) => {
             const categoryName = selectedLanguage === 'ar' ? category.nameAr : category.nameFr
-            const { x, y } = getCategoryPosition(index, categoryCount)
 
             const handleClick = () => {
               if (category.id === 5) {
@@ -123,30 +91,59 @@ export function HomePage({
               <button
                 key={category.id}
                 onClick={handleClick}
-                className="absolute flex flex-col items-center gap-2 group transform transition-all duration-500 hover:scale-110 hover:z-10"
-                style={{
-                  left: `calc(50% + ${x}px)`,
-                  top: `calc(50% + ${y}px)`,
-                  transform: `translate(-50%, -50%)`,
-                }}
+                className="flex flex-col items-center gap-2 flex-1 group"
               >
-                <div
-                  className={`w-16 h-16 md:w-20 md:h-20 rounded-2xl rotate-45 group-hover:rotate-0 transition-transform duration-300 ${category.color} dark:bg-gray-700 flex items-center justify-center shadow-lg group-hover:shadow-xl border-2 border-white dark:border-gray-600 overflow-hidden`}
-                >
-                  <div className="-rotate-45 group-hover:rotate-0 transition-transform duration-300 w-full h-full flex items-center justify-center p-2">
+                <div className="w-16 h-16 rounded-full bg-[#1a4d1a] flex items-center justify-center shadow-md hover:shadow-lg transition-shadow group">
+                  <div className="w-12 h-12 flex items-center justify-center p-2 [&>img]:brightness-0 [&>img]:invert [&>img]:sepia [&>img]:saturate-[10] [&>img]:hue-rotate-[15deg] [&>img]:brightness-[1.2]">
                     <CategoryIcon
                       category={category}
-                      size={64}
-                      className="w-full h-full"
+                      size={40}
+                      className="w-full h-full object-contain"
                     />
                   </div>
                 </div>
-                <span className="text-xs md:text-sm font-bold text-center text-gray-700 dark:text-gray-300 max-w-[90px] bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm px-2 py-1 rounded-lg">
+                <span className="text-xs font-medium text-center text-[#1a4d1a] max-w-[80px]">
                   {categoryName}
                 </span>
               </button>
             )
           })}
+        </div>
+      </div>
+
+      {/* Second Row of Icons */}
+      <div className="px-4 mb-6">
+        <div className="flex items-center justify-center gap-8">
+          {secondRowIcons.map((item) => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.id}
+                className="flex flex-col items-center gap-2 group"
+              >
+                <div className="w-20 h-20 rounded-full bg-[#1a4d1a] flex items-center justify-center shadow-md hover:shadow-lg transition-shadow">
+                  <Icon className="w-10 h-10 text-[#ff9933]" />
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Promotional Banner */}
+      <div className="px-4 mb-6">
+        <div className="bg-[#1a4d1a] rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-[#1a5d1a] transition-colors shadow-md">
+          <div className="flex-shrink-0">
+            {/* Bird icon placeholder - you can replace this with an actual bird icon */}
+            <div className="w-12 h-12 rounded-full bg-[#ff9933] flex items-center justify-center">
+              <span className="text-2xl">🦅</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-white font-semibold text-lg">
+              {t('exclusive-offers', 'Exclusive Offers! Tap to Learn More.', 'عروض حصرية! اضغط لمعرفة المزيد.')}
+            </p>
+          </div>
         </div>
       </div>
     </div>
