@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Home, Search, ShoppingCart, Bell, User } from 'lucide-react'
-import type { PageView, TranslationFn } from '@/app/lib/types'
+import type { PageView, TranslationFn } from '@/lib/types'
 
 interface BottomNavProps {
   currentPage: PageView

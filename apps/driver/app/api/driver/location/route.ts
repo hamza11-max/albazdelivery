@@ -1,10 +1,10 @@
 import { type NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
-import { emitDriverLocationUpdated } from '@/lib/events'
-import { updateDriverLocationSchema } from '@/lib/validations/api'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { emitDriverLocationUpdated } from '@/root/lib/events'
+import { updateDriverLocationSchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
 
 export async function POST(request: NextRequest) {
@@ -145,3 +145,4 @@ export async function GET(request: NextRequest) {
     return errorResponse(error)
   }
 }
+

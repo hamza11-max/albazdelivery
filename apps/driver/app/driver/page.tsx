@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { OrderStatus } from "@/lib/constants"
+import { OrderStatus } from "@/root/lib/constants"
 import { useRouter } from "next/navigation"
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from "@albaz/ui"
 import {
@@ -24,9 +24,9 @@ import {
   LogOut,
   Globe,
 } from "lucide-react"
-import type { Order } from "@/lib/types"
-import { useSSE } from "@/lib/use-sse"
-import { useToast } from "@/hooks/use-toast"
+import type { Order } from "@/root/lib/types"
+import { useSSE } from "@/root/lib/use-sse"
+import { useToast } from "@/root/hooks/use-toast"
 import { useSession, signOut } from "next-auth/react"
 
 // Force dynamic rendering to avoid static generation issues

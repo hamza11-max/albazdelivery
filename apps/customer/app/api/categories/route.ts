@@ -1,7 +1,7 @@
 import { type NextRequest } from 'next/server'
 import { successResponse, errorResponse } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { categories } from '@/app/lib/mock-data'
+import { categories } from '@/lib/mock-data'
 
 // GET /api/categories - Get all categories
 // Note: Categories are currently defined in mock-data.ts

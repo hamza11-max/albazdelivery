@@ -1,33 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCsrfToken, setCsrfTokenCookie } from '@/lib/security/csrf'
-import { successResponse, errorResponse } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
+import { getCsrfToken, setCsrfTokenCookie } from '../../../lib/csrf'
+import { successResponse } from '@/root/lib/errors'
 
 /**
- * GET /api/csrf-token
- * Returns CSRF token for client-side requests
- * Public endpoint - no authentication required
+ * GET /api/csrf-token - Get CSRF token for client-side requests
+ * This endpoint provides the CSRF token that clients need to include
+ * in X-CSRF-Token header for mutation requests
  */
 export async function GET(request: NextRequest) {
   try {
-    // Apply rate limiting (more permissive for CSRF token requests)
-    applyRateLimit(request, rateLimitConfigs.auth)
-
-    // Get existing token or generate new one
+    // Get or generate CSRF token
     const token = await getCsrfToken()
-
+    
     // Create response
-    const response = successResponse({
-      token,
-      expiresIn: '24h', // Token expires in 24 hours
-    })
+    const response = NextResponse.json(
+      successResponse({
+        token,
+        headerName: 'X-CSRF-Token',
+      })
+    )
 
     // Set CSRF token cookie
     setCsrfTokenCookie(response, token)
 
     return response
-  } catch (error: any) {
-    return errorResponse(error, 500)
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'CSRF_TOKEN_ERROR',
+          message: 'Failed to generate CSRF token',
+        },
+      },
+      { status: 500 }
+    )
   }
 }
 

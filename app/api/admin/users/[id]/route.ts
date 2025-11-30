@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
-import { hashPassword } from '@/lib/password'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { hashPassword } from '@/root/lib/password'
+import { createAuditLog, AuditActions, AuditResources } from '../../../../../lib/audit'
+import { csrfProtection } from '../../../../../lib/csrf'
 import { z } from 'zod'
 
 // GET /api/admin/users/[id] - Get specific user details
@@ -57,6 +59,12 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // CSRF protection for state-changing requests
+  const csrfResponse = csrfProtection(request)
+  if (csrfResponse) {
+    return csrfResponse
+  }
+
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
@@ -126,6 +134,25 @@ export async function PUT(
       },
     })
 
+    // Log audit
+    await createAuditLog({
+      userId: session.user.id,
+      userRole: session.user.role,
+      action: AuditActions.USER_UPDATED,
+      resource: AuditResources.USER,
+      resourceId: id,
+      details: {
+        changes: updateData,
+        previous: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+        },
+      },
+      status: 'SUCCESS',
+    }, request)
+
     return successResponse({
       user: updatedUser,
       message: 'User updated successfully',
@@ -140,6 +167,12 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // CSRF protection for state-changing requests
+  const csrfResponse = csrfProtection(request)
+  if (csrfResponse) {
+    return csrfResponse
+  }
+
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
@@ -194,6 +227,23 @@ export async function DELETE(
       // Delete user
       await tx.user.delete({ where: { id } })
     })
+
+    // Log audit
+    await createAuditLog({
+      userId: session.user.id,
+      userRole: session.user.role,
+      action: AuditActions.USER_DELETED,
+      resource: AuditResources.USER,
+      resourceId: id,
+      details: {
+        deletedUser: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      },
+      status: 'SUCCESS',
+    }, request)
 
     return successResponse({
       message: 'User deleted successfully',

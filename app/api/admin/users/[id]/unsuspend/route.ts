@@ -1,14 +1,22 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { csrfProtection } from '../../../../../../lib/csrf'
+import { createAuditLog, AuditActions, AuditResources } from '../../../../../../lib/audit'
 
 // POST /api/admin/users/[id]/unsuspend - Unsuspend/activate user account
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  // CSRF protection for state-changing requests
+  const csrfResponse = csrfProtection(request)
+  if (csrfResponse) {
+    return csrfResponse
+  }
+
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
@@ -51,6 +59,23 @@ export async function POST(
         status: true,
       },
     })
+
+    // Log audit
+    await createAuditLog({
+      userId: session.user.id,
+      userRole: session.user.role,
+      action: AuditActions.USER_UNSUSPENDED,
+      resource: AuditResources.USER,
+      resourceId: id,
+      details: {
+        unsuspendedUser: {
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      },
+      status: 'SUCCESS',
+    }, request)
 
     // TODO: Send notification to user about account activation
 

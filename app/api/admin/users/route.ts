@@ -12,23 +12,12 @@ export async function GET(request: NextRequest) {
 
     // Check authentication
     const session = await auth()
-    
-    // Debug logging
-    console.log('[Admin Users API] Session check:', {
-      hasSession: !!session,
-      hasUser: !!session?.user,
-      userId: session?.user?.id,
-      userRole: session?.user?.role,
-      userEmail: session?.user?.email,
-    })
-    
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
     // Check authorization (admin only)
     if (session.user.role !== 'ADMIN') {
-      console.log('[Admin Users API] Forbidden - User role:', session.user.role, 'Expected: ADMIN')
       throw new ForbiddenError('Only admins can access this resource')
     }
 

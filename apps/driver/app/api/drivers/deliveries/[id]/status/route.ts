@@ -1,10 +1,10 @@
 import { type NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
-import { emitOrderUpdated, emitOrderDelivered } from '@/lib/events'
-import { updateOrderStatusBodySchema } from '@/lib/validations/api'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { emitOrderUpdated, emitOrderDelivered } from '@/root/lib/events'
+import { updateOrderStatusBodySchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
 
 // PATCH /api/drivers/deliveries/[id]/status - Update delivery status

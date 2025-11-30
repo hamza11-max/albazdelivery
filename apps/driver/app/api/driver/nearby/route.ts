@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
 import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
@@ -93,3 +93,4 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 function toRad(degrees: number): number {
   return (degrees * Math.PI) / 180
 }
+

@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, NotFoundError, ForbiddenError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
-import { emitOrderAssigned } from '@/lib/events'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, NotFoundError, ForbiddenError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { emitOrderAssigned } from '@/root/lib/events'
 import { z } from 'zod'
 
 // Validation schema for driver assignment
@@ -194,3 +194,4 @@ export async function POST(request: NextRequest) {
     return errorResponse(error)
   }
 }
+

@@ -1,10 +1,10 @@
 import { type NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
-import { emitOrderAssigned } from '@/lib/events'
-import { OrderStatus } from '@/lib/constants'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { emitOrderAssigned } from '@/root/lib/events'
+import { OrderStatus } from '@/root/lib/constants'
 import { z } from 'zod'
 
 // GET /api/drivers/deliveries - Get available deliveries or driver's assigned deliveries
@@ -282,3 +282,4 @@ export async function POST(request: NextRequest) {
     return errorResponse(error)
   }
 }
+
