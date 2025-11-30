@@ -1,32 +1,68 @@
-import { useState } from 'react'
-import { ArrowLeft, Minus, Plus, Share2, Star, UtensilsCrossed } from 'lucide-react'
+import React, { useState } from 'react'
+import NextImage from 'next/image'
+import { ArrowLeft, Minus, Plus, Share2, Star, UtensilsCrossed, AlertCircle } from 'lucide-react'
 import { Button, Card, CardContent } from '@albaz/ui'
-import type { StoreViewProps } from '@/app/lib/types'
+import type { StoreViewProps } from '../../lib/types'
+import { ProductGridSkeleton } from '../ui/skeleton-loaders'
+import { useErrorHandler } from '../../hooks/use-error-handler'
 
-export function StoreView({ selectedStore, stores, products, onBack, addToCart, t }: StoreViewProps) {
-  const store = stores.find((s) => s.id === selectedStore)
-  const storeProducts = products.filter((p) => p.storeId === selectedStore)
-  const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
+export const StoreView = React.memo(function StoreView({ selectedStore, stores, products, isLoading = false, onBack, addToCart, t }: StoreViewProps) {
+  const { handleError } = useErrorHandler()
+  
+  const store = stores.find((s) => String(s.id) === String(selectedStore))
+  const storeProducts = products.filter((p) => String(p.storeId) === String(selectedStore))
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null)
 
-  if (!store) return null
+  if (isLoading) {
+    return <ProductGridSkeleton />
+  }
+
+  if (!store) {
+    return (
+      <div className="min-h-screen bg-background pb-24 flex items-center justify-center">
+        <div className="text-center max-w-md px-4">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">{t('store-not-found', 'Magasin non trouvé', 'المتجر غير موجود')}</h2>
+          <p className="text-muted-foreground mb-4">{t('store-not-found-desc', 'Le magasin demandé n\'existe pas', 'المتجر المطلوب غير موجود')}</p>
+          <Button onClick={onBack}>{t('back', 'Retour', 'رجوع')}</Button>
+        </div>
+      </div>
+    )
+  }
 
   if (selectedProduct) {
-    const product = products.find((p) => p.id === selectedProduct)
+    const product = products.find((p) => String(p.id) === String(selectedProduct))
     if (!product) return null
 
     return (
       <div className="min-h-screen bg-background pb-24">
         <div className="sticky top-0 z-50 bg-background border-b border-border px-4 py-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="icon" onClick={() => setSelectedProduct(null)} className="hover:bg-muted" aria-label="Back to store">
-              <ArrowLeft className="w-5 h-5" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => setSelectedProduct(null)} 
+              className="hover:bg-muted" 
+              aria-label={t('back-to-store', 'Retour au magasin', 'العودة إلى المتجر')}
+            >
+              <ArrowLeft className="w-5 h-5" aria-hidden="true" />
             </Button>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="hover:bg-muted">
-                <Star className="w-5 h-5" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="hover:bg-muted"
+                aria-label={t('favorite', 'Ajouter aux favoris', 'إضافة إلى المفضلة')}
+              >
+                <Star className="w-5 h-5" aria-hidden="true" />
               </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-muted">
-                <Share2 className="w-5 h-5" />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="hover:bg-muted"
+                aria-label={t('share', 'Partager', 'مشاركة')}
+              >
+                <Share2 className="w-5 h-5" aria-hidden="true" />
               </Button>
             </div>
           </div>
@@ -34,7 +70,7 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
 
         <div className="w-full aspect-square bg-background flex items-center justify-center p-8">
           <div className="w-full h-full max-w-md mx-auto rounded-full overflow-hidden shadow-xl">
-            <img src={product.image || '/placeholder.svg'} alt={product.name} className="w-full h-full object-cover" />
+            <NextImage src={product.image || '/placeholder.svg'} alt={product.name} width={400} height={400} className="w-full h-full object-cover" />
           </div>
         </div>
 
@@ -76,9 +112,10 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
             <Button
               className="flex-1 bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white font-bold py-6 rounded-full text-lg shadow-lg"
               onClick={() => {
-                addToCart(product.id)
+                addToCart(String(product.id))
                 setSelectedProduct(null)
               }}
+              aria-label={t('add-to-cart', 'Ajouter au panier', 'أضف إلى السلة') + ': ' + product.name}
             >
               {t('add-to-cart', 'Ajouter au Panier', 'أضف إلى السلة')}
             </Button>
@@ -122,15 +159,33 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
 
       <div className="px-4 py-6">
         <h3 className="text-lg font-bold text-foreground mb-4">{t('menu', 'Menu', 'القائمة')}</h3>
-        <div className="grid grid-cols-2 gap-4">
-          {storeProducts.map((product) => (
+        {isLoading ? (
+          <ProductGridSkeleton />
+        ) : storeProducts.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-muted-foreground">{t('no-products', 'Aucun produit disponible', 'لا توجد منتجات متاحة')}</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            {storeProducts.map((product) => (
             <Card
               key={product.id}
-              className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow border-border bg-card"
-              onClick={() => setSelectedProduct(product.id)}
+              className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow border-border bg-card focus-within:ring-2 focus-within:ring-[#1a4d1a] focus-within:ring-offset-2"
+              onClick={() => setSelectedProduct(String(product.id))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setSelectedProduct(String(product.id))
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={t('view-product', 'Voir le produit', 'عرض المنتج') + ': ' + product.name}
             >
               <div className="aspect-square relative bg-muted flex items-center justify-center">
-                <img src={product.image || '/placeholder.svg'} alt={product.name} className="w-full h-full object-cover" />
+                <NextImage src={product.image || '/placeholder.svg'} alt={product.name} width={400} height={400} className="w-full h-full object-cover" />
               </div>
               <CardContent className="p-3">
                 <h4 className="font-semibold text-sm text-foreground mb-1 line-clamp-2">{product.name}</h4>
@@ -152,7 +207,7 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
                     className="bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white rounded-full px-4 text-xs"
                     onClick={(e) => {
                       e.stopPropagation()
-                      addToCart(product.id)
+                      addToCart(String(product.id))
                     }}
                   >
                     {t('add', 'Ajouter', 'أضف')}
@@ -160,10 +215,11 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
-}
+})
 

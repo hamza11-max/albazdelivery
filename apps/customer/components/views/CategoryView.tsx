@@ -1,19 +1,43 @@
-import { ArrowLeft, Clock, Star } from 'lucide-react'
+import React from 'react'
+import NextImage from 'next/image'
+import { ArrowLeft, Clock, Star, AlertCircle } from 'lucide-react'
 import { Badge, Button, Card, CardContent } from '@albaz/ui'
-import type { CategoryViewProps } from '@/app/lib/types'
+import type { CategoryViewProps } from '../../lib/types'
 import { CategoryIcon } from '../CategoryIcon'
+import { StoreListSkeleton } from '../ui/skeleton-loaders'
+import { useErrorHandler } from '../../hooks/use-error-handler'
 
-export function CategoryView({
+export const CategoryView = React.memo(function CategoryView({
   selectedCategory,
   categories,
   filteredStores,
+  isLoading = false,
   onBack,
   onStoreSelect,
   selectedLanguage,
   t,
 }: CategoryViewProps) {
+  const { handleError } = useErrorHandler()
+
   const category = categories.find((c) => c.id === selectedCategory)
-  if (!category) return null
+  
+  if (isLoading) {
+    return <StoreListSkeleton />
+  }
+
+  if (!category) {
+    return (
+      <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <p className="text-muted-foreground">{t('category-not-found', 'Catégorie non trouvée', 'الفئة غير موجودة')}</p>
+          <Button onClick={onBack} className="mt-4">
+            {t('back', 'Retour', 'رجوع')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const categoryName = selectedLanguage === 'ar' ? category.nameAr : category.nameFr
 
@@ -42,15 +66,35 @@ export function CategoryView({
         <h2 className="text-lg font-bold mb-4 text-foreground">
           {t('available-stores', 'Magasins disponibles', 'المتاجر المتاحة')}
         </h2>
-        <div className="space-y-4">
-          {filteredStores.map((store) => (
+        {isLoading ? (
+          <StoreListSkeleton />
+        ) : filteredStores.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-muted-foreground">
+                {t('no-stores', 'Aucun magasin disponible', 'لا توجد متاجر متاحة')}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredStores.map((store) => (
             <Card
               key={store.id}
-              className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow border-border"
-              onClick={() => onStoreSelect(store.id)}
+              className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow border-border focus-within:ring-2 focus-within:ring-[#1a4d1a] focus-within:ring-offset-2"
+              onClick={() => onStoreSelect(String(store.id))}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onStoreSelect(String(store.id))
+                }
+              }}
+              tabIndex={0}
+              role="button"
+              aria-label={t('view-store', 'Voir le magasin', 'عرض المتجر') + ': ' + store.name}
             >
               <div className="relative h-40 bg-gradient-to-br from-muted to-muted/50">
-                <img src="/placeholder.jpg" alt={store.name} className="w-full h-full object-cover" />
+                <NextImage src="/placeholder.jpg" alt={store.name} width={400} height={160} className="w-full h-full object-cover" />
                 <Badge className="absolute top-2 left-2 bg-[#ff9933] text-white text-xs px-2 py-1">
                   {t('free', 'Gratuit', 'مجاني')}
                 </Badge>
@@ -71,10 +115,11 @@ export function CategoryView({
                 </div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
-}
+})
 

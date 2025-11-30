@@ -1,11 +1,40 @@
 import { useState } from 'react'
-import { ArrowLeft, Bell, ChevronRight, Globe, HelpCircle, LogOut, MapPin, User } from 'lucide-react'
+import { ArrowLeft, Bell, ChevronRight, Globe, HelpCircle, LogOut, MapPin, User, AlertCircle, Loader2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@albaz/ui'
-import type { ProfileViewProps } from '@/app/lib/types'
+import type { ProfileViewProps } from '../../lib/types'
+import { Skeleton } from '../ui/skeleton'
+import { useErrorHandler } from '../../hooks/use-error-handler'
 
 export function ProfileView({ user, selectedLanguage, onSelectLanguage, onBackHome, onSignOut, t }: ProfileViewProps) {
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const { handleError } = useErrorHandler()
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true)
+    try {
+      await onSignOut()
+    } catch (error) {
+      handleError(error, { showToast: true })
+      setIsSigningOut(false)
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-6 pb-24 max-w-2xl flex items-center justify-center min-h-screen">
+        <Card className="w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">{t('user-not-found', 'Utilisateur non trouvé', 'المستخدم غير موجود')}</h2>
+            <p className="text-muted-foreground mb-4">{t('user-not-found-desc', 'Impossible de charger les informations utilisateur', 'تعذر تحميل معلومات المستخدم')}</p>
+            <Button onClick={onBackHome}>{t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية')}</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-6 pb-24 max-w-2xl">
@@ -23,9 +52,9 @@ export function ProfileView({ user, selectedLanguage, onSelectLanguage, onBackHo
               <div className="w-20 h-20 rounded-full bg-[#1a4d1a] flex items-center justify-center">
                 <User className="w-10 h-10 text-white" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h3 className="text-xl font-bold text-foreground">{user?.name || t('user', 'Utilisateur', 'مستخدم')}</h3>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+                <p className="text-sm text-muted-foreground">{user?.email || t('no-email', 'Aucun email', 'لا يوجد بريد إلكتروني')}</p>
               </div>
             </div>
             <Button variant="outline" className="w-full bg-transparent">
@@ -82,11 +111,21 @@ export function ProfileView({ user, selectedLanguage, onSelectLanguage, onBackHo
 
         <Button
           variant="outline"
-          className="w-full text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 bg-transparent"
-          onClick={onSignOut}
+          className="w-full text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-900/20 bg-transparent disabled:opacity-50"
+          onClick={handleSignOut}
+          disabled={isSigningOut}
         >
-          <LogOut className="w-5 h-5 mr-2" />
-          {t('logout', 'Se déconnecter', 'تسجيل الخروج')}
+          {isSigningOut ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              {t('signing-out', 'Déconnexion...', 'جاري تسجيل الخروج...')}
+            </>
+          ) : (
+            <>
+              <LogOut className="w-5 h-5 mr-2" />
+              {t('logout', 'Se déconnecter', 'تسجيل الخروج')}
+            </>
+          )}
         </Button>
       </div>
     </div>

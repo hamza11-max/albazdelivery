@@ -1,6 +1,6 @@
 /**
  * API Client for Frontend
- * Centralized API calls with error handling and type safety
+ * Centralized API calls with error handling, retry logic, and type safety
  */
 
 export class APIError extends Error {
@@ -14,15 +14,83 @@ export class APIError extends Error {
   }
 }
 
-async function fetchAPI(url: string, options?: RequestInit) {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  })
+export interface RetryOptions {
+  maxRetries?: number
+  retryDelay?: number
+  retryableStatusCodes?: number[]
+}
 
+const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
+  maxRetries: 3,
+  retryDelay: 1000,
+  retryableStatusCodes: [408, 429, 500, 502, 503, 504],
+}
+
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Enhanced fetch with retry logic
+ */
+async function fetchWithRetry(
+  url: string,
+  options?: RequestInit,
+  retryOptions: RetryOptions = {}
+): Promise<Response> {
+  const config = { ...DEFAULT_RETRY_OPTIONS, ...retryOptions }
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+      })
+
+      // If successful or non-retryable error, return immediately
+      if (response.ok || !config.retryableStatusCodes.includes(response.status)) {
+        return response
+      }
+
+      // If retryable error and not last attempt, wait and retry
+      if (attempt < config.maxRetries) {
+        const delay = config.retryDelay * Math.pow(2, attempt) // Exponential backoff
+        await sleep(delay)
+        continue
+      }
+
+      return response
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      
+      // If not last attempt, wait and retry
+      if (attempt < config.maxRetries) {
+        const delay = config.retryDelay * Math.pow(2, attempt)
+        await sleep(delay)
+        continue
+      }
+    }
+  }
+
+  throw lastError || new Error('Request failed after retries')
+}
+
+/**
+ * Enhanced fetchAPI with retry logic
+ */
+async function fetchAPI(
+  url: string,
+  options?: RequestInit,
+  retryOptions?: RetryOptions
+) {
+  const response = await fetchWithRetry(url, options, retryOptions)
   const data = await response.json()
 
   if (!response.ok || !data.success) {
@@ -378,5 +446,41 @@ export const supportAPI = {
       method: 'PATCH',
       body: JSON.stringify(data),
     })
+  },
+}
+
+// ============================================
+// STORES API
+// ============================================
+
+export const storesAPI = {
+  async list(params?: { categoryId?: number; city?: string; search?: string; page?: number; limit?: number }) {
+    const searchParams = new URLSearchParams()
+    if (params?.categoryId) searchParams.set('categoryId', params.categoryId.toString())
+    if (params?.city) searchParams.set('city', params.city)
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    
+    const query = searchParams.toString()
+    return fetchAPI(`/api/stores${query ? `?${query}` : ''}`, undefined, { maxRetries: 2 })
+  },
+
+  async getById(id: string) {
+    return fetchAPI(`/api/stores/${id}`, undefined, { maxRetries: 2 })
+  },
+}
+
+// ============================================
+// CATEGORIES API
+// ============================================
+
+export const categoriesAPI = {
+  async list() {
+    return fetchAPI('/api/categories', undefined, { maxRetries: 2 })
+  },
+
+  async getById(id: number) {
+    return fetchAPI(`/api/categories/${id}`, undefined, { maxRetries: 2 })
   },
 }

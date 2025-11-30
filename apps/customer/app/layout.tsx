@@ -5,6 +5,7 @@ import "./globals.css"
 import { Toaster } from "@albaz/ui"
 import { ThemeInitializer } from "../../../components/ThemeInitializer"
 import { ErrorBoundary } from "../../../components/ErrorBoundary"
+import { QueryProvider } from "../providers/query-provider"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -22,11 +23,13 @@ export default function CustomerLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className={inter.variable}>
-        <ThemeInitializer />
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
-        <Toaster />
+        <QueryProvider>
+          <ThemeInitializer />
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+          <Toaster />
+        </QueryProvider>
       </body>
     </html>
   )

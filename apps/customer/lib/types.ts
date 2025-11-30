@@ -4,7 +4,7 @@ import type { ProductDefinition, CategoryDefinition, StoreDefinition } from './m
 export type PageView = 'home' | 'category' | 'store' | 'checkout' | 'tracking' | 'orders' | 'profile'
 
 export interface CartItem {
-  productId: number
+  productId: string
   quantity: number
 }
 
@@ -30,18 +30,20 @@ export interface CategoryViewProps {
   selectedCategory: number | null
   categories: CategoryDefinition[]
   filteredStores: StoreDefinition[]
+  isLoading?: boolean
   onBack: () => void
-  onStoreSelect: (storeId: number) => void
+  onStoreSelect: (storeId: string) => void
   selectedLanguage: string
   t: TranslationFn
 }
 
 export interface StoreViewProps {
-  selectedStore: number | null
+  selectedStore: string | null
   stores: StoreDefinition[]
   products: ProductDefinition[]
+  isLoading?: boolean
   onBack: () => void
-  addToCart: (productId: number) => void
+  addToCart: (productId: string) => void
   t: TranslationFn
 }
 
@@ -52,8 +54,8 @@ export interface CheckoutViewProps {
   deliveryFee: number
   paymentMethod: string
   onPaymentMethodChange: (method: string) => void
-  onUpdateQuantity: (productId: number, delta: number) => void
-  onRemoveFromCart: (productId: number) => void
+  onUpdateQuantity: (productId: string, delta: number) => void
+  onRemoveFromCart: (productId: string) => void
   onPlaceOrder: () => void
   onContinueShopping: () => void
   t: TranslationFn
@@ -166,7 +168,7 @@ export interface OrderItem {
   price: number
 }
 
-export interface Order {
+export interface LocalOrder {
   id: string
   customerId: string
   storeId: number

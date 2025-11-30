@@ -10,7 +10,7 @@ export interface CategoryDefinition {
 }
 
 export interface StoreDefinition {
-  id: number
+  id: string | number // Support both for transition period
   name: string
   type: string
   rating: number
@@ -19,8 +19,8 @@ export interface StoreDefinition {
 }
 
 export interface ProductDefinition {
-  id: number
-  storeId: number
+  id: string | number // Support both for transition period
+  storeId: string | number // Support both for transition period
   name: string
   description: string
   price: number

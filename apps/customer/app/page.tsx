@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import type { Order } from '@albaz/shared'
@@ -14,8 +14,13 @@ import { CheckoutView } from '../components/views/CheckoutView'
 import { MyOrdersView } from '../components/views/MyOrdersView'
 import { TrackingView } from '../components/views/TrackingView'
 import { ProfileView } from '../components/views/ProfileView'
-import { categories, stores, products, cities } from '../lib/mock-data'
+import { cities } from '../lib/mock-data'
 import type { CartItem, PageView, TranslationFn } from '../lib/types'
+import { useCategoriesQuery } from '../hooks/use-categories-query'
+import { useStoresQuery } from '../hooks/use-stores-query'
+import { useProductsQuery } from '../hooks/use-products-query'
+import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
+import { useCreateOrder } from '../hooks/use-orders-mutation'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,7 +35,7 @@ export default function AlBazApp() {
   const [currentPage, setCurrentPage] = useState<PageView>('home')
   const [selectedCity] = useState(() => cities[cities.length - 1] ?? 'Tamanrasset')
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
-  const [selectedStore, setSelectedStore] = useState<number | null>(null)
+  const [selectedStore, setSelectedStore] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [orderId, setOrderId] = useState<string | null>(null)
@@ -41,6 +46,25 @@ export default function AlBazApp() {
   const customerId = user?.id || 'customer-1'
   const shouldUseSSE = currentPage === 'tracking' && Boolean(orderId)
   const { data: sseData } = useSSE(`/api/notifications/sse?role=customer&userId=${customerId}`, shouldUseSSE)
+
+  // Enable real-time updates via WebSocket
+  useRealtimeUpdates(true)
+
+  // Order creation mutation
+  const createOrder = useCreateOrder()
+
+  // Fetch categories from API with React Query
+  const { data: categories = [], isLoading: categoriesLoading } = useCategoriesQuery()
+
+  // Fetch stores based on selected category and search with React Query
+  const { data: apiStores = [], isLoading: storesLoading } = useStoresQuery({
+    categoryId: selectedCategory || undefined,
+    city: selectedCity,
+    search: searchQuery || undefined,
+  })
+
+  // Fetch products for selected store with React Query
+  const { data: apiProducts = [], isLoading: productsLoading } = useProductsQuery(selectedStore)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -75,6 +99,7 @@ export default function AlBazApp() {
       const interval = setInterval(fetchOrder, 5000)
       return () => clearInterval(interval)
     }
+    return undefined
   }, [orderId, currentPage])
 
   useEffect(() => {
@@ -106,24 +131,40 @@ export default function AlBazApp() {
     document.documentElement.dir = selectedLanguage === 'ar' ? 'rtl' : 'ltr'
   }, [selectedLanguage])
 
+  // Transform API stores to match expected format (using string IDs directly)
+  const filteredStores = useMemo(() => {
+    return apiStores.map((store: { id: string; name: string; type: string; rating: number; deliveryTime?: string; categoryId: number }) => ({
+      id: store.id, // Use string ID directly
+      name: store.name,
+      type: store.type,
+      rating: store.rating,
+      deliveryTime: store.deliveryTime || '30-45 min',
+      categoryId: store.categoryId,
+    }))
+  }, [apiStores])
+
+  // Transform API products to match expected format (using string IDs directly)
+  const products = useMemo(() => {
+    return apiProducts.map((product: { id: string; storeId: string; name: string; description: string; price: number; image?: string | null; rating: number }) => ({
+      id: product.id, // Use string ID directly
+      storeId: product.storeId, // Use string ID directly
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      image: product.image || '/placeholder.svg',
+      rating: product.rating,
+    }))
+  }, [apiProducts])
+
   // All hooks must be called before any conditional returns
   const subtotal = useMemo(
     () =>
       cart.reduce((total, item) => {
-        const product = products.find((p) => p.id === item.productId)
+        const product = products.find((p: { id: string | number }) => String(p.id) === String(item.productId))
         return total + (product?.price || 0) * item.quantity
       }, 0),
-    [cart],
+    [cart, products],
   )
-
-  const filteredStores = useMemo(() => {
-    return stores.filter((store) => {
-      const matchesCategory = selectedCategory ? store.categoryId === selectedCategory : true
-      const query = searchQuery.toLowerCase()
-      const matchesSearch = store.name.toLowerCase().includes(query) || store.type.toLowerCase().includes(query)
-      return matchesCategory && matchesSearch
-    })
-  }, [selectedCategory, searchQuery])
 
   if (status === 'loading') {
     return (
@@ -142,7 +183,8 @@ export default function AlBazApp() {
 
   const t: TranslationFn = (_key, fr, ar) => (selectedLanguage === 'ar' ? ar : fr)
 
-  const addToCart = (productId: number) => {
+  // Memoized cart handlers to prevent unnecessary re-renders
+  const addToCart = useCallback((productId: string) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === productId)
       if (existing) {
@@ -152,9 +194,9 @@ export default function AlBazApp() {
       }
       return [...prev, { productId, quantity: 1 }]
     })
-  }
+  }, [])
 
-  const updateQuantity = (productId: number, delta: number) => {
+  const updateQuantity = useCallback((productId: string, delta: number) => {
     setCart((prev) =>
       prev
         .map((item) =>
@@ -162,27 +204,30 @@ export default function AlBazApp() {
         )
         .filter((item) => item.quantity > 0),
     )
-  }
+  }, [])
 
-  const removeFromCart = (productId: number) => {
+  const removeFromCart = useCallback((productId: string) => {
     setCart((prev) => prev.filter((item) => item.productId !== productId))
-  }
+  }, [])
 
   const deliveryFee = 500 // DZD - TODO: import from constants after webpack config fix
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  const placeOrder = async () => {
-    if (cart.length === 0) return
+  const placeOrder = useCallback(async () => {
+    if (cart.length === 0) {
+      alert(t('cart-empty', 'Votre panier est vide', 'سلتك فارغة'))
+      return
+    }
 
-    const firstItem = cart[0]
-    const product = products.find((p) => p.id === firstItem.productId)
-    const storeId = product?.storeId || 1
+    if (!selectedStore) {
+      alert(t('store-required', 'Veuillez sélectionner un magasin', 'يرجى اختيار متجر'))
+      return
+    }
 
     const orderData = {
-      customerId,
-      storeId,
+      storeId: selectedStore,
       items: cart.map((item) => {
-        const prod = products.find((p) => p.id === item.productId)
+        const prod = products.find((p: { id: string | number }) => String(p.id) === String(item.productId))
         return {
           productId: item.productId,
           quantity: item.quantity,
@@ -199,31 +244,22 @@ export default function AlBazApp() {
     }
 
     try {
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setOrderId(data.order.id)
-        setCurrentOrder(data.order)
+      const result = await createOrder.mutateAsync(orderData)
+      
+      if (result?.order) {
+        setOrderId(result.order.id)
+        setCurrentOrder(result.order)
         setCurrentPage('tracking')
         setCart([])
         if (process.env.NODE_ENV === 'development') {
-          console.info('[v0] Order placed successfully:', data.order.id)
+          console.info('[v0] Order placed successfully:', result.order.id)
         }
-      } else {
-        console.error('[v0] Failed to place order:', data.error)
-        alert(t('order-error', 'Erreur lors de la commande. Veuillez réessayer.', 'خطأ في الطلب. يرجى المحاولة مرة أخرى.'))
       }
     } catch (error) {
+      // Error already handled by useCreateOrder hook with toast notification
       console.error('[v0] Error placing order:', error)
-      alert(t('order-error', 'Erreur lors de la commande. Veuillez réessayer.', 'خطأ في الطلب. يرجى المحاولة مرة أخرى.'))
     }
-  }
+  }, [cart, selectedStore, products, subtotal, deliveryFee, paymentMethod, selectedCity, createOrder, t])
 
   const handleResetSelections = () => {
     setSelectedCategory(null)
@@ -243,16 +279,40 @@ export default function AlBazApp() {
 
   const handleSignOut = () => signOut({ callbackUrl: '/login' })
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape key to go back/home
+      if (e.key === 'Escape' && currentPage !== 'home') {
+        if (currentPage === 'store' || currentPage === 'category') {
+          handleGoHome()
+        }
+      }
+      // Ctrl/Cmd + K for search focus (if on home page)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && currentPage === 'home') {
+        e.preventDefault()
+        // Focus search input (would need ref in HomePage)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [currentPage, handleGoHome])
+
   return (
     <div className="min-h-screen bg-background">
-      <main>
+      {/* Skip link for keyboard navigation */}
+      <a href="#main-content" className="skip-link">
+        {t('skip-to-content', 'Aller au contenu principal', 'انتقل إلى المحتوى الرئيسي')}
+      </a>
+      <main id="main-content">
         {currentPage === 'home' && (
           <HomePage
             categories={categories}
             selectedLanguage={selectedLanguage}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onCategorySelect={(categoryId) => {
+            onCategorySelect={(categoryId: number) => {
               setSelectedCategory(categoryId)
               setCurrentPage('category')
             }}
@@ -270,8 +330,9 @@ export default function AlBazApp() {
             selectedCategory={selectedCategory}
             categories={categories}
             filteredStores={filteredStores}
+            isLoading={storesLoading}
             onBack={handleGoHome}
-            onStoreSelect={(storeId) => {
+            onStoreSelect={(storeId: string) => {
               setSelectedStore(storeId)
               setCurrentPage('store')
             }}
@@ -283,8 +344,9 @@ export default function AlBazApp() {
         {currentPage === 'store' && (
           <StoreView
             selectedStore={selectedStore}
-            stores={stores}
+            stores={filteredStores}
             products={products}
+            isLoading={productsLoading}
             onBack={() => setCurrentPage('category')}
             addToCart={addToCart}
             t={t}

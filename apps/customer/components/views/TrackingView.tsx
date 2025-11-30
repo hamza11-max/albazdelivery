@@ -1,8 +1,15 @@
-import { CheckCircle2, Package, Truck } from 'lucide-react'
+import { CheckCircle2, Package, Truck, AlertCircle } from 'lucide-react'
 import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@albaz/ui'
-import type { TrackingViewProps } from '@/app/lib/types'
+import type { TrackingViewProps } from '../../lib/types'
+import { Skeleton } from '../ui/skeleton'
+import { useOrderQuery } from '../../hooks/use-orders-query'
 
-export function TrackingView({ currentOrder, orderId, onBackHome, t }: TrackingViewProps) {
+export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, t }: TrackingViewProps) {
+  // Fetch order with auto-refetch (every 5s if active)
+  const { data: fetchedOrder, isLoading } = useOrderQuery(orderId)
+  
+  // Use fetched order if available, otherwise fall back to initial
+  const currentOrder = fetchedOrder || initialOrder
   const getStepFromStatus = (status: string) => {
     switch (status) {
       case 'pending':
@@ -29,6 +36,70 @@ export function TrackingView({ currentOrder, orderId, onBackHome, t }: TrackingV
     { id: 3, label: t('in-delivery', 'En Livraison', 'قيد التوصيل'), icon: Truck },
     { id: 4, label: t('delivered', 'Livrée', 'تم التوصيل'), icon: CheckCircle2 },
   ]
+
+  if (!orderId) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-2xl pb-24 flex items-center justify-center min-h-screen">
+        <Card className="w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">{t('no-order', 'Aucune commande', 'لا يوجد طلب')}</h2>
+            <p className="text-muted-foreground mb-4">{t('no-order-desc', 'Aucun numéro de commande fourni', 'لم يتم توفير رقم الطلب')}</p>
+            <Button onClick={onBackHome}>{t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية')}</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-2xl pb-24">
+        <Card>
+          <CardHeader className="text-center">
+            <Skeleton className="w-16 h-16 rounded-full mx-auto mb-4" />
+            <Skeleton className="h-8 w-64 mx-auto mb-2" />
+            <Skeleton className="h-5 w-48 mx-auto" />
+          </CardHeader>
+          <CardContent className="space-y-8">
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <div className="space-y-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <Skeleton className="w-12 h-12 rounded-full" />
+                  <div className="flex-1">
+                    <Skeleton className="h-5 w-32 mb-2" />
+                    <Skeleton className="h-4 w-24" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Skeleton className="h-32 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (!currentOrder) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-2xl pb-24 flex items-center justify-center min-h-screen">
+        <Card className="w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">{t('order-not-found', 'Commande non trouvée', 'الطلب غير موجود')}</h2>
+            <p className="text-muted-foreground mb-4">
+              {t('order-not-found-desc', 'Impossible de trouver la commande avec cet identifiant', 'تعذر العثور على الطلب بهذا المعرف')}
+            </p>
+            <div className="flex gap-2 justify-center">
+              <Button onClick={onBackHome} variant="outline">{t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية')}</Button>
+              <Button onClick={() => window.location.reload()}>{t('retry', 'Réessayer', 'إعادة المحاولة')}</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-2xl pb-24">

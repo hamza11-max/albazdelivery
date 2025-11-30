@@ -1,9 +1,11 @@
+import React, { useRef, useEffect } from 'react'
+import NextImage from 'next/image'
 import { Search, MapPin, Settings, Shield, Building2 } from 'lucide-react'
 import { Input } from '@albaz/ui'
-import type { HomePageProps } from '@/app/lib/types'
+import type { HomePageProps } from '../../lib/types'
 import { CategoryIcon } from '../CategoryIcon'
 
-export function HomePage({
+export const HomePage = React.memo(function HomePage({
   categories,
   selectedLanguage,
   searchQuery,
@@ -62,7 +64,14 @@ export function HomePage({
             placeholder={t('search', 'Search...', 'بحث...')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                // Search is handled by parent component
+                e.currentTarget.blur()
+              }
+            }}
             className="pl-12 pr-4 py-3 w-full rounded-full bg-[#c8e6c9] border-0 focus:ring-2 focus:ring-[#ff9933] text-[#1a4d1a] placeholder:text-[#1a4d1a]/60"
+            aria-label={t('search', 'Rechercher des produits et magasins', 'البحث عن المنتجات والمتاجر')}
           />
         </div>
 
@@ -148,4 +157,4 @@ export function HomePage({
       </div>
     </div>
   )
-}
+})

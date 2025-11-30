@@ -1,31 +1,20 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowLeft, Package, ShoppingCart } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { ArrowLeft, Package, ShoppingCart, AlertCircle } from 'lucide-react'
 import { Badge, Button, Card, CardContent } from '@albaz/ui'
 import type { Order } from '@albaz/shared'
-import type { MyOrdersViewProps } from '@/app/lib/types'
+import type { MyOrdersViewProps } from '../../lib/types'
+import { OrderListSkeleton } from '../ui/skeleton-loaders'
+import { useOrdersQuery } from '../../hooks/use-orders-query'
 
 export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersViewProps) {
-  const [packageDeliveries, setPackageDeliveries] = useState<Order[]>([])
-  const [allOrders, setAllOrders] = useState<Order[]>([])
   const [activeTab, setActiveTab] = useState<'orders' | 'packages' | 'track'>('orders')
+  
+  // Fetch orders using React Query
+  const { data: orders = [], isLoading, error } = useOrdersQuery()
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        const response = await fetch(`/api/orders?customerId=${customerId}`)
-        const data = await response.json()
-        if (data.success) {
-          const orders = data.orders || []
-          setAllOrders(orders.filter((o: Order) => !o.isPackageDelivery))
-          setPackageDeliveries(orders.filter((o: Order) => o.isPackageDelivery))
-        }
-      } catch (error) {
-        console.error('[v0] Error fetching orders:', error)
-      }
-    }
-
-    fetchOrders()
-  }, [customerId])
+  // Separate orders by type
+  const allOrders = orders.filter((o: Order) => !o.isPackageDelivery)
+  const packageDeliveries = orders.filter((o: Order) => o.isPackageDelivery)
 
   const renderOrders = (
     orders: Order[],
@@ -105,11 +94,26 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
       </div>
 
       <div className="px-4 py-6">
-        {activeTab === 'orders' &&
-          renderOrders(allOrders, <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground" />, 'no-orders', 'Aucune commande', 'لا توجد طلبات')}
+        {isLoading ? (
+          <OrderListSkeleton />
+        ) : error ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+              <h3 className="text-lg font-bold mb-2">{t('error', 'Erreur', 'خطأ')}</h3>
+              <p className="text-muted-foreground mb-4">{error.message}</p>
+              <Button onClick={() => window.location.reload()}>{t('retry', 'Réessayer', 'إعادة المحاولة')}</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {activeTab === 'orders' &&
+              renderOrders(allOrders, <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground" />, 'no-orders', 'Aucune commande', 'لا توجد طلبات')}
 
-        {activeTab === 'packages' &&
-          renderOrders(packageDeliveries, <Package className="w-12 h-12 mx-auto text-muted-foreground" />, 'no-packages', 'Aucun colis', 'لا توجد حزم')}
+            {activeTab === 'packages' &&
+              renderOrders(packageDeliveries, <Package className="w-12 h-12 mx-auto text-muted-foreground" />, 'no-packages', 'Aucun colis', 'لا توجد حزم')}
+          </>
+        )}
 
         {activeTab === 'track' && (
           <Card>

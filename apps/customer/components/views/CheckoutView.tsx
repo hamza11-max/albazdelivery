@@ -1,6 +1,10 @@
-import { ShoppingCart, Trash2, Minus, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { ShoppingCart, Trash2, Minus, Plus, Loader2 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@albaz/ui'
-import type { CheckoutViewProps } from '@/app/lib/types'
+import type { CheckoutViewProps } from '../../lib/types'
+import { CartItemSkeleton } from '../ui/skeleton-loaders'
+import { useErrorHandler } from '../../hooks/use-error-handler'
+import { validateRequired } from '../../lib/validation'
 
 export function CheckoutView({
   cart,
@@ -15,7 +19,33 @@ export function CheckoutView({
   onContinueShopping,
   t,
 }: CheckoutViewProps) {
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
+  const { handleError, handleValidationError } = useErrorHandler()
   const total = subtotal + deliveryFee
+
+  const handlePlaceOrder = async () => {
+    // Validate cart
+    if (cart.length === 0) {
+      handleValidationError({ errors: [{ message: t('cart-empty', 'Votre panier est vide', 'سلتك فارغة') }] })
+      return
+    }
+
+    // Validate payment method
+    const paymentValidation = validateRequired(paymentMethod, t('payment-method', 'Mode de paiement', 'طريقة الدفع'))
+    if (!paymentValidation.isValid) {
+      handleValidationError(paymentValidation)
+      return
+    }
+
+    setIsPlacingOrder(true)
+    try {
+      await onPlaceOrder()
+    } catch (error) {
+      handleError(error, { showToast: true })
+    } finally {
+      setIsPlacingOrder(false)
+    }
+  }
 
   return (
     <div className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-3xl">
@@ -39,11 +69,18 @@ export function CheckoutView({
         <div className="space-y-6">
           <Card>
             <CardContent className="p-4 space-y-4">
-              {cart.map((item) => {
-                const product = products.find((p) => p.id === item.productId)
-                if (!product) return null
+              {cart.length === 0 ? (
+                <div className="space-y-4">
+                  {[...Array(2)].map((_, i) => (
+                    <CartItemSkeleton key={i} />
+                  ))}
+                </div>
+              ) : (
+                cart.map((item) => {
+                  const product = products.find((p) => p.id === item.productId)
+                  if (!product) return null
 
-                return (
+                  return (
                   <div key={item.productId} className="flex items-center gap-4 pb-4 border-b last:border-0 last:pb-0">
                     <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted shrink-0">
                       <img src={product.image || '/placeholder.svg'} alt={product.name} className="w-full h-full object-cover" />
@@ -62,8 +99,13 @@ export function CheckoutView({
                         <Minus className="w-4 h-4" />
                       </Button>
                       <span className="w-8 text-center font-semibold text-foreground">{item.quantity}</span>
-                      <Button size="icon" className="h-8 w-8 rounded-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white" onClick={() => onUpdateQuantity(item.productId, 1)}>
-                        <Plus className="w-4 h-4" />
+                      <Button 
+                        size="icon" 
+                        className="h-8 w-8 rounded-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white" 
+                        onClick={() => onUpdateQuantity(item.productId, 1)}
+                        aria-label={t('increase-quantity', 'Augmenter la quantité', 'زيادة الكمية')}
+                      >
+                        <Plus className="w-4 h-4" aria-hidden="true" />
                       </Button>
                     </div>
                     <div className="text-right shrink-0">
@@ -72,14 +114,16 @@ export function CheckoutView({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRemoveFromCart(item.productId)}
+                        aria-label={t('remove-from-cart', 'Retirer du panier', 'إزالة من السلة')}
                         className="text-destructive hover:text-destructive h-auto p-1"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
-                )
-              })}
+                  )
+                })
+              )}
             </CardContent>
           </Card>
 
@@ -141,8 +185,20 @@ export function CheckoutView({
             </CardContent>
           </Card>
 
-          <Button size="lg" className="w-full text-lg rounded-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white" onClick={onPlaceOrder}>
-            {t('pay-now', 'Payer Maintenant', 'ادفع الآن')} - {total} DZD
+          <Button 
+            size="lg" 
+            className="w-full text-lg rounded-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white disabled:opacity-50" 
+            onClick={handlePlaceOrder}
+            disabled={isPlacingOrder || cart.length === 0}
+          >
+            {isPlacingOrder ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                {t('processing', 'Traitement...', 'جاري المعالجة...')}
+              </>
+            ) : (
+              `${t('pay-now', 'Payer Maintenant', 'ادفع الآن')} - ${total} DZD`
+            )}
           </Button>
         </div>
       )}
