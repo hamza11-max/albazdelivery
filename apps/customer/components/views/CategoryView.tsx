@@ -28,7 +28,7 @@ export function CategoryView({
         </div>
       </div>
 
-      <div className={`bg-gradient-to-br ${category.color} px-4 py-8 relative overflow-hidden`}>
+      <div className="bg-[#1a4d1a] px-4 py-8 relative overflow-hidden">
         <div className="relative z-10">
           <h1 className="text-2xl font-bold text-white mb-1">{categoryName}</h1>
           <p className="text-white/90 text-sm">{t('fast-delivery', 'Livraison rapide à votre porte', 'توصيل سريع إلى بابك')}</p>
@@ -51,7 +51,7 @@ export function CategoryView({
             >
               <div className="relative h-40 bg-gradient-to-br from-muted to-muted/50">
                 <img src="/placeholder.jpg" alt={store.name} className="w-full h-full object-cover" />
-                <Badge className="absolute top-2 left-2 bg-accent text-accent-foreground text-xs px-2 py-1">
+                <Badge className="absolute top-2 left-2 bg-[#ff9933] text-white text-xs px-2 py-1">
                   {t('free', 'Gratuit', 'مجاني')}
                 </Badge>
               </div>

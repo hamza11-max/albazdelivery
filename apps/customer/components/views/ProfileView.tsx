@@ -20,7 +20,7 @@ export function ProfileView({ user, selectedLanguage, onSelectLanguage, onBackHo
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-orange-500 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-[#1a4d1a] flex items-center justify-center">
                 <User className="w-10 h-10 text-white" />
               </div>
               <div>
@@ -65,7 +65,7 @@ export function ProfileView({ user, selectedLanguage, onSelectLanguage, onBackHo
                       setShowLanguageMenu(false)
                     }}
                     className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
-                      selectedLanguage === lang ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-muted'
+                      selectedLanguage === lang ? 'bg-[#1a4d1a]/10 text-[#1a4d1a] font-semibold' : 'hover:bg-muted'
                     }`}
                   >
                     {lang === 'fr' ? 'Français' : 'العربية'}

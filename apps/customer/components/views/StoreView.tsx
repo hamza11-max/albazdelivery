@@ -43,7 +43,7 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
             <div className="flex items-start justify-between mb-2">
               <h2 className="text-2xl font-bold text-foreground flex-1">{product.name}</h2>
               <div className="text-right">
-                <span className="text-3xl font-bold text-primary">{product.price}</span>
+                <span className="text-3xl font-bold text-[#1a4d1a]">{product.price}</span>
                 <span className="text-sm text-muted-foreground ml-1">DZD</span>
               </div>
             </div>
@@ -74,7 +74,7 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
               </button>
             </div>
             <Button
-              className="flex-1 bg-gradient-to-r from-primary to-orange-500 hover:from-primary/90 hover:to-orange-500/90 text-primary-foreground font-bold py-6 rounded-full text-lg shadow-lg"
+              className="flex-1 bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white font-bold py-6 rounded-full text-lg shadow-lg"
               onClick={() => {
                 addToCart(product.id)
                 setSelectedProduct(null)
@@ -102,8 +102,8 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
 
       <div className="bg-card p-6 border-b border-border">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary/20 to-orange-500/20 flex items-center justify-center">
-            <UtensilsCrossed className="w-10 h-10 text-primary" />
+          <div className="w-20 h-20 rounded-xl bg-[#1a4d1a]/20 flex items-center justify-center">
+            <UtensilsCrossed className="w-10 h-10 text-[#1a4d1a]" />
           </div>
           <div className="flex-1">
             <h2 className="text-xl font-bold text-foreground mb-1">{store.name}</h2>
@@ -146,10 +146,10 @@ export function StoreView({ selectedStore, stores, products, onBack, addToCart, 
                   ))}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-primary">{product.price} DZD</span>
+                  <span className="text-sm font-bold text-[#1a4d1a]">{product.price} DZD</span>
                   <Button
                     size="sm"
-                    className="bg-gradient-to-r from-primary to-orange-500 hover:from-primary/90 hover:to-orange-500/90 text-primary-foreground rounded-full px-4 text-xs"
+                    className="bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white rounded-full px-4 text-xs"
                     onClick={(e) => {
                       e.stopPropagation()
                       addToCart(product.id)

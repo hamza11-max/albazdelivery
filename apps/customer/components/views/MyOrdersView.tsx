@@ -65,7 +65,7 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
                   <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-primary">{order.total} DZD</p>
+                  <p className="font-bold text-[#1a4d1a]">{order.total} DZD</p>
                 </div>
               </div>
             </CardContent>
@@ -92,7 +92,7 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
             key={tab}
             onClick={() => setActiveTab(tab as typeof activeTab)}
             className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors ${
-              activeTab === tab ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              activeTab === tab ? 'bg-[#1a4d1a] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
           >
             {tab === 'orders'
@@ -125,7 +125,7 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
                     className="bg-muted border-border w-full rounded-lg px-3 py-2"
                   />
                 </div>
-                <Button className="w-full bg-gradient-to-r from-primary to-orange-500 hover:from-primary/90 hover:to-orange-500/90 text-primary-foreground font-bold py-6 rounded-full">
+                <Button className="w-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white font-bold py-6 rounded-full">
                   {t('track', 'Suivre', 'تتبع')}
                 </Button>
               </div>

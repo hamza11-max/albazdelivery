@@ -34,8 +34,8 @@ export function TrackingView({ currentOrder, orderId, onBackHome, t }: TrackingV
     <div className="container mx-auto px-4 py-6 max-w-2xl pb-24">
       <Card>
         <CardHeader className="text-center">
-          <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-8 h-8 text-primary" />
+          <div className="w-16 h-16 bg-[#1a4d1a]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle2 className="w-8 h-8 text-[#1a4d1a]" />
           </div>
           <CardTitle className="text-2xl mb-2 text-foreground">
             {currentOrder?.status === 'DELIVERED'
@@ -48,8 +48,8 @@ export function TrackingView({ currentOrder, orderId, onBackHome, t }: TrackingV
         </CardHeader>
         <CardContent className="space-y-8">
           {currentOrder && (
-            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-              <p className="text-sm font-semibold text-primary">{getStatusText(currentOrder.status, t)}</p>
+            <div className="bg-[#1a4d1a]/5 border border-[#1a4d1a]/20 rounded-lg p-4 text-center">
+              <p className="text-sm font-semibold text-[#1a4d1a]">{getStatusText(currentOrder.status, t)}</p>
             </div>
           )}
 
@@ -65,19 +65,19 @@ export function TrackingView({ currentOrder, orderId, onBackHome, t }: TrackingV
                   <div className="flex items-center gap-4">
                     <div
                       className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                        isActive ? 'bg-primary text-primary-foreground scale-110' : 'bg-muted text-muted-foreground'
-                      } ${isCurrent ? 'ring-4 ring-primary/20' : ''}`}
+                        isActive ? 'bg-[#1a4d1a] text-white scale-110' : 'bg-muted text-muted-foreground'
+                      } ${isCurrent ? 'ring-4 ring-[#1a4d1a]/20' : ''}`}
                     >
                       <Icon className="w-6 h-6" />
                     </div>
                     <div className="flex-1">
-                      <p className={`font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'} ${isCurrent ? 'text-primary' : ''}`}>
+                      <p className={`font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'} ${isCurrent ? 'text-[#1a4d1a]' : ''}`}>
                         {step.label}
                       </p>
                       {isCurrent && <p className="text-xs text-muted-foreground mt-1">{t('in-progress', 'En cours...', 'جاري...')}</p>}
                     </div>
                   </div>
-                  {!isLast && <div className={`absolute left-6 top-12 w-0.5 h-6 transition-all ${isActive ? 'bg-primary' : 'bg-border'}`} />}
+                  {!isLast && <div className={`absolute left-6 top-12 w-0.5 h-6 transition-all ${isActive ? 'bg-[#1a4d1a]' : 'bg-border'}`} />}
                 </div>
               )
             })}

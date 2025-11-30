@@ -50,19 +50,19 @@ export function CheckoutView({
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold mb-1 truncate text-foreground">{product.name}</h4>
-                      <p className="text-sm text-primary font-semibold">{product.price} DZD</p>
+                      <p className="text-sm text-[#1a4d1a] font-semibold">{product.price} DZD</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="icon"
-                        className="h-8 w-8 rounded-full bg-transparent border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                        className="h-8 w-8 rounded-full bg-transparent border-[#1a4d1a] text-[#1a4d1a] hover:bg-[#1a4d1a] hover:text-white"
                         onClick={() => onUpdateQuantity(item.productId, -1)}
                       >
                         <Minus className="w-4 h-4" />
                       </Button>
                       <span className="w-8 text-center font-semibold text-foreground">{item.quantity}</span>
-                      <Button size="icon" className="h-8 w-8 rounded-full" onClick={() => onUpdateQuantity(item.productId, 1)}>
+                      <Button size="icon" className="h-8 w-8 rounded-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white" onClick={() => onUpdateQuantity(item.productId, 1)}>
                         <Plus className="w-4 h-4" />
                       </Button>
                     </div>
@@ -102,7 +102,7 @@ export function CheckoutView({
               </div>
               <div className="flex justify-between text-xl font-bold pt-3 border-t">
                 <span>{t('total', 'Total', 'المجموع')}</span>
-                <span className="text-primary">{total} DZD</span>
+                <span className="text-[#1a4d1a]">{total} DZD</span>
               </div>
             </CardContent>
           </Card>
@@ -112,14 +112,14 @@ export function CheckoutView({
               <CardTitle>{t('payment-method', 'Mode de paiement', 'طريقة الدفع')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <label className="flex items-center gap-3 p-4 border-2 border-primary rounded-lg cursor-pointer bg-primary/5">
+              <label className="flex items-center gap-3 p-4 border-2 border-[#1a4d1a] rounded-lg cursor-pointer bg-[#1a4d1a]/5">
                 <input
                   type="radio"
                   name="payment"
                   value="cash"
                   checked={paymentMethod === 'cash'}
                   onChange={(e) => onPaymentMethodChange(e.target.value)}
-                  className="w-4 h-4 text-primary"
+                  className="w-4 h-4 text-[#1a4d1a]"
                 />
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">
@@ -129,7 +129,7 @@ export function CheckoutView({
                     {t('pay-cash', 'Payez en espèces lors de la réception', 'ادفع نقدًا عند الاستلام')}
                   </p>
                 </div>
-                <Badge className="bg-primary text-primary-foreground">{t('recommended', 'Recommandé', 'موصى به')}</Badge>
+                <Badge className="bg-[#1a4d1a] text-white">{t('recommended', 'Recommandé', 'موصى به')}</Badge>
               </label>
               <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-not-allowed opacity-50">
                 <input type="radio" name="payment" value="card" disabled className="w-4 h-4" />
@@ -141,7 +141,7 @@ export function CheckoutView({
             </CardContent>
           </Card>
 
-          <Button size="lg" className="w-full text-lg rounded-full" onClick={onPlaceOrder}>
+          <Button size="lg" className="w-full text-lg rounded-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white" onClick={onPlaceOrder}>
             {t('pay-now', 'Payer Maintenant', 'ادفع الآن')} - {total} DZD
           </Button>
         </div>
