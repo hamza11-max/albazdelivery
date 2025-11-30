@@ -7,6 +7,7 @@ import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@albaz/ui"
 import { Users, Truck, Store } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
 import { useToast } from "@/root/hooks/use-toast"
+import { fetchWithCsrf } from "../../lib/csrf-client"
 import { AdminHeader } from "../../components/AdminHeader"
 import { DashboardView } from "../../components/DashboardView"
 import { UserListView } from "../../components/UserListView"
@@ -14,6 +15,7 @@ import { UserListViewWithBulk } from "../../components/UserListViewWithBulk"
 import { ApprovalsView } from "../../components/ApprovalsView"
 import { AuditLogView } from "../../components/AuditLogView"
 import { AdsManagementView } from "../../components/AdsManagementView"
+import { AnalyticsDashboard } from "../../components/AnalyticsDashboard"
 import { EditUserDialog } from "../../components/EditUserDialog"
 import { DeleteUserDialog } from "../../components/DeleteUserDialog"
 import { useAdminData } from "../../hooks/useAdminData"
@@ -82,10 +84,9 @@ export default function AdminPanel() {
   // Handle approve/reject registration request
   const handleApproveRequest = async (requestId: string) => {
     try {
-      const response = await fetch("/api/admin/registration-requests", {
+      const response = await fetchWithCsrf("/api/admin/registration-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: 'include',
         body: JSON.stringify({
           requestId,
           action: "approve",
@@ -121,10 +122,9 @@ export default function AdminPanel() {
 
   const handleRejectRequest = async (requestId: string) => {
     try {
-      const response = await fetch("/api/admin/registration-requests", {
+      const response = await fetchWithCsrf("/api/admin/registration-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: 'include',
         body: JSON.stringify({
           requestId,
           action: "reject",
@@ -179,10 +179,9 @@ export default function AdminPanel() {
 
     setIsSaving(true)
     try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedUser.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: 'include',
         body: JSON.stringify(editForm),
       })
 
@@ -220,9 +219,8 @@ export default function AdminPanel() {
 
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}`, {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedUser.id}`, {
         method: "DELETE",
-        credentials: 'include',
       })
 
       const data = await response.json()
@@ -256,10 +254,9 @@ export default function AdminPanel() {
   // Handle bulk actions
   const handleBulkAction = async (action: string, userIds: string[]) => {
     try {
-      const response = await fetch("/api/admin/users/bulk", {
+      const response = await fetchWithCsrf("/api/admin/users/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: 'include',
         body: JSON.stringify({
           userIds,
           action,
@@ -332,12 +329,15 @@ export default function AdminPanel() {
           </TabsContent>
 
           <TabsContent value="dashboard">
-            <DashboardView
-              orders={orders}
-              customers={customers}
-              drivers={drivers}
-              vendors={vendors}
-            />
+            <div className="space-y-6">
+              <DashboardView
+                orders={orders}
+                customers={customers}
+                drivers={drivers}
+                vendors={vendors}
+              />
+              <AnalyticsDashboard />
+            </div>
           </TabsContent>
 
           <TabsContent value="customers">

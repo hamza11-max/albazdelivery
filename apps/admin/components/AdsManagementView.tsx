@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Label, Textarea } from "@albaz/ui"
 import { Plus, Edit, Trash2, Eye, EyeOff, Search, Image as ImageIcon, ExternalLink } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
+import { fetchWithCsrf } from "../lib/csrf-client"
 
 interface Ad {
   id: string
@@ -129,10 +130,9 @@ export function AdsManagementView() {
         endDate: formData.endDate || null,
       }
 
-      const response = await fetch(url, {
+      const response = await fetchWithCsrf(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        credentials: 'include',
         body: JSON.stringify(payload),
       })
 
@@ -168,9 +168,8 @@ export function AdsManagementView() {
 
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/admin/ads/${selectedAd.id}`, {
+      const response = await fetchWithCsrf(`/api/admin/ads/${selectedAd.id}`, {
         method: "DELETE",
-        credentials: 'include',
       })
 
       const data = await response.json()
@@ -203,10 +202,9 @@ export function AdsManagementView() {
 
   const toggleActive = async (ad: Ad) => {
     try {
-      const response = await fetch(`/api/admin/ads/${ad.id}`, {
+      const response = await fetchWithCsrf(`/api/admin/ads/${ad.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: 'include',
         body: JSON.stringify({ isActive: !ad.isActive }),
       })
 

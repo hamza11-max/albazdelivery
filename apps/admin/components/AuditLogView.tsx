@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from "@albaz/ui"
 import { Search, Filter, Calendar, Download } from "lucide-react"
+import { useToast } from "@/root/hooks/use-toast"
+import { fetchWithCsrf } from "../lib/csrf-client"
 
 interface AuditLog {
   id: string
@@ -18,6 +20,7 @@ interface AuditLog {
 }
 
 export function AuditLogView() {
+  const { toast } = useToast()
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filters, setFilters] = useState({
@@ -68,7 +71,53 @@ export function AuditLogView() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Journal d'audit</h2>
-        <Button variant="outline">
+        <Button 
+          variant="outline"
+          onClick={async () => {
+            try {
+              const response = await fetchWithCsrf('/api/admin/export', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  type: 'audit-logs',
+                  format: 'csv',
+                  filters: {
+                    action: filters.action || undefined,
+                    resource: filters.resource || undefined,
+                    status: filters.status || undefined,
+                    startDate: filters.startDate || undefined,
+                    endDate: filters.endDate || undefined,
+                  },
+                }),
+              })
+
+              if (response.ok) {
+                const blob = await response.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `audit-logs_${new Date().toISOString().split('T')[0]}.csv`
+                document.body.appendChild(a)
+                a.click()
+                window.URL.revokeObjectURL(url)
+                document.body.removeChild(a)
+
+                toast({
+                  title: "Succès",
+                  description: "Export réussi",
+                })
+              } else {
+                throw new Error('Export failed')
+              }
+            } catch (error) {
+              toast({
+                title: "Erreur",
+                description: "Impossible d'exporter les logs",
+                variant: "destructive",
+              })
+            }
+          }}
+        >
           <Download className="w-4 h-4 mr-2" />
           Exporter
         </Button>
