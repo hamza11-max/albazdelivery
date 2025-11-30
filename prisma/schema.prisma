@@ -818,3 +818,41 @@ enum AuditLogStatus {
   SUCCESS
   FAILURE
 }
+
+// ========================================
+// Advertisement Management
+// ========================================
+
+model Ad {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String
+  linkUrl     String?
+  position    AdPosition
+  priority    Int      @default(0) // Higher priority = shown first
+  isActive    Boolean  @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  clickCount  Int      @default(0)
+  viewCount   Int      @default(0)
+  createdBy   String?  // Admin user ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([position])
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([priority])
+}
+
+enum AdPosition {
+  HOME_BANNER
+  HOME_SIDEBAR
+  CATEGORY_TOP
+  CATEGORY_SIDEBAR
+  PRODUCT_PAGE
+  CHECKOUT_PAGE
+  MOBILE_BANNER
+}

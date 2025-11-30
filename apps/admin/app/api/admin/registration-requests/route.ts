@@ -1,8 +1,10 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
+import { csrfProtection } from '../../../../lib/csrf'
+import { createAuditLog, AuditActions, AuditResources } from '../../../../lib/audit'
 
 // GET /api/admin/registration-requests - Get pending registration requests
 export async function GET(request: NextRequest) {
@@ -45,6 +47,12 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/registration-requests - Approve or reject registration request
 export async function POST(request: NextRequest) {
+  // CSRF protection for state-changing requests
+  const csrfResponse = csrfProtection(request)
+  if (csrfResponse) {
+    return csrfResponse
+  }
+
   try {
     // Apply rate limiting
     applyRateLimit(request, rateLimitConfigs.api)
@@ -145,6 +153,24 @@ export async function POST(request: NextRequest) {
         return newUser
       })
 
+      // Log audit
+      await createAuditLog({
+        userId: session.user.id,
+        userRole: session.user.role,
+        action: AuditActions.REGISTRATION_APPROVED,
+        resource: AuditResources.REGISTRATION_REQUEST,
+        resourceId: requestId,
+        details: {
+          approvedUser: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+        },
+        status: 'SUCCESS',
+      }, request)
+
       return successResponse(
         {
           user: {
@@ -167,6 +193,23 @@ export async function POST(request: NextRequest) {
           reviewedBy: session.user.id,
         },
       })
+
+      // Log audit
+      await createAuditLog({
+        userId: session.user.id,
+        userRole: session.user.role,
+        action: AuditActions.REGISTRATION_REJECTED,
+        resource: AuditResources.REGISTRATION_REQUEST,
+        resourceId: requestId,
+        details: {
+          rejectedRequest: {
+            name: registrationRequest.name,
+            email: registrationRequest.email,
+            role: registrationRequest.role,
+          },
+        },
+        status: 'SUCCESS',
+      }, request)
 
       return successResponse(
         {
