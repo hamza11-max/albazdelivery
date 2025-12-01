@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { productsAPI } from '../lib/api-client'
 import type { Product } from './use-products'
 
@@ -17,6 +17,21 @@ export interface ProductsQueryParams {
 export function useProductsQuery(storeId: string | null, params?: ProductsQueryParams) {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  
+  // Check if QueryClient is available first
+  let hasQueryClient = false
+  try {
+    const client = useQueryClient()
+    hasQueryClient = client !== null && client !== undefined
+  } catch (error) {
+    // QueryClientProvider is not available
+    hasQueryClient = false
+  }
+  
+  // If no QueryClient, return safe default immediately
+  if (!hasQueryClient) {
+    return safeDefault
+  }
   
   // Always call useQuery (hooks must be called unconditionally)
   // But wrap it to ensure we always get a valid result
