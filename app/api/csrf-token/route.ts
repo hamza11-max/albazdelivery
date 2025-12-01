@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getCsrfToken, setCsrfTokenCookie } from '../../../lib/csrf'
+import { getCsrfToken, setCsrfTokenCookie } from '../../admin/lib/csrf'
 import { successResponse } from '@/root/lib/errors'
 
 /**

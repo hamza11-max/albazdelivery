@@ -3,8 +3,8 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
-import { csrfProtection } from '../../../../lib/csrf'
-import { createAuditLog, AuditActions, AuditResources } from '../../../../lib/audit'
+import { csrfProtection } from '../../../admin/lib/csrf'
+import { createAuditLog, AuditActions, AuditResources } from '../../../admin/lib/audit'
 
 // GET /api/admin/registration-requests - Get pending registration requests
 export async function GET(request: NextRequest) {

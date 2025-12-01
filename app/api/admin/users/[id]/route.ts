@@ -4,8 +4,8 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { hashPassword } from '@/root/lib/password'
-import { createAuditLog, AuditActions, AuditResources } from '../../../../../lib/audit'
-import { csrfProtection } from '../../../../../lib/csrf'
+import { createAuditLog, AuditActions, AuditResources } from '../../../../admin/lib/audit'
+import { csrfProtection } from '../../../../admin/lib/csrf'
 import { z } from 'zod'
 
 // GET /api/admin/users/[id] - Get specific user details
