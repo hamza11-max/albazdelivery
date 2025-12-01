@@ -56,17 +56,23 @@ export default function AlBazApp() {
   const createOrder = useCreateOrder()
 
   // Fetch categories from API with React Query
-  const { data: categories = [], isLoading: categoriesLoading } = useCategoriesQuery()
+  const categoriesResult = useCategoriesQuery()
+  const categories = categoriesResult?.data ?? []
+  const categoriesLoading = categoriesResult?.isLoading ?? false
 
   // Fetch stores based on selected category and search with React Query
-  const { data: apiStores = [], isLoading: storesLoading } = useStoresQuery({
+  const storesResult = useStoresQuery({
     categoryId: selectedCategory || undefined,
     city: selectedCity,
     search: searchQuery || undefined,
   })
+  const apiStores = storesResult?.data ?? []
+  const storesLoading = storesResult?.isLoading ?? false
 
   // Fetch products for selected store with React Query
-  const { data: apiProducts = [], isLoading: productsLoading } = useProductsQuery(selectedStore)
+  const productsResult = useProductsQuery(selectedStore)
+  const apiProducts = productsResult?.data ?? []
+  const productsLoading = productsResult?.isLoading ?? false
 
   useEffect(() => {
     if (status === 'unauthenticated') {
