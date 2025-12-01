@@ -11,6 +11,8 @@ module.exports = {
   compiler: {
     styledComponents: true
   },
+  // Prevent static generation of dynamic pages
+  output: 'standalone',
   webpack: (config, { isServer }) => {
     const path = require('path');
     

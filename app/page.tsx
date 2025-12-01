@@ -23,6 +23,7 @@ import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
 import { useCreateOrder } from '../hooks/use-orders-mutation'
 
 export const dynamic = 'force-dynamic'
+export const dynamicParams = true
 
 export default function AlBazApp() {
   const router = useRouter()
