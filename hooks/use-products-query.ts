@@ -19,14 +19,20 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
     queryKey: ['products', storeId, params],
     queryFn: async () => {
       if (!storeId) return []
-      const response = await productsAPI.list({
-        storeId,
-        ...params,
-      })
-      return (response.data as { products: Product[] }).products
+      try {
+        const response = await productsAPI.list({
+          storeId,
+          ...params,
+        })
+        return (response?.data as { products: Product[] })?.products || []
+      } catch (error) {
+        console.warn('[useProductsQuery] Error fetching products:', error)
+        return []
+      }
     },
     enabled: !!storeId,
     staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
+    retry: false, // Don't retry during build
   })
 }
 

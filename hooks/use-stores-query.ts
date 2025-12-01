@@ -19,10 +19,16 @@ export function useStoresQuery(params?: StoresQueryParams) {
   return useQuery({
     queryKey: ['stores', params],
     queryFn: async () => {
-      const response = await storesAPI.list(params)
-      return (response.data as { stores: Store[] }).stores
+      try {
+        const response = await storesAPI.list(params)
+        return (response?.data as { stores: Store[] })?.stores || []
+      } catch (error) {
+        console.warn('[useStoresQuery] Error fetching stores:', error)
+        return []
+      }
     },
     enabled: true, // Always enabled, can be conditionally disabled if needed
+    retry: false, // Don't retry during build
   })
 }
 

@@ -11,10 +11,16 @@ export function useCategoriesQuery() {
   return useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
-      const response = await categoriesAPI.list()
-      return (response.data as { categories: CategoryDefinition[] }).categories
+      try {
+        const response = await categoriesAPI.list()
+        return (response?.data as { categories: CategoryDefinition[] })?.categories || []
+      } catch (error) {
+        console.warn('[useCategoriesQuery] Error fetching categories:', error)
+        return []
+      }
     },
     staleTime: 1000 * 60 * 30, // Categories change rarely, cache for 30 minutes
+    retry: false, // Don't retry during build
   })
 }
 
