@@ -1,3 +1,18 @@
+// Customer app types
+import type { Order } from '@albaz/shared'
+import type { ProductDefinition, CategoryDefinition, StoreDefinition } from './mock-data'
+
+export type PageView = 'home' | 'category' | 'store' | 'checkout' | 'tracking' | 'orders' | 'profile'
+
+export interface CartItem {
+  productId: string
+  quantity: number
+}
+
+export interface TranslationFn {
+  (key: string, fr: string, ar: string): string
+}
+
 // API types
 export interface ApiResponse<T> {
   success: boolean
