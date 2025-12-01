@@ -3,9 +3,9 @@ import type { Metadata } from "next"
 import { Inter } from 'next/font/google'
 import "./globals.css"
 import { Toaster } from "@albaz/ui"
-import { ThemeInitializer } from "../../../components/ThemeInitializer"
-import { ErrorBoundary } from "../../../components/ErrorBoundary"
-import { QueryProvider } from "../providers/query-provider"
+import { ThemeInitializer } from "../components/ThemeInitializer"
+import { ErrorBoundary } from "../components/ErrorBoundary"
+import { QueryProvider } from "./providers/query-provider"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 

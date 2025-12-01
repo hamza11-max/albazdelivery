@@ -29,13 +29,7 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const vendorIdParam = searchParams.get('vendorId')
 
-<<<<<<< Updated upstream
-    const vendorId = isAdmin ? vendorIdParam : session.user.id
-
-    if (!vendorId) {
-      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
-=======
-    let vendorId = isAdmin ? vendorIdParam : null // session.user.id
+    let vendorId = isAdmin ? vendorIdParam : session.user.id
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !vendorId) {
@@ -48,13 +42,13 @@ export async function GET(request: NextRequest) {
           vendorId = firstVendor.id
         }
       } catch (e) {
-        console.warn('[API/vendors/orders] Error fetching first vendor:', e)
+        console.warn('[API/vendors/orders] Error fetching first vendor:', e)    
         // Continue without vendorId - will return empty results below
       }
     }
 
     if (!vendorId) {
-      // Return empty results instead of error for dev/missing DB scenarios
+      // Return empty results instead of error for dev/missing DB scenarios     
       return successResponse({
         orders: [],
         pagination: {
@@ -64,7 +58,6 @@ export async function GET(request: NextRequest) {
           pages: 0,
         },
       })
->>>>>>> Stashed changes
     }
 
     // Validate and parse pagination
