@@ -24,12 +24,12 @@ import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
 import { useCreateOrder } from '../hooks/use-orders-mutation'
 
 export default function AlBazApp() {
-  // Check if QueryClient is available - this will throw if not available
-  // We call it unconditionally to satisfy hooks rules
+  // Check if QueryClient is available - call unconditionally to satisfy hooks rules
   let isQueryReady = false
+  let queryClient: any = null
   try {
-    useQueryClient()
-    isQueryReady = true
+    queryClient = useQueryClient()
+    isQueryReady = queryClient !== null && queryClient !== undefined
   } catch (error) {
     // QueryClientProvider is not available
     isQueryReady = false
