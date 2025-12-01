@@ -16,8 +16,9 @@ export interface StoresQueryParams {
  * Hook to fetch stores with React Query caching
  */
 export function useStoresQuery(params?: StoresQueryParams) {
+  let result: any = null
   try {
-    const result = useQuery({
+    result = useQuery({
       queryKey: ['stores', params],
       queryFn: async () => {
         try {
@@ -31,13 +32,23 @@ export function useStoresQuery(params?: StoresQueryParams) {
       enabled: true, // Always enabled, can be conditionally disabled if needed
       retry: false, // Don't retry during build
     })
-    
-    // Ensure we always return a valid object, even during static generation
-    return result || { data: [], isLoading: false, error: null }
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useStoresQuery] Hook error during static generation:', error)
-    return { data: [], isLoading: false, error: null }
+    result = null
+  }
+  
+  // Ensure we always return a valid object, even during static generation
+  if (!result || typeof result !== 'object') {
+    return { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  }
+  
+  return {
+    data: result.data ?? [],
+    isLoading: result.isLoading ?? false,
+    error: result.error ?? null,
+    isError: result.isError ?? false,
+    isSuccess: result.isSuccess ?? false,
   }
 }
 

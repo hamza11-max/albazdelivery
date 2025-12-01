@@ -8,8 +8,9 @@ import type { CategoryDefinition } from '../lib/mock-data'
  * Hook to fetch categories with React Query caching
  */
 export function useCategoriesQuery() {
+  let result: any = null
   try {
-    const result = useQuery({
+    result = useQuery({
       queryKey: ['categories'],
       queryFn: async () => {
         try {
@@ -23,13 +24,23 @@ export function useCategoriesQuery() {
       staleTime: 1000 * 60 * 30, // Categories change rarely, cache for 30 minutes
       retry: false, // Don't retry during build
     })
-    
-    // Ensure we always return a valid object, even during static generation
-    return result || { data: [], isLoading: false, error: null }
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useCategoriesQuery] Hook error during static generation:', error)
-    return { data: [], isLoading: false, error: null }
+    result = null
+  }
+  
+  // Ensure we always return a valid object, even during static generation
+  if (!result || typeof result !== 'object') {
+    return { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  }
+  
+  return {
+    data: result.data ?? [],
+    isLoading: result.isLoading ?? false,
+    error: result.error ?? null,
+    isError: result.isError ?? false,
+    isSuccess: result.isSuccess ?? false,
   }
 }
 
