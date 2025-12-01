@@ -21,9 +21,10 @@ export function useStoresQuery(params?: StoresQueryParams) {
   
   // Always call useQuery (hooks must be called unconditionally)
   // But wrap it to ensure we always get a valid result
-  let queryResult: any
+  let queryResult: any = safeDefault
+  
   try {
-    queryResult = useQuery({
+    const result = useQuery({
       queryKey: ['stores', params],
       queryFn: async () => {
         try {
@@ -37,6 +38,11 @@ export function useStoresQuery(params?: StoresQueryParams) {
       enabled: true, // Always enabled, can be conditionally disabled if needed
       retry: false, // Don't retry during build
     })
+    
+    // Only assign if result is valid
+    if (result && typeof result === 'object') {
+      queryResult = result
+    }
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useStoresQuery] Hook error:', error)
@@ -50,12 +56,13 @@ export function useStoresQuery(params?: StoresQueryParams) {
   
   // Safely extract properties with defaults - handle case where properties might be undefined
   try {
+    // Use optional chaining and nullish coalescing to safely access properties
     return {
-      data: (queryResult.data !== undefined ? queryResult.data : []) as Store[],
-      isLoading: queryResult.isLoading === true,
-      error: queryResult.error ?? null,
-      isError: queryResult.isError === true,
-      isSuccess: queryResult.isSuccess === true,
+      data: (queryResult?.data ?? []) as Store[],
+      isLoading: queryResult?.isLoading ?? false,
+      error: queryResult?.error ?? null,
+      isError: queryResult?.isError ?? false,
+      isSuccess: queryResult?.isSuccess ?? false,
     }
   } catch (error) {
     // If destructuring fails, return safe default
