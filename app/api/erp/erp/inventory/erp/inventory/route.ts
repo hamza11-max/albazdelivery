@@ -24,28 +24,10 @@ export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-<<<<<<< Updated upstream
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-=======
-    // Check if database is available
-    const dbAvailable = await isDatabaseAvailable()
-    
-    if (!dbAvailable) {
-      // Return fallback data
-      console.log('[API/inventory] Database unavailable, using fallback storage')
-      const products = Array.from(fallbackProducts.values())
-      return successResponse({ products, fallback: true })
-    }
-
-    // DISABLED for Electron app (no authentication)
-    // const session = await auth()
-    // if (!session?.user) {
-    //   throw new UnauthorizedError()
-    // }
->>>>>>> Stashed changes
 
     const isAdmin = session.user.role === 'ADMIN'
     const isVendor = session.user.role === 'VENDOR'
@@ -59,13 +41,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const vendorIdParam = searchParams.get('vendorId')
 
-<<<<<<< Updated upstream
-    const targetVendorId = isAdmin ? vendorIdParam : session.user.id
-
-    if (isAdmin && !targetVendorId) {
-      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
-=======
-    let targetVendorId = isAdmin ? vendorIdParam : null // session.user.id
+    let targetVendorId = isAdmin ? vendorIdParam : session.user.id
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !targetVendorId) {
@@ -79,14 +55,13 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {
         console.warn('[API/inventory] Error fetching first vendor:', e)
-        // Continue without targetVendorId - will return empty results below
+        // Continue without targetVendorId - will return empty results below    
       }
     }
 
     if (isAdmin && !targetVendorId) {
-      // Return empty results instead of error for dev/missing DB scenarios
+      // Return empty results instead of error for dev/missing DB scenarios     
       return successResponse({ products: [] })
->>>>>>> Stashed changes
     }
 
     const where: any = {}
