@@ -8,6 +8,9 @@ import type { CategoryDefinition } from '../lib/mock-data'
  * Hook to fetch categories with React Query caching
  */
 export function useCategoriesQuery() {
+  // Safe default return value
+  const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  
   let result: any = null
   try {
     result = useQuery({
@@ -31,16 +34,17 @@ export function useCategoriesQuery() {
   }
   
   // Ensure we always return a valid object, even during static generation
-  if (!result || typeof result !== 'object') {
-    return { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  if (!result || typeof result !== 'object' || result === null) {
+    return safeDefault
   }
   
+  // Safely extract properties with defaults
   return {
-    data: result.data ?? [],
-    isLoading: result.isLoading ?? false,
+    data: (result.data !== undefined ? result.data : []) as CategoryDefinition[],
+    isLoading: result.isLoading === true,
     error: result.error ?? null,
-    isError: result.isError ?? false,
-    isSuccess: result.isSuccess ?? false,
+    isError: result.isError === true,
+    isSuccess: result.isSuccess === true,
   }
 }
 

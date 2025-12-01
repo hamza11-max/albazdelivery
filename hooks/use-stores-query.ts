@@ -16,6 +16,9 @@ export interface StoresQueryParams {
  * Hook to fetch stores with React Query caching
  */
 export function useStoresQuery(params?: StoresQueryParams) {
+  // Safe default return value
+  const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  
   let result: any = null
   try {
     result = useQuery({
@@ -39,16 +42,17 @@ export function useStoresQuery(params?: StoresQueryParams) {
   }
   
   // Ensure we always return a valid object, even during static generation
-  if (!result || typeof result !== 'object') {
-    return { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  if (!result || typeof result !== 'object' || result === null) {
+    return safeDefault
   }
   
+  // Safely extract properties with defaults
   return {
-    data: result.data ?? [],
-    isLoading: result.isLoading ?? false,
+    data: (result.data !== undefined ? result.data : []) as Store[],
+    isLoading: result.isLoading === true,
     error: result.error ?? null,
-    isError: result.isError ?? false,
-    isSuccess: result.isSuccess ?? false,
+    isError: result.isError === true,
+    isSuccess: result.isSuccess === true,
   }
 }
 
