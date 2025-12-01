@@ -30,7 +30,7 @@ export function useCategoriesQuery() {
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useCategoriesQuery] Hook error during static generation:', error)
-    result = null
+    return safeDefault
   }
   
   // Ensure we always return a valid object, even during static generation

@@ -19,6 +19,11 @@ export function useStoresQuery(params?: StoresQueryParams) {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
   
+  // Check if useQuery is available (might not be during static generation)
+  if (!useQuery || typeof useQuery !== 'function') {
+    return safeDefault
+  }
+  
   let result: any = null
   try {
     result = useQuery({
@@ -38,7 +43,7 @@ export function useStoresQuery(params?: StoresQueryParams) {
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useStoresQuery] Hook error during static generation:', error)
-    result = null
+    return safeDefault
   }
   
   // Ensure we always return a valid object, even during static generation
