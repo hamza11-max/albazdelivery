@@ -18,14 +18,11 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
   
-  // Check if useQuery is available (might not be during static generation)
-  if (!useQuery || typeof useQuery !== 'function') {
-    return safeDefault
-  }
-  
-  let result: any = null
+  // Always call useQuery (hooks must be called unconditionally)
+  // But wrap it to ensure we always get a valid result
+  let queryResult: any
   try {
-    result = useQuery({
+    queryResult = useQuery({
       queryKey: ['products', storeId, params],
       queryFn: async () => {
         if (!storeId) return []
@@ -47,21 +44,21 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useProductsQuery] Hook error during static generation:', error)
-    return safeDefault
+    queryResult = undefined
   }
   
-  // Ensure we always return a valid object, even during static generation
-  if (!result || typeof result !== 'object' || result === null) {
+  // If useQuery returned undefined or null, return safe default immediately
+  if (queryResult === undefined || queryResult === null || typeof queryResult !== 'object') {
     return safeDefault
   }
   
   // Safely extract properties with defaults
   return {
-    data: (result.data !== undefined ? result.data : []) as Product[],
-    isLoading: result.isLoading === true,
-    error: result.error ?? null,
-    isError: result.isError === true,
-    isSuccess: result.isSuccess === true,
+    data: (queryResult.data !== undefined ? queryResult.data : []) as Product[],
+    isLoading: queryResult.isLoading === true,
+    error: queryResult.error ?? null,
+    isError: queryResult.isError === true,
+    isSuccess: queryResult.isSuccess === true,
   }
 }
 

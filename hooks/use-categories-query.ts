@@ -11,9 +11,11 @@ export function useCategoriesQuery() {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
   
-  let result: any = null
+  // Always call useQuery (hooks must be called unconditionally)
+  // But wrap it to ensure we always get a valid result
+  let queryResult: any
   try {
-    result = useQuery({
+    queryResult = useQuery({
       queryKey: ['categories'],
       queryFn: async () => {
         try {
@@ -30,21 +32,21 @@ export function useCategoriesQuery() {
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useCategoriesQuery] Hook error during static generation:', error)
-    return safeDefault
+    queryResult = undefined
   }
   
-  // Ensure we always return a valid object, even during static generation
-  if (!result || typeof result !== 'object' || result === null) {
+  // If useQuery returned undefined or null, return safe default immediately
+  if (queryResult === undefined || queryResult === null || typeof queryResult !== 'object') {
     return safeDefault
   }
   
   // Safely extract properties with defaults
   return {
-    data: (result.data !== undefined ? result.data : []) as CategoryDefinition[],
-    isLoading: result.isLoading === true,
-    error: result.error ?? null,
-    isError: result.isError === true,
-    isSuccess: result.isSuccess === true,
+    data: (queryResult.data !== undefined ? queryResult.data : []) as CategoryDefinition[],
+    isLoading: queryResult.isLoading === true,
+    error: queryResult.error ?? null,
+    isError: queryResult.isError === true,
+    isSuccess: queryResult.isSuccess === true,
   }
 }
 
