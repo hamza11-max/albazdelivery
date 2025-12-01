@@ -16,7 +16,7 @@ export interface StoresQueryParams {
  * Hook to fetch stores with React Query caching
  */
 export function useStoresQuery(params?: StoresQueryParams) {
-  return useQuery({
+  const result = useQuery({
     queryKey: ['stores', params],
     queryFn: async () => {
       try {
@@ -30,20 +30,32 @@ export function useStoresQuery(params?: StoresQueryParams) {
     enabled: true, // Always enabled, can be conditionally disabled if needed
     retry: false, // Don't retry during build
   })
+  
+  // Ensure we always return a valid object, even during static generation
+  return result || { data: [], isLoading: false, error: null }
 }
 
 /**
  * Hook to fetch a single store by ID with React Query caching
  */
 export function useStoreQuery(storeId: string | null) {
-  return useQuery({
+  const result = useQuery({
     queryKey: ['store', storeId],
     queryFn: async () => {
       if (!storeId) return null
-      const response = await storesAPI.getById(storeId)
-      return (response.data as { store: Store }).store
+      try {
+        const response = await storesAPI.getById(storeId)
+        return (response?.data as { store: Store })?.store || null
+      } catch (error) {
+        console.warn('[useStoreQuery] Error fetching store:', error)
+        return null
+      }
     },
     enabled: !!storeId,
+    retry: false, // Don't retry during build
   })
+  
+  // Ensure we always return a valid object, even during static generation
+  return result || { data: null, isLoading: false, error: null }
 }
 

@@ -15,7 +15,7 @@ export interface ProductsQueryParams {
  * Hook to fetch products for a store with React Query caching
  */
 export function useProductsQuery(storeId: string | null, params?: ProductsQueryParams) {
-  return useQuery({
+  const result = useQuery({
     queryKey: ['products', storeId, params],
     queryFn: async () => {
       if (!storeId) return []
@@ -34,5 +34,8 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
     staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
     retry: false, // Don't retry during build
   })
+  
+  // Ensure we always return a valid object, even during static generation
+  return result || { data: [], isLoading: false, error: null }
 }
 
