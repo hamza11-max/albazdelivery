@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { storesAPI } from '../lib/api-client'
 import type { Store } from './use-stores'
 
@@ -18,20 +18,6 @@ export interface StoresQueryParams {
 export function useStoresQuery(params?: StoresQueryParams) {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
-  
-  // Check if QueryClient is available
-  let queryClient: any = null
-  try {
-    queryClient = useQueryClient()
-  } catch (error) {
-    // QueryClientProvider is not available, return safe default
-    return safeDefault
-  }
-  
-  // If QueryClient is not available, return safe default
-  if (!queryClient) {
-    return safeDefault
-  }
   
   // Always call useQuery (hooks must be called unconditionally)
   // But wrap it to ensure we always get a valid result
@@ -53,7 +39,7 @@ export function useStoresQuery(params?: StoresQueryParams) {
     })
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
-    console.warn('[useStoresQuery] Hook error during static generation:', error)
+    console.warn('[useStoresQuery] Hook error:', error)
     return safeDefault
   }
   
@@ -62,13 +48,19 @@ export function useStoresQuery(params?: StoresQueryParams) {
     return safeDefault
   }
   
-  // Safely extract properties with defaults
-  return {
-    data: (queryResult.data !== undefined ? queryResult.data : []) as Store[],
-    isLoading: queryResult.isLoading === true,
-    error: queryResult.error ?? null,
-    isError: queryResult.isError === true,
-    isSuccess: queryResult.isSuccess === true,
+  // Safely extract properties with defaults - handle case where properties might be undefined
+  try {
+    return {
+      data: (queryResult.data !== undefined ? queryResult.data : []) as Store[],
+      isLoading: queryResult.isLoading === true,
+      error: queryResult.error ?? null,
+      isError: queryResult.isError === true,
+      isSuccess: queryResult.isSuccess === true,
+    }
+  } catch (error) {
+    // If destructuring fails, return safe default
+    console.warn('[useStoresQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { categoriesAPI } from '../lib/api-client'
 import type { CategoryDefinition } from '../lib/mock-data'
 
@@ -10,20 +10,6 @@ import type { CategoryDefinition } from '../lib/mock-data'
 export function useCategoriesQuery() {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
-  
-  // Check if QueryClient is available
-  let queryClient: any = null
-  try {
-    queryClient = useQueryClient()
-  } catch (error) {
-    // QueryClientProvider is not available, return safe default
-    return safeDefault
-  }
-  
-  // If QueryClient is not available, return safe default
-  if (!queryClient) {
-    return safeDefault
-  }
   
   // Always call useQuery (hooks must be called unconditionally)
   // But wrap it to ensure we always get a valid result
@@ -45,7 +31,7 @@ export function useCategoriesQuery() {
     })
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
-    console.warn('[useCategoriesQuery] Hook error during static generation:', error)
+    console.warn('[useCategoriesQuery] Hook error:', error)
     return safeDefault
   }
   
@@ -54,13 +40,19 @@ export function useCategoriesQuery() {
     return safeDefault
   }
   
-  // Safely extract properties with defaults
-  return {
-    data: (queryResult.data !== undefined ? queryResult.data : []) as CategoryDefinition[],
-    isLoading: queryResult.isLoading === true,
-    error: queryResult.error ?? null,
-    isError: queryResult.isError === true,
-    isSuccess: queryResult.isSuccess === true,
+  // Safely extract properties with defaults - handle case where properties might be undefined
+  try {
+    return {
+      data: (queryResult.data !== undefined ? queryResult.data : []) as CategoryDefinition[],
+      isLoading: queryResult.isLoading === true,
+      error: queryResult.error ?? null,
+      isError: queryResult.isError === true,
+      isSuccess: queryResult.isSuccess === true,
+    }
+  } catch (error) {
+    // If destructuring fails, return safe default
+    console.warn('[useCategoriesQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 

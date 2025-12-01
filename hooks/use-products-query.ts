@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { productsAPI } from '../lib/api-client'
 import type { Product } from './use-products'
 
@@ -17,20 +17,6 @@ export interface ProductsQueryParams {
 export function useProductsQuery(storeId: string | null, params?: ProductsQueryParams) {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
-  
-  // Check if QueryClient is available
-  let queryClient: any = null
-  try {
-    queryClient = useQueryClient()
-  } catch (error) {
-    // QueryClientProvider is not available, return safe default
-    return safeDefault
-  }
-  
-  // If QueryClient is not available, return safe default
-  if (!queryClient) {
-    return safeDefault
-  }
   
   // Always call useQuery (hooks must be called unconditionally)
   // But wrap it to ensure we always get a valid result
@@ -57,7 +43,7 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
     })
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
-    console.warn('[useProductsQuery] Hook error during static generation:', error)
+    console.warn('[useProductsQuery] Hook error:', error)
     return safeDefault
   }
   
@@ -66,13 +52,19 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
     return safeDefault
   }
   
-  // Safely extract properties with defaults
-  return {
-    data: (queryResult.data !== undefined ? queryResult.data : []) as Product[],
-    isLoading: queryResult.isLoading === true,
-    error: queryResult.error ?? null,
-    isError: queryResult.isError === true,
-    isSuccess: queryResult.isSuccess === true,
+  // Safely extract properties with defaults - handle case where properties might be undefined
+  try {
+    return {
+      data: (queryResult.data !== undefined ? queryResult.data : []) as Product[],
+      isLoading: queryResult.isLoading === true,
+      error: queryResult.error ?? null,
+      isError: queryResult.isError === true,
+      isSuccess: queryResult.isSuccess === true,
+    }
+  } catch (error) {
+    // If destructuring fails, return safe default
+    console.warn('[useProductsQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 
