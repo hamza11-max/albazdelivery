@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/root/components/LoadingScreen"
+import { LoadingScreen } from "../components/LoadingScreen"
 
 export default function Loading() {
   return <LoadingScreen />

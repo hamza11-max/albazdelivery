@@ -380,3 +380,39 @@ export const supportAPI = {
     })
   },
 }
+
+// ============================================
+// CATEGORIES API
+// ============================================
+
+export const categoriesAPI = {
+  async list() {
+    return fetchAPI('/api/categories')
+  },
+
+  async getById(id: string) {
+    return fetchAPI(`/api/categories/${id}`)
+  },
+}
+
+// ============================================
+// STORES API
+// ============================================
+
+export const storesAPI = {
+  async list(params?: { categoryId?: number; city?: string; search?: string; page?: number; limit?: number }) {
+    const searchParams = new URLSearchParams()
+    if (params?.categoryId) searchParams.set('categoryId', params.categoryId.toString())
+    if (params?.city) searchParams.set('city', params.city)
+    if (params?.search) searchParams.set('search', params.search)
+    if (params?.page) searchParams.set('page', params.page.toString())
+    if (params?.limit) searchParams.set('limit', params.limit.toString())
+    
+    const query = searchParams.toString()
+    return fetchAPI(`/api/stores${query ? `?${query}` : ''}`)
+  },
+
+  async getById(id: string) {
+    return fetchAPI(`/api/stores/${id}`)
+  },
+}
