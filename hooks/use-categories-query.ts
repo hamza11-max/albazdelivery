@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { categoriesAPI } from '../lib/api-client'
 import type { CategoryDefinition } from '../lib/mock-data'
 
@@ -10,6 +10,20 @@ import type { CategoryDefinition } from '../lib/mock-data'
 export function useCategoriesQuery() {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  
+  // Check if QueryClient is available
+  let queryClient: any = null
+  try {
+    queryClient = useQueryClient()
+  } catch (error) {
+    // QueryClientProvider is not available, return safe default
+    return safeDefault
+  }
+  
+  // If QueryClient is not available, return safe default
+  if (!queryClient) {
+    return safeDefault
+  }
   
   // Always call useQuery (hooks must be called unconditionally)
   // But wrap it to ensure we always get a valid result
@@ -32,7 +46,7 @@ export function useCategoriesQuery() {
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useCategoriesQuery] Hook error during static generation:', error)
-    queryResult = undefined
+    return safeDefault
   }
   
   // If useQuery returned undefined or null, return safe default immediately

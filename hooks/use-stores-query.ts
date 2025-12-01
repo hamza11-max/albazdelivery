@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { storesAPI } from '../lib/api-client'
 import type { Store } from './use-stores'
 
@@ -18,6 +18,20 @@ export interface StoresQueryParams {
 export function useStoresQuery(params?: StoresQueryParams) {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+  
+  // Check if QueryClient is available
+  let queryClient: any = null
+  try {
+    queryClient = useQueryClient()
+  } catch (error) {
+    // QueryClientProvider is not available, return safe default
+    return safeDefault
+  }
+  
+  // If QueryClient is not available, return safe default
+  if (!queryClient) {
+    return safeDefault
+  }
   
   // Always call useQuery (hooks must be called unconditionally)
   // But wrap it to ensure we always get a valid result
@@ -40,7 +54,7 @@ export function useStoresQuery(params?: StoresQueryParams) {
   } catch (error) {
     // During static generation, useQuery might throw if QueryClientProvider is not available
     console.warn('[useStoresQuery] Hook error during static generation:', error)
-    queryResult = undefined
+    return safeDefault
   }
   
   // If useQuery returned undefined or null, return safe default immediately
