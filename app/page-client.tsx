@@ -24,6 +24,17 @@ import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
 import { useCreateOrder } from '../hooks/use-orders-mutation'
 
 export default function AlBazApp() {
+  // Check if QueryClient is available - this will throw if not available
+  // We call it unconditionally to satisfy hooks rules
+  let isQueryReady = false
+  try {
+    useQueryClient()
+    isQueryReady = true
+  } catch (error) {
+    // QueryClientProvider is not available
+    isQueryReady = false
+  }
+  
   const router = useRouter()
   const sessionResult = useSession()
   const session = sessionResult?.data ?? null
@@ -53,9 +64,10 @@ export default function AlBazApp() {
   const createOrder = useCreateOrder()
 
   // Fetch categories from API with React Query
+  // Only use results if QueryClient is ready
   const categoriesResult = useCategoriesQuery()
-  const categories = categoriesResult?.data ?? []
-  const categoriesLoading = categoriesResult?.isLoading ?? false
+  const categories = (isQueryReady && categoriesResult?.data) ? categoriesResult.data : []
+  const categoriesLoading = (isQueryReady && categoriesResult?.isLoading) ? categoriesResult.isLoading : false
 
   // Fetch stores based on selected category and search with React Query
   const storesResult = useStoresQuery({
@@ -63,13 +75,13 @@ export default function AlBazApp() {
     city: selectedCity,
     search: searchQuery || undefined,
   })
-  const apiStores = storesResult?.data ?? []
-  const storesLoading = storesResult?.isLoading ?? false
+  const apiStores = (isQueryReady && storesResult?.data) ? storesResult.data : []
+  const storesLoading = (isQueryReady && storesResult?.isLoading) ? storesResult.isLoading : false
 
   // Fetch products for selected store with React Query
   const productsResult = useProductsQuery(selectedStore)
-  const apiProducts = productsResult?.data ?? []
-  const productsLoading = productsResult?.isLoading ?? false
+  const apiProducts = (isQueryReady && productsResult?.data) ? productsResult.data : []
+  const productsLoading = (isQueryReady && productsResult?.isLoading) ? productsResult.isLoading : false
 
   useEffect(() => {
     if (status === 'unauthenticated') {
