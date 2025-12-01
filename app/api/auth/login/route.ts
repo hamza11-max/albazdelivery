@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { verifyPassword } from '@/lib/password'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
-import { loginSchema, algerianPhoneRegex } from '@/lib/validations/auth'
-import { signIn } from '@/lib/auth'
-import { auditAuthEvent } from '@/lib/security/audit-log'
+import { prisma } from '@/root/lib/prisma'
+import { verifyPassword } from '@/root/lib/password'
+import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
+import { loginSchema, algerianPhoneRegex } from '@/root/lib/validations/auth'
+import { auditAuthEvent } from '@/root/lib/security/audit-log'
 
 // POST /api/auth/login - Simple login endpoint for API testing
 export async function POST(request: NextRequest) {
@@ -54,6 +53,7 @@ export async function POST(request: NextRequest) {
     await auditAuthEvent('LOGIN', user.id, user.role, request)
     
     // Return user data (without password)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...userWithoutPassword } = user
     
     return successResponse({

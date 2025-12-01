@@ -1,11 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { OrderStatus } from "@/lib/constants"
+import { OrderStatus } from "@/root/lib/constants"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from "@albaz/ui"
 import {
   MapPin,
   Phone,
@@ -25,14 +23,10 @@ import {
   Moon,
   LogOut,
   Globe,
-  Store,
-  UserPlus,
-  CheckCircle,
-  X,
 } from "lucide-react"
-import type { Order } from "@/lib/types"
-import { useSSE } from "@/lib/use-sse"
-import { useToast } from "@/hooks/use-toast"
+import type { Order } from "@/root/lib/types"
+import { useSSE } from "@/root/lib/use-sse"
+import { useToast } from "@/root/hooks/use-toast"
 import { useSession, signOut } from "next-auth/react"
 
 // Force dynamic rendering to avoid static generation issues
@@ -42,19 +36,16 @@ export default function DriverApp() {
   const router = useRouter()
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [language, setLanguage] = useState("fr")
-  const [currentView, setCurrentView] = useState<"dashboard" | "active" | "history" | "vendors">("dashboard")
+  const [currentView, setCurrentView] = useState<"dashboard" | "active" | "history">("dashboard")
   const [availableDeliveries, setAvailableDeliveries] = useState<Order[]>([])
   const [activeDelivery, setActiveDelivery] = useState<Order | null>(null)
   const [deliveryHistory, setDeliveryHistory] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
+  const [driverId] = useState("driver-1")
   const { toast } = useToast()
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [isTrackingLocation, setIsTrackingLocation] = useState(false)
-  
-  // Vendors States
-  const [vendors, setVendors] = useState<any[]>([])
-  const [loadingVendors, setLoadingVendors] = useState(false)
   
   // Safely handle useSession during build time - it may return undefined during static generation
   const sessionResult = useSession()
@@ -63,10 +54,7 @@ export default function DriverApp() {
   const user = session?.user ?? null
   const isAuthenticated = status === "authenticated"
   
-  const { data: sseData, isConnected } = useSSE(
-    user?.id ? `/api/notifications/sse?role=driver&userId=${user.id}` : '',
-    false
-  )
+  const { data: sseData, isConnected } = useSSE(`/api/notifications/sse?role=driver&userId=${driverId}`, false)
 
   const startLocationTracking = () => {
     if (!navigator.geolocation) {
@@ -87,20 +75,18 @@ export default function DriverApp() {
         setDriverLocation({ lat: latitude, lng: longitude })
 
         // Send location to server
-        if (user?.id) {
-          fetch("/api/driver/location", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              driverId: user.id,
-              latitude,
-              longitude,
-              accuracy,
-              heading: heading || 0,
-              speed: speed || 0,
-            }),
-          }).catch((error) => console.error("[v0] Error sending location:", error))
-        }
+        fetch("/api/driver/location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            driverId,
+            latitude,
+            longitude,
+            accuracy,
+            heading: heading || 0,
+            speed: speed || 0,
+          }),
+        }).catch((error) => console.error("[v0] Error sending location:", error))
       },
       (error) => {
         console.error("[v0] Geolocation error:", error)
@@ -119,20 +105,18 @@ export default function DriverApp() {
         setDriverLocation({ lat: latitude, lng: longitude })
 
         // Send location to server every 10 seconds
-        if (user?.id) {
-          fetch("/api/driver/location", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              driverId: user.id,
-              latitude,
-              longitude,
-              accuracy,
-              heading: heading || 0,
-              speed: speed || 0,
-            }),
-          }).catch((error) => console.error("[v0] Error sending location:", error))
-        }
+        fetch("/api/driver/location", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            driverId,
+            latitude,
+            longitude,
+            accuracy,
+            heading: heading || 0,
+            speed: speed || 0,
+          }),
+        }).catch((error) => console.error("[v0] Error sending location:", error))
       },
       (error) => console.error("[v0] Watch position error:", error),
       {
@@ -249,7 +233,7 @@ export default function DriverApp() {
       const response = await fetch(`/api/drivers/deliveries/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, driverId: user?.id }),
+        body: JSON.stringify({ status, driverId }),
       })
       const data = await response.json()
       if (data.success) {
@@ -264,60 +248,6 @@ export default function DriverApp() {
       }
     } catch (error) {
       console.error("[v0] Error updating delivery status:", error)
-    }
-  }
-
-  // Fetch Vendors
-  const fetchVendors = async () => {
-    if (!user?.id) return
-    setLoadingVendors(true)
-    try {
-      const response = await fetch("/api/drivers/vendors")
-      const data = await response.json()
-      if (data.success) {
-        setVendors(data.data?.vendors || [])
-      }
-    } catch (error) {
-      console.error("[Driver] Error fetching vendors:", error)
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les vendeurs",
-        variant: "destructive",
-      })
-    } finally {
-      setLoadingVendors(false)
-    }
-  }
-
-  // Request Connection to Vendor
-  const requestConnection = async (vendorId: string) => {
-    try {
-      const response = await fetch("/api/drivers/vendors", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorId }),
-      })
-      const data = await response.json()
-      if (data.success) {
-        toast({
-          title: t("Demande envoyée", "تم إرسال الطلب"),
-          description: t("Le vendeur sera notifié de votre demande", "سيتم إشعار البائع بطلبك"),
-        })
-        fetchVendors() // Refresh to update connection status
-      } else {
-        toast({
-          title: "Erreur",
-          description: data.error?.message || t("Impossible d'envoyer la demande", "تعذر إرسال الطلب"),
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      console.error("[Driver] Error requesting connection:", error)
-      toast({
-        title: "Erreur",
-        description: t("Une erreur est survenue", "حدث خطأ"),
-        variant: "destructive",
-      })
     }
   }
 
@@ -337,14 +267,7 @@ export default function DriverApp() {
       if (stopTracking) stopTracking()
       clearInterval(interval)
     }
-  }, [user?.id])
-
-  // Fetch vendors when vendors view is active
-  useEffect(() => {
-    if (currentView === "vendors" && user?.id) {
-      fetchVendors()
-    }
-  }, [currentView, user?.id])
+  }, [driverId])
 
   const t = (fr: string, ar: string) => (language === "ar" ? ar : fr)
 
@@ -680,102 +603,6 @@ export default function DriverApp() {
     )
   }
 
-  // Vendors View
-  const VendorsView = () => (
-    <div className="container mx-auto px-4 py-6 pb-24 space-y-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-900">{t("Vendeurs", "البائعون")}</h2>
-      </div>
-
-      {loadingVendors ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          </CardContent>
-        </Card>
-      ) : vendors.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Store className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p className="text-lg text-gray-600">{t("Aucun vendeur disponible", "لا يوجد بائعون متاحون")}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {vendors.map((vendor) => {
-            const connectionStatus = vendor.connectionStatus || null
-            const storeLogo = vendor.stores?.[0]?.image || vendor.photoUrl || "/logo.png"
-
-            return (
-              <Card key={vendor.id} className="border-l-4 border-l-primary">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center overflow-hidden">
-                      <img
-                        src={storeLogo}
-                        alt={vendor.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = "/logo.png"
-                        }}
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg text-gray-900">{vendor.name}</h3>
-                      {vendor.stores?.[0] && (
-                        <p className="text-sm text-gray-600">{vendor.stores[0].name}</p>
-                      )}
-                      {vendor.city && (
-                        <p className="text-sm text-gray-600">{t("Ville", "المدينة")}: {vendor.city}</p>
-                      )}
-                      {connectionStatus === "ACCEPTED" && (
-                        <Badge className="mt-2 bg-green-500">
-                          {t("Connecté", "متصل")}
-                        </Badge>
-                      )}
-                      {connectionStatus === "PENDING" && (
-                        <Badge className="mt-2 bg-orange-500">
-                          {t("En attente", "قيد الانتظار")}
-                        </Badge>
-                      )}
-                      {connectionStatus === "REJECTED" && (
-                        <Badge className="mt-2 bg-red-500">
-                          {t("Refusé", "مرفوض")}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    {!connectionStatus && (
-                      <Button
-                        className="w-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white"
-                        onClick={() => requestConnection(vendor.id)}
-                      >
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        {t("Connecter", "اتصل")}
-                      </Button>
-                    )}
-                    {connectionStatus === "REJECTED" && (
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => requestConnection(vendor.id)}
-                      >
-                        <UserPlus className="w-4 h-4 mr-2" />
-                        {t("Réessayer", "إعادة المحاولة")}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-
   // History View
   const HistoryView = () => (
     <div className="container mx-auto px-4 py-6 pb-24 space-y-6">
@@ -869,15 +696,6 @@ export default function DriverApp() {
           <List className="w-6 h-6" />
           <span className="text-xs font-medium">Historique</span>
         </button>
-        <button
-          onClick={() => setCurrentView("vendors")}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            currentView === "vendors" ? "text-primary" : "text-gray-400"
-          }`}
-        >
-          <Store className="w-6 h-6" />
-          <span className="text-xs font-medium">{t("Vendeurs", "البائعون")}</span>
-        </button>
       </div>
     </nav>
   )
@@ -889,7 +707,6 @@ export default function DriverApp() {
         {currentView === "dashboard" && <DashboardView />}
         {currentView === "active" && <ActiveDeliveryView />}
         {currentView === "history" && <HistoryView />}
-        {currentView === "vendors" && <VendorsView />}
       </main>
       <BottomNav />
     </div>

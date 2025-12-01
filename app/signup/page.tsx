@@ -4,13 +4,8 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useToast } from "@albaz/ui"
 import { Users, Truck, Store, ArrowLeft } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = 'force-dynamic'
@@ -102,7 +97,7 @@ export default function SignUpPage() {
         const message = typeof data.error === "string" ? data.error : data.error?.message || "Une erreur s'est produite"
         toast({ title: "Erreur", description: message, variant: "destructive" })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Erreur",
         description: "Impossible de soumettre la demande",

@@ -5,8 +5,8 @@ import {
   type InventoryProduct,
   type Order,
   type Supplier
-} from "@/lib/types"
-import { type Category } from "@/lib/types/category"
+} from "@/root/lib/types"
+import { type Category } from "@/root/lib/types/category"
 
 // Re-export types
 export type { 
@@ -21,7 +21,7 @@ export type {
 export type { Category }
 
 // Import API types from shared lib
-export type { ApiResponse } from '@/lib/types'
+export type { ApiResponse } from '@/root/lib/types'
 
 export interface CartItem {
   id: number
@@ -138,7 +138,7 @@ export interface CategoriesData {
 // UI State Types
 // LoadingState is imported directly from hooks to avoid circular dependencies
 // This breaks the cycle: types.ts -> fetch-data.ts -> types.ts
-export type { LoadingState } from "@/hooks/use-fetch-with-cache"
+export type { LoadingState } from "@/root/hooks/use-fetch-with-cache"
 
 // Form Types (consolidated - duplicates removed)
 // BaseProductFields is defined above for ProductUpdateData

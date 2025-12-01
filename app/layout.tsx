@@ -2,9 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from 'next/font/google'
 import "./globals.css"
-import { Toaster } from "@/components/ui/toaster"
-import { ThemeInitializer } from "@/components/ThemeInitializer"
-import { SessionProvider } from "@/components/providers/SessionProvider"
+import { Toaster } from "@albaz/ui"
+import { ThemeInitializer } from "../../../components/ThemeInitializer"
+import { ErrorBoundary } from "../../../components/ErrorBoundary"
+import { QueryProvider } from "../providers/query-provider"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -14,19 +15,21 @@ export const metadata: Metadata = {
   generator: "v0.app",
 }
 
-export default function RootLayout({
+export default function CustomerLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="fr" className={`${inter.variable}`}>
-      <body className="antialiased">
-        <SessionProvider>
+    <html lang="fr" suppressHydrationWarning>
+      <body className={inter.variable}>
+        <QueryProvider>
           <ThemeInitializer />
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
           <Toaster />
-        </SessionProvider>
+        </QueryProvider>
       </body>
     </html>
   )
