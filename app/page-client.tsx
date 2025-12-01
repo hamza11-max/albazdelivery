@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { Order } from '@albaz/shared'
 
 import { useSSE } from '@/lib/use-sse'
@@ -23,6 +24,21 @@ import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
 import { useCreateOrder } from '../hooks/use-orders-mutation'
 
 export default function AlBazApp() {
+  // Check if QueryClient is available before proceeding
+  let queryClient: any = null
+  try {
+    queryClient = useQueryClient()
+  } catch (error) {
+    // QueryClientProvider is not available, show loading
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1a4d1a] mx-auto" />
+          <p className="mt-4 text-[#1a4d1a]">Chargement...</p>
+        </div>
+      </div>
+    )
+  }
   const router = useRouter()
   const sessionResult = useSession()
   const session = sessionResult?.data ?? null
