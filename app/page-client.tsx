@@ -1,18 +1,28 @@
-import dynamicImport from 'next/dynamic'
-import { LoadingScreen } from '../components/LoadingScreen'
+"use client"
 
-export const dynamic = 'force-dynamic'
-export const dynamicParams = true
+import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
+import type { Order } from '@albaz/shared'
 
-// Dynamically import the client component to prevent static generation
-const AlBazAppClient = dynamicImport(() => import('./page-client'), {
-  ssr: false,
-  loading: () => <LoadingScreen />,
-})
+import { useSSE } from '@/lib/use-sse'
+import { BottomNav } from '../components/navigation/BottomNav'
+import { HomePage } from '../components/views/HomePage'
+import { CategoryView } from '../components/views/CategoryView'
+import { StoreView } from '../components/views/StoreView'
+import { CheckoutView } from '../components/views/CheckoutView'
+import { MyOrdersView } from '../components/views/MyOrdersView'
+import { TrackingView } from '../components/views/TrackingView'
+import { ProfileView } from '../components/views/ProfileView'
+import { cities } from '../lib/mock-data'
+import type { CartItem, PageView, TranslationFn } from '../lib/types'
+import { useCategoriesQuery } from '../hooks/use-categories-query'
+import { useStoresQuery } from '../hooks/use-stores-query'
+import { useProductsQuery } from '../hooks/use-products-query'
+import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
+import { useCreateOrder } from '../hooks/use-orders-mutation'
 
 export default function AlBazApp() {
-  return <AlBazAppClient />
-}
   const router = useRouter()
   const sessionResult = useSession()
   const session = sessionResult?.data ?? null
