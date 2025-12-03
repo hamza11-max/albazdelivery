@@ -26,7 +26,7 @@ import {
 } from "lucide-react"
 import type { Order } from "@/root/lib/types"
 import { useSSE } from "@/root/lib/use-sse"
-import { useToast } from "@/root/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { useSession, signOut } from "next-auth/react"
 
 // Force dynamic rendering to avoid static generation issues

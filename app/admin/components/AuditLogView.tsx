@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from "@albaz/ui"
 import { Search, Filter, Calendar, Download } from "lucide-react"
-import { useToast } from "@/root/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
 interface AuditLog {

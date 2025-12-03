@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@albaz/ui"
 import { Download, Calendar, TrendingUp, DollarSign, ShoppingBag, Users } from "lucide-react"
-import { useToast } from "@/root/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
 // Import chart components from root UI package

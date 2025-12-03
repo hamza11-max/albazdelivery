@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Label, Textarea } from "@albaz/ui"
 import { Plus, Edit, Trash2, Eye, EyeOff, Search, Image as ImageIcon, ExternalLink } from "lucide-react"
-import { useToast } from "@/root/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
 interface Ad {

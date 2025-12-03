@@ -57,12 +57,12 @@ import {
   TabsList,
   TabsTrigger
 } from "@albaz/ui"
-import { useToast } from "@/root/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import Header from "@/root/components/Header"
 
 // Hooks
 // Use custom hooks
-import { useAuth } from "@/root/hooks/use-auth"
+import { useAuth } from "@/hooks/use-auth"
 import { useDashboardData } from "./fetch-data"
 import { fetchDashboardData, fetchInventory } from "./refresh-data"
 

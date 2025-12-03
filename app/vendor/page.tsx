@@ -46,7 +46,7 @@ import {
 
 // UI Components
 import { Button } from "@/root/components/ui/button"
-import { useToast } from "@/root/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/card"
 import { Badge } from "@/root/components/ui/badge"
 import { Input } from "@/root/components/ui/input"
@@ -77,7 +77,7 @@ import { ImageUploadDialog } from "../../components/dialogs/ImageUploadDialog"
 
 // Hooks
 // Use custom hooks
-import { useAuth } from "@/root/hooks/use-auth"
+import { useAuth } from "@/hooks/use-auth"
 import { useDashboardData } from "./fetch-data"
 import { fetchDashboardData, fetchInventory } from "./refresh-data"
 import { usePOSCart } from "../../hooks/usePOSCart"
