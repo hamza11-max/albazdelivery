@@ -47,19 +47,23 @@ const config = {
         };
     
     // Prevent circular dependency warnings from breaking the build
-    config.resolve = {
-      ...config.resolve,
-      fallback: {
-        ...config.resolve.fallback,
-      },
-      // Add alias to help with module resolution
-      alias: {
-        ...config.resolve.alias,
-        // Resolve @albaz/ui to the packages/ui directory
-        '@albaz/ui': path.resolve(__dirname, 'packages/ui/src/index.ts'),
-        // Ensure @/ paths resolve correctly
-        '@': path.resolve(__dirname, '.'),
-      },
+    // Ensure we preserve existing resolve configuration
+    if (!config.resolve) {
+      config.resolve = {};
+    }
+    
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+    };
+    
+    // Add alias to help with module resolution
+    // Preserve existing aliases and add our custom ones
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Resolve @albaz/ui to the packages/ui directory
+      '@albaz/ui': path.resolve(__dirname, 'packages/ui/src/index.ts'),
+      // Ensure @/ paths resolve correctly - this is critical for Next.js path aliases
+      '@': path.resolve(__dirname, '.'),
     };
 
     // Fix for "Cannot access before initialization" errors (e.g., 'tw' variable)
