@@ -1,7 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Button, Card, CardContent, Input, Badge } from "@albaz/ui"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Search, Plus, Edit, Trash2, Users, Truck, Store } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
 

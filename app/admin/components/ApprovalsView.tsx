@@ -1,6 +1,9 @@
 "use client"
 
-import { Button, Card, CardContent, Badge, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@albaz/ui"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { UserCheck, Truck, Store, UserX } from "lucide-react"
 import type { RegistrationRequest } from "@/root/lib/types"
 

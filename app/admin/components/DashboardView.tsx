@@ -1,6 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle, Badge } from "@albaz/ui"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { OrderStatus } from "@/root/lib/constants"
 import { ShoppingBag, TrendingUp, Clock, CheckCircle2, Users, Truck, Store, Package } from "lucide-react"
 import type { Order, User as UserType } from "@/root/lib/types"

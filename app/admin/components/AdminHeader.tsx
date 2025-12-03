@@ -1,6 +1,6 @@
 "use client"
 
-import { Button } from "@albaz/ui"
+import { Button } from "@/components/ui/button"
 import { LogOut, Sun, Moon, Globe } from "lucide-react"
 import { signOut } from "next-auth/react"
 

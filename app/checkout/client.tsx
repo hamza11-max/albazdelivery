@@ -2,7 +2,10 @@
 
 import { useState } from "react"
 import { CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { Button, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, Label, useToast } from "@albaz/ui"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 import { formatPrice } from "@albaz/shared/utils"
 
