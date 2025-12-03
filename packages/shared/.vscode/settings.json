@@ -1,5 +1,0 @@
-{
-  "typescript.preferences.includePackageJsonAutoImports": "off",
-  "typescript.tsdk": "../../node_modules/typescript/lib"
-}
-
