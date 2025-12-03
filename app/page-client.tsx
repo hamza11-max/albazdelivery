@@ -17,11 +17,11 @@ import { TrackingView } from '../components/views/TrackingView'
 import { ProfileView } from '../components/views/ProfileView'
 import { cities } from '../lib/mock-data'
 import type { CartItem, PageView, TranslationFn } from '../lib/types'
-import { useCategoriesQuery } from '../hooks/use-categories-query'
-import { useStoresQuery } from '../hooks/use-stores-query'
-import { useProductsQuery } from '../hooks/use-products-query'
-import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
-import { useCreateOrder } from '../hooks/use-orders-mutation'
+import { useCategoriesQuery } from '@/hooks/use-categories-query'
+import { useStoresQuery } from '@/hooks/use-stores-query'
+import { useProductsQuery } from '@/hooks/use-products-query'
+import { useRealtimeUpdates } from '@/hooks/use-realtime-updates'
+import { useCreateOrder } from '@/hooks/use-orders-mutation'
 
 export default function AlBazApp() {
   // Check if QueryClient is available - call unconditionally to satisfy hooks rules
