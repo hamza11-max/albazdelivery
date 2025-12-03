@@ -58,16 +58,15 @@ export default function AlBazApp() {
   const { data: sseData } = useSSE(`/api/notifications/sse?role=customer&userId=${customerId}`, shouldUseSSE)
 
   // Enable real-time updates via WebSocket
-  useRealtimeUpdates(true)
+  useRealtimeUpdates(isQueryReady)
 
   // Order creation mutation
   const createOrder = useCreateOrder()
 
   // Fetch categories from API with React Query
-  // Only use results if QueryClient is ready
   const categoriesResult = useCategoriesQuery()
-  const categories = (isQueryReady && categoriesResult?.data) ? categoriesResult.data : []
-  const categoriesLoading = (isQueryReady && categoriesResult?.isLoading) ? categoriesResult.isLoading : false
+  const categories = categoriesResult?.data ?? []
+  const categoriesLoading = categoriesResult?.isLoading ?? false
 
   // Fetch stores based on selected category and search with React Query
   const storesResult = useStoresQuery({
@@ -75,13 +74,13 @@ export default function AlBazApp() {
     city: selectedCity,
     search: searchQuery || undefined,
   })
-  const apiStores = (isQueryReady && storesResult?.data) ? storesResult.data : []
-  const storesLoading = (isQueryReady && storesResult?.isLoading) ? storesResult.isLoading : false
+  const apiStores = storesResult?.data ?? []
+  const storesLoading = storesResult?.isLoading ?? false
 
   // Fetch products for selected store with React Query
   const productsResult = useProductsQuery(selectedStore)
-  const apiProducts = (isQueryReady && productsResult?.data) ? productsResult.data : []
-  const productsLoading = (isQueryReady && productsResult?.isLoading) ? productsResult.isLoading : false
+  const apiProducts = productsResult?.data ?? []
+  const productsLoading = productsResult?.isLoading ?? false
 
   useEffect(() => {
     if (status === 'unauthenticated') {

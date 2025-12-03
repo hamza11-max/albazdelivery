@@ -21,7 +21,14 @@ export interface CreateOrderData {
  * Includes optimistic updates and error handling
  */
 export function useCreateOrder() {
-  const queryClient = useQueryClient()
+  let queryClient: any = null
+  try {
+    queryClient = useQueryClient()
+  } catch (error) {
+    // QueryClientProvider is not available
+    console.warn('[useCreateOrder] QueryClient not available')
+  }
+  
   const { handleApiError } = useErrorHandler()
 
   return useMutation({
@@ -31,11 +38,13 @@ export function useCreateOrder() {
     },
     onSuccess: (data) => {
       // Invalidate orders queries to refetch
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
-      
-      // Optionally set the new order in cache
-      if (data.order?.id) {
-        queryClient.setQueryData(['order', data.order.id], data.order)
+      if (queryClient) {
+        queryClient.invalidateQueries({ queryKey: ['orders'] })
+        
+        // Optionally set the new order in cache
+        if (data.order?.id) {
+          queryClient.setQueryData(['order', data.order.id], data.order)
+        }
       }
     },
     onError: (error) => {

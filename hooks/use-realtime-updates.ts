@@ -9,11 +9,20 @@ import { useSession } from 'next-auth/react'
  * Automatically invalidates React Query cache on updates
  */
 export function useRealtimeUpdates(enabled: boolean = true) {
-  const queryClient = useQueryClient()
+  let queryClient: any = null
+  try {
+    queryClient = useQueryClient()
+  } catch (error) {
+    // QueryClientProvider is not available
+    console.warn('[useRealtimeUpdates] QueryClient not available')
+  }
+  
   const { data: session } = useSession()
   const userId = session?.user?.id
 
   const handleMessage = (message: any) => {
+    if (!queryClient) return
+    
     switch (message.type) {
       case 'order_updated':
         // Invalidate orders queries
