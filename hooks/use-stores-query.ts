@@ -19,21 +19,17 @@ export function useStoresQuery(params?: StoresQueryParams) {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
   
-  // Check if QueryClient is available first - must call hook unconditionally
-  let queryClient: any = null
+  // Check if QueryClient is available - must call hook unconditionally
+  let hasQueryClient = false
   try {
-    queryClient = useQueryClient()
+    const queryClient = useQueryClient()
+    hasQueryClient = queryClient !== null && queryClient !== undefined && typeof queryClient === 'object'
   } catch (error) {
-    // QueryClientProvider is not available - return safe default immediately
-    return safeDefault
+    // QueryClientProvider is not available
+    hasQueryClient = false
   }
   
-  // If no QueryClient, return safe default
-  if (!queryClient || typeof queryClient !== 'object') {
-    return safeDefault
-  }
-  
-  // Now safely call useQuery - QueryClient is confirmed available
+  // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
   let queryResult: any = null
   
   try {
@@ -48,6 +44,7 @@ export function useStoresQuery(params?: StoresQueryParams) {
           return []
         }
       },
+      enabled: hasQueryClient, // Only run if QueryClient is available
       retry: false, // Don't retry during build
     })
   } catch (error) {
@@ -58,23 +55,16 @@ export function useStoresQuery(params?: StoresQueryParams) {
   
   // If useQuery returned undefined or null, return safe default
   if (!queryResult || typeof queryResult !== 'object') {
-    console.warn('[useStoresQuery] useQuery returned invalid result:', queryResult)
     return safeDefault
   }
   
   // Safely extract properties with defaults
-  try {
-    return {
-      data: (queryResult?.data ?? []) as Store[],
-      isLoading: queryResult?.isLoading ?? false,
-      error: queryResult?.error ?? null,
-      isError: queryResult?.isError ?? false,
-      isSuccess: queryResult?.isSuccess ?? false,
-    }
-  } catch (error) {
-    // If destructuring fails, return safe default
-    console.warn('[useStoresQuery] Error extracting query result:', error)
-    return safeDefault
+  return {
+    data: (queryResult?.data ?? []) as Store[],
+    isLoading: queryResult?.isLoading ?? false,
+    error: queryResult?.error ?? null,
+    isError: queryResult?.isError ?? false,
+    isSuccess: queryResult?.isSuccess ?? false,
   }
 }
 
@@ -86,21 +76,17 @@ export function useStoreQuery(storeId: string | null) {
   // Safe default return value
   const safeDefault = { data: null, isLoading: false, error: null, isError: false, isSuccess: false }
   
-  // Check if QueryClient is available first - must call hook unconditionally
-  let queryClient: any = null
+  // Check if QueryClient is available - must call hook unconditionally
+  let hasQueryClient = false
   try {
-    queryClient = useQueryClient()
+    const queryClient = useQueryClient()
+    hasQueryClient = queryClient !== null && queryClient !== undefined && typeof queryClient === 'object'
   } catch (error) {
-    // QueryClientProvider is not available - return safe default immediately
-    return safeDefault
+    // QueryClientProvider is not available
+    hasQueryClient = false
   }
   
-  // If no QueryClient, return safe default
-  if (!queryClient || typeof queryClient !== 'object') {
-    return safeDefault
-  }
-  
-  // Now safely call useQuery - QueryClient is confirmed available
+  // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
   let queryResult: any = null
   
   try {
@@ -116,7 +102,7 @@ export function useStoreQuery(storeId: string | null) {
           return null
         }
       },
-      enabled: !!storeId && !!queryClient,
+      enabled: hasQueryClient && !!storeId, // Only run if QueryClient is available AND storeId is provided
       retry: false, // Don't retry during build
     })
   } catch (error) {
@@ -127,23 +113,16 @@ export function useStoreQuery(storeId: string | null) {
   
   // If useQuery returned undefined or null, return safe default
   if (!queryResult || typeof queryResult !== 'object') {
-    console.warn('[useStoreQuery] useQuery returned invalid result:', queryResult)
     return safeDefault
   }
   
   // Safely extract properties with defaults
-  try {
-    return {
-      data: (queryResult?.data ?? null) as Store | null,
-      isLoading: queryResult?.isLoading ?? false,
-      error: queryResult?.error ?? null,
-      isError: queryResult?.isError ?? false,
-      isSuccess: queryResult?.isSuccess ?? false,
-    }
-  } catch (error) {
-    // If destructuring fails, return safe default
-    console.warn('[useStoreQuery] Error extracting query result:', error)
-    return safeDefault
+  return {
+    data: (queryResult?.data ?? null) as Store | null,
+    isLoading: queryResult?.isLoading ?? false,
+    error: queryResult?.error ?? null,
+    isError: queryResult?.isError ?? false,
+    isSuccess: queryResult?.isSuccess ?? false,
   }
 }
 

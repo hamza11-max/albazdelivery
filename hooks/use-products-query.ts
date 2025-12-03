@@ -18,21 +18,17 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
   
-  // Check if QueryClient is available first - must call hook unconditionally
-  let queryClient: any = null
+  // Check if QueryClient is available - must call hook unconditionally
+  let hasQueryClient = false
   try {
-    queryClient = useQueryClient()
+    const queryClient = useQueryClient()
+    hasQueryClient = queryClient !== null && queryClient !== undefined && typeof queryClient === 'object'
   } catch (error) {
-    // QueryClientProvider is not available - return safe default immediately
-    return safeDefault
+    // QueryClientProvider is not available
+    hasQueryClient = false
   }
   
-  // If no QueryClient, return safe default
-  if (!queryClient || typeof queryClient !== 'object') {
-    return safeDefault
-  }
-  
-  // Now safely call useQuery - QueryClient is confirmed available
+  // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
   let queryResult: any = null
   
   try {
@@ -51,7 +47,7 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
           return []
         }
       },
-      enabled: !!storeId, // Only run if storeId is provided
+      enabled: hasQueryClient && !!storeId, // Only run if QueryClient is available AND storeId is provided
       staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
       retry: false, // Don't retry during build
     })
@@ -63,23 +59,16 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   
   // If useQuery returned undefined or null, return safe default
   if (!queryResult || typeof queryResult !== 'object') {
-    console.warn('[useProductsQuery] useQuery returned invalid result:', queryResult)
     return safeDefault
   }
   
   // Safely extract properties with defaults
-  try {
-    return {
-      data: (queryResult?.data ?? []) as Product[],
-      isLoading: queryResult?.isLoading ?? false,
-      error: queryResult?.error ?? null,
-      isError: queryResult?.isError ?? false,
-      isSuccess: queryResult?.isSuccess ?? false,
-    }
-  } catch (error) {
-    // If destructuring fails, return safe default
-    console.warn('[useProductsQuery] Error extracting query result:', error)
-    return safeDefault
+  return {
+    data: (queryResult?.data ?? []) as Product[],
+    isLoading: queryResult?.isLoading ?? false,
+    error: queryResult?.error ?? null,
+    isError: queryResult?.isError ?? false,
+    isSuccess: queryResult?.isSuccess ?? false,
   }
 }
 
