@@ -21,21 +21,25 @@ export function useStoresQuery(params?: StoresQueryParams) {
   
   // Check if QueryClient is available first - must call hook unconditionally
   let hasQueryClient = false
-  let queryClient: any = null
   try {
-    queryClient = useQueryClient()
+    const queryClient = useQueryClient()
     hasQueryClient = queryClient !== null && queryClient !== undefined
   } catch (error) {
-    // QueryClientProvider is not available
-    hasQueryClient = false
+    // QueryClientProvider is not available - return safe default immediately
+    return safeDefault
   }
   
-  // Always call useQuery (hooks must be called unconditionally)
-  // Use 'enabled' to prevent execution if QueryClient isn't ready
-  let queryResult: any = null
+  // If no QueryClient, return safe default
+  if (!hasQueryClient) {
+    return safeDefault
+  }
+  
+  // Now safely call useQuery - QueryClient is confirmed available
+  // Wrap in try-catch as extra safety
+  let queryResult: any = safeDefault
   
   try {
-    queryResult = useQuery({
+    const result = useQuery({
       queryKey: ['stores', params],
       queryFn: async () => {
         try {
@@ -46,17 +50,16 @@ export function useStoresQuery(params?: StoresQueryParams) {
           return []
         }
       },
-      enabled: hasQueryClient, // Only run if QueryClient is available
       retry: false, // Don't retry during build
     })
+    
+    // Ensure result is valid
+    if (result && typeof result === 'object' && result !== null) {
+      queryResult = result
+    }
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useStoresQuery] Hook error:', error)
-    return safeDefault
-  }
-  
-  // If useQuery returned undefined or null, return safe default immediately
-  if (!queryResult || typeof queryResult !== 'object') {
     return safeDefault
   }
   
