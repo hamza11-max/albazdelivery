@@ -19,26 +19,24 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
   
   // Check if QueryClient is available first - must call hook unconditionally
-  let hasQueryClient = false
+  let queryClient: any = null
   try {
-    const queryClient = useQueryClient()
-    hasQueryClient = queryClient !== null && queryClient !== undefined
+    queryClient = useQueryClient()
   } catch (error) {
     // QueryClientProvider is not available - return safe default immediately
     return safeDefault
   }
   
   // If no QueryClient, return safe default
-  if (!hasQueryClient) {
+  if (!queryClient || typeof queryClient !== 'object') {
     return safeDefault
   }
   
   // Now safely call useQuery - QueryClient is confirmed available
-  // Wrap in try-catch as extra safety
-  let queryResult: any = safeDefault
+  let queryResult: any = null
   
   try {
-    const result = useQuery({
+    queryResult = useQuery({
       queryKey: ['products', storeId, params],
       queryFn: async () => {
         if (!storeId) return []
@@ -57,14 +55,15 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
       staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
       retry: false, // Don't retry during build
     })
-    
-    // Ensure result is valid
-    if (result && typeof result === 'object' && result !== null) {
-      queryResult = result
-    }
   } catch (error) {
     // If useQuery throws, return safe default
-    console.warn('[useProductsQuery] Hook error:', error)
+    console.warn('[useProductsQuery] useQuery threw error:', error)
+    return safeDefault
+  }
+  
+  // If useQuery returned undefined or null, return safe default
+  if (!queryResult || typeof queryResult !== 'object') {
+    console.warn('[useProductsQuery] useQuery returned invalid result:', queryResult)
     return safeDefault
   }
   

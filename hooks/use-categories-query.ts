@@ -6,32 +6,34 @@ import type { CategoryDefinition } from '../lib/mock-data'
 
 /**
  * Hook to fetch categories with React Query caching
+ * Safely handles cases where QueryClientProvider is not available
  */
 export function useCategoriesQuery() {
   // Safe default return value
   const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
   
   // Check if QueryClient is available first - must call hook unconditionally
-  let hasQueryClient = false
+  let queryClient: any = null
   try {
-    const queryClient = useQueryClient()
-    hasQueryClient = queryClient !== null && queryClient !== undefined
+    queryClient = useQueryClient()
   } catch (error) {
     // QueryClientProvider is not available - return safe default immediately
+    // This prevents useQuery from being called when context is unavailable
     return safeDefault
   }
   
   // If no QueryClient, return safe default
-  if (!hasQueryClient) {
+  if (!queryClient || typeof queryClient !== 'object') {
     return safeDefault
   }
   
   // Now safely call useQuery - QueryClient is confirmed available
-  // Wrap in try-catch as extra safety
-  let queryResult: any = safeDefault
+  // We must call useQuery unconditionally (React hooks rule), but we've verified QueryClient exists
+  let queryResult: any = null
   
   try {
-    const result = useQuery({
+    // Call useQuery - it should work now that we've verified QueryClient exists
+    queryResult = useQuery({
       queryKey: ['categories'],
       queryFn: async () => {
         try {
@@ -45,14 +47,15 @@ export function useCategoriesQuery() {
       staleTime: 1000 * 60 * 30, // Categories change rarely, cache for 30 minutes
       retry: false, // Don't retry during build
     })
-    
-    // Ensure result is valid
-    if (result && typeof result === 'object' && result !== null) {
-      queryResult = result
-    }
   } catch (error) {
     // If useQuery throws, return safe default
-    console.warn('[useCategoriesQuery] Hook error:', error)
+    console.warn('[useCategoriesQuery] useQuery threw error:', error)
+    return safeDefault
+  }
+  
+  // If useQuery returned undefined or null, return safe default
+  if (!queryResult || typeof queryResult !== 'object') {
+    console.warn('[useCategoriesQuery] useQuery returned invalid result:', queryResult)
     return safeDefault
   }
   
