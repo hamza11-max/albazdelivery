@@ -58,12 +58,13 @@ const config = {
     
     // Add alias to help with module resolution
     // Preserve existing aliases and add our custom ones
+    // CRITICAL: The @/ alias must be set for Next.js path resolution
     config.resolve.alias = {
-      ...config.resolve.alias,
+      ...(config.resolve.alias || {}),
+      // CRITICAL: @/ alias for Next.js path resolution - must point to project root
+      '@': path.resolve(__dirname, '.'),
       // Resolve @albaz/ui to the packages/ui directory
       '@albaz/ui': path.resolve(__dirname, 'packages/ui/src/index.ts'),
-      // Ensure @/ paths resolve correctly - this is critical for Next.js path aliases
-      '@': path.resolve(__dirname, '.'),
     };
 
     // Fix for "Cannot access before initialization" errors (e.g., 'tw' variable)
