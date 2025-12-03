@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
 // Import chart components from root UI package
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/root/components/ui/chart"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Legend, ResponsiveContainer } from "recharts"
 
 interface AnalyticsData {
