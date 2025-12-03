@@ -2,17 +2,21 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 
-// Conditionally import devtools to avoid build errors if package is missing
-let ReactQueryDevtools: any = null
-if (process.env.NODE_ENV === 'development') {
-  try {
-    ReactQueryDevtools = require('@tanstack/react-query-devtools').ReactQueryDevtools
-  } catch (e) {
-    // Devtools not available, continue without them
-    console.warn('React Query Devtools not available')
-  }
-}
+// Dynamically import devtools only in development to avoid build errors
+const ReactQueryDevtools = process.env.NODE_ENV === 'development'
+  ? dynamic(
+      () =>
+        import('@tanstack/react-query-devtools').then((mod) => ({
+          default: mod.ReactQueryDevtools,
+        })),
+      { ssr: false }
+    ).catch(() => {
+      // Return a no-op component if devtools are not available
+      return () => null
+    })
+  : null
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
