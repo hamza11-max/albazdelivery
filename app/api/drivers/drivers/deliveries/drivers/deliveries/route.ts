@@ -4,7 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { emitOrderAssigned } from '@/root/lib/events'
-import { OrderStatus } from '@/root/lib/constants'
+import { OrderStatus } from '@/lib/constants'
 import { z } from 'zod'
 
 // GET /api/drivers/deliveries - Get available deliveries or driver's assigned deliveries

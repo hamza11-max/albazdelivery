@@ -37,6 +37,8 @@ module.exports = {
       '@/root/components': path.resolve(__dirname, './components'),
       '@/root/hooks': path.resolve(__dirname, './hooks'),
       '@albaz/ui': path.resolve(__dirname, 'packages/ui/src/index.ts'),
+      '@albaz/shared': path.resolve(__dirname, 'packages/shared/src/index.ts'),
+      '@albaz/shared/utils': path.resolve(__dirname, 'packages/shared/src/utils/index.ts'),
     };
     
     // Ensure modules can be resolved from project root

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { OrderStatus } from "@/root/lib/constants"
+import { OrderStatus } from "@/lib/constants"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

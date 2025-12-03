@@ -5,7 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { createOrderSchema } from '@/root/lib/validations/order'
 import { emitOrderCreated } from '@/root/lib/events'
-import { OrderStatus } from '@/root/lib/constants'
+import { OrderStatus } from '@/lib/constants'
 
 // GET /api/orders - Get all orders or filter by customer
 export async function GET(request: NextRequest) {

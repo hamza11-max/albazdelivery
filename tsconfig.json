@@ -38,6 +38,12 @@
       ],
       "@albaz/ui": [
         "./packages/ui/src/index.ts"
+      ],
+      "@albaz/shared": [
+        "./packages/shared/src/index.ts"
+      ],
+      "@albaz/shared/*": [
+        "./packages/shared/src/*"
       ]
     }
   },

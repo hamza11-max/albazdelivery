@@ -5,7 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { emitOrderCreated, emitNotificationSent } from '@/root/lib/events'
 import { createOrderSchema } from '@/root/lib/validations/order'
-import { OrderStatus } from '@/root/lib/constants'
+import { OrderStatus } from '@/lib/constants'
 
 export async function POST(request: NextRequest) {
   try {
