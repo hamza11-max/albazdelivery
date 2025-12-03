@@ -1,5 +1,6 @@
 import { CheckCircle2, Package, Truck, AlertCircle } from 'lucide-react'
-import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@albaz/ui'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import type { TrackingViewProps } from '../../lib/types'
 import { Skeleton } from '../ui/skeleton'
 import { useOrderQuery } from '../../hooks/use-orders-query'

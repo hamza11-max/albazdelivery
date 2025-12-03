@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react'
 import NextImage from 'next/image'
 import { Search, MapPin, Settings, Shield, Building2 } from 'lucide-react'
-import { Input } from '@albaz/ui'
+import { Input } from '@/components/ui/input'
 import type { HomePageProps } from '../../lib/types'
 import { CategoryIcon } from '../CategoryIcon'
 
