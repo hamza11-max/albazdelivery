@@ -31,6 +31,26 @@ export function useCreateOrder() {
   
   const { handleApiError } = useErrorHandler()
 
+  // If no QueryClient, return a safe mutation that rejects
+  if (!queryClient) {
+    return {
+      mutate: () => {
+        console.warn('[useCreateOrder] Cannot mutate: QueryClient not available')
+        return Promise.reject(new Error('QueryClient not available'))
+      },
+      mutateAsync: async () => {
+        console.warn('[useCreateOrder] Cannot mutate: QueryClient not available')
+        throw new Error('QueryClient not available')
+      },
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      data: null,
+      reset: () => {},
+    } as any
+  }
+
   return useMutation({
     mutationFn: async (orderData: CreateOrderData) => {
       const response = await ordersAPI.create(orderData)
@@ -55,10 +75,38 @@ export function useCreateOrder() {
 
 /**
  * Hook for updating order status
+ * Safely handles cases where QueryClientProvider is not available
  */
 export function useUpdateOrderStatus() {
-  const queryClient = useQueryClient()
+  let queryClient: any = null
+  try {
+    queryClient = useQueryClient()
+  } catch (error) {
+    // QueryClientProvider is not available
+    console.warn('[useUpdateOrderStatus] QueryClient not available')
+  }
+  
   const { handleApiError } = useErrorHandler()
+
+  // If no QueryClient, return a safe mutation that rejects
+  if (!queryClient) {
+    return {
+      mutate: () => {
+        console.warn('[useUpdateOrderStatus] Cannot mutate: QueryClient not available')
+        return Promise.reject(new Error('QueryClient not available'))
+      },
+      mutateAsync: async () => {
+        console.warn('[useUpdateOrderStatus] Cannot mutate: QueryClient not available')
+        throw new Error('QueryClient not available')
+      },
+      isPending: false,
+      isError: false,
+      isSuccess: false,
+      error: null,
+      data: null,
+      reset: () => {},
+    } as any
+  }
 
   return useMutation({
     mutationFn: async ({ orderId, status, driverId }: { orderId: string; status: string; driverId?: string }) => {
@@ -67,12 +115,14 @@ export function useUpdateOrderStatus() {
     },
     onSuccess: (data, variables) => {
       // Invalidate specific order and orders list
-      queryClient.invalidateQueries({ queryKey: ['order', variables.orderId] })
-      queryClient.invalidateQueries({ queryKey: ['orders'] })
-      
-      // Optimistically update the order in cache
-      if (data.order) {
-        queryClient.setQueryData(['order', variables.orderId], data.order)
+      if (queryClient) {
+        queryClient.invalidateQueries({ queryKey: ['order', variables.orderId] })
+        queryClient.invalidateQueries({ queryKey: ['orders'] })
+        
+        // Optimistically update the order in cache
+        if (data.order) {
+          queryClient.setQueryData(['order', variables.orderId], data.order)
+        }
       }
     },
     onError: (error) => {
