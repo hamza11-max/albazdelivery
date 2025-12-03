@@ -1,0 +1,858 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  //directUrl = env("DIRECT_URL", env("DATABASE_URL"))
+}
+
+// ========================================
+// User Management
+// ========================================
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  phone     String   @unique
+  password  String
+  role      Role     @default(CUSTOMER)
+  status    ApprovalStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Role-specific fields
+  licenseNumber String? // For drivers
+  shopType      String? // For vendors
+  vehicleType   String? // For drivers
+  photoUrl      String? // Profile/vehicle photo
+  address       String?
+  city          String?
+  
+  // Relations
+  orders              Order[]        @relation("CustomerOrders")
+  vendorOrders        Order[]        @relation("VendorOrders")
+  driverDeliveries    Order[]        @relation("DriverOrders")
+  stores              Store[]
+  reviews             Review[]       @relation("CustomerReviews")
+  receivedReviews     Review[]       @relation("VendorReviews")
+  loyaltyAccount      LoyaltyAccount?
+  wallet              Wallet?
+  sentMessages        ChatMessage[]  @relation("SenderMessages")
+  supportTickets      SupportTicket[]
+  payments            Payment[]
+  notifications       Notification[]
+  driverLocation      DriverLocation?
+  driverPerformance   DriverPerformance?
+  driverConnections   DriverVendorConnection[] @relation("DriverConnections")
+  vendorConnections   DriverVendorConnection[] @relation("VendorConnections")
+  
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([status])
+}
+
+model RegistrationRequest {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  phone         String   @unique
+  password      String
+  role          Role
+  status        ApprovalStatus @default(PENDING)
+  licenseNumber String?
+  shopType      String?
+  vehicleType   String?
+  photoUrl      String?
+  createdAt     DateTime @default(now())
+  reviewedAt    DateTime?
+  reviewedBy    String?
+  
+  @@index([status])
+  @@index([role])
+}
+
+enum Role {
+  CUSTOMER
+  VENDOR
+  DRIVER
+  ADMIN
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ========================================
+// Store & Product Management
+// ========================================
+
+model Store {
+  id           String    @id @default(cuid())
+  name         String
+  type         String
+  categoryId   Int
+  vendorId     String
+  address      String
+  city         String
+  phone        String?
+  rating       Float     @default(0)
+  deliveryTime String
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  
+  vendor   User      @relation(fields: [vendorId], references: [id])
+  products Product[]
+  orders   Order[]
+  
+  @@index([vendorId])
+  @@index([categoryId])
+  @@index([city])
+  @@index([isActive])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  name        String
+  description String
+  price       Float
+  image       String?
+  rating      Float    @default(0)
+  available   Boolean  @default(true)
+  category    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  store      Store       @relation(fields: [storeId], references: [id])
+  orderItems OrderItem[]
+  
+  @@index([storeId])
+  @@index([available])
+  @@index([name])
+}
+
+// ========================================
+// Order Management
+// ========================================
+
+model Order {
+  id              String      @id @default(cuid())
+  customerId      String
+  vendorId        String?
+  storeId         String?
+  driverId        String?
+  status          OrderStatus @default(PENDING)
+  total           Float
+  subtotal        Float
+  deliveryFee     Float
+  paymentMethod   PaymentMethod
+  deliveryAddress String
+  city            String
+  customerPhone   String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Timestamps for order lifecycle
+  acceptedAt   DateTime?
+  preparingAt  DateTime?
+  readyAt      DateTime?
+  assignedAt   DateTime?
+  deliveredAt  DateTime?
+  cancelledAt  DateTime?
+  
+  // Package delivery specific fields
+  isPackageDelivery Boolean   @default(false)
+  packageDescription String?
+  recipientName     String?
+  recipientPhone    String?
+  scheduledDate     DateTime?
+  scheduledTime     String?
+  whoPays           String?   @default("customer") // "customer" or "receiver"
+  
+  // Relations
+  customer User        @relation("CustomerOrders", fields: [customerId], references: [id])
+  vendor   User?       @relation("VendorOrders", fields: [vendorId], references: [id])
+  driver   User?       @relation("DriverOrders", fields: [driverId], references: [id])
+  store    Store?      @relation(fields: [storeId], references: [id])
+  items    OrderItem[]
+  payment  Payment?
+  review   Review?
+  refund   Refund?
+  
+  @@index([customerId])
+  @@index([vendorId])
+  @@index([driverId])
+  @@index([storeId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([city])
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float
+  
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+  
+  @@index([orderId])
+  @@index([productId])
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  ASSIGNED
+  IN_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  WALLET
+}
+
+// ========================================
+// Payment Management
+// ========================================
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String        @unique
+  customerId    String
+  amount        Float
+  method        PaymentMethod
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  createdAt     DateTime      @default(now())
+  completedAt   DateTime?
+  
+  order    Order  @relation(fields: [orderId], references: [id])
+  customer User   @relation(fields: [customerId], references: [id])
+  refund   Refund?
+  
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Refund {
+  id          String       @id @default(cuid())
+  paymentId   String       @unique
+  orderId     String       @unique
+  amount      Float
+  reason      String
+  status      RefundStatus @default(PENDING)
+  createdAt   DateTime     @default(now())
+  processedAt DateTime?
+  
+  payment Payment @relation(fields: [paymentId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+  
+  @@index([status])
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+// ========================================
+// Wallet Management
+// ========================================
+
+model Wallet {
+  id          String              @id @default(cuid())
+  customerId  String              @unique
+  balance     Float               @default(0)
+  totalSpent  Float               @default(0)
+  totalEarned Float               @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  
+  customer     User                 @relation(fields: [customerId], references: [id])
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id              String   @id @default(cuid())
+  walletId        String
+  type            TransactionType
+  amount          Float
+  description     String
+  relatedOrderId  String?
+  createdAt       DateTime @default(now())
+  
+  wallet Wallet @relation(fields: [walletId], references: [id])
+  
+  @@index([walletId])
+  @@index([createdAt])
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+// ========================================
+// Loyalty Program
+// ========================================
+
+model LoyaltyAccount {
+  id                   String              @id @default(cuid())
+  customerId           String              @unique
+  points               Int                 @default(0)
+  totalPointsEarned    Int                 @default(0)
+  totalPointsRedeemed  Int                 @default(0)
+  tier                 MembershipTier      @default(BRONZE)
+  tierExpiresAt        DateTime?
+  referralCode         String              @unique @default(cuid())
+  referralCount        Int                 @default(0)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  
+  customer      User                   @relation(fields: [customerId], references: [id])
+  transactions  LoyaltyTransaction[]
+  redemptions   CustomerRedemption[]
+  
+  @@index([referralCode])
+  @@index([tier])
+}
+
+model LoyaltyTransaction {
+  id               String   @id @default(cuid())
+  loyaltyAccountId String
+  type             LoyaltyTransactionType
+  points           Int
+  description      String
+  relatedOrderId   String?
+  createdAt        DateTime @default(now())
+  
+  loyaltyAccount LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id])
+  
+  @@index([loyaltyAccountId])
+  @@index([createdAt])
+}
+
+model LoyaltyReward {
+  id          String       @id @default(cuid())
+  name        String
+  description String
+  pointsCost  Int
+  discount    Float
+  expiresAt   DateTime
+  category    RewardCategory
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  
+  redemptions CustomerRedemption[]
+  
+  @@index([isActive])
+  @@index([expiresAt])
+}
+
+model CustomerRedemption {
+  id               String           @id @default(cuid())
+  customerId       String
+  loyaltyAccountId String
+  rewardId         String
+  status           RedemptionStatus @default(ACTIVE)
+  redeemedAt       DateTime         @default(now())
+  usedAt           DateTime?
+  expiresAt        DateTime
+  
+  loyaltyAccount LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id])
+  reward         LoyaltyReward  @relation(fields: [rewardId], references: [id])
+  
+  @@index([customerId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+enum MembershipTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+}
+
+enum RewardCategory {
+  DISCOUNT
+  FREE_ITEM
+  BONUS_POINTS
+}
+
+enum RedemptionStatus {
+  ACTIVE
+  USED
+  EXPIRED
+}
+
+// ========================================
+// Review & Rating System
+// ========================================
+
+model Review {
+  id               String   @id @default(cuid())
+  customerId       String
+  vendorId         String
+  orderId          String   @unique
+  rating           Int      // 1-5
+  foodQuality      Int?     // 1-5
+  deliveryTime     Int?     // 1-5
+  customerService  Int?     // 1-5
+  comment          String
+  photos           String[] // Array of image URLs
+  helpful          Int      @default(0)
+  unhelpful        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  customer User            @relation("CustomerReviews", fields: [customerId], references: [id])
+  vendor   User            @relation("VendorReviews", fields: [vendorId], references: [id])
+  order    Order           @relation(fields: [orderId], references: [id])
+  response VendorResponse?
+  
+  @@index([vendorId])
+  @@index([rating])
+  @@index([createdAt])
+}
+
+model VendorResponse {
+  id        String   @id @default(cuid())
+  reviewId  String   @unique
+  response  String
+  createdAt DateTime @default(now())
+  
+  review Review @relation(fields: [reviewId], references: [id])
+}
+
+// ========================================
+// Chat & Support System
+// ========================================
+
+model Conversation {
+  id               String              @id @default(cuid())
+  participantIds   String[]
+  participantRoles ChatParticipantRole[]
+  type             ConversationType
+  relatedOrderId   String?
+  lastMessage      String?
+  lastMessageTime  DateTime?
+  isActive         Boolean             @default(true)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  
+  messages ChatMessage[]
+  
+  @@index([isActive])
+  @@index([lastMessageTime])
+}
+
+model ChatMessage {
+  id             String              @id @default(cuid())
+  conversationId String
+  senderId       String
+  senderRole     ChatParticipantRole
+  senderName     String
+  message        String
+  attachments    String[]
+  isRead         Boolean             @default(false)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SenderMessages", fields: [senderId], references: [id])
+  
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model SupportTicket {
+  id          String         @id @default(cuid())
+  customerId  String
+  subject     String
+  description String
+  category    TicketCategory
+  priority    TicketPriority
+  status      TicketStatus   @default(OPEN)
+  assignedTo  String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  resolvedAt  DateTime?
+  
+  customer User @relation(fields: [customerId], references: [id])
+  
+  @@index([customerId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+}
+
+enum ChatParticipantRole {
+  CUSTOMER
+  VENDOR
+  DRIVER
+  ADMIN
+}
+
+enum ConversationType {
+  CUSTOMER_VENDOR
+  CUSTOMER_DRIVER
+  CUSTOMER_ADMIN
+  VENDOR_ADMIN
+}
+
+enum TicketCategory {
+  ORDER
+  DELIVERY
+  PAYMENT
+  ACCOUNT
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ========================================
+// Driver Management
+// ========================================
+
+model DriverLocation {
+  id            String   @id @default(cuid())
+  driverId      String   @unique
+  latitude      Float
+  longitude     Float
+  accuracy      Float
+  heading       Float
+  speed         Float
+  isActive      Boolean  @default(false)
+  status        String   @default("offline") // offline, online, delivering
+  currentOrderId String?
+  updatedAt     DateTime @updatedAt
+  locationHistory LocationHistory[]
+  
+  driver User @relation(fields: [driverId], references: [id])
+  
+  @@index([driverId])
+  @@index([updatedAt])
+  @@index([isActive])
+  @@index([status])
+}
+
+model LocationHistory {
+  id            String   @id @default(cuid())
+  driverLocationId String
+  latitude      Float
+  longitude     Float
+  timestamp     DateTime @default(now())
+  orderId       String?
+  
+  driverLocation DriverLocation @relation(fields: [driverLocationId], references: [id])
+  
+  @@index([driverLocationId])
+  @@index([timestamp])
+  @@index([orderId])
+}
+
+model DriverPerformance {
+  driverId            String   @id
+  totalDeliveries     Int      @default(0)
+  averageDeliveryTime Float    @default(0)
+  onTimePercentage    Float    @default(0)
+  rating              Float    @default(0)
+  earnings            Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  driver User @relation(fields: [driverId], references: [id])
+  
+  @@index([rating])
+  @@index([totalDeliveries])
+}
+
+model DeliveryZone {
+  id             String   @id @default(cuid())
+  name           String
+  city           String
+  coordinates    Json     // Array of {lat, lng} objects
+  deliveryFee    Float
+  estimatedTime  Int      // in minutes
+  activeDrivers  Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@index([city])
+  @@index([isActive])
+}
+
+// ========================================
+// Notifications
+// ========================================
+
+model Notification {
+  id                String           @id @default(cuid())
+  recipientId       String
+  recipientRole     Role
+  type              NotificationType
+  title             String
+  message           String
+  relatedOrderId    String?
+  relatedDeliveryId String?
+  actionUrl         String?
+  isRead            Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  readAt            DateTime?
+  
+  recipient User @relation(fields: [recipientId], references: [id])
+  
+  @@index([recipientId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  ORDER_STATUS
+  DELIVERY_UPDATE
+  PAYMENT_CONFIRMATION
+  LOYALTY_REWARD
+  PROMOTION
+  SYSTEM
+}
+
+// ========================================
+// Vendor ERP (Inventory)
+// ========================================
+
+model InventoryProduct {
+  id                String   @id @default(cuid())
+  vendorId          String
+  sku               String   @unique
+  name              String
+  category          String
+  supplierId        String?
+  costPrice         Float
+  sellingPrice      Float
+  stock             Int
+  lowStockThreshold Int
+  barcode           String?
+  image             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  supplier  Supplier?  @relation(fields: [supplierId], references: [id])
+  saleItems SaleItem[]
+  
+  @@index([vendorId])
+  @@index([sku])
+  @@index([stock])
+}
+
+model Supplier {
+  id              String              @id @default(cuid())
+  vendorId        String
+  name            String
+  contactPerson   String
+  phone           String
+  email           String?
+  address         String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  products InventoryProduct[]
+  
+  @@index([vendorId])
+}
+
+model Sale {
+  id            String         @id @default(cuid())
+  vendorId      String
+  customerId    String?
+  customerName  String?
+  subtotal      Float
+  discount      Float
+  total         Float
+  paymentMethod SalePaymentMethod
+  createdAt     DateTime       @default(now())
+  
+  items SaleItem[]
+  
+  @@index([vendorId])
+  @@index([createdAt])
+}
+
+// ========================================
+// Driver-Vendor Connections
+// ========================================
+
+model DriverVendorConnection {
+  id        String   @id @default(cuid())
+  driverId  String
+  vendorId  String
+  status    ConnectionStatus @default(PENDING)
+  requestedAt DateTime @default(now())
+  respondedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  driver User @relation("DriverConnections", fields: [driverId], references: [id])
+  vendor User @relation("VendorConnections", fields: [vendorId], references: [id])
+  
+  @@unique([driverId, vendorId])
+  @@index([driverId])
+  @@index([vendorId])
+  @@index([status])
+}
+
+enum ConnectionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model SaleItem {
+  id          String @id @default(cuid())
+  saleId      String
+  productId   String
+  productName String
+  quantity    Int
+  price       Float
+  discount    Float
+  
+  sale    Sale              @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product InventoryProduct  @relation(fields: [productId], references: [id])
+  
+  @@index([saleId])
+  @@index([productId])
+}
+
+enum SalePaymentMethod {
+  CASH
+  CARD
+}
+
+model ERPCustomer {
+  id                String    @id @default(cuid())
+  vendorId          String
+  name              String
+  email             String?
+  phone             String
+  totalPurchases    Float     @default(0)
+  lastPurchaseDate  DateTime?
+  createdAt         DateTime  @default(now())
+  
+  @@index([vendorId])
+  @@index([phone])
+}
+
+// ========================================
+// Audit Logging
+// ========================================
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  userRole      String?
+  action        String
+  resource      String
+  resourceId    String?
+  ipAddress     String?
+  userAgent     String?
+  details       Json?
+  status        AuditLogStatus
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum AuditLogStatus {
+  SUCCESS
+  FAILURE
+}
+
+// ========================================
+// Advertisement Management
+// ========================================
+
+model Ad {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  imageUrl    String
+  linkUrl     String?
+  position    AdPosition
+  priority    Int      @default(0) // Higher priority = shown first
+  isActive    Boolean  @default(true)
+  startDate   DateTime?
+  endDate     DateTime?
+  clickCount  Int      @default(0)
+  viewCount   Int      @default(0)
+  createdBy   String?  // Admin user ID
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([position])
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([priority])
+}
+
+enum AdPosition {
+  HOME_BANNER
+  HOME_SIDEBAR
+  CATEGORY_TOP
+  CATEGORY_SIDEBAR
+  PRODUCT_PAGE
+  CHECKOUT_PAGE
+  MOBILE_BANNER
+}
