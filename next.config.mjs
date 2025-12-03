@@ -57,6 +57,8 @@ const config = {
         ...config.resolve.alias,
         // Resolve @albaz/ui to the packages/ui directory
         '@albaz/ui': path.resolve(__dirname, 'packages/ui/src/index.ts'),
+        // Ensure @/ paths resolve correctly
+        '@': path.resolve(__dirname, '.'),
       },
     };
 
