@@ -38,7 +38,7 @@
     "test:ci": "cross-env NODE_ENV=test jest --ci --config jest.config.ts --coverage --maxWorkers=2 && playwright test tests-e2e/"
   },
   "dependencies": {
-    "@albaz/ui": "workspace:*",
+    "@albaz/ui": "file:./packages/ui",
     "@hookform/resolvers": "^3.10.0",
     "@prisma/client": "^6.1.0",
     "@radix-ui/react-accordion": "latest",
