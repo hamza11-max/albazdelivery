@@ -12,7 +12,10 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
   const [activeTab, setActiveTab] = useState<'orders' | 'packages' | 'track'>('orders')
   
   // Fetch orders using React Query
-  const { data: orders = [], isLoading, error } = useOrdersQuery()
+  const ordersResult = useOrdersQuery()
+  const orders = ordersResult?.data ?? []
+  const isLoading = ordersResult?.isLoading ?? false
+  const error = ordersResult?.error ?? null
 
   // Separate orders by type
   const allOrders = orders.filter((o: Order) => !o.isPackageDelivery)

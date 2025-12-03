@@ -7,7 +7,9 @@ import { useOrderQuery } from '../../hooks/use-orders-query'
 
 export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, t }: TrackingViewProps) {
   // Fetch order with auto-refetch (every 5s if active)
-  const { data: fetchedOrder, isLoading } = useOrderQuery(orderId)
+  const orderResult = useOrderQuery(orderId)
+  const fetchedOrder = orderResult?.data ?? null
+  const isLoading = orderResult?.isLoading ?? false
   
   // Use fetched order if available, otherwise fall back to initial
   const currentOrder = fetchedOrder || initialOrder
