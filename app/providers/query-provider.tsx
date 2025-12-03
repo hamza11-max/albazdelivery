@@ -5,6 +5,7 @@ import { useState } from 'react'
 import dynamic from 'next/dynamic'
 
 // Dynamically import devtools only in development to avoid build errors
+// If the package is not installed, this will gracefully fail
 const ReactQueryDevtools = process.env.NODE_ENV === 'development'
   ? dynamic(
       () =>
@@ -12,10 +13,7 @@ const ReactQueryDevtools = process.env.NODE_ENV === 'development'
           default: mod.ReactQueryDevtools,
         })),
       { ssr: false }
-    ).catch(() => {
-      // Return a no-op component if devtools are not available
-      return () => null
-    })
+    )
   : null
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
