@@ -71,14 +71,17 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   }
   
   // Safely extract properties with defaults
+  // Double-check that queryResult is valid before accessing properties
   try {
-    return {
+    const result = {
       data: (queryResult?.data ?? []) as Product[],
       isLoading: queryResult?.isLoading ?? false,
       error: queryResult?.error ?? null,
       isError: queryResult?.isError ?? false,
       isSuccess: queryResult?.isSuccess ?? false,
     }
+    // Ensure we always return a valid object
+    return result || safeDefault
   } catch (error) {
     console.warn('[useProductsQuery] Error extracting query result:', error)
     return safeDefault

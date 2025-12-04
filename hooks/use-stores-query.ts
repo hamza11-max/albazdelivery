@@ -68,14 +68,17 @@ export function useStoresQuery(params?: StoresQueryParams) {
   }
   
   // Safely extract properties with defaults
+  // Double-check that queryResult is valid before accessing properties
   try {
-    return {
+    const result = {
       data: (queryResult?.data ?? []) as Store[],
       isLoading: queryResult?.isLoading ?? false,
       error: queryResult?.error ?? null,
       isError: queryResult?.isError ?? false,
       isSuccess: queryResult?.isSuccess ?? false,
     }
+    // Ensure we always return a valid object
+    return result || safeDefault
   } catch (error) {
     console.warn('[useStoresQuery] Error extracting query result:', error)
     return safeDefault
@@ -139,14 +142,17 @@ export function useStoreQuery(storeId: string | null) {
   }
   
   // Safely extract properties with defaults
+  // Double-check that queryResult is valid before accessing properties
   try {
-    return {
+    const result = {
       data: (queryResult?.data ?? null) as Store | null,
       isLoading: queryResult?.isLoading ?? false,
       error: queryResult?.error ?? null,
       isError: queryResult?.isError ?? false,
       isSuccess: queryResult?.isSuccess ?? false,
     }
+    // Ensure we always return a valid object
+    return result || safeDefault
   } catch (error) {
     console.warn('[useStoreQuery] Error extracting query result:', error)
     return safeDefault

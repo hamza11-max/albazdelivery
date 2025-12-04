@@ -63,14 +63,17 @@ export function useOrdersQuery(params?: OrdersQueryParams) {
   }
   
   // Safely extract properties with defaults
+  // Double-check that queryResult is valid before accessing properties
   try {
-    return {
+    const result = {
       data: (queryResult?.data ?? []) as Order[],
       isLoading: queryResult?.isLoading ?? false,
       error: queryResult?.error ?? null,
       isError: queryResult?.isError ?? false,
       isSuccess: queryResult?.isSuccess ?? false,
     }
+    // Ensure we always return a valid object
+    return result || safeDefault
   } catch (error) {
     console.warn('[useOrdersQuery] Error extracting query result:', error)
     return safeDefault
@@ -138,14 +141,17 @@ export function useOrderQuery(orderId: string | null) {
   }
   
   // Safely extract properties with defaults
+  // Double-check that queryResult is valid before accessing properties
   try {
-    return {
+    const result = {
       data: (queryResult?.data ?? null) as Order | null,
       isLoading: queryResult?.isLoading ?? false,
       error: queryResult?.error ?? null,
       isError: queryResult?.isError ?? false,
       isSuccess: queryResult?.isSuccess ?? false,
     }
+    // Ensure we always return a valid object
+    return result || safeDefault
   } catch (error) {
     console.warn('[useOrderQuery] Error extracting query result:', error)
     return safeDefault
