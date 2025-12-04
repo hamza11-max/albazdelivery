@@ -30,23 +30,32 @@ export function useStoresQuery(params?: StoresQueryParams) {
   }
   
   // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  let queryResult: any = null
+  let queryResult: any = undefined
   
   try {
-    queryResult = useQuery({
-      queryKey: ['stores', params],
-      queryFn: async () => {
-        try {
-          const response = await storesAPI.list(params)
-          return (response?.data as { stores: Store[] })?.stores || []
-        } catch (error) {
-          console.warn('[useStoresQuery] Error fetching stores:', error)
-          return []
-        }
-      },
-      enabled: hasQueryClient, // Only run if QueryClient is available
-      retry: false, // Don't retry during build
-    })
+    if (hasQueryClient) {
+      queryResult = useQuery({
+        queryKey: ['stores', params],
+        queryFn: async () => {
+          try {
+            const response = await storesAPI.list(params)
+            return (response?.data as { stores: Store[] })?.stores || []
+          } catch (error) {
+            console.warn('[useStoresQuery] Error fetching stores:', error)
+            return []
+          }
+        },
+        retry: false, // Don't retry during build
+      })
+    } else {
+      // If QueryClient is not available, useQuery might throw or return undefined
+      queryResult = useQuery({
+        queryKey: ['stores', params],
+        queryFn: async () => [],
+        enabled: false, // Explicitly disabled
+        retry: false,
+      })
+    }
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useStoresQuery] useQuery threw error:', error)
@@ -59,12 +68,17 @@ export function useStoresQuery(params?: StoresQueryParams) {
   }
   
   // Safely extract properties with defaults
-  return {
-    data: (queryResult?.data ?? []) as Store[],
-    isLoading: queryResult?.isLoading ?? false,
-    error: queryResult?.error ?? null,
-    isError: queryResult?.isError ?? false,
-    isSuccess: queryResult?.isSuccess ?? false,
+  try {
+    return {
+      data: (queryResult?.data ?? []) as Store[],
+      isLoading: queryResult?.isLoading ?? false,
+      error: queryResult?.error ?? null,
+      isError: queryResult?.isError ?? false,
+      isSuccess: queryResult?.isSuccess ?? false,
+    }
+  } catch (error) {
+    console.warn('[useStoresQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 
@@ -87,24 +101,32 @@ export function useStoreQuery(storeId: string | null) {
   }
   
   // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  let queryResult: any = null
+  let queryResult: any = undefined
   
   try {
-    queryResult = useQuery({
-      queryKey: ['store', storeId],
-      queryFn: async () => {
-        if (!storeId) return null
-        try {
-          const response = await storesAPI.getById(storeId)
-          return (response?.data as { store: Store })?.store || null
-        } catch (error) {
-          console.warn('[useStoreQuery] Error fetching store:', error)
-          return null
-        }
-      },
-      enabled: hasQueryClient && !!storeId, // Only run if QueryClient is available AND storeId is provided
-      retry: false, // Don't retry during build
-    })
+    if (hasQueryClient && storeId) {
+      queryResult = useQuery({
+        queryKey: ['store', storeId],
+        queryFn: async () => {
+          try {
+            const response = await storesAPI.getById(storeId!)
+            return (response?.data as { store: Store })?.store || null
+          } catch (error) {
+            console.warn('[useStoreQuery] Error fetching store:', error)
+            return null
+          }
+        },
+        retry: false, // Don't retry during build
+      })
+    } else {
+      // If QueryClient is not available or storeId is missing, useQuery might throw or return undefined
+      queryResult = useQuery({
+        queryKey: ['store', storeId],
+        queryFn: async () => null,
+        enabled: false, // Explicitly disabled
+        retry: false,
+      })
+    }
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useStoreQuery] useQuery threw error:', error)
@@ -117,12 +139,17 @@ export function useStoreQuery(storeId: string | null) {
   }
   
   // Safely extract properties with defaults
-  return {
-    data: (queryResult?.data ?? null) as Store | null,
-    isLoading: queryResult?.isLoading ?? false,
-    error: queryResult?.error ?? null,
-    isError: queryResult?.isError ?? false,
-    isSuccess: queryResult?.isSuccess ?? false,
+  try {
+    return {
+      data: (queryResult?.data ?? null) as Store | null,
+      isLoading: queryResult?.isLoading ?? false,
+      error: queryResult?.error ?? null,
+      isError: queryResult?.isError ?? false,
+      isSuccess: queryResult?.isSuccess ?? false,
+    }
+  } catch (error) {
+    console.warn('[useStoreQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 

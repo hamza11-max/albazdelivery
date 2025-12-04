@@ -29,19 +29,28 @@ export function useOrdersQuery(params?: OrdersQueryParams) {
   }
   
   // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  let queryResult: any = null
+  let queryResult: any = undefined
   
   try {
-    queryResult = useQuery({
-      queryKey: ['orders', params],
-      queryFn: async () => {
-        const response = await ordersAPI.list(params)
-        return (response.data as { orders: Order[]; pagination?: any }).orders
-      },
-      enabled: hasQueryClient, // Only run if QueryClient is available
-      staleTime: 1000 * 30, // 30 seconds (orders change frequently)
-      retry: false,
-    })
+    if (hasQueryClient) {
+      queryResult = useQuery({
+        queryKey: ['orders', params],
+        queryFn: async () => {
+          const response = await ordersAPI.list(params)
+          return (response.data as { orders: Order[]; pagination?: any }).orders
+        },
+        staleTime: 1000 * 30, // 30 seconds (orders change frequently)
+        retry: false,
+      })
+    } else {
+      // If QueryClient is not available, useQuery might throw or return undefined
+      queryResult = useQuery({
+        queryKey: ['orders', params],
+        queryFn: async () => [],
+        enabled: false, // Explicitly disabled
+        retry: false,
+      })
+    }
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useOrdersQuery] useQuery threw error:', error)
@@ -54,12 +63,17 @@ export function useOrdersQuery(params?: OrdersQueryParams) {
   }
   
   // Safely extract properties with defaults
-  return {
-    data: (queryResult?.data ?? []) as Order[],
-    isLoading: queryResult?.isLoading ?? false,
-    error: queryResult?.error ?? null,
-    isError: queryResult?.isError ?? false,
-    isSuccess: queryResult?.isSuccess ?? false,
+  try {
+    return {
+      data: (queryResult?.data ?? []) as Order[],
+      isLoading: queryResult?.isLoading ?? false,
+      error: queryResult?.error ?? null,
+      isError: queryResult?.isError ?? false,
+      isSuccess: queryResult?.isSuccess ?? false,
+    }
+  } catch (error) {
+    console.warn('[useOrdersQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 
@@ -82,28 +96,36 @@ export function useOrderQuery(orderId: string | null) {
   }
   
   // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  let queryResult: any = null
+  let queryResult: any = undefined
   
   try {
-    queryResult = useQuery({
-      queryKey: ['order', orderId],
-      queryFn: async () => {
-        if (!orderId) return null
-        const response = await ordersAPI.getById(orderId)
-        return (response.data as { order: Order }).order
-      },
-      enabled: hasQueryClient && !!orderId, // Only run if QueryClient is available AND orderId is provided
-      staleTime: 1000 * 10, // 10 seconds (order status changes frequently)
-      retry: false,
-      refetchInterval: (query) => {
-        // Auto-refetch if order is not in final state
-        const order = query.state.data as Order | null
-        if (order && !['DELIVERED', 'CANCELLED'].includes(order.status)) {
-          return 5000 // Refetch every 5 seconds for active orders
-        }
-        return false
-      },
-    })
+    if (hasQueryClient && orderId) {
+      queryResult = useQuery({
+        queryKey: ['order', orderId],
+        queryFn: async () => {
+          const response = await ordersAPI.getById(orderId!)
+          return (response.data as { order: Order }).order
+        },
+        staleTime: 1000 * 10, // 10 seconds (order status changes frequently)
+        retry: false,
+        refetchInterval: (query) => {
+          // Auto-refetch if order is not in final state
+          const order = query.state.data as Order | null
+          if (order && !['DELIVERED', 'CANCELLED'].includes(order.status)) {
+            return 5000 // Refetch every 5 seconds for active orders
+          }
+          return false
+        },
+      })
+    } else {
+      // If QueryClient is not available or orderId is missing, useQuery might throw or return undefined
+      queryResult = useQuery({
+        queryKey: ['order', orderId],
+        queryFn: async () => null,
+        enabled: false, // Explicitly disabled
+        retry: false,
+      })
+    }
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useOrderQuery] useQuery threw error:', error)
@@ -116,12 +138,17 @@ export function useOrderQuery(orderId: string | null) {
   }
   
   // Safely extract properties with defaults
-  return {
-    data: (queryResult?.data ?? null) as Order | null,
-    isLoading: queryResult?.isLoading ?? false,
-    error: queryResult?.error ?? null,
-    isError: queryResult?.isError ?? false,
-    isSuccess: queryResult?.isSuccess ?? false,
+  try {
+    return {
+      data: (queryResult?.data ?? null) as Order | null,
+      isLoading: queryResult?.isLoading ?? false,
+      error: queryResult?.error ?? null,
+      isError: queryResult?.isError ?? false,
+      isSuccess: queryResult?.isSuccess ?? false,
+    }
+  } catch (error) {
+    console.warn('[useOrderQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 

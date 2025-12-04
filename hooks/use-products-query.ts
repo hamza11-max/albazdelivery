@@ -29,28 +29,36 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   }
   
   // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  let queryResult: any = null
+  let queryResult: any = undefined
   
   try {
-    queryResult = useQuery({
-      queryKey: ['products', storeId, params],
-      queryFn: async () => {
-        if (!storeId) return []
-        try {
-          const response = await productsAPI.list({
-            storeId,
-            ...params,
-          })
-          return (response?.data as { products: Product[] })?.products || []
-        } catch (error) {
-          console.warn('[useProductsQuery] Error fetching products:', error)
-          return []
-        }
-      },
-      enabled: hasQueryClient && !!storeId, // Only run if QueryClient is available AND storeId is provided
-      staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
-      retry: false, // Don't retry during build
-    })
+    if (hasQueryClient && storeId) {
+      queryResult = useQuery({
+        queryKey: ['products', storeId, params],
+        queryFn: async () => {
+          try {
+            const response = await productsAPI.list({
+              storeId: storeId!,
+              ...params,
+            })
+            return (response?.data as { products: Product[] })?.products || []
+          } catch (error) {
+            console.warn('[useProductsQuery] Error fetching products:', error)
+            return []
+          }
+        },
+        staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
+        retry: false, // Don't retry during build
+      })
+    } else {
+      // If QueryClient is not available or storeId is missing, useQuery might throw or return undefined
+      queryResult = useQuery({
+        queryKey: ['products', storeId, params],
+        queryFn: async () => [],
+        enabled: false, // Explicitly disabled
+        retry: false,
+      })
+    }
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useProductsQuery] useQuery threw error:', error)
@@ -63,12 +71,17 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   }
   
   // Safely extract properties with defaults
-  return {
-    data: (queryResult?.data ?? []) as Product[],
-    isLoading: queryResult?.isLoading ?? false,
-    error: queryResult?.error ?? null,
-    isError: queryResult?.isError ?? false,
-    isSuccess: queryResult?.isSuccess ?? false,
+  try {
+    return {
+      data: (queryResult?.data ?? []) as Product[],
+      isLoading: queryResult?.isLoading ?? false,
+      error: queryResult?.error ?? null,
+      isError: queryResult?.isError ?? false,
+      isSuccess: queryResult?.isSuccess ?? false,
+    }
+  } catch (error) {
+    console.warn('[useProductsQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 

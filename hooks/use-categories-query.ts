@@ -23,24 +23,34 @@ export function useCategoriesQuery() {
   }
   
   // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  let queryResult: any = null
+  let queryResult: any = undefined
   
   try {
-    queryResult = useQuery({
-      queryKey: ['categories'],
-      queryFn: async () => {
-        try {
-          const response = await categoriesAPI.list()
-          return (response?.data as { categories: CategoryDefinition[] })?.categories || []
-        } catch (error) {
-          console.warn('[useCategoriesQuery] Error fetching categories:', error)
-          return []
-        }
-      },
-      enabled: hasQueryClient, // Only run if QueryClient is available
-      staleTime: 1000 * 60 * 30, // Categories change rarely, cache for 30 minutes
-      retry: false, // Don't retry during build
-    })
+    if (hasQueryClient) {
+      queryResult = useQuery({
+        queryKey: ['categories'],
+        queryFn: async () => {
+          try {
+            const response = await categoriesAPI.list()
+            return (response?.data as { categories: CategoryDefinition[] })?.categories || []
+          } catch (error) {
+            console.warn('[useCategoriesQuery] Error fetching categories:', error)
+            return []
+          }
+        },
+        staleTime: 1000 * 60 * 30, // Categories change rarely, cache for 30 minutes
+        retry: false, // Don't retry during build
+      })
+    } else {
+      // If QueryClient is not available, useQuery might throw or return undefined
+      // Call it with enabled: false to prevent errors
+      queryResult = useQuery({
+        queryKey: ['categories'],
+        queryFn: async () => [],
+        enabled: false, // Explicitly disabled
+        retry: false,
+      })
+    }
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useCategoriesQuery] useQuery threw error:', error)
@@ -52,13 +62,19 @@ export function useCategoriesQuery() {
     return safeDefault
   }
   
-  // Safely extract properties with defaults
-  return {
-    data: (queryResult?.data ?? []) as CategoryDefinition[],
-    isLoading: queryResult?.isLoading ?? false,
-    error: queryResult?.error ?? null,
-    isError: queryResult?.isError ?? false,
-    isSuccess: queryResult?.isSuccess ?? false,
+  // Safely extract properties with defaults - use optional chaining everywhere
+  try {
+    return {
+      data: (queryResult?.data ?? []) as CategoryDefinition[],
+      isLoading: queryResult?.isLoading ?? false,
+      error: queryResult?.error ?? null,
+      isError: queryResult?.isError ?? false,
+      isSuccess: queryResult?.isSuccess ?? false,
+    }
+  } catch (error) {
+    // If destructuring fails, return safe default
+    console.warn('[useCategoriesQuery] Error extracting query result:', error)
+    return safeDefault
   }
 }
 
