@@ -63,14 +63,21 @@ export function useCategoriesQuery() {
   }
   
   // Safely extract properties with defaults - use optional chaining everywhere
+  // Double-check that queryResult is valid before accessing properties
+  if (!queryResult || typeof queryResult !== 'object') {
+    return safeDefault
+  }
+  
   try {
-    return {
+    const result = {
       data: (queryResult?.data ?? []) as CategoryDefinition[],
       isLoading: queryResult?.isLoading ?? false,
       error: queryResult?.error ?? null,
       isError: queryResult?.isError ?? false,
       isSuccess: queryResult?.isSuccess ?? false,
     }
+    // Ensure we always return a valid object
+    return result || safeDefault
   } catch (error) {
     // If destructuring fails, return safe default
     console.warn('[useCategoriesQuery] Error extracting query result:', error)
