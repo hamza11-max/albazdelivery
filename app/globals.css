@@ -24,69 +24,69 @@ html.dark {
 }
 
 html.rtl,
-html[dir=" rtl\] {
- direction: rtl;
- text-align: right;
+html[dir= rtl] {
+  direction: rtl;
+  text-align: right;
 }
 
 html.ltr,
-html[dir=\ltr\] {
- direction: ltr;
- text-align: left;
+html[dir=ltr] {
+  direction: ltr;
+  text-align: left;
 }
 
 /* Custom base styles */
 @layer base {
- html {
- @apply antialiased;
- }
+  html {
+    @apply antialiased;
+  }
 
- body {
- @apply bg-white text-gray-900;
- }
+  body {
+    @apply bg-white text-gray-900;
+  }
 
- /* Ensure proper scrollbar styling in dark mode */
- html.dark {
- color-scheme: dark;
- }
+  /* Ensure proper scrollbar styling in dark mode */
+  html.dark {
+    color-scheme: dark;
+  }
 
- html.light {
- color-scheme: light;
- }
+  html.light {
+    color-scheme: light;
+  }
 
- /* Focus indicators for accessibility */
- *:focus-visible {
- @apply outline-2 outline-offset-2 outline-[#1a4d1a] rounded;
- }
+  /* Focus indicators for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#1a4d1a] rounded;
+  }
 
- /* Skip link for keyboard navigation */
- .skip-link {
- @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#1a4d1a] focus:text-white focus:rounded-lg focus:font-semibold;
- }
+  /* Skip link for keyboard navigation */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#1a4d1a] focus:text-white focus:rounded-lg focus:font-semibold;
+  }
 }
 
 /* Custom utilities */
 @layer utilities {
- .text-balance {
- text-wrap: balance;
- }
+  .text-balance {
+    text-wrap: balance;
+  }
 
- /* RTL utilities */
- .rtl .ml-auto {
- margin-right: auto;
- margin-left: 0;
- }
+  /* RTL utilities */
+  .rtl .ml-auto {
+    margin-right: auto;
+    margin-left: 0;
+  }
 
- .rtl .mr-auto {
- margin-left: auto;
- margin-right: 0;
- }
+  .rtl .mr-auto {
+    margin-left: auto;
+    margin-right: 0;
+  }
 
- .rtl .text-left {
- text-align: right;
- }
+  .rtl .text-left {
+    text-align: right;
+  }
 
- .rtl .text-right {
- text-align: left;
- }
+  .rtl .text-right {
+    text-align: left;
+  }
 }
