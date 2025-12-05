@@ -24,13 +24,13 @@ html.dark {
 }
 
 html.rtl,
-html[dir= rtl] {
+html[dir="rtl"] {
   direction: rtl;
   text-align: right;
 }
 
 html.ltr,
-html[dir=ltr] {
+html[dir="ltr"] {
   direction: ltr;
   text-align: left;
 }
@@ -90,3 +90,4 @@ html[dir=ltr] {
     text-align: left;
   }
 }
+
