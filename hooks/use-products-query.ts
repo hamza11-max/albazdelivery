@@ -11,13 +11,13 @@ export interface ProductsQueryParams {
   limit?: number
 }
 
+// Safe default return value
+const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+
 /**
  * Hook to fetch products for a store with React Query caching
  */
 export function useProductsQuery(storeId: string | null, params?: ProductsQueryParams) {
-  // Safe default return value
-  const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
-  
   // Check if QueryClient is available - must call hook unconditionally
   let hasQueryClient = false
   try {
@@ -32,33 +32,27 @@ export function useProductsQuery(storeId: string | null, params?: ProductsQueryP
   let queryResult: any = undefined
   
   try {
-    if (hasQueryClient && storeId) {
-      queryResult = useQuery({
-        queryKey: ['products', storeId, params],
-        queryFn: async () => {
-          try {
-            const response = await productsAPI.list({
-              storeId: storeId!,
-              ...params,
-            })
-            return (response?.data as { products: Product[] })?.products || []
-          } catch (error) {
-            console.warn('[useProductsQuery] Error fetching products:', error)
-            return []
-          }
-        },
-        staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
-        retry: false, // Don't retry during build
-      })
-    } else {
-      // If QueryClient is not available or storeId is missing, useQuery might throw or return undefined
-      queryResult = useQuery({
-        queryKey: ['products', storeId, params],
-        queryFn: async () => [],
-        enabled: false, // Explicitly disabled
-        retry: false,
-      })
-    }
+    // Always call useQuery, but it may return undefined in production if provider is missing
+    const result = useQuery({
+      queryKey: ['products', storeId, params],
+      queryFn: async () => {
+        if (!hasQueryClient || !storeId) return []
+        try {
+          const response = await productsAPI.list({
+            storeId: storeId,
+            ...params,
+          })
+          return (response?.data as { products: Product[] })?.products || []
+        } catch (error) {
+          console.warn('[useProductsQuery] Error fetching products:', error)
+          return []
+        }
+      },
+      enabled: hasQueryClient && Boolean(storeId), // Only enable if QueryClient is available and storeId exists
+      staleTime: 1000 * 60 * 2, // Products may change, cache for 2 minutes
+      retry: false, // Don't retry during build
+    })
+    queryResult = result
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useProductsQuery] useQuery threw error:', error)

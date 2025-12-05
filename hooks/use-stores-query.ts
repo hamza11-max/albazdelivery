@@ -12,13 +12,13 @@ export interface StoresQueryParams {
   limit?: number
 }
 
+// Safe default return value
+const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+
 /**
  * Hook to fetch stores with React Query caching
  */
 export function useStoresQuery(params?: StoresQueryParams) {
-  // Safe default return value
-  const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
-  
   // Check if QueryClient is available - must call hook unconditionally
   let hasQueryClient = false
   try {
@@ -33,29 +33,23 @@ export function useStoresQuery(params?: StoresQueryParams) {
   let queryResult: any = undefined
   
   try {
-    if (hasQueryClient) {
-      queryResult = useQuery({
-        queryKey: ['stores', params],
-        queryFn: async () => {
-          try {
-            const response = await storesAPI.list(params)
-            return (response?.data as { stores: Store[] })?.stores || []
-          } catch (error) {
-            console.warn('[useStoresQuery] Error fetching stores:', error)
-            return []
-          }
-        },
-        retry: false, // Don't retry during build
-      })
-    } else {
-      // If QueryClient is not available, useQuery might throw or return undefined
-      queryResult = useQuery({
-        queryKey: ['stores', params],
-        queryFn: async () => [],
-        enabled: false, // Explicitly disabled
-        retry: false,
-      })
-    }
+    // Always call useQuery, but it may return undefined in production if provider is missing
+    const result = useQuery({
+      queryKey: ['stores', params],
+      queryFn: async () => {
+        if (!hasQueryClient) return []
+        try {
+          const response = await storesAPI.list(params)
+          return (response?.data as { stores: Store[] })?.stores || []
+        } catch (error) {
+          console.warn('[useStoresQuery] Error fetching stores:', error)
+          return []
+        }
+      },
+      enabled: hasQueryClient, // Only enable if QueryClient is available
+      retry: false, // Don't retry during build
+    })
+    queryResult = result
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useStoresQuery] useQuery threw error:', error)
@@ -85,14 +79,14 @@ export function useStoresQuery(params?: StoresQueryParams) {
   }
 }
 
+// Safe default for single store query
+const safeDefaultStore = { data: null, isLoading: false, error: null, isError: false, isSuccess: false }
+
 /**
  * Hook to fetch a single store by ID with React Query caching
  * Safely handles cases where QueryClientProvider is not available
  */
 export function useStoreQuery(storeId: string | null) {
-  // Safe default return value
-  const safeDefault = { data: null, isLoading: false, error: null, isError: false, isSuccess: false }
-  
   // Check if QueryClient is available - must call hook unconditionally
   let hasQueryClient = false
   try {
@@ -107,38 +101,32 @@ export function useStoreQuery(storeId: string | null) {
   let queryResult: any = undefined
   
   try {
-    if (hasQueryClient && storeId) {
-      queryResult = useQuery({
-        queryKey: ['store', storeId],
-        queryFn: async () => {
-          try {
-            const response = await storesAPI.getById(storeId!)
-            return (response?.data as { store: Store })?.store || null
-          } catch (error) {
-            console.warn('[useStoreQuery] Error fetching store:', error)
-            return null
-          }
-        },
-        retry: false, // Don't retry during build
-      })
-    } else {
-      // If QueryClient is not available or storeId is missing, useQuery might throw or return undefined
-      queryResult = useQuery({
-        queryKey: ['store', storeId],
-        queryFn: async () => null,
-        enabled: false, // Explicitly disabled
-        retry: false,
-      })
-    }
+    // Always call useQuery, but it may return undefined in production if provider is missing
+    const result = useQuery({
+      queryKey: ['store', storeId],
+      queryFn: async () => {
+        if (!hasQueryClient || !storeId) return null
+        try {
+          const response = await storesAPI.getById(storeId)
+          return (response?.data as { store: Store })?.store || null
+        } catch (error) {
+          console.warn('[useStoreQuery] Error fetching store:', error)
+          return null
+        }
+      },
+      enabled: hasQueryClient && Boolean(storeId), // Only enable if QueryClient is available and storeId exists
+      retry: false, // Don't retry during build
+    })
+    queryResult = result
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useStoreQuery] useQuery threw error:', error)
-    return safeDefault
+    return safeDefaultStore
   }
   
   // If useQuery returned undefined or null, return safe default
   if (!queryResult || typeof queryResult !== 'object') {
-    return safeDefault
+    return safeDefaultStore
   }
   
   // Safely extract properties with defaults
@@ -152,10 +140,10 @@ export function useStoreQuery(storeId: string | null) {
       isSuccess: queryResult?.isSuccess ?? false,
     }
     // Ensure we always return a valid object
-    return result || safeDefault
+    return result || safeDefaultStore
   } catch (error) {
     console.warn('[useStoreQuery] Error extracting query result:', error)
-    return safeDefault
+    return safeDefaultStore
   }
 }
 

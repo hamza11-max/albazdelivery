@@ -4,14 +4,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { categoriesAPI } from '../lib/api-client'
 import type { CategoryDefinition } from '../lib/mock-data'
 
+// Safe default return value
+const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
+
 /**
  * Hook to fetch categories with React Query caching
  * Safely handles cases where QueryClientProvider is not available
  */
 export function useCategoriesQuery() {
-  // Safe default return value
-  const safeDefault = { data: [], isLoading: false, error: null, isError: false, isSuccess: false }
-  
   // Check if QueryClient is available - must call hook unconditionally
   let hasQueryClient = false
   try {
@@ -26,31 +26,24 @@ export function useCategoriesQuery() {
   let queryResult: any = undefined
   
   try {
-    if (hasQueryClient) {
-      queryResult = useQuery({
-        queryKey: ['categories'],
-        queryFn: async () => {
-          try {
-            const response = await categoriesAPI.list()
-            return (response?.data as { categories: CategoryDefinition[] })?.categories || []
-          } catch (error) {
-            console.warn('[useCategoriesQuery] Error fetching categories:', error)
-            return []
-          }
-        },
-        staleTime: 1000 * 60 * 30, // Categories change rarely, cache for 30 minutes
-        retry: false, // Don't retry during build
-      })
-    } else {
-      // If QueryClient is not available, useQuery might throw or return undefined
-      // Call it with enabled: false to prevent errors
-      queryResult = useQuery({
-        queryKey: ['categories'],
-        queryFn: async () => [],
-        enabled: false, // Explicitly disabled
-        retry: false,
-      })
-    }
+    // Always call useQuery, but it may return undefined in production if provider is missing
+    const result = useQuery({
+      queryKey: ['categories'],
+      queryFn: async () => {
+        if (!hasQueryClient) return []
+        try {
+          const response = await categoriesAPI.list()
+          return (response?.data as { categories: CategoryDefinition[] })?.categories || []
+        } catch (error) {
+          console.warn('[useCategoriesQuery] Error fetching categories:', error)
+          return []
+        }
+      },
+      enabled: hasQueryClient, // Only enable if QueryClient is available
+      staleTime: 1000 * 60 * 30, // Categories change rarely, cache for 30 minutes
+      retry: false, // Don't retry during build
+    })
+    queryResult = result
   } catch (error) {
     // If useQuery throws, return safe default
     console.warn('[useCategoriesQuery] useQuery threw error:', error)
@@ -64,10 +57,6 @@ export function useCategoriesQuery() {
   
   // Safely extract properties with defaults - use optional chaining everywhere
   // Double-check that queryResult is valid before accessing properties
-  if (!queryResult || typeof queryResult !== 'object') {
-    return safeDefault
-  }
-  
   try {
     const result = {
       data: (queryResult?.data ?? []) as CategoryDefinition[],
