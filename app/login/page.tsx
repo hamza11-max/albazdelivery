@@ -2,16 +2,17 @@
 
 import type React from "react"
 import { useState } from "react"
+import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import Link from "next/link"
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = 'force-dynamic'
 
 export default function LoginPage() {
+  const [isSignUp, setIsSignUp] = useState(false)
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -24,114 +25,113 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Use Next-Auth v5 signin endpoint
-      const response = await fetch('/api/auth/signin/credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier,
-          password,
-          callbackUrl: '/',
-        }),
+      const result = await signIn("credentials", {
+        identifier,
+        password,
+        redirect: false,
+        callbackUrl: "/",
       })
 
-      if (response.ok) {
-        router.push('/')
-        router.refresh()
-      } else {
-        const data = await response.json()
-        setError(data.error || "Email ou mot de passe incorrect")
-        setLoading(false)
+      if (result && typeof result === 'object' && 'error' in result) {
+        const res = result as { error?: string }
+        if (res.error) {
+          setError("Email ou mot de passe incorrect")
+          setLoading(false)
+          return
+        }
       }
-    } catch {
+
+      // If signIn didn't return an error, navigate to home
+      router.push('/')
+    } catch (err) {
       setError("Une erreur s'est produite. Veuillez réessayer.")
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-teal-600 via-teal-500 to-orange-500 flex items-center justify-center p-4">
+      {/* White Card Container */}
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8">
         {/* Logo Section */}
-        <div className="flex flex-col items-center pt-8 pb-6 px-6">
+        <div className="flex flex-col items-center mb-6">
           <div className="mb-4">
-            <img src="/logo.png" alt="AL-BAZ FAST DELIVERY" className="h-20 w-auto" />
-          </div>
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-1 tracking-tight">
-              AL-BAZ
+            <h1 className="text-4xl font-bold text-teal-700 tracking-tight">
+              <span className="inline-block">AL</span>
+              <span className="inline-block relative">
+                BAZ
+                <svg className="absolute -top-2 -right-2 w-8 h-8 text-orange-500" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+              </span>
             </h1>
-            <p className="text-xs uppercase tracking-[0.15em] text-gray-600 font-semibold">
-              FAST DELIVERY
-            </p>
           </div>
+          <p className="text-sm text-gray-600 font-medium">FAST DELIVERY</p>
         </div>
 
-        {/* Content Section */}
-        <div className="px-8 pb-8">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-              Bienvenue sur AL-baz
-            </h2>
-            <p className="text-sm text-gray-600">
-              Connectez-vous pour continuer
-            </p>
-          </div>
+        {/* Welcome Message */}
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Bienvenue sur AL-baz</h2>
+          <p className="text-sm text-gray-500">Connectez-vous pour continuer</p>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Form */}
+        {!isSignUp ? (
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="identifier" className="text-sm font-medium text-gray-700">
-                Email
-              </Label>
+              <Label htmlFor="identifier" className="text-gray-700 font-medium">Email</Label>
               <Input
                 id="identifier"
-                type="email"
+                type="text"
                 placeholder="votre@email.com"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                className="h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg bg-white"
+                className="border-gray-300 rounded-lg h-12"
                 required
               />
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                Mot de passe
-              </Label>
+              <Label htmlFor="password" className="text-gray-700 font-medium">Mot de passe</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11 border-gray-300 focus:border-teal-500 focus:ring-teal-500 rounded-lg bg-white"
+                className="border-gray-300 rounded-lg h-12"
                 required
               />
             </div>
-
-            {error && (
-              <p className="text-sm text-red-600 text-center bg-red-50 py-2 px-3 rounded-lg">
-                {error}
-              </p>
-            )}
-
+            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
             <Button 
               type="submit" 
-              className="w-full h-12 bg-gradient-to-r from-teal-700 to-orange-500 hover:from-teal-800 hover:to-orange-600 text-white font-semibold rounded-lg shadow-md transition-all duration-200"
+              className="w-full bg-gradient-to-r from-teal-600 to-orange-500 text-white font-bold rounded-lg h-12 hover:from-teal-700 hover:to-orange-600 transition-all"
               disabled={loading}
             >
               {loading ? "Connexion..." : "Se connecter"}
             </Button>
           </form>
-
-          <div className="mt-6 text-center">
-            <Link
-              href="/signup"
-              className="text-sm text-gray-600 hover:text-teal-600 transition-colors"
+        ) : (
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-4">Vous serez redirigé vers le formulaire d'inscription</p>
+            <Button
+              onClick={() => (window.location.href = "/signup")}
+              className="w-full bg-gradient-to-r from-teal-600 to-orange-500 text-white font-bold rounded-lg h-12 hover:from-teal-700 hover:to-orange-600 transition-all"
             >
-              Pas de compte? <span className="font-medium">S'inscrire</span>
-            </Link>
+              Continuer vers l'inscription
+            </Button>
           </div>
+        )}
+
+        {/* Sign Up Link */}
+        <div className="text-center mt-6">
+          <button
+            type="button"
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            {isSignUp ? "Vous avez déjà un compte? Se connecter" : "Pas de compte? S'inscrire"}
+          </button>
         </div>
       </div>
     </div>

@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Button } from "@/root/components/ui/button"
+import { Button } from "@/components/ui/button"
 import { signOut } from "next-auth/react"
 import { Sun, Moon, LogOut, Globe, RefreshCw } from "lucide-react"
-import { toggleTheme, getStoredTheme, toggleLanguage, getStoredLanguage } from "@/root/lib/theme"
+import { toggleTheme, getStoredTheme, toggleLanguage, getStoredLanguage } from "@/lib/theme"
 
 interface HeaderProps {
   title?: string
@@ -58,11 +58,11 @@ export default function Header({
      window.matchMedia('(prefers-color-scheme: dark)').matches)
 
   return (
-    <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg">
+    <header className="sticky top-0 z-50 bg-gradient-to-r from-teal-600 to-orange-500 text-white shadow-lg">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.svg" alt="AL-baz" className="h-10 w-auto" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+            <img src="/logo.png" alt="AL-baz" className="h-10 w-auto" />
             <div>
               <h1 className="text-lg font-bold">{title}</h1>
               <p className="text-xs text-white/80">{subtitle}</p>

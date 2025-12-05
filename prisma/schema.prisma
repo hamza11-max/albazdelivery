@@ -49,8 +49,6 @@ model User {
   notifications       Notification[]
   driverLocation      DriverLocation?
   driverPerformance   DriverPerformance?
-  driverConnections   DriverVendorConnection[] @relation("DriverConnections")
-  vendorConnections   DriverVendorConnection[] @relation("VendorConnections")
   
   @@index([email])
   @@index([phone])
@@ -725,35 +723,6 @@ model Sale {
   @@index([createdAt])
 }
 
-// ========================================
-// Driver-Vendor Connections
-// ========================================
-
-model DriverVendorConnection {
-  id        String   @id @default(cuid())
-  driverId  String
-  vendorId  String
-  status    ConnectionStatus @default(PENDING)
-  requestedAt DateTime @default(now())
-  respondedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  driver User @relation("DriverConnections", fields: [driverId], references: [id])
-  vendor User @relation("VendorConnections", fields: [vendorId], references: [id])
-  
-  @@unique([driverId, vendorId])
-  @@index([driverId])
-  @@index([vendorId])
-  @@index([status])
-}
-
-enum ConnectionStatus {
-  PENDING
-  ACCEPTED
-  REJECTED
-}
-
 model SaleItem {
   id          String @id @default(cuid())
   saleId      String
@@ -824,35 +793,18 @@ enum AuditLogStatus {
 // ========================================
 
 model Ad {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  imageUrl    String
-  linkUrl     String?
-  position    AdPosition
-  priority    Int      @default(0) // Higher priority = shown first
-  isActive    Boolean  @default(true)
-  startDate   DateTime?
-  endDate     DateTime?
-  clickCount  Int      @default(0)
-  viewCount   Int      @default(0)
-  createdBy   String?  // Admin user ID
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  titleFr       String
+  titleAr       String
+  descriptionFr String
+  descriptionAr String
+  imageUrl      String?
+  linkUrl       String?
+  isActive      Boolean  @default(true)
+  displayOrder  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   
-  @@index([position])
   @@index([isActive])
-  @@index([startDate])
-  @@index([endDate])
-  @@index([priority])
-}
-
-enum AdPosition {
-  HOME_BANNER
-  HOME_SIDEBAR
-  CATEGORY_TOP
-  CATEGORY_SIDEBAR
-  PRODUCT_PAGE
-  CHECKOUT_PAGE
-  MOBILE_BANNER
+  @@index([displayOrder])
 }
