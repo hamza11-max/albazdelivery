@@ -28,51 +28,47 @@ export function useOrdersQuery(params?: OrdersQueryParams) {
     hasQueryClient = false
   }
   
-  // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  // Wrap in try-catch and ensure we always get a valid object
-  let queryResult: any = undefined
+  // ALWAYS call useQuery (React hooks rule) - React Query v5 requires QueryClientProvider
+  // If provider is missing, useQuery will throw, so we need to catch it
+  let queryResult: any = safeDefault
   
+  // We must call useQuery unconditionally, but we can disable it
   try {
-    // Always call useQuery, but it may return undefined in production if provider is missing
-    const result = useQuery({
+    const query = useQuery({
       queryKey: ['orders', params],
       queryFn: async () => {
         if (!hasQueryClient) return []
         const response = await ordersAPI.list(params)
         return (response.data as { orders: Order[]; pagination?: any }).orders
       },
-      enabled: hasQueryClient, // Only enable if QueryClient is available
+      enabled: hasQueryClient, // Disable if no QueryClient
       staleTime: 1000 * 30, // 30 seconds (orders change frequently)
       retry: false,
     })
-    queryResult = result
-  } catch (error) {
-    // If useQuery throws, return safe default
-    console.warn('[useOrdersQuery] useQuery threw error:', error)
-    return safeDefault
+    
+    // Safely extract properties with defaults
+    queryResult = {
+      data: (query?.data ?? []) as Order[],
+      isLoading: query?.isLoading ?? false,
+      error: query?.error ?? null,
+      isError: query?.isError ?? false,
+      isSuccess: query?.isSuccess ?? false,
+    }
+  } catch (error: any) {
+    // If useQuery throws (e.g., no QueryClientProvider), return safe default
+    // This can happen in React Query v5 if provider is missing
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[useOrdersQuery] useQuery error (QueryClientProvider may be missing):', error?.message)
+    }
+    queryResult = safeDefault
   }
   
-  // If useQuery returned undefined or null, return safe default
+  // Ensure we always return a valid object
   if (!queryResult || typeof queryResult !== 'object') {
     return safeDefault
   }
   
-  // Safely extract properties with defaults
-  // Double-check that queryResult is valid before accessing properties
-  try {
-    const result = {
-      data: (queryResult?.data ?? []) as Order[],
-      isLoading: queryResult?.isLoading ?? false,
-      error: queryResult?.error ?? null,
-      isError: queryResult?.isError ?? false,
-      isSuccess: queryResult?.isSuccess ?? false,
-    }
-    // Ensure we always return a valid object
-    return result || safeDefault
-  } catch (error) {
-    console.warn('[useOrdersQuery] Error extracting query result:', error)
-    return safeDefault
-  }
+  return queryResult
 }
 
 // Safe default for single order query
@@ -93,19 +89,19 @@ export function useOrderQuery(orderId: string | null) {
     hasQueryClient = false
   }
   
-  // ALWAYS call useQuery (React hooks rule) but disable it if QueryClient is not available
-  let queryResult: any = undefined
+  // ALWAYS call useQuery (React hooks rule) - React Query v5 requires QueryClientProvider
+  let queryResult: any = safeDefaultOrder
   
+  // We must call useQuery unconditionally, but we can disable it
   try {
-    // Always call useQuery, but it may return undefined in production if provider is missing
-    const result = useQuery({
+    const query = useQuery({
       queryKey: ['order', orderId],
       queryFn: async () => {
         if (!hasQueryClient || !orderId) return null
         const response = await ordersAPI.getById(orderId)
         return (response.data as { order: Order }).order
       },
-      enabled: hasQueryClient && Boolean(orderId), // Only enable if QueryClient is available and orderId exists
+      enabled: hasQueryClient && Boolean(orderId), // Disable if no QueryClient
       staleTime: 1000 * 10, // 10 seconds (order status changes frequently)
       retry: false,
       refetchInterval: (query) => {
@@ -117,33 +113,29 @@ export function useOrderQuery(orderId: string | null) {
         return false
       },
     })
-    queryResult = result
-  } catch (error) {
-    // If useQuery throws, return safe default
-    console.warn('[useOrderQuery] useQuery threw error:', error)
-    return safeDefaultOrder
+    
+    // Safely extract properties with defaults
+    queryResult = {
+      data: (query?.data ?? null) as Order | null,
+      isLoading: query?.isLoading ?? false,
+      error: query?.error ?? null,
+      isError: query?.isError ?? false,
+      isSuccess: query?.isSuccess ?? false,
+    }
+  } catch (error: any) {
+    // If useQuery throws (e.g., no QueryClientProvider), return safe default
+    // This can happen in React Query v5 if provider is missing
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[useOrderQuery] useQuery error (QueryClientProvider may be missing):', error?.message)
+    }
+    queryResult = safeDefaultOrder
   }
   
-  // If useQuery returned undefined or null, return safe default
+  // Ensure we always return a valid object
   if (!queryResult || typeof queryResult !== 'object') {
     return safeDefaultOrder
   }
   
-  // Safely extract properties with defaults
-  // Double-check that queryResult is valid before accessing properties
-  try {
-    const result = {
-      data: (queryResult?.data ?? null) as Order | null,
-      isLoading: queryResult?.isLoading ?? false,
-      error: queryResult?.error ?? null,
-      isError: queryResult?.isError ?? false,
-      isSuccess: queryResult?.isSuccess ?? false,
-    }
-    // Ensure we always return a valid object
-    return result || safeDefaultOrder
-  } catch (error) {
-    console.warn('[useOrderQuery] Error extracting query result:', error)
-    return safeDefaultOrder
-  }
+  return queryResult
 }
 
