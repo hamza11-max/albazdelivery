@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
@@ -29,7 +29,15 @@ export async function GET(request: NextRequest) {
 
     return successResponse({ ads })
   } catch (error) {
-    return errorResponse(error)
+    console.error('[admin_ads_api]', error)
+    // Graceful fallback to avoid noisy 500s in UI; still respect auth errors
+    if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
+      return errorResponse(error)
+    }
+    return NextResponse.json(
+      { ads: [], message: 'Ads unavailable right now' },
+      { status: 200 }
+    )
   }
 }
 
