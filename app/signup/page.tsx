@@ -116,7 +116,15 @@ export default function SignUpPage() {
       <Card className="albaz-card w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="ALBAZ FAST DELIVERY" className="h-24 w-auto" />
+            <img
+              src="/logo.png"
+              alt="ALBAZ FAST DELIVERY"
+              className="h-24 w-auto"
+              onError={(e) => {
+                e.currentTarget.onerror = null
+                e.currentTarget.src = "/placeholder-logo.png"
+              }}
+            />
           </div>
           <CardTitle className="text-2xl font-bold text-[var(--albaz-text)]">
             {step === "role" ? "Choisissez votre rôle" : "Créer un compte"}

@@ -451,7 +451,15 @@ export default function AlBazApp() {
             }}
             className="flex items-center gap-2"
           >
-            <img src="/logo.png" alt="ALBAZ FAST DELIVERY" className="h-[84px] w-auto" />
+            <img
+              src="/logo.png"
+              alt="ALBAZ FAST DELIVERY"
+              className="h-[84px] w-auto"
+              onError={(e) => {
+                e.currentTarget.onerror = null
+                e.currentTarget.src = "/placeholder-logo.png"
+              }}
+            />
           </button>
 
           <div className="flex-1 flex items-center gap-2 bg-muted rounded-lg px-3 py-2 max-w-xs">
@@ -482,6 +490,10 @@ export default function AlBazApp() {
                 src="/logo.png"
                 alt="ALBAZ"
                 className="h-10 w-auto animate-[fadeSlideUp_0.8s_ease]"
+                onError={(e) => {
+                  e.currentTarget.onerror = null
+                  e.currentTarget.src = "/placeholder-logo.png"
+                }}
               />
               <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--albaz-text-soft)]">
                 Livraison rapide
@@ -551,7 +563,15 @@ export default function AlBazApp() {
         <div className="px-5 py-6 space-y-6">
           <div className="albaz-promo p-4 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
-              <img src="/logo.png" alt="ALBAZ bird" className="w-8 h-8 albaz-promo-bird" />
+              <img
+                src="/logo.png"
+                alt="ALBAZ bird"
+                className="w-8 h-8 albaz-promo-bird"
+                onError={(e) => {
+                  e.currentTarget.onerror = null
+                  e.currentTarget.src = "/placeholder-logo.png"
+                }}
+              />
             </div>
             <div className="flex-1 relative z-10">
               <p className="text-sm font-semibold">

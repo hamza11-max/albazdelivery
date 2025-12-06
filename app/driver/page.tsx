@@ -279,7 +279,15 @@ export default function DriverApp() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="AL-baz" className="h-10 w-auto" />
+            <img
+              src="/logo.png"
+              alt="AL-baz"
+              className="h-10 w-auto"
+              onError={(e) => {
+                e.currentTarget.onerror = null
+                e.currentTarget.src = "/placeholder-logo.png"
+              }}
+            />
             <div>
               <h1 className="text-lg font-bold text-[var(--albaz-text)] dark:text-white">{t("AL-baz Driver", "سائق AL-baz")}</h1>
               <p className="text-xs text-[var(--albaz-text-soft)] dark:text-white/80">{user?.name || "Driver"}</p>

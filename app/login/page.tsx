@@ -51,7 +51,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-[radial-gradient(circle_at_15%_20%,#0ea5e9,transparent_25%),radial-gradient(circle_at_85%_15%,#f97316,transparent_25%),linear-gradient(135deg,#0ea5e9_0%,#f97316_65%,#ef5b00_100%)]">
       <div className="w-full max-w-2xl bg-white rounded-[24px] shadow-2xl px-10 py-12 flex flex-col items-center">
         <div className="mb-10 flex flex-col items-center">
-          <img src="/logo.png" alt="ALBAZ" className="h-14 w-auto mb-6" />
+          <img
+            src="/logo.png"
+            alt="ALBAZ"
+            className="h-14 w-auto mb-6"
+            onError={(e) => {
+              e.currentTarget.onerror = null
+              e.currentTarget.src = "/placeholder-logo.png"
+            }}
+          />
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Bienvenue sur AL-baz</h2>
           <p className="text-sm text-gray-500">Connectez-vous pour continuer</p>
         </div>
