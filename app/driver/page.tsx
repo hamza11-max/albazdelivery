@@ -1,11 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { OrderStatus } from "@/lib/constants"
+import { OrderStatus } from "@/root/lib/constants"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from "@albaz/ui"
 import {
   MapPin,
   Phone,
@@ -28,7 +26,7 @@ import {
 } from "lucide-react"
 import type { Order } from "@/root/lib/types"
 import { useSSE } from "@/root/lib/use-sse"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/root/hooks/use-toast"
 import { useSession, signOut } from "next-auth/react"
 
 // Force dynamic rendering to avoid static generation issues
@@ -275,21 +273,21 @@ export default function DriverApp() {
 
   // Header Component
   const Header = () => (
-    <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg">
+    <header className="sticky top-0 z-50 albaz-nav text-[var(--albaz-text)] dark:text-white">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="AL-baz" className="h-10 w-auto" />
             <div>
-              <h1 className="text-lg font-bold">{t("AL-baz Driver", "سائق AL-baz")}</h1>
-              <p className="text-xs text-white/80">{user?.name || "Driver"}</p>
+              <h1 className="text-lg font-bold text-[var(--albaz-text)] dark:text-white">{t("AL-baz Driver", "سائق AL-baz")}</h1>
+              <p className="text-xs text-[var(--albaz-text-soft)] dark:text-white/80">{user?.name || "Driver"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20"
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
               onClick={() => setLanguage(language === "fr" ? "ar" : "fr")}
               title={language === "fr" ? "العربية" : "Français"}
             >
@@ -298,7 +296,7 @@ export default function DriverApp() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20"
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
               onClick={() => setIsDarkMode(!isDarkMode)}
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -306,7 +304,7 @@ export default function DriverApp() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/20"
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
               onClick={() => {
                 fetchAvailableDeliveries()
                 fetchActiveDelivery()
@@ -314,7 +312,7 @@ export default function DriverApp() {
             >
               <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => signOut({ callbackUrl: "/login" })}>
+            <Button variant="ghost" size="icon" className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" onClick={() => signOut({ callbackUrl: "/login" })}>
               <LogOut className="w-5 h-5" />
             </Button>
           </div>
@@ -328,28 +326,28 @@ export default function DriverApp() {
     <div className="container mx-auto px-4 py-6 pb-24 space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <Card className="albaz-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-green-900">{deliveryHistory.length}</p>
-                <p className="text-xs text-green-700">Livraisons</p>
+                <p className="text-2xl font-bold text-[var(--albaz-text)]">{deliveryHistory.length}</p>
+                <p className="text-xs text-[var(--albaz-text-soft)]">Livraisons</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+        <Card className="albaz-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
+                <DollarSign className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-blue-900">{deliveryHistory.length * 500}</p>
-                <p className="text-xs text-blue-700">DZD Gagnés</p>
+                <p className="text-2xl font-bold text-[var(--albaz-text)]">{deliveryHistory.length * 500}</p>
+                <p className="text-xs text-[var(--albaz-text-soft)]">DZD Gagnés</p>
               </div>
             </div>
           </CardContent>
@@ -358,15 +356,15 @@ export default function DriverApp() {
 
       {/* Active Delivery Alert */}
       {activeDelivery && (
-        <Card className="border-primary bg-primary/5">
+        <Card className="albaz-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-primary" />
+              <AlertCircle className="w-6 h-6 text-[var(--albaz-olive)]" />
               <div className="flex-1">
-                <p className="font-semibold text-gray-900">Livraison en cours</p>
-                <p className="text-sm text-gray-600">Commande #{activeDelivery.id}</p>
+                <p className="font-semibold text-[var(--albaz-text)]">Livraison en cours</p>
+                <p className="text-sm text-[var(--albaz-text-soft)]">Commande #{activeDelivery.id}</p>
               </div>
-              <Button size="sm" onClick={() => setCurrentView("active")}>
+              <Button size="sm" className="bg-[var(--albaz-olive)] hover:brightness-95 text-white" onClick={() => setCurrentView("active")}>
                 Voir
               </Button>
             </div>
@@ -377,62 +375,62 @@ export default function DriverApp() {
       {/* Available Deliveries */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">Livraisons Disponibles</h2>
-          <Badge variant="secondary">{availableDeliveries.length} disponible(s)</Badge>
+          <h2 className="text-xl font-bold text-[var(--albaz-text)]">Livraisons Disponibles</h2>
+          <Badge className="bg-[var(--albaz-olive)] text-white">{availableDeliveries.length} disponible(s)</Badge>
         </div>
 
         {availableDeliveries.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <p className="text-lg text-gray-600 mb-2">Aucune livraison disponible</p>
-              <p className="text-sm text-gray-500">Vérifiez à nouveau dans quelques instants</p>
+          <Card className="albaz-card">
+            <CardContent className="p-12 text-center text-[var(--albaz-text-soft)]">
+              <Package className="w-16 h-16 mx-auto mb-4 text-[var(--albaz-text-soft)]" />
+              <p className="text-lg mb-2">Aucune livraison disponible</p>
+              <p className="text-sm opacity-80">Vérifiez à nouveau dans quelques instants</p>
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
             {availableDeliveries.map((delivery) => (
-              <Card key={delivery.id} className="border-gray-200 hover:shadow-lg transition-shadow">
+            <Card key={delivery.id} className="albaz-card hover:shadow-lg transition-shadow">
                 <CardContent className="p-4">
                   <div className="space-y-4">
                     {/* Order Info */}
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <Badge className="bg-green-500">Prêt</Badge>
-                          <span className="text-sm font-mono text-gray-600">#{delivery.id}</span>
+                        <Badge className="bg-[var(--albaz-olive)] text-white">Prêt</Badge>
+                        <span className="text-sm font-mono text-[var(--albaz-text-soft)]">#{delivery.id}</span>
                         </div>
-                        <p className="font-semibold text-gray-900">Commande de {delivery.total} DZD</p>
-                        <p className="text-sm text-gray-600">{delivery.items.length} article(s)</p>
+                      <p className="font-semibold text-[var(--albaz-text)]">Commande de {delivery.total} DZD</p>
+                      <p className="text-sm text-[var(--albaz-text-soft)]">{delivery.items.length} article(s)</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-primary">500 DZD</p>
-                        <p className="text-xs text-gray-600">Frais de livraison</p>
+                      <p className="text-2xl font-bold text-[var(--albaz-olive)]">500 DZD</p>
+                      <p className="text-xs text-[var(--albaz-text-soft)]">Frais de livraison</p>
                       </div>
                     </div>
 
                     {/* Pickup & Delivery */}
                     <div className="space-y-2 border-t pt-3">
                       <div className="flex items-start gap-2">
-                        <Package className="w-4 h-4 text-gray-500 mt-0.5" />
+                      <Package className="w-4 h-4 text-[var(--albaz-text-soft)] mt-0.5" />
                         <div className="flex-1">
-                          <p className="text-xs text-gray-600">Récupération</p>
-                          <p className="text-sm font-medium text-gray-900">Store #{delivery.storeId}</p>
+                        <p className="text-xs text-[var(--albaz-text-soft)]">Récupération</p>
+                        <p className="text-sm font-medium text-[var(--albaz-text)]">Store #{delivery.storeId}</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
-                        <MapPin className="w-4 h-4 text-primary mt-0.5" />
+                      <MapPin className="w-4 h-4 text-[var(--albaz-olive)] mt-0.5" />
                         <div className="flex-1">
-                          <p className="text-xs text-gray-600">Livraison</p>
-                          <p className="text-sm font-medium text-gray-900">{delivery.deliveryAddress}</p>
-                          <p className="text-xs text-gray-600">{delivery.city}</p>
+                        <p className="text-xs text-[var(--albaz-text-soft)]">Livraison</p>
+                        <p className="text-sm font-medium text-[var(--albaz-text)]">{delivery.deliveryAddress}</p>
+                        <p className="text-xs text-[var(--albaz-text-soft)]">{delivery.city}</p>
                         </div>
                       </div>
                       <div className="flex items-start gap-2">
-                        <Phone className="w-4 h-4 text-gray-500 mt-0.5" />
+                      <Phone className="w-4 h-4 text-[var(--albaz-text-soft)] mt-0.5" />
                         <div className="flex-1">
-                          <p className="text-xs text-gray-600">Client</p>
-                          <p className="text-sm font-medium text-gray-900">{delivery.customerPhone}</p>
+                        <p className="text-xs text-[var(--albaz-text-soft)]">Client</p>
+                        <p className="text-sm font-medium text-[var(--albaz-text)]">{delivery.customerPhone}</p>
                         </div>
                       </div>
                     </div>
@@ -440,7 +438,7 @@ export default function DriverApp() {
                     {/* Actions */}
                     <div className="flex gap-2 pt-2">
                       <Button
-                        className="flex-1 bg-gradient-to-r from-primary to-orange-500"
+                      className="flex-1 bg-[var(--albaz-olive)] hover:brightness-95 text-white"
                         onClick={() => acceptDelivery(delivery.id)}
                         disabled={!!activeDelivery}
                       >
@@ -463,10 +461,10 @@ export default function DriverApp() {
     if (!activeDelivery) {
       return (
         <div className="container mx-auto px-4 py-6">
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Package className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <p className="text-lg text-gray-600">Aucune livraison active</p>
+          <Card className="albaz-card">
+            <CardContent className="p-12 text-center text-[var(--albaz-text-soft)]">
+              <Package className="w-16 h-16 mx-auto mb-4 text-[var(--albaz-text-soft)]" />
+              <p className="text-lg text-[var(--albaz-text)]">Aucune livraison active</p>
             </CardContent>
           </Card>
         </div>

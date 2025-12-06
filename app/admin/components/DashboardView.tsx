@@ -1,8 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { OrderStatus } from "@/lib/constants"
+import { Card, CardContent, CardHeader, CardTitle, Badge } from "@albaz/ui"
+import { OrderStatus } from "@/root/lib/constants"
 import { ShoppingBag, TrendingUp, Clock, CheckCircle2, Users, Truck, Store, Package } from "lucide-react"
 import type { Order, User as UserType } from "@/root/lib/types"
 
@@ -22,58 +21,58 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+        <Card className="albaz-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-blue-700 mb-1">Total Commandes</p>
-                <p className="text-3xl font-bold text-blue-900">{totalOrders}</p>
+                <p className="text-sm text-[var(--albaz-text-soft)] mb-1">Total Commandes</p>
+                <p className="text-3xl font-bold text-[var(--albaz-text)]">{totalOrders}</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <ShoppingBag className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
+                <ShoppingBag className="w-6 h-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <Card className="albaz-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-green-700 mb-1">Revenu Total</p>
-                <p className="text-3xl font-bold text-green-900">{totalRevenue}</p>
-                <p className="text-xs text-green-700">DZD</p>
+                <p className="text-sm text-[var(--albaz-text-soft)] mb-1">Revenu Total</p>
+                <p className="text-3xl font-bold text-[var(--albaz-text)]">{totalRevenue}</p>
+                <p className="text-xs text-[var(--albaz-text-soft)]">DZD</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
+                <TrendingUp className="w-6 h-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+        <Card className="albaz-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-orange-700 mb-1">En Attente</p>
-                <p className="text-3xl font-bold text-orange-900">{pendingOrders}</p>
+                <p className="text-sm text-[var(--albaz-text-soft)] mb-1">En Attente</p>
+                <p className="text-3xl font-bold text-[var(--albaz-text)]">{pendingOrders}</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-full bg-[var(--albaz-orange)] flex items-center justify-center text-white">
+                <Clock className="w-6 h-6" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <Card className="albaz-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-700 mb-1">Complétées</p>
-                <p className="text-3xl font-bold text-purple-900">{completedOrders}</p>
+                <p className="text-sm text-[var(--albaz-text-soft)] mb-1">Complétées</p>
+                <p className="text-3xl font-bold text-[var(--albaz-text)]">{completedOrders}</p>
               </div>
-              <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-white" />
+              <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
+                <CheckCircle2 className="w-6 h-6" />
               </div>
             </div>
           </CardContent>
@@ -81,7 +80,7 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+        <Card className="albaz-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
@@ -94,7 +93,7 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="albaz-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Truck className="w-5 h-5 text-primary" />
@@ -107,7 +106,7 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="albaz-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Store className="w-5 h-5 text-primary" />
