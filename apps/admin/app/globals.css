@@ -1,0 +1,392 @@
+/*
+! tailwindcss v3.3.0 | MIT License | https://tailwindcss.com
+*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ALBAZ Design System Colors */
+:root {
+  --albaz-dark-green: #1a4d1a;
+  --albaz-orange: #ff9933;
+  --albaz-light-green: #c8e6c9;
+  --albaz-white: #ffffff;
+}
+
+/* Theme and RTL support */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.rtl,
+html[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+html.ltr,
+html[dir="ltr"] {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Custom base styles */
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-white text-gray-900;
+  }
+
+  /* Ensure proper scrollbar styling in dark mode */
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+
+  /* Focus indicators for accessibility */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#1a4d1a] rounded;
+  }
+
+  /* Skip link for keyboard navigation */
+  .skip-link {
+    @apply sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-[#1a4d1a] focus:text-white focus:rounded-lg focus:font-semibold;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* RTL utilities */
+  .rtl .ml-auto {
+    margin-right: auto;
+    margin-left: 0;
+  }
+
+  .rtl .mr-auto {
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  .rtl .text-left {
+    text-align: right;
+  }
+
+  .rtl .text-right {
+    text-align: left;
+  }
+}
+
+/* ALBAZ premium theming (neumorphic) */
+:root {
+  --albaz-cream: #f5f1e8;
+  --albaz-cream-strong: #efe8da;
+  --albaz-olive: #2f5b2f;
+  --albaz-olive-deep: #1f3f27;
+  --albaz-olive-muted: #4b6a47;
+  --albaz-gold: #f3be63;
+  --albaz-gold-soft: #f7d38e;
+  --albaz-orange: #f1a04a;
+  --albaz-forest: #12281c;
+  --albaz-surface: #f8f5ed;
+  --albaz-text: #1f2c22;
+  --albaz-text-soft: #4a5a50;
+  --albaz-shadow-soft: 12px 12px 28px rgba(31, 44, 34, 0.08), -10px -10px 26px rgba(255, 255, 255, 0.9);
+  --albaz-shadow-inset: inset 8px 8px 18px rgba(31, 44, 34, 0.08), inset -6px -6px 14px rgba(255, 255, 255, 0.8);
+  --albaz-shadow-strong: 16px 16px 36px rgba(31, 44, 34, 0.12), -12px -12px 30px rgba(255, 255, 255, 0.92);
+  --albaz-border: rgba(47, 91, 47, 0.08);
+}
+
+html.dark {
+  --albaz-cream: #0f1110;
+  --albaz-cream-strong: #0c0d0c;
+  --albaz-olive: #6bcf75;
+  --albaz-olive-deep: #0f2318;
+  --albaz-olive-muted: #1f372b;
+  --albaz-gold: #f3c46d;
+  --albaz-gold-soft: #f6d38d;
+  --albaz-orange: #f6a94f;
+  --albaz-forest: #0a1710;
+  --albaz-surface: #141715;
+  --albaz-text: #f4f7f1;
+  --albaz-text-soft: #bfc9c0;
+  --albaz-shadow-soft: 10px 10px 24px rgba(0, 0, 0, 0.45), -8px -8px 22px rgba(40, 40, 40, 0.5);
+  --albaz-shadow-inset: inset 8px 8px 18px rgba(0, 0, 0, 0.35), inset -6px -6px 14px rgba(45, 45, 45, 0.6);
+  --albaz-shadow-strong: 18px 18px 40px rgba(0, 0, 0, 0.55), -14px -14px 32px rgba(40, 40, 40, 0.55);
+  --albaz-border: rgba(255, 255, 255, 0.06);
+}
+
+body {
+  background: var(--albaz-cream);
+  color: var(--albaz-text);
+  transition: background 240ms ease, color 240ms ease;
+}
+
+.albaz-shell {
+  background: radial-gradient(circle at 18% 18%, rgba(243, 190, 99, 0.12), transparent 42%),
+    radial-gradient(circle at 80% 12%, rgba(75, 106, 71, 0.12), transparent 40%),
+    var(--albaz-cream);
+  color: var(--albaz-text);
+  transition: background 300ms ease, color 300ms ease;
+}
+
+html.dark .albaz-shell {
+  background: radial-gradient(circle at 15% 15%, rgba(106, 207, 117, 0.12), transparent 40%),
+    radial-gradient(circle at 85% 8%, rgba(243, 196, 109, 0.12), transparent 36%),
+    #0f1110;
+}
+
+.albaz-hero {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.75), rgba(243, 190, 99, 0.08));
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+  padding-bottom: 1.25rem;
+  box-shadow: var(--albaz-shadow-soft);
+}
+
+html.dark .albaz-hero {
+  background: linear-gradient(145deg, rgba(20, 32, 24, 0.9), rgba(14, 26, 19, 0.92));
+  box-shadow: var(--albaz-shadow-soft);
+}
+
+.albaz-card,
+.card,
+.bg-card {
+  border-radius: 18px;
+  background: var(--albaz-surface);
+  box-shadow: var(--albaz-shadow-soft);
+  border: 1px solid var(--albaz-border);
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.card:hover,
+.bg-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--albaz-shadow-strong);
+}
+
+html.dark .albaz-card,
+html.dark .card,
+html.dark .bg-card {
+  background: var(--albaz-surface);
+  box-shadow: var(--albaz-shadow-soft);
+}
+
+.albaz-search {
+  border-radius: 16px;
+  background: var(--albaz-surface);
+  box-shadow: var(--albaz-shadow-inset);
+  border: 1px solid var(--albaz-border);
+  transition: box-shadow 220ms ease, transform 220ms ease;
+}
+
+.albaz-search:focus-within {
+  box-shadow: var(--albaz-shadow-soft);
+  transform: translateY(-1px);
+}
+
+.albaz-location-pill {
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--albaz-orange), var(--albaz-gold));
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(241, 154, 62, 0.24);
+  animation: pulseSoft 4.6s ease-in-out infinite;
+}
+
+html.dark .albaz-location-pill {
+  box-shadow: 0 12px 24px rgba(246, 169, 79, 0.25);
+}
+
+.albaz-category {
+  background: var(--albaz-surface);
+  color: var(--albaz-text);
+  border: 1px solid var(--albaz-border);
+  box-shadow: var(--albaz-shadow-soft);
+}
+
+html.dark .albaz-category {
+  color: #f6f8f2;
+}
+
+.albaz-promo {
+  border-radius: 20px;
+  background: linear-gradient(120deg, rgba(47, 91, 47, 0.9), rgba(242, 182, 80, 0.9));
+  box-shadow: var(--albaz-shadow-strong);
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.albaz-promo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 3.5s ease-in-out infinite;
+}
+
+.albaz-promo-bird {
+  animation: wingFlap 1.8s ease-in-out infinite;
+}
+
+.albaz-nav {
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.9);
+  border-top: 1px solid var(--albaz-border);
+  box-shadow: 0 -10px 30px rgba(47, 91, 47, 0.08);
+}
+
+html.dark .albaz-nav {
+  background: rgba(20, 24, 21, 0.92);
+  box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.albaz-nav button {
+  position: relative;
+}
+
+.albaz-nav button.active::before {
+  content: "";
+  position: absolute;
+  inset: -8px -14px 6px;
+  background: radial-gradient(circle, rgba(106, 207, 117, 0.25), transparent 65%);
+  filter: blur(12px);
+  z-index: -1;
+}
+
+.albaz-nav button.active {
+  color: var(--albaz-olive);
+}
+
+html.dark .albaz-nav button.active {
+  color: #f6d48f;
+}
+
+.albaz-nav button svg {
+  transition: transform 200ms ease, filter 200ms ease;
+}
+
+.albaz-nav button.active svg {
+  transform: translateY(-2px) scale(1.04);
+  filter: drop-shadow(0 8px 12px rgba(241, 154, 62, 0.35));
+}
+
+html.dark .albaz-nav button.active svg {
+  filter: drop-shadow(0 8px 12px rgba(106, 207, 117, 0.35));
+}
+
+/* Global neumorphic polish */
+.bg-muted {
+  background: var(--albaz-surface);
+  box-shadow: var(--albaz-shadow-inset);
+  border: 1px solid var(--albaz-border);
+}
+
+.border-border {
+  border-color: var(--albaz-border);
+}
+
+input,
+textarea,
+select {
+  background: var(--albaz-surface);
+  border-color: var(--albaz-border);
+  box-shadow: var(--albaz-shadow-inset);
+}
+
+@keyframes fadeSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pulseSoft {
+  0% {
+    box-shadow: 0 12px 24px rgba(241, 154, 62, 0.25);
+  }
+  50% {
+    box-shadow: 0 16px 28px rgba(241, 154, 62, 0.35);
+  }
+  100% {
+    box-shadow: 0 12px 24px rgba(241, 154, 62, 0.25);
+  }
+}
+
+@keyframes parallaxSway {
+  0% {
+    transform: translateY(8px) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(1deg);
+  }
+  100% {
+    transform: translateY(8px) rotate(-1deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+@keyframes wingFlap {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-3deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(106, 207, 117, 0.2);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(106, 207, 117, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(106, 207, 117, 0);
+  }
+}
+
