@@ -2,7 +2,6 @@
 
 import type React from "react"
 import { useState } from "react"
-import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +23,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const { signIn }: any = await import("next-auth/react")
       const result = await signIn("credentials", {
         identifier,
         password,
