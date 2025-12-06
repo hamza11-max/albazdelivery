@@ -112,16 +112,16 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-orange-500 to-orange-600 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
+    <div className="albaz-shell min-h-screen flex items-center justify-center p-6">
+      <Card className="albaz-card w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="ALBAZ FAST DELIVERY" className="h-32 w-auto" />
+            <img src="/logo.png" alt="ALBAZ FAST DELIVERY" className="h-24 w-auto" />
           </div>
-          <CardTitle className="text-2xl font-bold">
+          <CardTitle className="text-2xl font-bold text-[var(--albaz-text)]">
             {step === "role" ? "Choisissez votre rôle" : "Créer un compte"}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-[var(--albaz-text-soft)]">
             {step === "role"
               ? "Sélectionnez le type de compte que vous souhaitez créer"
               : `Inscription en tant que ${selectedRole === "customer" ? "Client" : selectedRole === "driver" ? "Livreur" : "Vendeur"}`}
@@ -133,40 +133,40 @@ export default function SignUpPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
                 onClick={() => handleRoleSelect("customer")}
-                className="p-6 border-2 border-muted rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
+                className="p-6 border border-border rounded-xl hover:-translate-y-1 transition-all albaz-card text-left"
               >
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-                    <Users className="w-8 h-8 text-primary" />
+                  <div className="w-16 h-16 rounded-full bg-[var(--albaz-olive)]/10 flex items-center justify-center text-[var(--albaz-olive)]">
+                    <Users className="w-8 h-8" />
                   </div>
-                  <h3 className="font-bold text-lg">Client</h3>
-                  <p className="text-sm text-muted-foreground text-center">Commander des produits et services</p>
+                  <h3 className="font-bold text-lg text-[var(--albaz-text)]">Client</h3>
+                  <p className="text-sm text-[var(--albaz-text-soft)] text-center">Commander des produits et services</p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleRoleSelect("driver")}
-                className="p-6 border-2 border-muted rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
+                className="p-6 border border-border rounded-xl hover:-translate-y-1 transition-all albaz-card text-left"
               >
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-                    <Truck className="w-8 h-8 text-primary" />
+                  <div className="w-16 h-16 rounded-full bg-[var(--albaz-olive)]/10 flex items-center justify-center text-[var(--albaz-olive)]">
+                    <Truck className="w-8 h-8" />
                   </div>
-                  <h3 className="font-bold text-lg">Livreur</h3>
-                  <p className="text-sm text-muted-foreground text-center">Livrer des commandes aux clients</p>
+                  <h3 className="font-bold text-lg text-[var(--albaz-text)]">Livreur</h3>
+                  <p className="text-sm text-[var(--albaz-text-soft)] text-center">Livrer des commandes aux clients</p>
                 </div>
               </button>
 
               <button
                 onClick={() => handleRoleSelect("vendor")}
-                className="p-6 border-2 border-muted rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
+                className="p-6 border border-border rounded-xl hover:-translate-y-1 transition-all albaz-card text-left"
               >
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
-                    <Store className="w-8 h-8 text-primary" />
+                    <div className="w-16 h-16 rounded-full bg-[var(--albaz-olive)]/10 flex items-center justify-center text-[var(--albaz-olive)]">
+                    <Store className="w-8 h-8" />
                   </div>
-                  <h3 className="font-bold text-lg">Vendeur</h3>
-                  <p className="text-sm text-muted-foreground text-center">Vendre vos produits en ligne</p>
+                  <h3 className="font-bold text-lg text-[var(--albaz-text)]">Vendeur</h3>
+                  <p className="text-sm text-[var(--albaz-text-soft)] text-center">Vendre vos produits en ligne</p>
                 </div>
               </button>
             </div>
