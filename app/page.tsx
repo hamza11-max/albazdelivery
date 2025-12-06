@@ -39,9 +39,6 @@ import {
   Pill,
   Pizza,
   Bike,
-  Settings2,
-  ShieldCheck,
-  Boxes,
 } from "lucide-react"
 
 // Force dynamic rendering to avoid static generation issues
@@ -92,24 +89,6 @@ const categories = [
     icon: Bike,
     color: "bg-gradient-to-br from-yellow-100 to-amber-50",
     iconColor: "text-yellow-600",
-  },
-]
-
-const featureIcons = [
-  {
-    id: "gear",
-    label: "Settings",
-    Icon: Settings2,
-  },
-  {
-    id: "shield",
-    label: "Secure",
-    Icon: ShieldCheck,
-  },
-  {
-    id: "boxes",
-    label: "Stack",
-    Icon: Boxes,
   },
 ]
 
@@ -570,19 +549,6 @@ export default function AlBazApp() {
         </div>
 
         <div className="px-5 py-6 space-y-6">
-          <div className="grid grid-cols-3 gap-3">
-            {featureIcons.map((feature, idx) => (
-              <div
-                key={feature.id}
-                className="albaz-feature rounded-2xl p-4 text-center text-white transition-transform duration-300 hover:-translate-y-1"
-                style={{ animation: `fadeSlideUp 0.55s ease ${idx * 120}ms both` }}
-              >
-                <feature.Icon className="w-9 h-9 mx-auto albaz-feature-icon" />
-                <p className="text-sm font-semibold mt-2">{feature.label}</p>
-              </div>
-            ))}
-          </div>
-
           <div className="albaz-promo p-4 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
               <img src="/logo.png" alt="ALBAZ bird" className="w-8 h-8 albaz-promo-bird" />
@@ -1690,7 +1656,7 @@ export default function AlBazApp() {
 
   // Main Render
   return (
-    <div className="min-h-screen bg-background">
+    <div className="albaz-shell min-h-screen">
       {currentPage !== "home" && <Header />}
       <main>
         {currentPage === "home" && <HomePage />}
