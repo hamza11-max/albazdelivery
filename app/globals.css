@@ -166,7 +166,7 @@ html.dark .albaz-hero {
 .albaz-card,
 .card,
 .bg-card {
-  border-radius: 18px;
+  border-radius: 20px;
   background: var(--albaz-surface);
   box-shadow: var(--albaz-shadow-soft);
   border: 1px solid var(--albaz-border);
@@ -175,7 +175,7 @@ html.dark .albaz-hero {
 
 .card:hover,
 .bg-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   box-shadow: var(--albaz-shadow-strong);
 }
 
@@ -245,7 +245,7 @@ html.dark .albaz-category {
 
 .albaz-nav {
   backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border-top: 1px solid var(--albaz-border);
   box-shadow: 0 -10px 30px rgba(47, 91, 47, 0.08);
 }
