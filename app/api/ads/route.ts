@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse } from '@/lib/errors'
 
@@ -16,7 +16,12 @@ export async function GET(request: NextRequest) {
 
     return successResponse({ ads })
   } catch (error) {
-    return errorResponse(error)
+    console.error('[ads_api]', error)
+    // Graceful fallback to avoid client-side 500s breaking UI
+    return NextResponse.json(
+      { ads: [], message: 'Ads unavailable right now' },
+      { status: 200 }
+    )
   }
 }
 

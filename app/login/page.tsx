@@ -52,12 +52,13 @@ export default function LoginPage() {
       <div className="w-full max-w-2xl bg-white rounded-[24px] shadow-2xl px-10 py-12 flex flex-col items-center">
         <div className="mb-10 flex flex-col items-center">
           <img
-            src="/logo.png"
+            src="/albaz-logo.gif"
             alt="ALBAZ"
             className="h-14 w-auto mb-6"
             onError={(e) => {
               e.currentTarget.onerror = null
-              e.currentTarget.src = "/placeholder-logo.png"
+              e.currentTarget.src =
+                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' rx='10' fill='%232f5b2f'/%3E%3Ctext x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Inter,Arial' font-size='12' font-weight='700'%3EALBAZ%3C/text%3E%3C/svg%3E"
             }}
           />
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Bienvenue sur AL-baz</h2>
