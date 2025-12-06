@@ -440,7 +440,7 @@ export default function AlBazApp() {
   })
 
   const Header = () => (
-    <header className="sticky top-0 z-50 bg-background border-b border-border shadow-sm">
+    <header className="sticky top-0 z-50 albaz-nav">
       <div className="px-4 py-3">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -619,7 +619,7 @@ export default function AlBazApp() {
             onClick={() => setActiveTab("orders")}
             className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors ${
               activeTab === "orders"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-[var(--albaz-olive)] text-white"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
@@ -629,7 +629,7 @@ export default function AlBazApp() {
             onClick={() => setActiveTab("packages")}
             className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors ${
               activeTab === "packages"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-[var(--albaz-olive)] text-white"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
@@ -639,7 +639,7 @@ export default function AlBazApp() {
             onClick={() => setActiveTab("track")}
             className={`px-4 py-2 rounded-full whitespace-nowrap font-medium transition-colors ${
               activeTab === "track"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-[var(--albaz-olive)] text-white"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
@@ -654,7 +654,7 @@ export default function AlBazApp() {
             <div>
               <h2 className="text-lg font-bold mb-4 text-foreground">{t("orders", "Commandes", "الطلبات")}</h2>
               {allOrders.length === 0 ? (
-                <Card>
+                <Card className="albaz-card">
                   <CardContent className="p-8 text-center">
                     <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                     <p className="text-muted-foreground">{t("no-orders", "Aucune commande", "لا توجد طلبات")}</p>
@@ -665,7 +665,7 @@ export default function AlBazApp() {
                   {allOrders.map((order) => (
                     <Card
                       key={order.id}
-                      className="border-border hover:shadow-md transition-shadow cursor-pointer"
+                      className="albaz-card hover:shadow-lg transition-shadow cursor-pointer"
                       onClick={() => {
                         setOrderId(order.id)
                         setCurrentOrder(order)
@@ -714,7 +714,7 @@ export default function AlBazApp() {
             <div>
               <h2 className="text-lg font-bold mb-4 text-foreground">{t("my-packages", "Mes Colis", "حزمي")}</h2>
               {packageDeliveries.length === 0 ? (
-                <Card>
+                <Card className="albaz-card">
                   <CardContent className="p-8 text-center">
                     <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                     <p className="text-muted-foreground">{t("no-packages", "Aucun colis", "لا توجد حزم")}</p>
@@ -810,9 +810,9 @@ export default function AlBazApp() {
     const Icon = category.icon
 
     return (
-      <div className="min-h-screen bg-background pb-20">
+      <div className="albaz-shell min-h-screen pb-20">
         {/* Header */}
-        <div className="sticky top-[57px] z-40 bg-background border-b border-border px-4 py-4 shadow-sm">
+        <div className="sticky top-[57px] z-40 albaz-nav px-4 py-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -830,10 +830,10 @@ export default function AlBazApp() {
         </div>
 
         {/* Category Header */}
-        <div className={`bg-gradient-to-br ${category.color} px-4 py-8 relative overflow-hidden`}>
+        <div className="albaz-hero px-4 py-8 relative overflow-hidden">
           <div className="relative z-10">
-            <h1 className="text-2xl font-bold text-white mb-1">{categoryName}</h1>
-            <p className="text-white/90 text-sm">
+            <h1 className="text-2xl font-bold text-[var(--albaz-text)] dark:text-white mb-1">{categoryName}</h1>
+            <p className="text-[var(--albaz-text-soft)] dark:text-white/80 text-sm">
               {t("fast-delivery", "Livraison rapide à votre porte", "توصيل سريع إلى بابك")}
             </p>
           </div>
@@ -851,19 +851,19 @@ export default function AlBazApp() {
             {filteredStores.map((store) => (
               <Card
                 key={store.id}
-                className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow border-border"
+                className="albaz-card overflow-hidden cursor-pointer hover:shadow-lg transition-shadow border-border"
                 onClick={() => {
                   setSelectedStore(store.id)
                   setCurrentPage("store")
                 }}
               >
-                <div className="relative h-40 bg-gradient-to-br from-muted to-muted/50">
+                <div className="relative h-40 bg-muted">
                   <img
                     src="/placeholder.jpg"
                     alt={store.name}
                     className="w-full h-full object-cover"
                   />
-                  <Badge className="absolute top-2 left-2 bg-accent text-accent-foreground text-xs px-2 py-1">
+                  <Badge className="absolute top-2 left-2 bg-[var(--albaz-orange)] text-white text-xs px-2 py-1">
                     {t("free", "Gratuit", "مجاني")}
                   </Badge>
                 </div>
@@ -904,9 +904,9 @@ export default function AlBazApp() {
       if (!product) return null
 
       return (
-        <div className="min-h-screen bg-background pb-24">
+        <div className="albaz-shell min-h-screen pb-24">
           {/* Header */}
-          <div className="sticky top-0 z-50 bg-background border-b border-border px-4 py-4 shadow-sm">
+          <div className="sticky top-0 z-50 albaz-nav px-4 py-4">
             <div className="flex items-center justify-between">
               <Button variant="ghost" size="icon" onClick={() => setSelectedProduct(null)} className="hover:bg-muted">
                 <ArrowLeft className="w-5 h-5" />
@@ -923,8 +923,8 @@ export default function AlBazApp() {
           </div>
 
           {/* Product Image */}
-          <div className="w-full aspect-square bg-background flex items-center justify-center p-8">
-            <div className="w-full h-full max-w-md mx-auto rounded-full overflow-hidden shadow-xl">
+          <div className="w-full aspect-square flex items-center justify-center p-8">
+            <div className="w-full h-full max-w-md mx-auto rounded-full overflow-hidden shadow-xl bg-card">
               <img
                 src={product.image || "/placeholder.svg"}
                 alt={product.name}
@@ -939,7 +939,7 @@ export default function AlBazApp() {
               <div className="flex items-start justify-between mb-2">
                 <h2 className="text-2xl font-bold text-foreground flex-1">{product.name}</h2>
                 <div className="text-right">
-                  <span className="text-3xl font-bold text-primary">{product.price}</span>
+                  <span className="text-3xl font-bold text-[var(--albaz-olive)]">{product.price}</span>
                   <span className="text-sm text-muted-foreground ml-1">DZD</span>
                 </div>
               </div>
@@ -974,7 +974,7 @@ export default function AlBazApp() {
                 </button>
               </div>
               <Button
-                className="flex-1 bg-gradient-to-r from-primary to-orange-500 hover:from-primary/90 hover:to-orange-500/90 text-primary-foreground font-bold py-6 rounded-full text-lg shadow-lg"
+                className="flex-1 bg-[var(--albaz-olive)] hover:brightness-95 text-white font-bold py-6 rounded-full text-lg shadow-lg"
                 onClick={() => {
                   addToCart(product.id)
                   setSelectedProduct(null)
@@ -990,9 +990,9 @@ export default function AlBazApp() {
 
     // Store Listing View
     return (
-      <div className="min-h-screen bg-background pb-24">
+      <div className="albaz-shell min-h-screen pb-24">
         {/* Header */}
-        <div className="sticky top-0 z-50 bg-background border-b border-border px-4 py-4 shadow-sm">
+        <div className="sticky top-0 z-50 albaz-nav px-4 py-4">
           <div className="flex items-center justify-between">
             <Button
               variant="ghost"
@@ -1013,8 +1013,8 @@ export default function AlBazApp() {
         {/* Store Info */}
         <div className="bg-card p-6 border-b border-border">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary/20 to-orange-500/20 flex items-center justify-center">
-              <UtensilsCrossed className="w-10 h-10 text-primary" />
+            <div className="w-20 h-20 rounded-xl bg-[var(--albaz-olive)]/15 flex items-center justify-center">
+              <UtensilsCrossed className="w-10 h-10 text-[var(--albaz-olive)]" />
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-foreground mb-1">{store.name}</h2>
@@ -1038,7 +1038,7 @@ export default function AlBazApp() {
             {storeProducts.map((product) => (
               <Card
                 key={product.id}
-                className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow border-border bg-card"
+              className="albaz-card overflow-hidden cursor-pointer hover:shadow-lg transition-shadow border-border bg-card"
                 onClick={() => setSelectedProduct(product.id)}
               >
                 <div className="aspect-square relative bg-muted flex items-center justify-center">
@@ -1393,12 +1393,12 @@ export default function AlBazApp() {
             )}
 
             {currentOrder?.status === "DELIVERED" ? (
-              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6 text-center">
-                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-green-600 dark:text-green-400" />
-                <p className="text-lg font-semibold text-green-900 dark:text-green-100 mb-2">
+              <div className="bg-[var(--albaz-olive)]/8 border border-[var(--albaz-olive)]/20 rounded-lg p-6 text-center">
+                <CheckCircle2 className="w-12 h-12 mx-auto mb-3 text-[var(--albaz-olive)]" />
+                <p className="text-lg font-semibold text-[var(--albaz-text)] mb-2">
                   {t("thank-you", "Merci pour votre commande!", "شكرا لطلبك!")}
                 </p>
-                <p className="text-sm text-green-700 dark:text-green-300">
+                <p className="text-sm text-[var(--albaz-text-soft)]">
                   {t("see-you-soon", "Nous espérons vous revoir bientôt.", "نأمل أن نراك قريبًا.")}
                 </p>
               </div>
@@ -1437,7 +1437,7 @@ export default function AlBazApp() {
   }
 
   const ProfileView = () => (
-    <div className="container mx-auto px-4 py-6 pb-24 max-w-2xl">
+      <div className="albaz-shell container mx-auto px-4 py-6 pb-24 max-w-2xl">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" size="icon" onClick={() => setCurrentPage("home")} className="hover:bg-muted">
           <ArrowLeft className="w-5 h-5" />
@@ -1447,10 +1447,10 @@ export default function AlBazApp() {
 
       <div className="space-y-6">
         {/* User Info Card */}
-        <Card>
+        <Card className="albaz-card">
           <CardContent className="p-6">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-orange-500 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center">
                 <User className="w-10 h-10 text-white" />
               </div>
               <div>
@@ -1467,7 +1467,7 @@ export default function AlBazApp() {
         </Card>
 
         {/* Settings Options */}
-        <Card>
+        <Card className="albaz-card">
           <CardHeader>
             <CardTitle>{t("settings", "Paramètres", "الإعدادات")}</CardTitle>
           </CardHeader>
