@@ -679,10 +679,10 @@ export default function AlBazApp() {
                               <Badge
                                 className={
                                   order.status === "DELIVERED"
-                                    ? "bg-green-500"
+                                    ? "bg-[var(--albaz-olive)] text-white"
                                     : order.status === "IN_DELIVERY"
-                                      ? "bg-blue-500"
-                                      : "bg-yellow-500"
+                                      ? "bg-[var(--albaz-orange)] text-white"
+                                      : "bg-muted text-[var(--albaz-text)]"
                                 }
                               >
                                 {order.status === "DELIVERED"
@@ -698,7 +698,7 @@ export default function AlBazApp() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-primary">{order.total} DZD</p>
+                            <p className="font-bold text-[var(--albaz-olive)]">{order.total} DZD</p>
                           </div>
                         </div>
                       </CardContent>
@@ -725,7 +725,7 @@ export default function AlBazApp() {
                   {packageDeliveries.map((pkg) => (
                     <Card
                       key={pkg.id}
-                      className="border-border hover:shadow-md transition-shadow cursor-pointer"
+                      className="albaz-card hover:shadow-lg transition-shadow cursor-pointer"
                       onClick={() => {
                         setOrderId(pkg.id)
                         setCurrentOrder(pkg)
@@ -739,10 +739,10 @@ export default function AlBazApp() {
                               <Badge
                                 className={
                                   pkg.status === "DELIVERED"
-                                    ? "bg-green-500"
+                                    ? "bg-[var(--albaz-olive)] text-white"
                                     : pkg.status === "IN_DELIVERY"
-                                      ? "bg-blue-500"
-                                      : "bg-yellow-500"
+                                      ? "bg-[var(--albaz-orange)] text-white"
+                                      : "bg-muted text-[var(--albaz-text)]"
                                 }
                               >
                                 {pkg.status === "DELIVERED"
@@ -776,8 +776,8 @@ export default function AlBazApp() {
               <h2 className="text-lg font-bold mb-4 text-foreground">
                 {t("track-order", "Suivre Commande", "تتبع الطلب")}
               </h2>
-              <Card>
-                <CardContent className="p-6">
+              <Card className="albaz-card">
+                <CardContent className="p-6 space-y-4">
                   <div className="space-y-4">
                     <div>
                       <label className="text-sm font-medium text-foreground mb-2 block">
@@ -786,10 +786,10 @@ export default function AlBazApp() {
                       <Input
                         type="text"
                         placeholder={t("order-id-placeholder", "Ex: ORD-123456", "مثال: ORD-123456")}
-                        className="bg-muted border-border"
+                        className="bg-muted border-border shadow-inner"
                       />
                     </div>
-                    <Button className="w-full bg-gradient-to-r from-primary to-orange-500 hover:from-primary/90 hover:to-orange-500/90 text-primary-foreground font-bold py-6 rounded-full">
+                    <Button className="w-full bg-[var(--albaz-olive)] hover:brightness-95 text-white font-bold py-6 rounded-full">
                       {t("track", "Suivre", "تتبع")}
                     </Button>
                   </div>
@@ -1011,9 +1011,9 @@ export default function AlBazApp() {
         </div>
 
         {/* Store Info */}
-        <div className="bg-card p-6 border-b border-border">
+          <div className="bg-card p-6 border-b border-border">
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-20 h-20 rounded-xl bg-[var(--albaz-olive)]/15 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-2xl bg-[var(--albaz-olive)]/15 flex items-center justify-center">
               <UtensilsCrossed className="w-10 h-10 text-[var(--albaz-olive)]" />
             </div>
             <div className="flex-1">
@@ -1063,11 +1063,11 @@ export default function AlBazApp() {
                       />
                     ))}
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-primary">{product.price} DZD</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold text-[var(--albaz-olive)]">{product.price} DZD</span>
                     <Button
                       size="sm"
-                      className="bg-gradient-to-r from-primary to-orange-500 hover:from-primary/90 hover:to-orange-500/90 text-primary-foreground rounded-full px-4 text-xs"
+                  className="bg-[var(--albaz-olive)] hover:brightness-95 text-white rounded-full px-4 text-xs"
                     >
                       {t("add", "Ajouter", "أضف")}
                     </Button>
@@ -1303,11 +1303,11 @@ export default function AlBazApp() {
     }
 
     return (
-      <div className="container mx-auto px-4 py-6 max-w-2xl pb-24">
-        <Card>
+      <div className="albaz-shell container mx-auto px-4 py-6 max-w-2xl pb-24">
+        <Card className="albaz-card">
           <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle2 className="w-8 h-8 text-primary" />
+            <div className="w-16 h-16 bg-[var(--albaz-olive)]/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-8 h-8 text-[var(--albaz-olive)]" />
             </div>
             <CardTitle className="text-2xl mb-2 text-foreground">
               {currentOrder?.status === "DELIVERED"
@@ -1321,8 +1321,8 @@ export default function AlBazApp() {
           </CardHeader>
           <CardContent className="space-y-8">
             {currentOrder && (
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 text-center">
-                <p className="text-sm font-semibold text-primary">{getStatusText(currentOrder.status)}</p>
+              <div className="bg-[var(--albaz-olive)]/8 border border-[var(--albaz-olive)]/20 rounded-lg p-4 text-center">
+                <p className="text-sm font-semibold text-[var(--albaz-olive)]">{getStatusText(currentOrder.status)}</p>
               </div>
             )}
 
@@ -1338,14 +1338,16 @@ export default function AlBazApp() {
                     <div className="flex items-center gap-4">
                       <div
                         className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                          isActive ? "bg-primary text-primary-foreground scale-110" : "bg-muted text-muted-foreground"
-                        } ${isCurrent ? "ring-4 ring-primary/20" : ""}`}
+                          isActive ? "bg-[var(--albaz-olive)] text-white scale-110" : "bg-muted text-muted-foreground"
+                        } ${isCurrent ? "ring-4 ring-[var(--albaz-olive)]/20" : ""}`}
                       >
                         <Icon className="w-6 h-6" />
                       </div>
                       <div className="flex-1">
                         <p
-                          className={`font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"} ${isCurrent ? "text-primary" : ""}`}
+                          className={`font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"} ${
+                            isCurrent ? "text-[var(--albaz-olive)]" : ""
+                          }`}
                         >
                           {step.label}
                         </p>
@@ -1358,7 +1360,7 @@ export default function AlBazApp() {
                     </div>
                     {!isLast && (
                       <div
-                        className={`absolute left-6 top-12 w-0.5 h-6 transition-all ${isActive ? "bg-primary" : "bg-border"}`}
+                        className={`absolute left-6 top-12 w-0.5 h-6 transition-all ${isActive ? "bg-[var(--albaz-olive)]" : "bg-border"}`}
                       ></div>
                     )}
                   </div>
