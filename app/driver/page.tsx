@@ -282,7 +282,7 @@ export default function DriverApp() {
             <img
               src="/logo.png"
               alt="AL-baz"
-              className="h-10 w-auto"
+              className="h-7 w-auto"
               onError={(e) => {
                 e.currentTarget.onerror = null
                 e.currentTarget.src =

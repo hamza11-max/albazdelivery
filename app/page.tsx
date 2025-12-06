@@ -454,7 +454,7 @@ export default function AlBazApp() {
             <img
               src="/logo.png"
               alt="ALBAZ FAST DELIVERY"
-              className="h-[84px] w-auto"
+              className="h-8 w-auto"
               onError={(e) => {
                 e.currentTarget.onerror = null
                 e.currentTarget.src =
@@ -490,7 +490,7 @@ export default function AlBazApp() {
               <img
                 src="/logo.png"
                 alt="ALBAZ"
-                className="h-10 w-auto animate-[fadeSlideUp_0.8s_ease]"
+              className="h-7 w-auto animate-[fadeSlideUp_0.8s_ease]"
                 onError={(e) => {
                   e.currentTarget.onerror = null
                   e.currentTarget.src =
@@ -568,7 +568,7 @@ export default function AlBazApp() {
               <img
                 src="/logo.png"
                 alt="ALBAZ bird"
-                className="w-8 h-8 albaz-promo-bird"
+                className="w-6 h-6 albaz-promo-bird"
                 onError={(e) => {
                   e.currentTarget.onerror = null
                   e.currentTarget.src =

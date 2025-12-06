@@ -119,7 +119,7 @@ export default function SignUpPage() {
             <img
               src="/logo.png"
               alt="ALBAZ FAST DELIVERY"
-              className="h-24 w-auto"
+              className="h-10 w-auto"
               onError={(e) => {
                 e.currentTarget.onerror = null
                 e.currentTarget.src =

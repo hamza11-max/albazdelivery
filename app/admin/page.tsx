@@ -290,7 +290,7 @@ export default function AdminPanel() {
             <img
               src="/logo.png"
               alt="AL-baz"
-              className="h-10 w-auto"
+              className="h-7 w-auto"
               onError={(e) => {
                 const target = e.currentTarget
                 target.onerror = null

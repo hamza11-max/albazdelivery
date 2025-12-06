@@ -16,10 +16,10 @@ export function AppHeader({ selectedCity, isDarkMode, onToggleDarkMode, onGoHome
           <button onClick={onGoHome} className="flex items-center gap-2" aria-label="Go home">
             <Image
               src="/logo.png"
-              width={84}
-              height={84}
+              width={32}
+              height={32}
               alt="ALBAZ FAST DELIVERY"
-              className="h-[84px] w-auto"
+              className="h-8 w-auto"
               onError={(e) => {
                 const img = e.currentTarget as HTMLImageElement
                 img.onerror = null

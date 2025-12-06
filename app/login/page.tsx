@@ -54,7 +54,7 @@ export default function LoginPage() {
           <img
             src="/logo.png"
             alt="ALBAZ"
-            className="h-14 w-auto mb-6"
+            className="h-8 w-auto mb-6"
             onError={(e) => {
               e.currentTarget.onerror = null
               e.currentTarget.src =
