@@ -57,9 +57,9 @@ export default function PackageDeliveryPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="albaz-shell min-h-screen pb-24">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-background border-b border-border shadow-sm">
+      <header className="sticky top-0 z-50 albaz-nav">
         <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -103,7 +103,7 @@ export default function PackageDeliveryPage() {
           <h2 className="text-xl font-bold text-foreground mb-4">{t("your-order", "Votre commande", "طلبك")}</h2>
           <p className="text-sm font-semibold text-muted-foreground mb-3">{t("courier", "Coursier", "السائق")}</p>
 
-          <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer">
+          <Card className="albaz-card hover:shadow-lg transition-shadow cursor-pointer">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -156,7 +156,7 @@ export default function PackageDeliveryPage() {
 
           {/* Location Inputs */}
           <div className="space-y-3">
-            <Card className="border-border">
+            <Card className="albaz-card">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
@@ -173,7 +173,7 @@ export default function PackageDeliveryPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-border">
+            <Card className="albaz-card">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0">
@@ -192,7 +192,7 @@ export default function PackageDeliveryPage() {
           </div>
 
           {/* Sending to Someone Else */}
-          <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer mt-3">
+          <Card className="albaz-card hover:shadow-lg transition-shadow cursor-pointer mt-3">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -230,7 +230,7 @@ export default function PackageDeliveryPage() {
           </Card>
 
           {/* Add Phone Number */}
-          <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer mt-3">
+          <Card className="albaz-card hover:shadow-lg transition-shadow cursor-pointer mt-3">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
@@ -263,7 +263,7 @@ export default function PackageDeliveryPage() {
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4">{t("who-pays", "Qui paie?", "من يدفع؟")}</h2>
 
-          <Card className="border-border">
+          <Card className="albaz-card">
             <CardContent className="p-4">
               <button
                 onClick={() => setShowWhoPaysOptions(!showWhoPaysOptions)}
@@ -327,7 +327,7 @@ export default function PackageDeliveryPage() {
             {t("vehicle-type", "Type de véhicule", "نوع المركبة")}
           </h2>
 
-          <Card className="border-border">
+          <Card className="albaz-card">
             <CardContent className="p-4">
               <button
                 onClick={() => setShowVehicleOptions(!showVehicleOptions)}
@@ -382,7 +382,7 @@ export default function PackageDeliveryPage() {
             </button>
           </h2>
 
-          <Card className="border-border">
+          <Card className="albaz-card">
             <CardContent className="p-4">
               <button
                 onClick={() => setShowDeliveryOptions(!showDeliveryOptions)}
@@ -503,7 +503,7 @@ export default function PackageDeliveryPage() {
         </div>
 
         {/* Promo Code */}
-        <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer">
+        <Card className="albaz-card hover:shadow-lg transition-shadow cursor-pointer">
           <CardContent className="p-4">
             <button
               onClick={() => setShowPromoCode(!showPromoCode)}
@@ -536,7 +536,7 @@ export default function PackageDeliveryPage() {
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4">{t("summary", "Résumé", "الملخص")}</h2>
 
-          <Card className="border-border">
+          <Card className="albaz-card">
             <CardContent className="p-4 space-y-3">
               <div className="flex justify-between text-sm">
                 <div className="flex items-center gap-2">

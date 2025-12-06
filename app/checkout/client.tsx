@@ -95,65 +95,68 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
   }
 
   return (
-    <Card className="w-full max-w-lg mx-auto">
-      <CardHeader>
-        <CardTitle>Paiement de commande</CardTitle>
-        <CardDescription>Entrez vos détails de paiement pour finaliser votre commande.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} id="payment-form" className="space-y-6">
-          <div className="space-y-2">
-            <Label>Détails de la carte</Label>
-            <CardElement 
-              id="card-element"
-              className="p-3 border rounded-md"
-              onChange={(e) => setCardComplete(e.complete)}
-              options={{
-                style: {
-                  base: {
-                    fontSize: '16px',
-                    fontSmoothing: 'antialiased',
+    <div className="albaz-shell min-h-screen flex items-center justify-center p-6">
+      <Card className="albaz-card w-full max-w-lg">
+        <CardHeader>
+          <CardTitle>Paiement de commande</CardTitle>
+          <CardDescription>Entrez vos détails de paiement pour finaliser votre commande.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} id="payment-form" className="space-y-6">
+            <div className="space-y-2">
+              <Label>Détails de la carte</Label>
+              <CardElement 
+                id="card-element"
+                className="p-3 rounded-md bg-muted border border-border"
+                onChange={(e) => setCardComplete(e.complete)}
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '16px',
+                      fontSmoothing: 'antialiased',
+                      color: '#1f2c22',
+                    },
                   },
-                },
-              }}
-              data-testid="card-number-input"
-            />
-          </div>
+                }}
+                data-testid="card-number-input"
+              />
+            </div>
 
-          <div className="space-y-1.5">
-            <div className="flex justify-between text-sm">
-              <span>Sous-total</span>
-              <span>{formatPrice(order.subtotal)}</span>
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-sm text-[var(--albaz-text-soft)]">
+                <span>Sous-total</span>
+                <span>{formatPrice(order.subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-[var(--albaz-text-soft)]">
+                <span>Frais de livraison</span>
+                <span>{formatPrice(order.deliveryFee)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-[var(--albaz-text)]">
+                <span>Total</span>
+                <span>{formatPrice(order.total)}</span>
+              </div>
             </div>
-            <div className="flex justify-between text-sm">
-              <span>Frais de livraison</span>
-              <span>{formatPrice(order.deliveryFee)}</span>
-            </div>
-            <div className="flex justify-between font-semibold">
-              <span>Total</span>
-              <span>{formatPrice(order.total)}</span>
-            </div>
-          </div>
-        </form>
-      </CardContent>
-      <CardFooter>
-        <Button 
-          type="submit"
-          form="payment-form"
-          className="w-full"
-          disabled={!stripe || !cardComplete || isLoading}
-          data-testid="pay-button"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Traitement en cours...
-            </>
-          ) : (
-            `Payer ${formatPrice(order.total)}`
-          )}
-        </Button>
-      </CardFooter>
-    </Card>
+          </form>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            type="submit"
+            form="payment-form"
+            className="w-full bg-[var(--albaz-olive)] hover:brightness-95 text-white"
+            disabled={!stripe || !cardComplete || isLoading}
+            data-testid="pay-button"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Traitement en cours...
+              </>
+            ) : (
+              `Payer ${formatPrice(order.total)}`
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
   )
 }
