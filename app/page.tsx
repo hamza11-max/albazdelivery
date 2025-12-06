@@ -39,6 +39,9 @@ import {
   Pill,
   Pizza,
   Bike,
+  Settings2,
+  ShieldCheck,
+  Boxes,
 } from "lucide-react"
 
 // Force dynamic rendering to avoid static generation issues
@@ -89,6 +92,24 @@ const categories = [
     icon: Bike,
     color: "bg-gradient-to-br from-yellow-100 to-amber-50",
     iconColor: "text-yellow-600",
+  },
+]
+
+const featureIcons = [
+  {
+    id: "gear",
+    label: "Settings",
+    Icon: Settings2,
+  },
+  {
+    id: "shield",
+    label: "Secure",
+    Icon: ShieldCheck,
+  },
+  {
+    id: "boxes",
+    label: "Stack",
+    Icon: Boxes,
   },
 ]
 
@@ -264,6 +285,7 @@ export default function AlBazApp() {
       const interval = setInterval(fetchOrder, 5000)
       return () => clearInterval(interval)
     }
+    return undefined
   }, [orderId, currentPage])
 
   useEffect(() => {
@@ -469,88 +491,122 @@ export default function AlBazApp() {
     </header>
   )
 
-  const HomePage = () => (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Search Bar */}
-      <div className="px-4 py-4 bg-background sticky top-[57px] z-40 border-b border-border">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder={t("search", "Découvrir...", "اكتشف...")}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-muted border-none rounded-lg h-11"
-          />
-        </div>
-      </div>
+  const HomePage = () => {
+    const activeAd = ads[0]
 
-      {/* Circular Category Icons */}
-      <div className="px-4 py-8 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-gray-800 dark:to-gray-900">
-        <div className="grid grid-cols-3 gap-6 max-w-md mx-auto">
-          {categories.map((category) => {
-            const categoryName = selectedLanguage === "ar" ? category.nameAr : category.nameFr
-            const Icon = category.icon
-            return (
-              <button
-                key={category.id}
-                onClick={() => {
-                  if (category.id === 5) {
-                    router.push("/package-delivery")
-                  } else {
-                    setSelectedCategory(category.id)
-                    setCurrentPage("category")
-                  }
-                }}
-                className="flex flex-col items-center gap-3 group"
-              >
-                <div
-                  className={`w-24 h-24 rounded-full ${category.color} dark:bg-gray-700 flex items-center justify-center shadow-[0_8px_16px_rgba(0,0,0,0.15)] group-hover:shadow-[0_12px_24px_rgba(0,0,0,0.2)] group-hover:scale-105 transition-all duration-300`}
+    return (
+      <div className="albaz-shell min-h-screen pb-24 animate-[fadeSlideUp_0.6s_ease]">
+        <div className="albaz-hero px-5 pt-6 pb-6 space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt="ALBAZ"
+                className="h-10 w-auto animate-[fadeSlideUp_0.8s_ease]"
+              />
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--albaz-text-soft)]">
+                Livraison rapide
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const next = !isDarkMode
+                setIsDarkMode(next)
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("albaz-theme", next ? "dark" : "light")
+                }
+              }}
+              className="rounded-full px-3 py-2 bg-white/80 dark:bg-white/5 border border-[var(--albaz-border)] shadow-sm hover:-translate-y-0.5 transition-all duration-200 text-[var(--albaz-text)] dark:text-white/90"
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex-1 albaz-search px-4 py-[11px] flex items-center gap-3 animate-[fadeSlideUp_0.65s_ease]">
+              <Search className="w-5 h-5 text-[var(--albaz-text-soft)]" />
+              <input
+                type="text"
+                placeholder={t("search", "Search anything...", "ابحث عن أي شيء...")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 bg-transparent outline-none text-sm font-semibold text-[var(--albaz-text)] dark:text-white placeholder:text-[var(--albaz-text-soft)]"
+              />
+            </div>
+            <button className="albaz-location-pill px-3 py-3 flex items-center gap-2 text-sm font-semibold animate-[fadeSlideUp_0.75s_ease]">
+              <MapPin className="w-4 h-4" />
+              <span>{selectedCity}</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-5 gap-3 pt-1">
+            {categories.map((category, idx) => {
+              const categoryName = selectedLanguage === "ar" ? category.nameAr : category.nameFr
+              const Icon = category.icon
+              return (
+                <button
+                  key={category.id}
+                  onClick={() => {
+                    if (category.id === 5) {
+                      router.push("/package-delivery")
+                    } else {
+                      setSelectedCategory(category.id)
+                      setCurrentPage("category")
+                    }
+                  }}
+                  className="group flex flex-col items-center gap-2 focus:outline-none"
+                  style={{ animation: `popIn 0.45s ease ${idx * 60}ms both` }}
                 >
-                  <Icon className={`w-12 h-12 ${category.iconColor} dark:text-gray-200 stroke-[2.5]`} />
-                </div>
-                <span className="text-sm font-semibold text-center text-gray-800 dark:text-gray-200 max-w-[90px]">
-                  {categoryName}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Ads Section */}
-      {ads.length > 0 && (
-        <div className="px-4 py-6">
-          <h2 className="text-lg font-bold mb-4 text-foreground">{t("promotions", "Promotions", "العروض الترويجية")}</h2>
-          <div className="space-y-4">
-            {ads.map((ad) => (
-              <Card key={ad.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow border-border">
-                <div className="relative h-40 bg-gradient-to-r from-teal-600 to-orange-500">
-                  {ad.imageUrl && (
-                    <img
-                      src={ad.imageUrl}
-                      alt={ad.title}
-                      className="w-full h-full object-cover opacity-80"
-                    />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center text-white">
-                      <h3 className="text-2xl font-bold mb-2">
-                        {selectedLanguage === "ar" ? ad.titleAr : ad.titleFr}
-                      </h3>
-                      <p className="text-sm">
-                        {selectedLanguage === "ar" ? ad.descriptionAr : ad.descriptionFr}
-                      </p>
-                    </div>
+                  <div className="albaz-category w-full aspect-square rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:-translate-y-1 group-active:scale-95">
+                    <Icon className="w-8 h-8 text-[var(--albaz-olive)] dark:text-white" />
                   </div>
-                </div>
-              </Card>
-            ))}
+                  <span className="text-[11px] font-semibold text-center text-[var(--albaz-text)] dark:text-white/90 max-w-[90px] leading-tight">
+                    {categoryName}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
-      )}
-    </div>
-  )
+
+        <div className="px-5 py-6 space-y-6">
+          <div className="grid grid-cols-3 gap-3">
+            {featureIcons.map((feature, idx) => (
+              <div
+                key={feature.id}
+                className="albaz-feature rounded-2xl p-4 text-center text-white transition-transform duration-300 hover:-translate-y-1"
+                style={{ animation: `fadeSlideUp 0.55s ease ${idx * 120}ms both` }}
+              >
+                <feature.Icon className="w-9 h-9 mx-auto albaz-feature-icon" />
+                <p className="text-sm font-semibold mt-2">{feature.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="albaz-promo p-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
+              <img src="/logo.png" alt="ALBAZ bird" className="w-8 h-8 albaz-promo-bird" />
+            </div>
+            <div className="flex-1 relative z-10">
+              <p className="text-sm font-semibold">
+                {activeAd ? (selectedLanguage === "ar" ? activeAd.titleAr : activeAd.titleFr) : "Exclusive Offers!"}
+              </p>
+              <p className="text-xs opacity-90">
+                {activeAd
+                  ? selectedLanguage === "ar"
+                    ? activeAd.descriptionAr
+                    : activeAd.descriptionFr
+                  : "Tap to Learn More."}
+              </p>
+            </div>
+            <button className="relative z-10 px-3 py-2 rounded-full bg-white/90 text-[var(--albaz-olive)] font-semibold shadow-md hover:-translate-y-[1px] transition">
+              {t("learn-more", "En savoir plus", "اعرف المزيد")}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const MyOrdersView = () => {
     const [packageDeliveries, setPackageDeliveries] = useState<Order[]>([])
@@ -1581,7 +1637,7 @@ export default function AlBazApp() {
   )
 
   const BottomNav = () => (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-bottom shadow-lg">
+    <nav className="albaz-nav fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
       <div className="flex items-center justify-around py-2 px-4">
         <button
           onClick={() => {
@@ -1590,7 +1646,7 @@ export default function AlBazApp() {
             setSelectedStore(null)
           }}
           className={`flex flex-col items-center gap-1 py-1 transition-colors ${
-            currentPage === "home" ? "text-primary" : "text-muted-foreground"
+            currentPage === "home" ? "active" : "text-muted-foreground"
           }`}
         >
           <Home className="w-6 h-6" />
@@ -1599,7 +1655,7 @@ export default function AlBazApp() {
         <button
           onClick={() => setCurrentPage("checkout")}
           className={`flex flex-col items-center gap-1 py-1 transition-colors relative ${
-            currentPage === "checkout" ? "text-primary" : "text-muted-foreground"
+            currentPage === "checkout" ? "active" : "text-muted-foreground"
           }`}
         >
           <ShoppingCart className="w-6 h-6" />
@@ -1613,7 +1669,7 @@ export default function AlBazApp() {
         <button
           onClick={() => setCurrentPage("orders")}
           className={`flex flex-col items-center gap-1 py-1 transition-colors ${
-            currentPage === "orders" ? "text-primary" : "text-muted-foreground"
+            currentPage === "orders" ? "active" : "text-muted-foreground"
           }`}
         >
           <Package className="w-6 h-6" />
@@ -1622,7 +1678,7 @@ export default function AlBazApp() {
         <button
           onClick={() => setCurrentPage("profile")}
           className={`flex flex-col items-center gap-1 py-1 transition-colors ${
-            currentPage === "profile" ? "text-primary" : "text-muted-foreground"
+            currentPage === "profile" ? "active" : "text-muted-foreground"
           }`}
         >
           <User className="w-6 h-6" />
@@ -1635,7 +1691,7 @@ export default function AlBazApp() {
   // Main Render
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      {currentPage !== "home" && <Header />}
       <main>
         {currentPage === "home" && <HomePage />}
         {currentPage === "category" && <CategoryView />}
