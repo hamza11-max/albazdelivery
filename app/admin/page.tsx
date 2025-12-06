@@ -287,7 +287,17 @@ export default function AdminPanel() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="AL-baz" className="h-10 w-auto" />
+            <img
+              src="/logo.png"
+              alt="AL-baz"
+              className="h-10 w-auto"
+              onError={(e) => {
+                const target = e.currentTarget
+                target.onerror = null
+                target.src =
+                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' rx='10' fill='%232f5b2f'/%3E%3Ctext x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Inter,Arial' font-size='12' font-weight='700'%3EALBAZ%3C/text%3E%3C/svg%3E"
+              }}
+            />
             <div>
               <h1 className="text-lg font-bold">Panneau d'Administration</h1>
               <p className="text-xs text-white/80">AL-baz Delivery</p>

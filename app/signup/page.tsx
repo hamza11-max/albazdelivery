@@ -117,7 +117,7 @@ export default function SignUpPage() {
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <img
-              src="/albaz-logo.gif"
+              src="/logo.png"
               alt="ALBAZ FAST DELIVERY"
               className="h-24 w-auto"
               onError={(e) => {

@@ -52,7 +52,7 @@ export default function LoginPage() {
       <div className="w-full max-w-2xl bg-white rounded-[24px] shadow-2xl px-10 py-12 flex flex-col items-center">
         <div className="mb-10 flex flex-col items-center">
           <img
-            src="/albaz-logo.gif"
+            src="/logo.png"
             alt="ALBAZ"
             className="h-14 w-auto mb-6"
             onError={(e) => {

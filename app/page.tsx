@@ -452,7 +452,7 @@ export default function AlBazApp() {
             className="flex items-center gap-2"
           >
             <img
-              src="/albaz-logo.gif"
+              src="/logo.png"
               alt="ALBAZ FAST DELIVERY"
               className="h-[84px] w-auto"
               onError={(e) => {
@@ -488,7 +488,7 @@ export default function AlBazApp() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
-                src="/albaz-logo.gif"
+                src="/logo.png"
                 alt="ALBAZ"
                 className="h-10 w-auto animate-[fadeSlideUp_0.8s_ease]"
                 onError={(e) => {
@@ -566,7 +566,7 @@ export default function AlBazApp() {
           <div className="albaz-promo p-4 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
               <img
-                src="/albaz-logo.gif"
+                src="/logo.png"
                 alt="ALBAZ bird"
                 className="w-8 h-8 albaz-promo-bird"
                 onError={(e) => {

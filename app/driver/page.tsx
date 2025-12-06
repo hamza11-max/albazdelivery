@@ -280,7 +280,7 @@ export default function DriverApp() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img
-              src="/albaz-logo.gif"
+              src="/logo.png"
               alt="AL-baz"
               className="h-10 w-auto"
               onError={(e) => {
