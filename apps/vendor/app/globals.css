@@ -1,0 +1,96 @@
+/*
+! tailwindcss v3.3.0 | MIT License | https://tailwindcss.com
+*/
+
+/* stylelint-disable-next-line at-rule-no-unknown */
+@tailwind base;
+/* stylelint-disable-next-line at-rule-no-unknown */
+@tailwind components;
+/* stylelint-disable-next-line at-rule-no-unknown */
+@tailwind utilities;
+
+/* Theme and RTL support */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.rtl,
+html[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+html.ltr,
+html[dir="ltr"] {
+  direction: ltr;
+  text-align: left;
+}
+
+/* Custom base styles */
+@layer base {
+  html {
+    /* stylelint-disable-next-line at-rule-no-unknown */
+    @apply antialiased;
+  }
+
+  /* Ensure proper scrollbar styling in dark mode */
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+}
+
+/* Custom components */
+@layer components {
+  .btn-primary {
+    /* stylelint-disable-next-line at-rule-no-unknown */
+    @apply px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600;
+  }
+}
+
+/* Custom utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* RTL utilities */
+  .rtl .ml-auto {
+    margin-right: auto;
+    margin-left: 0;
+  }
+
+  .rtl .mr-auto {
+    margin-left: auto;
+    margin-right: 0;
+  }
+
+  .rtl .text-left {
+    text-align: right;
+  }
+
+  .rtl .text-right {
+    text-align: left;
+  }
+}
+
+/* Sidebar tooltip animations */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-8px) translateY(-50%);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) translateY(-50%);
+    filter: blur(0);
+  }
+}

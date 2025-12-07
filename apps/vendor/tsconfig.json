@@ -1,0 +1,36 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@/root/*": [
+        "../../*"
+      ],
+      "@albaz/shared": [
+        "../../packages/shared/src"
+      ],
+      "@albaz/ui": [
+        "../../packages/ui/src"
+      ],
+      "@albaz/auth": [
+        "../../packages/auth/src"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../../components/**/*",
+    "../../hooks/**/*",
+    "../../lib/**/*",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next"
+  ]
+}
