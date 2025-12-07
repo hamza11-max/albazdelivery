@@ -5,7 +5,11 @@
       "dom.iterable",
       "esnext"
     ],
-    "types": ["node", "jest", "@testing-library/jest-dom"],
+    "types": [
+      "node",
+      "jest",
+      "@testing-library/jest-dom"
+    ],
     "allowJs": true,
     "target": "ES2020",
     "skipLibCheck": true,
@@ -21,7 +25,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "incremental": true,
     "forceConsistentCasingInFileNames": true,
     "plugins": [
@@ -48,15 +52,17 @@
     }
   },
   "include": [
+    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     "jest.setup.ts",
-    "next-env.d.ts",
     "types/global.d.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
+    "**/.next/**",
     "mobile-app-templates",
     "--template",
     "mobile-apps",
