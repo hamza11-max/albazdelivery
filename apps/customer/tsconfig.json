@@ -3,13 +3,34 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@/root/*": ["../../*"],
-      "@albaz/shared": ["../../packages/shared/src"],
-      "@albaz/ui": ["../../packages/ui/src"],
-      "@albaz/auth": ["../../packages/auth/src"]
-    }
+      "@/*": [
+        "./*"
+      ],
+      "@/root/*": [
+        "../../*"
+      ],
+      "@albaz/shared": [
+        "../../packages/shared/src"
+      ],
+      "@albaz/ui": [
+        "../../packages/ui/src"
+      ],
+      "@albaz/auth": [
+        "../../packages/auth/src"
+      ]
+    },
+    "jsx": "preserve"
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "../../lib/**/*", "../../components/**/*", "../../hooks/**/*"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../lib/**/*",
+    "../../components/**/*",
+    "../../hooks/**/*"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
