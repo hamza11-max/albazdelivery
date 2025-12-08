@@ -33,6 +33,8 @@ export function useVendorState() {
   const [orders, setOrders] = useState<Order[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [lowStockProducts, setLowStockProducts] = useState<InventoryProduct[]>([])
+  const [storeId, setStoreId] = useState<string | null>(null)
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState(true)
   
   // Drivers States
   const [connectedDrivers, setConnectedDrivers] = useState<any[]>([])
@@ -221,6 +223,10 @@ export function useVendorState() {
     isArabic,
     translate,
     activeVendorId,
+    storeId,
+    setStoreId,
+    isAcceptingOrders,
+    setIsAcceptingOrders,
   }
 }
 

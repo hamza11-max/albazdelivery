@@ -40,6 +40,9 @@ export default function AlBazApp() {
   const [searchQuery, setSearchQuery] = useState('')
   const [orderId, setOrderId] = useState<string | null>(null)
   const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [promoCode, setPromoCode] = useState('')
+  const [promoError, setPromoError] = useState<string | null>(null)
+  const [promoDiscount, setPromoDiscount] = useState(0)
   const [selectedLanguage, setSelectedLanguage] = useState('fr')
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
 
@@ -213,6 +216,50 @@ export default function AlBazApp() {
   const deliveryFee = 500 // DZD - TODO: import from constants after webpack config fix
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
+  const total = useMemo(() => {
+    const discount = Math.min(promoDiscount, subtotal)
+    return Math.max(0, subtotal - discount + deliveryFee)
+  }, [subtotal, promoDiscount, deliveryFee])
+
+  const applyPromo = useCallback(
+    (codeRaw: string) => {
+      const code = codeRaw.toUpperCase()
+      if (!code) {
+        setPromoError(t('promo-required', 'Entrez un code promo', 'أدخل رمزاً ترويجياً'))
+        return
+      }
+
+      let discount = 0
+      if (code === 'WELCOME10') {
+        discount = Math.min(Math.round(subtotal * 0.1), 1000)
+      } else if (code === 'SAVE15') {
+        discount = Math.min(Math.round(subtotal * 0.15), 1500)
+      } else {
+        setPromoError(t('promo-invalid', 'Code promo invalide', 'رمز غير صالح'))
+        setPromoCode(code)
+        setPromoDiscount(0)
+        return
+      }
+
+      setPromoCode(code)
+      setPromoDiscount(discount)
+      setPromoError(null)
+    },
+    [subtotal, t],
+  )
+
+  const clearPromo = useCallback(() => {
+    setPromoCode('')
+    setPromoDiscount(0)
+    setPromoError(null)
+  }, [])
+
+  useEffect(() => {
+    if (promoCode) {
+      applyPromo(promoCode)
+    }
+  }, [subtotal, promoCode, applyPromo])
+
   const placeOrder = useCallback(async () => {
     if (cart.length === 0) {
       alert(t('cart-empty', 'Votre panier est vide', 'سلتك فارغة'))
@@ -236,7 +283,9 @@ export default function AlBazApp() {
       }),
       subtotal,
       deliveryFee,
-      total: subtotal + deliveryFee,
+      total,
+      discount: promoDiscount,
+      promoCode: promoCode || undefined,
       paymentMethod,
       deliveryAddress: '123 Rue Example, Appartement 4',
       city: selectedCity,
@@ -259,7 +308,7 @@ export default function AlBazApp() {
       // Error already handled by useCreateOrder hook with toast notification
       console.error('[v0] Error placing order:', error)
     }
-  }, [cart, selectedStore, products, subtotal, deliveryFee, paymentMethod, selectedCity, createOrder, t])
+  }, [cart, selectedStore, products, subtotal, deliveryFee, total, promoDiscount, promoCode, paymentMethod, selectedCity, createOrder, t])
 
   const handleResetSelections = () => {
     setSelectedCategory(null)
@@ -359,12 +408,18 @@ export default function AlBazApp() {
             products={products}
             subtotal={subtotal}
             deliveryFee={deliveryFee}
+            total={total}
+            promoCode={promoCode}
+            promoDiscount={promoDiscount}
+            promoError={promoError || undefined}
             paymentMethod={paymentMethod}
             onPaymentMethodChange={setPaymentMethod}
             onUpdateQuantity={updateQuantity}
             onRemoveFromCart={removeFromCart}
             onPlaceOrder={placeOrder}
             onContinueShopping={handleGoHome}
+            onApplyPromo={applyPromo}
+            onClearPromo={clearPromo}
             t={t}
           />
         )}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback, FormEvent } from "react"
 import type { ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import { playSuccessSound } from "@/root/lib/notifications"
@@ -224,6 +224,10 @@ export default function VendorDashboard() {
     isArabic,
     translate,
     activeVendorId,
+    storeId,
+    setStoreId,
+    isAcceptingOrders,
+    setIsAcceptingOrders,
   } = useVendorState()
 
   // Check Electron auth on mount and load offline data
@@ -268,6 +272,183 @@ export default function VendorDashboard() {
       // ignore storage errors
     }
   }, [isDarkMode])
+
+  const [isUpdatingStoreStatus, setIsUpdatingStoreStatus] = useState(false)
+  const [prepTimeMinutes, setPrepTimeMinutes] = useState(() => {
+    if (typeof window === 'undefined') return 20
+    const stored = parseInt(localStorage.getItem('vendor-prep-minutes') || '20', 10)
+    return Number.isNaN(stored) ? 20 : stored
+  })
+  const [payouts] = useState(() => [
+    { id: 'PAYOUT-001', period: 'Cette semaine', gross: 125000, fees: 2500, net: 122500, status: 'pending', eta: 'Vendredi' },
+    { id: 'PAYOUT-000', period: 'Semaine dernière', gross: 98000, fees: 2000, net: 96000, status: 'settled', eta: 'Déjà payé' },
+  ])
+  const [disputes, setDisputes] = useState<Array<{ id: string; payoutId: string; orderId: string; reason: string; amount: number }>>([])
+  const [disputeForm, setDisputeForm] = useState({ payoutId: '', orderId: '', reason: '', amount: '' })
+  const [isSubmittingDispute, setIsSubmittingDispute] = useState(false)
+  const [offlineQueueCount, setOfflineQueueCount] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    try {
+      const queued = JSON.parse(localStorage.getItem('offline-sales-queue') || '[]')
+      return Array.isArray(queued) ? queued.length : 0
+    } catch {
+      return 0
+    }
+  })
+  const featureFlags = useMemo(() => ({
+    orderPause: true,
+    prepTimeEta: true,
+    payoutStub: true,
+    offlineQueue: true,
+  }), [])
+
+  // Refresh offline queue count (Electron offline DB preferred)
+  const refreshOfflineQueueCount = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    const electronAPI = (window as any)?.electronAPI
+    if (electronAPI?.offline?.getStats) {
+      try {
+        const stats = await electronAPI.offline.getStats()
+        if (stats?.pendingSales != null) {
+          setOfflineQueueCount(stats.pendingSales)
+          return
+        }
+      } catch (error) {
+        console.warn('[Vendor] Failed to load offline stats', error)
+      }
+    }
+    // Fallback to localStorage queue used in web mode
+    try {
+      const queued = JSON.parse(localStorage.getItem('offline-sales-queue') || '[]')
+      setOfflineQueueCount(Array.isArray(queued) ? queued.length : 0)
+    } catch (e) {
+      setOfflineQueueCount(0)
+    }
+  }, [])
+
+  // Load vendor store info to control intake/pause
+  useEffect(() => {
+    const targetVendorId = isAdmin ? activeVendorId : user?.id
+    if (!targetVendorId) return
+
+    const controller = new AbortController()
+    const loadStore = async () => {
+      try {
+        const res = await fetch(`/api/stores?vendorId=${targetVendorId}&includeInactive=true&limit=1`, {
+          signal: controller.signal,
+        })
+        const data = await res.json()
+        const stores = data?.data?.stores || data?.stores || []
+        if (stores.length > 0) {
+          setStoreId(stores[0].id)
+          setIsAcceptingOrders(stores[0].isActive !== false)
+        }
+      } catch (error) {
+        console.warn('[Vendor] Failed to load store info', error)
+      }
+    }
+
+    loadStore()
+    return () => controller.abort()
+  }, [user?.id, activeVendorId, isAdmin, setStoreId, setIsAcceptingOrders])
+
+  // Initial offline queue count
+  useEffect(() => {
+    if (isElectronRuntime) {
+      refreshOfflineQueueCount()
+    }
+  }, [isElectronRuntime, refreshOfflineQueueCount])
+
+  // Persist prep time
+  useEffect(() => {
+    try {
+      localStorage.setItem('vendor-prep-minutes', prepTimeMinutes.toString())
+    } catch (error) {
+      console.warn('[Vendor] Failed to persist prep time', error)
+    }
+  }, [prepTimeMinutes])
+
+  const handleToggleAcceptingOrders = useCallback(async () => {
+    if (!storeId) {
+      toast({
+        title: translate("Boutique introuvable", "المتجر غير متاح"),
+        description: translate("Impossible de changer l'état des commandes", "لا يمكن تغيير حالة الطلبات"),
+        variant: "destructive",
+      })
+      return
+    }
+
+    const next = !isAcceptingOrders
+    setIsUpdatingStoreStatus(true)
+    setIsAcceptingOrders(next)
+    try {
+      console.info('[Vendor] toggle-order-intake', { storeId, next })
+      const res = await fetch(`/api/stores/${storeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: next }),
+      })
+      const data = await res.json()
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || 'Failed to update store status')
+      }
+      toast({
+        title: next ? translate("Commandes réactivées", "تم تفعيل الطلبات") : translate("Commandes mises en pause", "تم إيقاف الطلبات"),
+        description: next ? translate("Les clients peuvent commander", "يمكن للزبائن الطلب الآن") : translate("Les nouvelles commandes sont bloquées", "تم إيقاف الطلبات الجديدة"),
+      })
+    } catch (error) {
+      console.error('[Vendor] Failed to toggle orders:', error)
+      setIsAcceptingOrders(!next)
+      toast({
+        title: translate("Échec de la mise à jour", "فشل التحديث"),
+        description: translate("Réessayez ou contactez le support", "أعد المحاولة أو اتصل بالدعم"),
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdatingStoreStatus(false)
+    }
+  }, [storeId, isAcceptingOrders, toast, translate, setIsAcceptingOrders])
+
+  const handleSubmitDispute = useCallback(async (e: FormEvent) => {
+    e.preventDefault()
+    const amountValue = parseFloat(disputeForm.amount || '0')
+    if (!disputeForm.reason || !disputeForm.payoutId || Number.isNaN(amountValue)) {
+      toast({
+        title: translate("Informations manquantes", "المعلومات ناقصة"),
+        description: translate("Sélectionnez un paiement et un montant", "اختر دفعة ومبلغاً"),
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSubmittingDispute(true)
+    try {
+      // For now, just store locally (stub)
+      setDisputes((prev) => [
+        ...prev,
+        {
+          id: `DISP-${Date.now()}`,
+          payoutId: disputeForm.payoutId,
+          orderId: disputeForm.orderId,
+          reason: disputeForm.reason,
+          amount: amountValue,
+        },
+      ])
+      setDisputeForm({ payoutId: '', orderId: '', reason: '', amount: '' })
+      toast({
+        title: translate("Réclamation enregistrée", "تم تسجيل الاعتراض"),
+        description: translate("Nous traiterons votre demande", "سنعالج طلبك"),
+      })
+    } catch (error) {
+      toast({
+        title: translate("Échec de l'envoi", "فشل الإرسال"),
+        description: translate("Réessayez ou contactez le support", "أعد المحاولة أو اتصل بالدعم"),
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmittingDispute(false)
+    }
+  }, [disputeForm, toast, translate])
   
   // Dashboard Data and Loading States
   const {
@@ -519,6 +700,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
       toast,
       translate,
       isArabic,
+      setOfflineQueueCount,
     })
   }
 
@@ -667,6 +849,31 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
           {/* POS Tab - Modern ALBAZ Design */}
           <TabsContent value="pos" className="space-y-0 p-0 -mx-2 sm:-mx-4">
+          {featureFlags.offlineQueue && offlineQueueCount > 0 && (
+              <div className="mx-4 my-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-4 py-2 text-sm flex items-center justify-between gap-3 flex-wrap">
+                <span>
+                  {translate("Ventes en attente de synchronisation", "مبيعات تنتظر المزامنة")}: {offlineQueueCount}
+                </span>
+              {isElectronRuntime && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const stats = await (window as any)?.electronAPI?.offline?.syncNow?.()
+                        if (stats?.pendingSales != null) {
+                          setOfflineQueueCount(stats.pendingSales)
+                        }
+                      } catch (error) {
+                        console.warn('[Vendor] Offline sync failed', error)
+                      }
+                    }}
+                  >
+                    {translate("Synchroniser maintenant", "مزامنة الآن")}
+                  </Button>
+              )}
+            </div>
+          )}
             <POSView
               products={products}
               categories={categories}
@@ -727,6 +934,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               loadingState={loadingState}
               translate={translate}
               handleUpdateOrderStatus={handleUpdateOrderStatus}
+              prepTimeMinutes={prepTimeMinutes}
             />
           </TabsContent>
 
@@ -1062,6 +1270,179 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </Button>
               </CardContent>
             </Card>
+
+          {featureFlags.orderPause && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  {translate("Prise de commandes", "استقبال الطلبات")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {translate(
+                    "Activer ou mettre en pause la prise de commandes pour vos clients.",
+                    "تفعيل أو إيقاف استقبال الطلبات للعملاء."
+                  )}
+                </p>
+                <div className="flex items-center justify-between">
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {isAcceptingOrders ? translate("Commandes actives", "الطلبات مفعلة") : translate("Commandes en pause", "الطلبات موقوفة")}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {isAcceptingOrders
+                        ? translate("Les clients peuvent passer commande", "العملاء يمكنهم الطلب")
+                        : translate("Les nouvelles commandes sont bloquées", "الطلبات الجديدة موقوفة")}
+                    </span>
+                  </div>
+                  <Button
+                    variant={isAcceptingOrders ? "destructive" : "default"}
+                    onClick={handleToggleAcceptingOrders}
+                    disabled={isUpdatingStoreStatus}
+                  >
+                    {isUpdatingStoreStatus
+                      ? translate("Mise à jour...", "جاري التحديث...")
+                      : isAcceptingOrders
+                        ? translate("Mettre en pause", "إيقاف مؤقت")
+                        : translate("Réactiver", "إعادة التفعيل")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Prep Time */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5" />
+                {translate("Temps de préparation", "وقت التحضير")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Label>{translate("Minutes moyennes de préparation", "متوسط دقائق التحضير")}</Label>
+              <Input
+                type="number"
+                min={0}
+                value={prepTimeMinutes}
+                onChange={(e) => setPrepTimeMinutes(parseInt(e.target.value || "0", 10) || 0)}
+              />
+              <p className="text-sm text-muted-foreground">
+                {translate("Utilisé pour calculer l'ETA affichée dans les commandes", "يستخدم لحساب الوقت المتوقع في الطلبات")}
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Payouts & Disputes (stub) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="w-5 h-5" />
+                {translate("Paiements et réclamations", "المدفوعات والاعتراضات")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-muted-foreground">
+                      <th className="py-2 pr-4">{translate("Période", "الفترة")}</th>
+                      <th className="py-2 pr-4">{translate("Brut", "الإجمالي")}</th>
+                      <th className="py-2 pr-4">{translate("Frais", "الرسوم")}</th>
+                      <th className="py-2 pr-4">{translate("Net", "الصافي")}</th>
+                      <th className="py-2 pr-4">{translate("Statut", "الحالة")}</th>
+                      <th className="py-2 pr-4">{translate("Échéance", "تاريخ الصرف")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payouts.map((payout) => (
+                      <tr key={payout.id} className="border-t border-border/60">
+                        <td className="py-2 pr-4">{payout.period}</td>
+                        <td className="py-2 pr-4">{payout.gross.toLocaleString()} DZD</td>
+                        <td className="py-2 pr-4">-{payout.fees.toLocaleString()} DZD</td>
+                        <td className="py-2 pr-4 font-semibold">{payout.net.toLocaleString()} DZD</td>
+                        <td className="py-2 pr-4">
+                          <Badge variant={payout.status === "settled" ? "default" : "secondary"}>
+                            {payout.status === "settled" ? translate("Payé", "مدفوع") : translate("En cours", "قيد المعالجة")}
+                          </Badge>
+                        </td>
+                        <td className="py-2 pr-4">{payout.eta}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="border-t border-border/60 pt-4">
+                <h4 className="font-semibold mb-2">{translate("Soumettre une réclamation", "تقديم اعتراض")}</h4>
+                <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSubmitDispute}>
+                  <div className="space-y-2">
+                    <Label>{translate("Payout concerné", "الدفعة المعنية")}</Label>
+                    <select
+                      className="border rounded-md px-3 py-2 bg-background"
+                      value={disputeForm.payoutId}
+                      onChange={(e) => setDisputeForm((prev) => ({ ...prev, payoutId: e.target.value }))}
+                      required
+                    >
+                      <option value="">{translate("Sélectionner", "اختيار")}</option>
+                      {payouts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.id} - {p.period}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("ID commande (optionnel)", "معرّف الطلب (اختياري)")}</Label>
+                    <Input
+                      value={disputeForm.orderId}
+                      onChange={(e) => setDisputeForm((prev) => ({ ...prev, orderId: e.target.value }))}
+                      placeholder="ORDER-123"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("Montant contesté", "المبلغ محل الاعتراض")}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      required
+                      value={disputeForm.amount}
+                      onChange={(e) => setDisputeForm((prev) => ({ ...prev, amount: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>{translate("Raison", "السبب")}</Label>
+                    <Textarea
+                      required
+                      value={disputeForm.reason}
+                      onChange={(e) => setDisputeForm((prev) => ({ ...prev, reason: e.target.value }))}
+                      placeholder={translate("Ex: frais incorrects, commande annulée, etc.", "مثال: رسوم غير صحيحة، طلب ملغي...")}
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex justify-end">
+                    <Button type="submit" disabled={isSubmittingDispute}>
+                      {isSubmittingDispute ? translate("Envoi...", "جاري الإرسال...") : translate("Soumettre", "إرسال")}
+                    </Button>
+                  </div>
+                </form>
+                {disputes.length > 0 && (
+                  <div className="mt-4 text-sm text-muted-foreground">
+                    <p>{translate("Réclamations récentes", "الاعتراضات الأخيرة")}:</p>
+                    <ul className="list-disc list-inside">
+                      {disputes.map((d) => (
+                        <li key={d.id}>
+                          {d.payoutId} - {d.reason} ({d.amount.toLocaleString()} DZD)
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
             {/* Appearance Settings */}
             <Card>

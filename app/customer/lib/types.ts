@@ -52,12 +52,18 @@ export interface CheckoutViewProps {
   products: ProductDefinition[]
   subtotal: number
   deliveryFee: number
+  total: number
+  promoCode: string
+  promoDiscount: number
+  promoError?: string
   paymentMethod: string
   onPaymentMethodChange: (method: string) => void
   onUpdateQuantity: (productId: string, delta: number) => void
   onRemoveFromCart: (productId: string) => void
   onPlaceOrder: () => void
   onContinueShopping: () => void
+  onApplyPromo: (code: string) => void
+  onClearPromo: () => void
   t: TranslationFn
 }
 

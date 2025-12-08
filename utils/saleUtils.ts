@@ -32,6 +32,7 @@ interface CompleteSaleParams {
   toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void
   translate: (fr: string, ar: string) => string
   isArabic?: boolean
+  setOfflineQueueCount?: (count: number) => void
 }
 
 export async function completeSale({
@@ -250,6 +251,29 @@ export async function completeSale({
       handleError(apiError, { showToast: true, logError: true, translate, toast })
     }
   } catch (error) {
+    // Queue sale locally for retry when online
+    try {
+      const queued = safeLocalStorageGet<any[]>('offline-sales-queue', [])
+      queued.push({
+        id: `offline-${Date.now()}`,
+        payload: {
+          subtotal,
+          discount: posDiscount || 0,
+          total: totalForAPI,
+          items: posCart,
+          paymentMethod: paymentMethod.toUpperCase(),
+          vendorId: activeVendorId,
+        },
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      })
+      if (safeLocalStorageSet('offline-sales-queue', queued) && setOfflineQueueCount) {
+        setOfflineQueueCount(queued.length)
+      }
+    } catch (queueError) {
+      console.warn('[POS] Unable to queue offline sale', queueError)
+    }
+
     handleError(error, {
       showToast: true,
       logError: true,

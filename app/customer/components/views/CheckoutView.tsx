@@ -11,17 +11,23 @@ export function CheckoutView({
   products,
   subtotal,
   deliveryFee,
+  total,
+  promoCode,
+  promoDiscount,
+  promoError,
   paymentMethod,
   onPaymentMethodChange,
   onUpdateQuantity,
   onRemoveFromCart,
   onPlaceOrder,
   onContinueShopping,
+  onApplyPromo,
+  onClearPromo,
   t,
 }: CheckoutViewProps) {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false)
   const { handleError, handleValidationError } = useErrorHandler()
-  const total = subtotal + deliveryFee
+  const [promoInput, setPromoInput] = useState(promoCode || '')
 
   const handlePlaceOrder = async () => {
     // Validate cart
@@ -144,10 +150,46 @@ export function CheckoutView({
                 <span>{t('delivery-fee', 'Frais de livraison', 'رسوم التوصيل')}</span>
                 <span>{deliveryFee} DZD</span>
               </div>
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-700">
+                  <span>{t('discount', 'Remise', 'خصم')}</span>
+                  <span>-{promoDiscount} DZD</span>
+                </div>
+              )}
               <div className="flex justify-between text-xl font-bold pt-3 border-t">
                 <span>{t('total', 'Total', 'المجموع')}</span>
                 <span className="text-[#1a4d1a]">{total} DZD</span>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('promo-code', 'Code promo', 'رمز ترويجي')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  className="flex-1 border rounded-md px-3 py-2 text-sm"
+                  placeholder={t('enter-promo', 'Saisissez votre code promo', 'أدخل الرمز الترويجي')}
+                  value={promoInput}
+                  onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                />
+                <Button onClick={() => onApplyPromo(promoInput.trim())} variant="default">
+                  {t('apply', 'Appliquer', 'تطبيق')}
+                </Button>
+                {promoCode && (
+                  <Button variant="outline" onClick={onClearPromo}>
+                    {t('remove', 'Retirer', 'إزالة')}
+                  </Button>
+                )}
+              </div>
+              {promoError && <p className="text-sm text-destructive">{promoError}</p>}
+              {promoCode && !promoError && promoDiscount > 0 && (
+                <p className="text-sm text-green-700">
+                  {t('promo-applied', `Code ${promoCode} appliqué`, `تم تطبيق الرمز ${promoCode}`)}
+                </p>
+              )}
             </CardContent>
           </Card>
 

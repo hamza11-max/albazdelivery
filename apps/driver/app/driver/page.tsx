@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { OrderStatus } from "@/root/lib/constants"
 import { useRouter } from "next/navigation"
-import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from "@albaz/ui"
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Label } from "@albaz/ui"
 import {
   MapPin,
   Phone,
@@ -42,6 +42,16 @@ export default function DriverApp() {
   const [deliveryHistory, setDeliveryHistory] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
   const [driverId] = useState("driver-1")
+  const [isOnShift, setIsOnShift] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("driver-on-shift") === "true"
+  })
+  const [isAvailableForBatches, setIsAvailableForBatches] = useState(() => {
+    if (typeof window === "undefined") return true
+    return localStorage.getItem("driver-accept-batches") !== "false"
+  })
+  const [podCode, setPodCode] = useState("")
+  const [codCollected, setCodCollected] = useState(false)
   const { toast } = useToast()
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -140,6 +150,15 @@ export default function DriverApp() {
   }, [status, isAuthenticated, user, router])
 
   useEffect(() => {
+    try {
+      localStorage.setItem("driver-on-shift", isOnShift ? "true" : "false")
+      localStorage.setItem("driver-accept-batches", isAvailableForBatches ? "true" : "false")
+    } catch {
+      // ignore
+    }
+  }, [isOnShift, isAvailableForBatches])
+
+  useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark")
     } else {
@@ -211,6 +230,14 @@ export default function DriverApp() {
   // Accept delivery
   const acceptDelivery = async (orderId: string) => {
     try {
+      if (!isOnShift) {
+        toast({
+          title: "Shift inactif",
+          description: "Activez votre disponibilité avant d'accepter une livraison.",
+          variant: "destructive",
+        })
+        return
+      }
       const response = await fetch('/api/drivers/deliveries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -229,11 +256,23 @@ export default function DriverApp() {
 
   // Update delivery status
   const updateDeliveryStatus = async (orderId: string, status: "in_delivery" | "delivered") => {
+    if (status === "delivered") {
+      const requiresPod = activeDelivery && (activeDelivery as any).payment?.method === "CASH"
+      if (requiresPod && (!podCode || podCode.trim().length < 3 || !codCollected)) {
+        toast({
+          title: "Preuve de livraison requise",
+          description: "Entrez un code PIN et confirmez l'encaissement.",
+          variant: "destructive",
+        })
+        return
+      }
+    }
+
     try {
       const response = await fetch(`/api/drivers/deliveries/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, driverId }),
+        body: JSON.stringify({ status, driverId, podCode }),
       })
       const data = await response.json()
       if (data.success) {
@@ -242,6 +281,8 @@ export default function DriverApp() {
           setCurrentView("dashboard")
           fetchAvailableDeliveries()
           fetchActiveDelivery()
+          setPodCode("")
+          setCodCollected(false)
         } else {
           setActiveDelivery(data.order)
         }
@@ -350,6 +391,61 @@ export default function DriverApp() {
                 <p className="text-xs text-[var(--albaz-text-soft)]">DZD Gagnés</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Shift & Safety */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="albaz-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="w-5 h-5" />
+              Disponibilité
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[var(--albaz-text-soft)]">En service</span>
+              <Button variant={isOnShift ? "default" : "outline"} onClick={() => setIsOnShift(!isOnShift)}>
+                {isOnShift ? "En ligne" : "Hors ligne"}
+              </Button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[var(--albaz-text-soft)]">Accepter des livraisons groupées</span>
+              <Button variant={isAvailableForBatches ? "default" : "outline"} onClick={() => setIsAvailableForBatches(!isAvailableForBatches)}>
+                {isAvailableForBatches ? "Oui" : "Non"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="albaz-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Sécurité & Urgence
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              className="w-full bg-red-500 hover:bg-red-600 text-white"
+              onClick={() =>
+                toast({
+                  title: "Assistance demandée",
+                  description: "Support et dispatch ont été notifiés.",
+                })
+              }
+            >
+              Alerter le support
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => window.open("tel:+21300000000", "_blank")}
+            >
+              Appeler le support
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -473,6 +569,8 @@ export default function DriverApp() {
 
     const isPickedUp = activeDelivery.status === OrderStatus.IN_DELIVERY
 
+    const isCOD = (activeDelivery as any)?.payment?.method === "CASH" || activeDelivery.paymentMethod === "cash"
+
     return (
       <div className="container mx-auto px-4 py-6 pb-24 space-y-6">
         {/* Status Card */}
@@ -509,7 +607,7 @@ export default function DriverApp() {
             </div>
             <div className="flex items-center justify-between py-3 border-b">
               <span className="text-gray-600">Paiement</span>
-              <Badge variant="outline">{activeDelivery.paymentMethod === "cash" ? "Espèces" : "Carte"}</Badge>
+              <Badge variant="outline">{isCOD ? "Espèces" : "Carte"}</Badge>
             </div>
             <div className="flex items-center justify-between py-3">
               <span className="text-gray-600">Vos Frais</span>
@@ -580,14 +678,41 @@ export default function DriverApp() {
               Commande Récupérée
             </Button>
           ) : (
-            <Button
-              size="lg"
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 text-lg"
-              onClick={() => updateDeliveryStatus(activeDelivery.id, "delivered")}
-            >
-              <CheckCircle2 className="w-5 h-5 mr-2" />
-              Marquer comme Livrée
-            </Button>
+            <div className="space-y-3">
+              {isCOD && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Preuve de livraison</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <Label>Code PIN client</Label>
+                    <input
+                      className="w-full border rounded-md px-3 py-2 text-sm"
+                      value={podCode}
+                      onChange={(e) => setPodCode(e.target.value)}
+                      placeholder="Ex: 1234"
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="cod-collected"
+                        checked={codCollected}
+                        onChange={(e) => setCodCollected(e.target.checked)}
+                      />
+                      <Label htmlFor="cod-collected" className="text-sm">Espèces collectées</Label>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              <Button
+                size="lg"
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-lg"
+                onClick={() => updateDeliveryStatus(activeDelivery.id, "delivered")}
+              >
+                <CheckCircle2 className="w-5 h-5 mr-2" />
+                Marquer comme Livrée
+              </Button>
+            </div>
           )}
           <Button
             variant="outline"

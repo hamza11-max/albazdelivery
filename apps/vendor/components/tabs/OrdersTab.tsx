@@ -11,6 +11,7 @@ interface OrdersTabProps {
   loadingState: { orders: boolean }
   translate: (fr: string, ar: string) => string
   handleUpdateOrderStatus: (orderId: string, status: string) => Promise<void>
+  prepTimeMinutes: number
 }
 
 export function OrdersTab({
@@ -18,6 +19,7 @@ export function OrdersTab({
   loadingState,
   translate,
   handleUpdateOrderStatus,
+  prepTimeMinutes,
 }: OrdersTabProps) {
   const statusColors: Record<string, string> = {
     PENDING: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
@@ -67,6 +69,8 @@ export function OrdersTab({
               {orders.map((order) => {
                 const status = order.status || "PENDING"
                 const statusLabel = statusLabels[status] || { fr: status, ar: status }
+                const createdAt = new Date(order.createdAt || Date.now())
+                const eta = new Date(createdAt.getTime() + Math.max(prepTimeMinutes, 0) * 60000)
 
                 return (
                   <Card key={order.id} className="border-l-4 border-l-albaz-green-500">
@@ -97,6 +101,10 @@ export function OrdersTab({
                             <p>
                               <strong>{translate("Date", "التاريخ")}:</strong>{" "}
                               {new Date(order.createdAt || Date.now()).toLocaleString("fr-FR")}
+                            </p>
+                            <p>
+                              <strong>{translate("ETA préparation", "الوقت المقدر للتحضير")}:</strong>{" "}
+                              {isNaN(eta.getTime()) ? translate("N/A", "غير متاح") : eta.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                             </p>
                             <div className="mt-2">
                               <strong>{translate("Articles", "العناصر")}:</strong>

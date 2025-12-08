@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     applyRateLimit(request, rateLimitConfigs.api)
 
     // Get authenticated user (optional for public store listing)
-    const session = await auth()
+    const session = await auth().catch(() => null)
 
     const searchParams = request.nextUrl.searchParams
     const categoryId = searchParams.get('categoryId')
@@ -19,14 +19,37 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const pageParam = searchParams.get('page')
     const limitParam = searchParams.get('limit')
+    const vendorIdParam = searchParams.get('vendorId')
+    const includeInactive = searchParams.get('includeInactive') === 'true'
 
     // Validate and parse pagination
     const page = Math.max(1, parseInt(pageParam || '1'))
     const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
     // Build query
-    const where: any = {
-      isActive: true,
+    const where: any = {}
+
+    // Public listing should only return active stores
+    if (!vendorIdParam || !includeInactive) {
+      where.isActive = true
+    }
+
+    // Vendor/admin filter
+    if (vendorIdParam) {
+      where.vendorId = vendorIdParam
+
+      // Require auth to fetch by vendorId
+      if (!session?.user) {
+        throw new UnauthorizedError()
+      }
+
+      const isAdmin = session.user.role === 'ADMIN'
+      const isVendor = session.user.role === 'VENDOR'
+      const isSelf = session.user.id === vendorIdParam
+
+      if (!isAdmin && !(isVendor && isSelf)) {
+        throw new UnauthorizedError()
+      }
     }
 
     if (categoryId) {

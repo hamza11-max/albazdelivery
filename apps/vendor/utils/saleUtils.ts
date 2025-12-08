@@ -32,6 +32,7 @@ interface CompleteSaleParams {
   toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void
   translate: (fr: string, ar: string) => string
   isArabic?: boolean
+  setOfflineQueueCount?: (count: number) => void
 }
 
 export async function completeSale({
@@ -62,6 +63,7 @@ export async function completeSale({
   toast,
   translate,
   isArabic = false,
+  setOfflineQueueCount,
 }: CompleteSaleParams) {
   if (posCart.length === 0) {
     toast({
@@ -79,8 +81,9 @@ export async function completeSale({
   const totalForAPI = subtotal - posDiscount
   const totalWithTax = subtotal - posDiscount + tax
 
-  // For Electron with local products: save sale locally
+  // For Electron with local products: save sale locally (and push to offline DB if available)
   if (isElectronRuntime) {
+    const electronAPI = (globalThis as any)?.electronAPI
     const localSale: Sale = {
       id: `sale-${Date.now()}`,
       items: posCart.map(item => ({
@@ -97,15 +100,34 @@ export async function completeSale({
       createdAt: new Date(),
     }
     
-    // Save to localStorage
-    const storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
-    storedSales.push(localSale)
-    if (!safeLocalStorageSet('electron-sales', storedSales)) {
-      throw new Error('Failed to save sale to localStorage')
+    // Try offline SQLite via Electron; fallback to localStorage
+    try {
+      if (electronAPI?.offline?.saveSale) {
+        await electronAPI.offline.saveSale({
+          ...localSale,
+          vendorId: activeVendorId,
+          tax,
+          discount: posDiscount || 0,
+        })
+        const stats = await electronAPI.offline.getStats?.()
+        if (stats?.pendingSales != null && setOfflineQueueCount) {
+          setOfflineQueueCount(stats.pendingSales)
+        }
+      } else {
+        const storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
+        storedSales.push(localSale)
+        if (!safeLocalStorageSet('electron-sales', storedSales)) {
+          throw new Error('Failed to save sale to localStorage')
+        }
+        setSales(storedSales)
+      }
+    } catch (error) {
+      console.warn('[Electron] Failed to persist sale offline, falling back to memory/localStorage', error)
+      const storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
+      storedSales.push(localSale)
+      safeLocalStorageSet('electron-sales', storedSales)
+      setSales(storedSales)
     }
-    
-    // Update sales state for dashboard and history
-    setSales(storedSales)
     
     // Update dashboard stats
     const now = new Date()
@@ -126,7 +148,7 @@ export async function completeSale({
       }
     })
     if (!safeLocalStorageSet('electron-inventory', storedProducts)) {
-      throw new Error('Failed to update product stock in localStorage')
+      console.warn('Failed to update product stock in localStorage')
     }
     setProducts(storedProducts)
     setLowStockProducts(storedProducts.filter((p: any) => p.stock <= (p.lowStockThreshold ?? 10)))
@@ -250,6 +272,22 @@ export async function completeSale({
       handleError(apiError, { showToast: true, logError: true, translate, toast })
     }
   } catch (error) {
+    // Queue sale locally when offline/API fails
+    try {
+      const queued = safeLocalStorageGet<any[]>('offline-sales-queue', [])
+      queued.push({
+        id: `offline-${Date.now()}`,
+        payload,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
+      })
+      if (safeLocalStorageSet('offline-sales-queue', queued) && setOfflineQueueCount) {
+        setOfflineQueueCount(queued.length)
+      }
+    } catch (queueError) {
+      console.warn('[POS] Unable to queue offline sale', queueError)
+    }
+
     handleError(error, {
       showToast: true,
       logError: true,
