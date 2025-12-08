@@ -378,10 +378,13 @@ export function AdsManagementView() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          aria-describedby="ad-dialog-description"
+        >
           <DialogHeader>
             <DialogTitle>{selectedAd ? "Modifier la publicité" : "Nouvelle publicité"}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="ad-dialog-description">
               {selectedAd ? "Modifiez les informations de la publicité" : "Créez une nouvelle publicité"}
             </DialogDescription>
           </DialogHeader>
@@ -510,10 +513,10 @@ export function AdsManagementView() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby="ad-delete-description">
           <DialogHeader>
             <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="ad-delete-description">
               Êtes-vous sûr de vouloir supprimer cette publicité ? Cette action est irréversible.
             </DialogDescription>
           </DialogHeader>

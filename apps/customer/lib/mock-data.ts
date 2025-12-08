@@ -126,7 +126,7 @@ export const products: ProductDefinition[] = [
     name: "Lait Candia 1L",
     description: 'Lait demi-écrémé UHT',
     price: 120,
-    image: '/milk-carton.png',
+    image: '/placeholder.svg',
     rating: 4.6,
   },
   {
@@ -135,7 +135,7 @@ export const products: ProductDefinition[] = [
     name: 'Pain Complet',
     description: 'Pain frais du jour',
     price: 80,
-    image: '/whole-wheat-bread.png',
+    image: '/placeholder.svg',
     rating: 4.9,
   },
   {
@@ -144,7 +144,7 @@ export const products: ProductDefinition[] = [
     name: "Huile d'Olive 1L",
     description: "Huile d'olive extra vierge",
     price: 650,
-    image: '/olive-oil-bottle.png',
+    image: '/placeholder.svg',
     rating: 4.4,
   },
   {

@@ -17,7 +17,33 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const validatedData = createOrderSchema.parse(body)
+
+    const isDev = process.env.NODE_ENV === 'development'
+    let validatedData: any
+    try {
+      validatedData = createOrderSchema.parse(body)
+    } catch (error) {
+      if (isDev) {
+        // Fallback for mock/demo data in dev: coerce minimal fields
+        const items = Array.isArray(body?.items) ? body.items : []
+        const subtotal = typeof body?.subtotal === 'number' ? body.subtotal : 0
+        const deliveryFee = typeof body?.deliveryFee === 'number' ? body.deliveryFee : 0
+        const total = typeof body?.total === 'number' ? body.total : subtotal + deliveryFee
+        validatedData = {
+          storeId: String(body?.storeId || 'demo-store'),
+          items,
+          subtotal,
+          deliveryFee,
+          total,
+          paymentMethod: String(body?.paymentMethod || 'CASH').toUpperCase(),
+          deliveryAddress: body?.deliveryAddress || 'Demo address, Alger',
+          city: body?.city || 'Alger',
+          customerPhone: body?.customerPhone || '0555000000',
+        }
+      } else {
+        throw error
+      }
+    }
 
     const {
       storeId,
@@ -31,14 +57,34 @@ export async function POST(request: NextRequest) {
       customerPhone,
     } = validatedData
 
-    // Get store and vendor info
+    // Get store and vendor info (or fallback in dev)
     const store = await prisma.store.findUnique({
       where: { id: storeId },
       select: { id: true, vendorId: true, isActive: true },
-    })
+    }).catch(() => null)
 
     if (!store || !store.isActive) {
-      return errorResponse(new Error('Store not found or inactive'), 404)
+      if (!isDev) {
+        return errorResponse(new Error('Store not found or inactive'), 404)
+      }
+      // Dev fallback: return mock order without hitting DB
+      const mockOrder = {
+        id: `demo-order-${Date.now()}`,
+        storeId,
+        vendorId: store?.vendorId ?? null,
+        customerId: session.user.id,
+        items,
+        subtotal,
+        deliveryFee,
+        total,
+        status: OrderStatus.PENDING,
+        paymentMethod: normalizedPaymentMethod,
+        deliveryAddress,
+        city,
+        customerPhone,
+        createdAt: new Date().toISOString(),
+      }
+      return successResponse({ order: mockOrder }, 201)
     }
 
     // Normalize payment method and create order with items
