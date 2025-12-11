@@ -46,9 +46,14 @@ export function OrdersTab({
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">
-          {translate("Gestion des Commandes", "إدارة الطلبات")}
-        </h2>
+        <div>
+          <h2 className="text-2xl font-bold">
+            {translate("Gestion des Commandes", "إدارة الطلبات")}
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            {translate("ETA basé sur le temps de préparation (paramétrable dans Paramètres).", "الوقت المتوقع يعتمد على وقت التحضير (يمكن تعديله في الإعدادات).")}
+          </p>
+        </div>
       </div>
 
       <Card>

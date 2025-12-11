@@ -6,7 +6,7 @@ import type { StoreViewProps } from '../../lib/types'
 import { ProductGridSkeleton } from '../ui/skeleton-loaders'
 import { useErrorHandler } from '../../hooks/use-error-handler'
 
-export const StoreView = React.memo(function StoreView({ selectedStore, stores, products, isLoading = false, onBack, addToCart, t }: StoreViewProps) {
+export const StoreView = React.memo(function StoreView({ selectedStore, stores, products, isLoading = false, onBack, addToCart, t, vendorProfile }: StoreViewProps) {
   const { handleError } = useErrorHandler()
   
   const store = stores.find((s) => String(s.id) === String(selectedStore))
@@ -139,12 +139,16 @@ export const StoreView = React.memo(function StoreView({ selectedStore, stores, 
 
       <div className="bg-card p-6 border-b border-border">
         <div className="flex items-center gap-4 mb-4">
-          <div className="w-20 h-20 rounded-xl bg-[var(--albaz-olive)]/15 flex items-center justify-center">
-            <UtensilsCrossed className="w-10 h-10 text-[var(--albaz-olive)]" />
+          <div className="w-20 h-20 rounded-xl bg-[var(--albaz-olive)]/15 flex items-center justify-center overflow-hidden">
+            {vendorProfile?.logo ? (
+              <NextImage src={vendorProfile.logo} alt={store.name} width={80} height={80} className="w-full h-full object-cover" />
+            ) : (
+              <UtensilsCrossed className="w-10 h-10 text-[var(--albaz-olive)]" />
+            )}
           </div>
           <div className="flex-1">
-            <h2 className="text-xl font-bold text-foreground mb-1">{store.name}</h2>
-            <p className="text-sm text-muted-foreground mb-2">{store.type}</p>
+            <h2 className="text-xl font-bold text-foreground mb-1">{vendorProfile?.name || store.name}</h2>
+            <p className="text-sm text-muted-foreground mb-2">{vendorProfile?.description || store.type}</p>
             <div className="flex items-center gap-3 text-sm">
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -153,8 +157,20 @@ export const StoreView = React.memo(function StoreView({ selectedStore, stores, 
               <span className="text-muted-foreground">•</span>
               <span className="text-muted-foreground">{store.deliveryTime}</span>
             </div>
+            {(vendorProfile?.address || vendorProfile?.phone || vendorProfile?.email) && (
+              <div className="mt-2 text-xs text-muted-foreground space-y-1">
+                {vendorProfile.address && <p>{vendorProfile.address}</p>}
+                {vendorProfile.phone && <p>{vendorProfile.phone}</p>}
+                {vendorProfile.email && <p>{vendorProfile.email}</p>}
+              </div>
+            )}
           </div>
         </div>
+        {vendorProfile?.cover && (
+          <div className="w-full h-32 rounded-lg overflow-hidden border">
+            <NextImage src={vendorProfile.cover} alt="Cover" width={800} height={160} className="w-full h-full object-cover" />
+          </div>
+        )}
       </div>
 
       <div className="px-4 py-6">

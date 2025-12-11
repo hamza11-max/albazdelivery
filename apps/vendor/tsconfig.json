@@ -18,7 +18,8 @@
       "@albaz/auth": [
         "../../packages/auth/src"
       ]
-    }
+    },
+    "jsx": "preserve"
   },
   "include": [
     "**/*.ts",

@@ -47,6 +47,7 @@ export default function AlBazApp() {
   const [promoDiscount, setPromoDiscount] = useState(0)
   const [selectedLanguage, setSelectedLanguage] = useState('fr')
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
+  const [vendorProfile, setVendorProfile] = useState<any | null>(null)
 
   const customerId = user?.id || 'customer-1'
   const shouldUseSSE = currentPage === 'tracking' && Boolean(orderId)
@@ -70,6 +71,31 @@ export default function AlBazApp() {
 
   // Fetch products for selected store with React Query
   const { data: apiProducts = [], isLoading: productsLoading } = useProductsQuery(selectedStore)
+
+  // Load vendor profile when store changes
+  useEffect(() => {
+    const store = apiStores.find((s: any) => String(s.id) === String(selectedStore))
+    const vendorId = (store as any)?.vendorId
+    if (!vendorId) {
+      setVendorProfile(null)
+      return
+    }
+    let cancelled = false
+    fetch(`/api/vendor/profile?vendorId=${vendorId}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (cancelled) return
+        if (data?.success && data.profile) {
+          setVendorProfile(data.profile)
+        } else {
+          setVendorProfile(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setVendorProfile(null)
+      })
+    return () => { cancelled = true }
+  }, [selectedStore, apiStores])
 
   useEffect(() => {
     if (status === 'unauthenticated') {

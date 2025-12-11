@@ -33,6 +33,7 @@ interface CompleteSaleParams {
   translate: (fr: string, ar: string) => string
   isArabic?: boolean
   setOfflineQueueCount?: (count: number) => void
+  isAcceptingOrders?: boolean
 }
 
 export async function completeSale({
@@ -64,7 +65,17 @@ export async function completeSale({
   translate,
   isArabic = false,
   setOfflineQueueCount,
+  isAcceptingOrders,
 }: CompleteSaleParams) {
+  if (isAcceptingOrders === false) {
+    toast({
+      title: translate("Commandes en pause", "تم إيقاف الطلبات"),
+      description: translate("Réactivez la prise de commandes dans Paramètres", "فعّل استقبال الطلبات من الإعدادات"),
+      variant: "destructive",
+    })
+    return false
+  }
+
   if (posCart.length === 0) {
     toast({
       title: translate("Panier vide", "السلة فارغة"),
@@ -84,6 +95,7 @@ export async function completeSale({
   // For Electron with local products: save sale locally (and push to offline DB if available)
   if (isElectronRuntime) {
     const electronAPI = (globalThis as any)?.electronAPI
+    let storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
     const localSale: Sale = {
       id: `sale-${Date.now()}`,
       items: posCart.map(item => ({
@@ -114,7 +126,7 @@ export async function completeSale({
           setOfflineQueueCount(stats.pendingSales)
         }
       } else {
-        const storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
+        storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
         storedSales.push(localSale)
         if (!safeLocalStorageSet('electron-sales', storedSales)) {
           throw new Error('Failed to save sale to localStorage')
@@ -123,7 +135,7 @@ export async function completeSale({
       }
     } catch (error) {
       console.warn('[Electron] Failed to persist sale offline, falling back to memory/localStorage', error)
-      const storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
+      storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
       storedSales.push(localSale)
       safeLocalStorageSet('electron-sales', storedSales)
       setSales(storedSales)
@@ -166,7 +178,7 @@ export async function completeSale({
       title: translate("Vente complétée", "تمت عملية البيع"),
       description: translate("Sauvegardée localement", "تم الحفظ محلياً"),
     })
-    return
+    return true
   }
 
   try {
@@ -175,6 +187,12 @@ export async function completeSale({
     // Transform cart items to match API schema
     // Products from API have string IDs (CUIDs), ensure they're strings
     const items = posCart.map(item => {
+      const product = posCart.find((p: any) => String(p.productId) === String(item.productId))
+      const stock = (product as any)?.stock
+      if (typeof stock === "number" && stock <= 0) {
+        throw new ValidationError(translate("Produit en rupture de stock", "المنتج غير متوفر"))
+      }
+
       // ProductId should already be a string from API, but ensure it's a string
       const productId = item.productId 
         ? (typeof item.productId === 'string' ? item.productId : String(item.productId))
@@ -243,12 +261,13 @@ export async function completeSale({
       
       const apiError = new APIError(errorMessage, response.status, data)
       handleError(apiError, { showToast: true, logError: true, translate, toast })
-      return
+      return false
     }
     
     if (data.success) {
-      setLastSale(data.sale)
-      setCompletedSale(data.sale)
+      const saleWithTax = { ...data.sale, tax }
+      setLastSale(saleWithTax)
+      setCompletedSale(saleWithTax)
       setShowSaleSuccessDialog(true)
       clearCart()
       setPosTax(0)
@@ -263,6 +282,7 @@ export async function completeSale({
           ? `تم تسجيل عملية بيع بقيمة ${totalWithTax.toFixed(2)} ${translate("DZD", "دج")}.`
           : `Vente de ${totalWithTax.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
       })
+      return true
     } else {
       const apiError = new APIError(
         data.error?.message || translate("Erreur lors de la vente", "خطأ في عملية البيع"),
@@ -270,6 +290,7 @@ export async function completeSale({
         data
       )
       handleError(apiError, { showToast: true, logError: true, translate, toast })
+      return false
     }
   } catch (error) {
     // Queue sale locally when offline/API fails
@@ -298,6 +319,7 @@ export async function completeSale({
         ar: "حدث خطأ أثناء عملية البيع"
       }
     })
+    return false
   }
 }
 

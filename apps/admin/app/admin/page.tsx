@@ -298,7 +298,7 @@ export default function AdminPanel() {
       />
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="approvals" className="relative">
               Approbations
               {registrationRequests.length > 0 && (
@@ -306,6 +306,7 @@ export default function AdminPanel() {
               )}
             </TabsTrigger>
             <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
+            <TabsTrigger value="command-center">Command Center</TabsTrigger>
             <TabsTrigger value="customers">Clients</TabsTrigger>
             <TabsTrigger value="drivers">Livreurs</TabsTrigger>
             <TabsTrigger value="vendors">Vendeurs</TabsTrigger>
@@ -337,6 +338,90 @@ export default function AdminPanel() {
                 vendors={vendors}
               />
               <AnalyticsDashboard />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="command-center">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Badge variant="secondary">SLA</Badge>
+                    Command Center
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Vue rapide des commandes à risque (SLA & espèces). Actions pourront être branchées sur l’API plus tard.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Commandes en risque SLA (&gt; 30 min)</h4>
+                    {orders
+                      .filter((o) => {
+                        const riskyStatus = ["PENDING", "ACCEPTED", "PREPARING"]
+                        const age = Date.now() - new Date(o.createdAt || Date.now()).getTime()
+                        return riskyStatus.includes((o.status || "").toUpperCase()) && age > 30 * 60 * 1000
+                      })
+                      .slice(0, 12)
+                      .map((o) => (
+                        <div
+                          key={o.id}
+                          className="flex items-center justify-between rounded-lg border border-amber-200/70 bg-amber-50 px-3 py-2 text-amber-900"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm">#{o.id}</span>
+                              <Badge variant="outline">{o.status}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Client: {(o as any).customer?.name || "N/A"} • Tel: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Créé: {new Date(o.createdAt || Date.now()).toLocaleString("fr-FR")}
+                            </p>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="text-sm font-semibold">{o.total} DZD</p>
+                            <p className="text-xs text-muted-foreground">Ville: {(o as any).city || "N/A"}</p>
+                          </div>
+                        </div>
+                      ))}
+                    {orders.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Aucune commande disponible</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Surveillance espèces (&gt; 10k DZD)</h4>
+                    {orders
+                      .filter((o) => ((o as any).paymentMethod || "").toLowerCase() === "cash" && o.total > 10000)
+                      .slice(0, 12)
+                      .map((o) => (
+                        <div
+                          key={o.id}
+                          className="flex items-center justify-between rounded-lg border border-emerald-200/70 bg-emerald-50 px-3 py-2 text-emerald-900"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm">#{o.id}</span>
+                              <Badge variant="outline">{o.status}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Client: {(o as any).customer?.name || "N/A"} • Tel: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
+                            </p>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="text-sm font-semibold">{o.total} DZD</p>
+                            <p className="text-xs text-muted-foreground">Mode: {(o as any).paymentMethod || "cash"}</p>
+                          </div>
+                        </div>
+                      ))}
+                    {orders.filter((o) => ((o as any).paymentMethod || "").toLowerCase() === "cash" && o.total > 10000).length === 0 && (
+                      <p className="text-sm text-muted-foreground">Aucune alerte espèces</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

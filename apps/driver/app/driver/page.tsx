@@ -36,9 +36,11 @@ export default function DriverApp() {
   const router = useRouter()
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const [language, setLanguage] = useState("fr")
-  const [currentView, setCurrentView] = useState<"dashboard" | "active" | "history">("dashboard")
+  const [currentView, setCurrentView] = useState<"dashboard" | "active" | "history" | "earnings">("dashboard")
   const [availableDeliveries, setAvailableDeliveries] = useState<Order[]>([])
   const [activeDelivery, setActiveDelivery] = useState<Order | null>(null)
+  const [activeVendorProfile, setActiveVendorProfile] = useState<any | null>(null)
+  const [stackedDeliveries, setStackedDeliveries] = useState<Order[]>([])
   const [deliveryHistory, setDeliveryHistory] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
   const [driverId] = useState("driver-1")
@@ -50,6 +52,8 @@ export default function DriverApp() {
     if (typeof window === "undefined") return true
     return localStorage.getItem("driver-accept-batches") !== "false"
   })
+  const [shiftToastShown, setShiftToastShown] = useState(false)
+  const [podPhoto, setPodPhoto] = useState<string | null>(null)
   const [podCode, setPodCode] = useState("")
   const [codCollected, setCodCollected] = useState(false)
   const { toast } = useToast()
@@ -156,6 +160,17 @@ export default function DriverApp() {
     } catch {
       // ignore
     }
+
+    if (!isOnShift && !shiftToastShown) {
+      toast({
+        title: "Vous êtes hors ligne",
+        description: "Passez en ligne pour accepter des livraisons",
+      })
+      setShiftToastShown(true)
+    }
+    if (isOnShift) {
+      setShiftToastShown(false)
+    }
   }, [isOnShift, isAvailableForBatches])
 
   useEffect(() => {
@@ -215,15 +230,23 @@ export default function DriverApp() {
         // Get completed deliveries for history
         const completed = deliveries.filter((d: Order) => d.status === OrderStatus.DELIVERED)
         setDeliveryHistory(completed)
+        const vendorId = (active as any)?.vendorId
+        if (vendorId) {
+          fetchVendorProfile(vendorId)
+        } else {
+          setActiveVendorProfile(null)
+        }
       } else {
         // No deliveries yet
         setActiveDelivery(null)
         setDeliveryHistory([])
+        setActiveVendorProfile(null)
       }
     } catch (error) {
       console.error('[Driver] Error fetching active delivery:', error)
       setActiveDelivery(null)
       setDeliveryHistory([])
+      setActiveVendorProfile(null)
     }
   }
 
@@ -238,6 +261,16 @@ export default function DriverApp() {
         })
         return
       }
+
+      if (!isAvailableForBatches && (activeDelivery || stackedDeliveries.length > 0)) {
+        toast({
+          title: "Batching désactivé",
+          description: "Activez le batching pour empiler plusieurs livraisons.",
+          variant: "destructive",
+        })
+        return
+      }
+
       const response = await fetch('/api/drivers/deliveries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -245,8 +278,19 @@ export default function DriverApp() {
       })
       const data = await response.json()
       if (data.success) {
-        setActiveDelivery(data.order)
-        setCurrentView("active")
+        if (!activeDelivery) {
+          setActiveDelivery(data.order)
+          setCurrentView("active")
+          if ((data.order as any)?.vendorId) {
+            fetchVendorProfile((data.order as any).vendorId)
+          }
+        } else {
+          setStackedDeliveries((prev) => [...prev, data.order])
+          toast({
+            title: "Livraison ajoutée",
+            description: "Livraison empilée (batch).",
+          })
+        }
         fetchAvailableDeliveries()
       }
     } catch (error) {
@@ -277,14 +321,31 @@ export default function DriverApp() {
       const data = await response.json()
       if (data.success) {
         if (status === "delivered") {
-          setActiveDelivery(null)
-          setCurrentView("dashboard")
-          fetchAvailableDeliveries()
-          fetchActiveDelivery()
           setPodCode("")
           setCodCollected(false)
+          setPodPhoto(null)
+          if (stackedDeliveries.length > 0) {
+            const [next, ...rest] = stackedDeliveries
+            setStackedDeliveries(rest)
+            setActiveDelivery(next)
+            if ((next as any)?.vendorId) {
+              fetchVendorProfile((next as any).vendorId)
+            } else {
+              setActiveVendorProfile(null)
+            }
+            setCurrentView("active")
+          } else {
+            setActiveDelivery(null)
+            setActiveVendorProfile(null)
+            setCurrentView("dashboard")
+          }
+          fetchAvailableDeliveries()
+          fetchActiveDelivery()
         } else {
           setActiveDelivery(data.order)
+          if ((data.order as any)?.vendorId) {
+            fetchVendorProfile((data.order as any).vendorId)
+          }
         }
       }
     } catch (error) {
@@ -310,6 +371,25 @@ export default function DriverApp() {
     }
   }, [driverId])
 
+  const fetchVendorProfile = useCallback(async (vendorId: string) => {
+    try {
+      const res = await fetch(`/api/vendor/profile?vendorId=${vendorId}`)
+      if (!res.ok) {
+        setActiveVendorProfile(null)
+        return
+      }
+      const data = await res.json()
+      if (data?.success && data.profile) {
+        setActiveVendorProfile(data.profile)
+      } else {
+        setActiveVendorProfile(null)
+      }
+    } catch (error) {
+      console.warn("[Driver] Failed to fetch vendor profile", error)
+      setActiveVendorProfile(null)
+    }
+  }, [])
+
   const t = (fr: string, ar: string) => (language === "ar" ? ar : fr)
 
   // Header Component
@@ -325,6 +405,12 @@ export default function DriverApp() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/10 text-xs">
+              <span className="font-semibold">{isOnShift ? "En ligne" : "Hors ligne"}</span>
+              <Badge variant={isOnShift ? "default" : "secondary"} className="text-[10px] px-2">
+                {isAvailableForBatches ? "Batch ON" : "Batch OFF"}
+              </Badge>
+            </div>
             <Button
               variant="ghost"
               size="icon"
@@ -352,6 +438,27 @@ export default function DriverApp() {
               }}
             >
               <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
+              onClick={() =>
+                toast({
+                  title: "Assistance demandée",
+                  description: "Support et dispatch ont été notifiés.",
+                })
+              }
+            >
+              <AlertCircle className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
+              onClick={() => window.open("tel:+21300000000", "_blank")}
+            >
+              <Phone className="w-5 h-5" />
             </Button>
             <Button variant="ghost" size="icon" className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" onClick={() => signOut({ callbackUrl: "/login" })}>
               <LogOut className="w-5 h-5" />
@@ -393,6 +500,42 @@ export default function DriverApp() {
             </div>
           </CardContent>
         </Card>
+      </div>
+      {/* Earnings Summary */}
+      <div className="space-y-3">
+        <h3 className="text-lg font-semibold text-[var(--albaz-text)]">Earnings</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Card className="albaz-card">
+            <CardContent className="p-4">
+              <p className="text-sm text-[var(--albaz-text-soft)]">Total (toutes livraisons)</p>
+              <p className="text-2xl font-bold text-[var(--albaz-text)]">
+                {deliveryHistory.reduce((sum, d) => sum + (d.total || 0), 0)} DZD
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="albaz-card">
+            <CardContent className="p-4">
+              <p className="text-sm text-[var(--albaz-text-soft)]">Semaine (7 jours)</p>
+              <p className="text-2xl font-bold text-[var(--albaz-text)]">
+                {deliveryHistory
+                  .filter((d) => Date.now() - new Date(d.createdAt || Date.now()).getTime() <= 7 * 24 * 60 * 60 * 1000)
+                  .reduce((sum, d) => sum + (d.total || 0), 0)} DZD
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="albaz-card">
+            <CardContent className="p-4">
+              <p className="text-sm text-[var(--albaz-text-soft)]">Moyenne / livraison</p>
+              <p className="text-2xl font-bold text-[var(--albaz-text)]">
+                {deliveryHistory.length > 0
+                  ? Math.round(
+                      deliveryHistory.reduce((sum, d) => sum + (d.total || 0), 0) / deliveryHistory.length,
+                    )
+                  : 0} DZD
+              </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Shift & Safety */}
@@ -472,7 +615,14 @@ export default function DriverApp() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-[var(--albaz-text)]">Livraisons Disponibles</h2>
-          <Badge className="bg-[var(--albaz-olive)] text-white">{availableDeliveries.length} disponible(s)</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-[var(--albaz-olive)] text-white">{availableDeliveries.length} dispo</Badge>
+            {isAvailableForBatches && availableDeliveries.length > 1 && (
+              <Badge variant="outline" className="border-[var(--albaz-olive)] text-[var(--albaz-olive)]">
+                Batchable
+              </Badge>
+            )}
+          </div>
         </div>
 
         {availableDeliveries.length === 0 ? (
@@ -501,6 +651,10 @@ export default function DriverApp() {
                       </div>
                       <div className="text-right">
                       <p className="text-2xl font-bold text-[var(--albaz-olive)]">500 DZD</p>
+                      <div className="flex items-center justify-end gap-2 text-xs mt-1">
+                        <Badge variant={isOnShift ? "default" : "secondary"}>{isOnShift ? "En ligne" : "Hors ligne"}</Badge>
+                        <Badge variant={isAvailableForBatches ? "default" : "outline"}>{isAvailableForBatches ? "Batch ON" : "Batch OFF"}</Badge>
+                      </div>
                       <p className="text-xs text-[var(--albaz-text-soft)]">Frais de livraison</p>
                       </div>
                     </div>
@@ -513,6 +667,21 @@ export default function DriverApp() {
                         <p className="text-xs text-[var(--albaz-text-soft)]">Récupération</p>
                         <p className="text-sm font-medium text-[var(--albaz-text)]">Store #{delivery.storeId}</p>
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => {
+                            if (!delivery.storeId) {
+                              toast({ title: "Adresse indisponible", description: "Impossible d'ouvrir la navigation", variant: "destructive" })
+                              return
+                            }
+                            const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Store " + delivery.storeId)}`
+                            window.open(url, "_blank")
+                          }}
+                        >
+                          Naviguer
+                        </Button>
                       </div>
                       <div className="flex items-start gap-2">
                       <MapPin className="w-4 h-4 text-[var(--albaz-olive)] mt-0.5" />
@@ -521,6 +690,21 @@ export default function DriverApp() {
                         <p className="text-sm font-medium text-[var(--albaz-text)]">{delivery.deliveryAddress}</p>
                         <p className="text-xs text-[var(--albaz-text-soft)]">{delivery.city}</p>
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => {
+                            if (!delivery.deliveryAddress) {
+                              toast({ title: "Adresse indisponible", description: "Impossible d'ouvrir la navigation", variant: "destructive" })
+                              return
+                            }
+                            const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(delivery.deliveryAddress)}`
+                            window.open(url, "_blank")
+                          }}
+                        >
+                          Naviguer
+                        </Button>
                       </div>
                       <div className="flex items-start gap-2">
                       <Phone className="w-4 h-4 text-[var(--albaz-text-soft)] mt-0.5" />
@@ -536,10 +720,10 @@ export default function DriverApp() {
                       <Button
                       className="flex-1 bg-[var(--albaz-olive)] hover:brightness-95 text-white"
                         onClick={() => acceptDelivery(delivery.id)}
-                        disabled={!!activeDelivery}
+                        disabled={!!activeDelivery || !isOnShift}
                       >
                         <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Accepter
+                        {isOnShift ? "Accepter" : "Hors ligne"}
                       </Button>
                     </div>
                   </div>
@@ -576,17 +760,34 @@ export default function DriverApp() {
         {/* Status Card */}
         <Card className="border-primary bg-gradient-to-br from-primary/5 to-orange-500/5">
           <CardContent className="p-6">
-            <div className="text-center space-y-3">
-              <div className="w-16 h-16 rounded-full bg-primary mx-auto flex items-center justify-center">
-                <Truck className="w-8 h-8 text-white" />
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center overflow-hidden border border-white/50">
+                {activeVendorProfile?.logo ? (
+                  <img src={activeVendorProfile.logo} alt="Logo" className="w-full h-full object-cover" />
+                ) : (
+                  <Truck className="w-8 h-8 text-white" />
+                )}
               </div>
-              <div>
-                <p className="text-sm text-gray-600">Commande</p>
-                <p className="text-2xl font-bold text-gray-900">#{activeDelivery.id}</p>
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Commande #{activeDelivery.id}</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {activeVendorProfile?.name || "Restaurant partenaire"}
+                    </p>
+                  </div>
+                  <Badge className={isPickedUp ? "bg-blue-500" : "bg-green-500"}>
+                    {isPickedUp ? "En Livraison" : "Assigné"}
+                  </Badge>
+                </div>
+                {(activeVendorProfile?.address || activeVendorProfile?.phone || activeVendorProfile?.email) && (
+                  <div className="text-xs text-gray-600 space-y-0.5">
+                    {activeVendorProfile.address && <p>{activeVendorProfile.address}</p>}
+                    {activeVendorProfile.phone && <p>{activeVendorProfile.phone}</p>}
+                    {activeVendorProfile.email && <p>{activeVendorProfile.email}</p>}
+                  </div>
+                )}
               </div>
-              <Badge className={isPickedUp ? "bg-blue-500" : "bg-green-500"}>
-                {isPickedUp ? "En Livraison" : "Assigné"}
-              </Badge>
             </div>
           </CardContent>
         </Card>
@@ -610,14 +811,17 @@ export default function DriverApp() {
               <Badge variant="outline">{isCOD ? "Espèces" : "Carte"}</Badge>
             </div>
             <div className="flex items-center justify-between py-3">
-              <span className="text-gray-600">Vos Frais</span>
-              <span className="font-bold text-primary text-xl">500 DZD</span>
+              <span className="text-gray-600">Restaurant</span>
+              <span className="font-semibold text-gray-900 text-right">
+                {activeVendorProfile?.name || "Partenaire"}
+                {activeVendorProfile?.phone && <p className="text-xs text-gray-500">{activeVendorProfile.phone}</p>}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         {/* Pickup Location */}
-        <Card>
+          <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="w-5 h-5 text-primary" />
@@ -629,7 +833,14 @@ export default function DriverApp() {
               <p className="font-semibold text-gray-900">Store #{activeDelivery.storeId}</p>
               <p className="text-sm text-gray-600">123 Rue Didouche Mourad, {activeDelivery.city}</p>
             </div>
-            <Button variant="outline" className="w-full bg-transparent">
+            <Button
+              variant="outline"
+              className="w-full bg-transparent"
+              onClick={() => {
+                const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Store " + activeDelivery.storeId)}`
+                window.open(url, "_blank")
+              }}
+            >
               <Navigation className="w-4 h-4 mr-2" />
               Naviguer vers le magasin
             </Button>
@@ -659,7 +870,14 @@ export default function DriverApp() {
                 Appeler
               </Button>
             </div>
-            <Button variant="outline" className="w-full bg-transparent">
+            <Button
+              variant="outline"
+              className="w-full bg-transparent"
+              onClick={() => {
+                const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeDelivery.deliveryAddress || "")}`
+                window.open(url, "_blank")
+              }}
+            >
               <Navigation className="w-4 h-4 mr-2" />
               Naviguer vers le client
             </Button>
@@ -701,6 +919,38 @@ export default function DriverApp() {
                       />
                       <Label htmlFor="cod-collected" className="text-sm">Espèces collectées</Label>
                     </div>
+                    <div className="space-y-2">
+                      <Label>Photo de livraison (optionnel)</Label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          const reader = new FileReader()
+                          reader.onload = () => {
+                            setPodPhoto(reader.result as string)
+                            toast({
+                              title: "Photo ajoutée",
+                              description: "Preuve visuelle enregistrée (locale)",
+                            })
+                          }
+                          reader.readAsDataURL(file)
+                        }}
+                      />
+                      {podPhoto && (
+                        <div className="mt-2 space-y-2">
+                          <img src={podPhoto} alt="Preuve de livraison" className="h-32 w-auto rounded-md border" />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPodPhoto(null)}
+                          >
+                            Retirer la photo
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               )}
@@ -712,6 +962,21 @@ export default function DriverApp() {
                 <CheckCircle2 className="w-5 h-5 mr-2" />
                 Marquer comme Livrée
               </Button>
+              {stackedDeliveries.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Livraisons empilées ({stackedDeliveries.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {stackedDeliveries.map((d) => (
+                      <div key={d.id} className="flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+                        <span className="font-mono">#{d.id}</span>
+                        <Badge variant="outline">{(d as any).paymentMethod || "cash"}</Badge>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
           <Button
@@ -789,6 +1054,66 @@ export default function DriverApp() {
     </div>
   )
 
+  const EarningsView = () => {
+    const completed = deliveryHistory || []
+    const totalAll = completed.reduce((sum, d) => sum + (d.total || 0), 0)
+    const totalWeek = completed
+      .filter((d) => Date.now() - new Date(d.createdAt || Date.now()).getTime() <= 7 * 24 * 60 * 60 * 1000)
+      .reduce((sum, d) => sum + (d.total || 0), 0)
+    const avg = completed.length > 0 ? Math.round(totalAll / completed.length) : 0
+
+    return (
+      <div className="container mx-auto px-4 py-6 pb-24 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <Card className="albaz-card">
+            <CardContent className="p-4">
+              <p className="text-sm text-[var(--albaz-text-soft)]">Total</p>
+              <p className="text-2xl font-bold text-[var(--albaz-text)]">{totalAll} DZD</p>
+            </CardContent>
+          </Card>
+          <Card className="albaz-card">
+            <CardContent className="p-4">
+              <p className="text-sm text-[var(--albaz-text-soft)]">7 derniers jours</p>
+              <p className="text-2xl font-bold text-[var(--albaz-text)]">{totalWeek} DZD</p>
+            </CardContent>
+          </Card>
+          <Card className="albaz-card">
+            <CardContent className="p-4">
+              <p className="text-sm text-[var(--albaz-text-soft)]">Moyenne / livraison</p>
+              <p className="text-2xl font-bold text-[var(--albaz-text)]">{avg} DZD</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="albaz-card">
+          <CardHeader>
+            <CardTitle>Livraisons terminées</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {completed.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Aucune livraison terminée pour le moment</p>
+            ) : (
+              completed.slice(0, 20).map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm">#{d.id}</span>
+                      <Badge variant="outline">{(d as any).paymentMethod || "cash"}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{new Date(d.createdAt || Date.now()).toLocaleString("fr-FR")}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">{d.total} DZD</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   // Bottom Navigation
   const BottomNav = () => (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
@@ -821,6 +1146,15 @@ export default function DriverApp() {
           <List className="w-6 h-6" />
           <span className="text-xs font-medium">Historique</span>
         </button>
+        <button
+          onClick={() => setCurrentView("earnings")}
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            currentView === "earnings" ? "text-primary" : "text-gray-400"
+          }`}
+        >
+          <DollarSign className="w-6 h-6" />
+          <span className="text-xs font-medium">Gains</span>
+        </button>
       </div>
     </nav>
   )
@@ -832,6 +1166,7 @@ export default function DriverApp() {
         {currentView === "dashboard" && <DashboardView />}
         {currentView === "active" && <ActiveDeliveryView />}
         {currentView === "history" && <HistoryView />}
+        {currentView === "earnings" && <EarningsView />}
       </main>
       <BottomNav />
     </div>

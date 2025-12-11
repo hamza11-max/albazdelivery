@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { signOut } from "next-auth/react"
-import { 
+import {
   LogOut, 
   LayoutDashboard,
   Package,
@@ -15,8 +15,6 @@ import {
   ShoppingBag,
   UserCog,
   Store,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react"
 import { cn } from "../lib/utils"
 
@@ -110,6 +108,12 @@ export default function VendorSidebar({
       labelFr: "Paramètres",
       labelAr: "الإعدادات",
     },
+    {
+      id: "logout",
+      icon: LogOut,
+      labelFr: "Déconnexion",
+      labelAr: "تسجيل الخروج",
+    },
   ]
 
   // Social icons removed
@@ -118,20 +122,17 @@ export default function VendorSidebar({
     <>
       <aside
         className={cn(
-          "fixed left-4 top-6 bottom-6 rounded-2xl shadow-2xl z-50 hidden md:flex md:flex-col transition-all duration-300 ease-in-out",
+          "fixed left-3 top-4 bottom-4 rounded-2xl shadow-2xl z-50 hidden md:flex md:flex-col transition-all duration-200 ease-in-out",
           "bg-gradient-to-b from-[#0a0f14] via-[#0d1419] to-[#0f181d]",
           "backdrop-blur-xl border border-white/10",
           "text-white"
         )}
-        style={{ width: isCollapsed ? 68 : 240 }}
+        style={{ width: isCollapsed ? 64 : 210 }}
+        onMouseEnter={() => setIsCollapsed(false)}
+        onMouseLeave={() => setIsCollapsed(true)}
       >
-        {/* Header - Logo removed */}
-        <div className="px-4 py-6 border-b border-white/5">
-          {/* Empty header space */}
-        </div>
-
         {/* Navigation Items */}
-        <nav className="flex-1 w-full space-y-2 px-3 py-4 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 w-full space-y-1 px-2 py-3 overflow-x-hidden overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = activeTab === item.id
@@ -146,12 +147,19 @@ export default function VendorSidebar({
                 onMouseLeave={() => setHoveredItem(null)}
               >
                 <button
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    if (item.id === "logout") {
+                      signOut({ callbackUrl: "/login" })
+                    } else {
+                      setActiveTab(item.id)
+                    }
+                  }}
                   className={cn(
-                    "relative w-full transition-all duration-200 ease-out group",
+                    "relative w-full transition-all duration-150 ease-out group",
+                    "flex items-center",
                     isCollapsed 
-                      ? "flex items-center justify-center h-12 rounded-xl" 
-                      : "flex items-center gap-3 px-4 py-3 rounded-xl",
+                      ? "justify-center h-11 rounded-xl" 
+                      : "gap-3 px-3 py-3 rounded-xl",
                     isActive
                       ? isCollapsed
                         ? "bg-gradient-to-r from-teal-500/20 to-cyan-500/20 border border-teal-400/30 shadow-lg shadow-teal-500/10 scale-105"
@@ -161,15 +169,15 @@ export default function VendorSidebar({
                 >
                   {/* Icon Container */}
                   <div className={cn(
-                    "flex-shrink-0 flex items-center justify-center transition-all duration-200",
-                    isCollapsed ? "w-10 h-10" : "w-10 h-10",
+                    "flex-shrink-0 flex items-center justify-center transition-all duration-150",
+                    isCollapsed ? "w-9 h-9" : "w-9 h-9",
                     isActive 
                       ? "text-teal-400" 
                       : "text-gray-400 group-hover:text-white"
                   )}>
                     <Icon className={cn(
-                      "transition-all duration-200",
-                      isActive ? "w-5 h-5" : "w-5 h-5",
+                      "transition-all duration-150",
+                      "w-4 h-4",
                       isActive && "drop-shadow-[0_0_8px_rgba(20,184,166,0.6)]"
                     )} />
                   </div>
@@ -215,53 +223,6 @@ export default function VendorSidebar({
             )
           })}
         </nav>
-
-        {/* Bottom Section */}
-        <div className="w-full px-3 py-4 border-t border-white/5 space-y-3">
-          {/* Collapse/Expand Button */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className={cn(
-              "w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl",
-              "bg-white/5 hover:bg-white/10 border border-white/10",
-              "transition-all duration-200 group"
-            )}
-          >
-            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 group-hover:bg-white/10 transition-all">
-              {isCollapsed ? (
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-              ) : (
-                <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-              )}
-            </div>
-            {!isCollapsed && (
-              <span className="font-medium text-sm text-gray-300">
-                {translate("Réduire", "طي")}
-              </span>
-            )}
-          </button>
-
-
-          {/* Logout Button */}
-          <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            className={cn(
-              "w-full flex items-center gap-3 px-4 py-3 rounded-xl",
-              "bg-red-500/10 hover:bg-red-500/20 border border-red-500/20",
-              "text-red-400 hover:text-red-300 transition-all duration-200",
-              "group"
-            )}
-          >
-            <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-lg bg-red-500/10 group-hover:bg-red-500/20 transition-all">
-              <LogOut className="w-5 h-5 transition-transform group-hover:scale-110" />
-            </div>
-            {!isCollapsed && (
-              <span className="font-medium text-sm">
-                {translate("Déconnexion", "تسجيل الخروج")}
-              </span>
-            )}
-          </button>
-        </div>
       </aside>
 
       {/* Mobile bottom nav (visible on small screens) */}

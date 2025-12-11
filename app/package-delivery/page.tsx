@@ -41,6 +41,7 @@ export default function PackageDeliveryPage() {
   const [recipientPhone, setRecipientPhone] = useState("")
   const [senderPhone, setSenderPhone] = useState("")
   const [promoCode, setPromoCode] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
   const t = (key: string, fr: string, ar: string) => {
     if (selectedLanguage === "ar") return ar
@@ -49,6 +50,64 @@ export default function PackageDeliveryPage() {
 
   const serviceFee = 500
   const total = serviceFee
+
+  const sanitizePhone = (value: string) => {
+    const digits = value.replace(/\D/g, "")
+    if (!digits.startsWith("0") && digits.length > 0) {
+      return "0" + digits.slice(0, 9)
+    }
+    return digits.slice(0, 10)
+  }
+
+  const buildPayload = () => {
+    return {
+      packageDescription: (packageDescription || "").trim() || "Colis démo",
+      recipientName: (recipientName || "").trim() || "Client démo",
+      recipientPhone: sanitizePhone(recipientPhone || "0555000000"),
+      deliveryAddress: toLocation.trim().length >= 10 ? toLocation.trim() : "Adresse démo, Alger",
+      city: "Alger",
+      customerPhone: sanitizePhone(senderPhone || "0555000000"),
+      scheduledDate: null,
+      scheduledTime: null,
+      whoPays: "customer",
+      deliveryFee: serviceFee,
+      paymentMethod: (paymentMethod || "cash").toUpperCase(),
+    }
+  }
+
+  const handleSubmit = async () => {
+    const payload = buildPayload()
+    if (!/^0[567]\d{8}$/.test(payload.recipientPhone)) {
+      setError("Numéro destinataire invalide (format 0XXXXXXXXX)")
+      return
+    }
+    if (!/^0[567]\d{8}$/.test(payload.customerPhone)) {
+      setError("Numéro expéditeur invalide (format 0XXXXXXXXX)")
+      return
+    }
+    if (payload.deliveryAddress.length < 10) {
+      setError("Adresse trop courte")
+      return
+    }
+    setError(null)
+
+    try {
+      const response = await fetch("/api/package-delivery/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json()
+      if (!response.ok || data?.error) {
+        throw new Error(data?.error || "Impossible de créer la livraison")
+      }
+      alert(t("delivery-created", "Livraison créée avec succès!", "تم إنشاء التوصيل بنجاح!"))
+      router.push("/")
+    } catch (err: any) {
+      console.error("[v0] Error creating delivery:", err)
+      setError(err?.message || "Erreur lors de la création")
+    }
+  }
 
   const vehicleOptions = [
     { id: "motorcycle", name: "Moto", nameAr: "دراجة نارية", icon: Bike },
@@ -253,7 +312,7 @@ export default function PackageDeliveryPage() {
               <Input
                 placeholder={t("phone-number", "Numéro de téléphone", "رقم الهاتف")}
                 value={senderPhone}
-                onChange={(e) => setSenderPhone(e.target.value)}
+                onChange={(e) => setSenderPhone(sanitizePhone(e.target.value))}
                 className="mt-3 bg-background"
               />
             </CardContent>
@@ -557,47 +616,12 @@ export default function PackageDeliveryPage() {
         </div>
 
         {/* Pay Button */}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
         <Button
           size="lg"
           className="w-full bg-black hover:bg-black/90 text-white font-bold py-6 rounded-full text-lg"
-          onClick={async () => {
-            if (!fromLocation || !toLocation || !recipientPhone || !senderPhone) {
-              alert(t("fill-all", "Veuillez remplir tous les champs", "يرجى ملء جميع الحقول"))
-              return
-            }
-
-            try {
-              const response = await fetch("/api/package-delivery/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  customerId: "customer-1",
-                  fromLocation,
-                  toLocation,
-                  packageDescription,
-                  recipientName,
-                  recipientPhone,
-                  senderPhone,
-                  vehicleType,
-                  paymentMethod,
-                  whoPays,
-                  deliveryOption,
-                  total: serviceFee,
-                }),
-              })
-
-              const data = await response.json()
-              if (data.success) {
-                alert(t("delivery-created", "Livraison créée avec succès!", "تم إنشاء التوصيل بنجاح!"))
-                router.push("/")
-              } else {
-                alert(t("error", "Erreur lors de la création", "خطأ في الإنشاء"))
-              }
-            } catch (error) {
-              console.error("[v0] Error creating delivery:", error)
-              alert(t("error", "Erreur lors de la création", "خطأ في الإنشاء"))
-            }
-          }}
+          onClick={handleSubmit}
         >
           {paymentMethod === "google-pay" ? (
             <div className="flex items-center gap-2">

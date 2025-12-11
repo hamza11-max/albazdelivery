@@ -12,6 +12,15 @@ interface ReceiptViewProps {
   isElectronRuntime: boolean
   onClose: () => void
   onPrint: () => void
+  shopInfo?: {
+    name?: string
+    phone?: string
+    email?: string
+    address?: string
+    description?: string
+    logo?: string
+    cover?: string
+  }
 }
 
 export function ReceiptView({
@@ -22,10 +31,17 @@ export function ReceiptView({
   isElectronRuntime,
   onClose,
   onPrint,
+  shopInfo,
 }: ReceiptViewProps) {
   if (!showReceipt || !completedSale) return null
 
   const userWithExtras = user as any
+  const displayName = shopInfo?.name || user?.name || "ALBAZ"
+  const displayPhone = shopInfo?.phone || userWithExtras?.phone
+  const displayEmail = shopInfo?.email || user?.email
+  const displayAddress = shopInfo?.address || userWithExtras?.address
+  const displayDesc = shopInfo?.description
+  const displayLogo = shopInfo?.logo
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -33,30 +49,38 @@ export function ReceiptView({
         <div className="p-8">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center shadow-lg">
-              <img src="/logo.png" alt="ALBAZ" className="h-16 w-auto" />
-            </div>
+            {displayLogo ? (
+              <div className="w-24 h-24 rounded-xl border flex items-center justify-center overflow-hidden bg-white">
+                <img src={displayLogo} alt="Logo" className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center shadow-lg">
+                <img src="/logo.png" alt="ALBAZ" className="h-16 w-auto" />
+              </div>
+            )}
           </div>
           <div className="text-center mb-2">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">ALBAZ</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400">DELIVERY</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{displayName}</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {displayDesc || translate("Reçu de vente", "إيصال بيع")}
+            </p>
           </div>
 
           {/* Shop Information */}
-          {(user?.name || user?.email || userWithExtras?.phone) && (
+          {(displayName || displayEmail || displayPhone || displayAddress) && (
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
               <div className="space-y-1 text-sm text-center">
-                {user?.name && (
-                  <p className="font-semibold text-gray-900 dark:text-white">{user.name}</p>
+                {displayName && (
+                  <p className="font-semibold text-gray-900 dark:text-white">{displayName}</p>
                 )}
-                {userWithExtras?.phone && (
-                  <p className="text-gray-600 dark:text-gray-400">{translate("Tél", "هاتف")}: {userWithExtras.phone}</p>
+                {displayPhone && (
+                  <p className="text-gray-600 dark:text-gray-400">{translate("Tél", "هاتف")}: {displayPhone}</p>
                 )}
-                {user?.email && (
-                  <p className="text-gray-600 dark:text-gray-400">{user.email}</p>
+                {displayEmail && (
+                  <p className="text-gray-600 dark:text-gray-400">{displayEmail}</p>
                 )}
-                {userWithExtras?.address && (
-                  <p className="text-gray-600 dark:text-gray-400">{userWithExtras.address}</p>
+                {displayAddress && (
+                  <p className="text-gray-600 dark:text-gray-400">{displayAddress}</p>
                 )}
               </div>
             </div>
@@ -130,6 +154,11 @@ export function ReceiptView({
             <p className="text-xs text-gray-500 dark:text-gray-500">
               {translate("Paiement", "الدفع")}: {completedSale.paymentMethod === "cash" ? translate("Espèces", "نقد") : translate("Carte", "بطاقة")}
             </p>
+            {shopInfo?.cover && (
+              <div className="mt-4 w-full h-24 rounded-md overflow-hidden border">
+                <img src={shopInfo.cover} alt="Cover" className="w-full h-full object-cover" />
+              </div>
+            )}
           </div>
 
           {/* Actions */}

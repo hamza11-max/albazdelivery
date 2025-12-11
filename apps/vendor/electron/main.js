@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage } = require('electron')
+const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, session } = require('electron')
 const path = require('path')
 const { spawn, exec } = require('child_process')
 const { createAuthWindow, closeAuthWindow } = require('./auth-window')
@@ -39,6 +39,41 @@ let nextProcess = null
 let isAuthenticated = false
 let tray = null
 let isQuitting = false
+
+// Configure CSP to avoid Electron warnings (dev allows HMR needs)
+function configureCSP() {
+  const devPolicy = [
+    "default-src 'self' http://localhost:3001 ws://localhost:3001",
+    "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:3001",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: http://localhost:3001",
+    "connect-src 'self' http://localhost:3001 ws://localhost:3001 https://*",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ')
+
+  const prodPolicy = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "connect-src 'self' https://*",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join('; ')
+
+  const policy = isDev ? devPolicy : prodPolicy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders, 'Content-Security-Policy': [policy] }
+    callback({ responseHeaders: headers })
+  })
+}
 
 function createWindow() {
   // Create the browser window
@@ -467,6 +502,8 @@ function createTray() {
 
 // App event handlers
 app.whenReady().then(() => {
+  configureCSP()
+
   // Initialize offline database (if available)
   if (offlineDb) {
     try {

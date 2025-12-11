@@ -45,6 +45,16 @@ export interface StoreViewProps {
   onBack: () => void
   addToCart: (productId: string) => void
   t: TranslationFn
+  vendorProfile?: {
+    name?: string
+    phone?: string
+    email?: string
+    address?: string
+    city?: string
+    description?: string
+    logo?: string
+    cover?: string
+  } | null
 }
 
 export interface CheckoutViewProps {

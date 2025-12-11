@@ -60,15 +60,9 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 100)
     const vendorIdParam = searchParams.get('vendorId')
 
-<<<<<<< Updated upstream
-    const vendorId = isAdmin ? vendorIdParam : session.user.id
+    let vendorId = isAdmin ? vendorIdParam : session.user.id
 
-    if (!vendorId) {
-      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
-=======
-    let vendorId = isAdmin ? vendorIdParam : null // session.user.id
-
-    // If no vendorId provided in admin mode, get first approved vendor
+    // If admin and no vendorId provided, try to pick first approved vendor
     if (isAdmin && !vendorId) {
       try {
         const firstVendor = await prisma.user.findFirst({
@@ -80,12 +74,11 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {
         console.warn('[API/sales] Error fetching first vendor:', e)
-        // Continue without vendorId - will return empty results below
       }
     }
 
     if (!vendorId) {
-      // Return empty results instead of error for dev/missing DB scenarios
+      // Return empty results instead of throwing to keep admin dashboards resilient
       return successResponse({
         sales: [],
         pagination: {
@@ -95,7 +88,6 @@ export async function GET(request: NextRequest) {
           pages: 0,
         },
       })
->>>>>>> Stashed changes
     }
 
     const where: any = {

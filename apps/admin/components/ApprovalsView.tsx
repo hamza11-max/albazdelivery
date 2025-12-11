@@ -3,6 +3,7 @@
 import { Button, Card, CardContent, Badge, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@albaz/ui"
 import { UserCheck, Truck, Store, UserX } from "lucide-react"
 import type { RegistrationRequest } from "@/root/lib/types"
+import { useEffect, useState } from "react"
 
 interface ApprovalsViewProps {
   requests: RegistrationRequest[]
@@ -23,6 +24,32 @@ export function ApprovalsView({
   onApprove,
   onReject,
 }: ApprovalsViewProps) {
+  const [vendorProfiles, setVendorProfiles] = useState<Record<string, any>>({})
+
+  useEffect(() => {
+    const vendorIds = requests.filter((r) => r.role === "vendor").map((r) => r.id)
+    const unique = Array.from(new Set(vendorIds)).filter(Boolean)
+    if (!unique.length) return
+    let cancelled = false
+    unique.forEach(async (id) => {
+      if (vendorProfiles[id]) return
+      try {
+        const res = await fetch(`/api/vendor/profile?vendorId=${id}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        if (data?.success && data.profile) {
+          setVendorProfiles((prev) => ({ ...prev, [id]: data.profile }))
+        }
+      } catch {
+        // ignore
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [requests, vendorProfiles])
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -46,20 +73,26 @@ export function ApprovalsView({
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                      {request.role === "driver" ? (
-                        <Truck className="w-7 h-7 text-primary" />
-                      ) : (
-                        <Store className="w-7 h-7 text-primary" />
-                      )}
-                    </div>
+                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                        {request.role === "driver" ? (
+                          <Truck className="w-7 h-7 text-primary" />
+                        ) : vendorProfiles[request.id]?.logo ? (
+                          // If vendor and logo available
+                          <img src={vendorProfiles[request.id].logo} alt="Logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <Store className="w-7 h-7 text-primary" />
+                        )}
+                      </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <p className="font-bold text-lg">{request.name}</p>
-                        <Badge variant="outline">{request.role === "driver" ? "Livreur" : "Vendeur"}</Badge>
+                          <p className="font-bold text-lg">{vendorProfiles[request.id]?.name || request.name}</p>
+                          <Badge variant="outline">{request.role === "driver" ? "Livreur" : "Vendeur"}</Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground">{request.email}</p>
-                      <p className="text-sm text-muted-foreground">{request.phone}</p>
+                        <p className="text-sm text-muted-foreground">{vendorProfiles[request.id]?.email || request.email}</p>
+                        <p className="text-sm text-muted-foreground">{vendorProfiles[request.id]?.phone || request.phone}</p>
+                        {vendorProfiles[request.id]?.address && (
+                          <p className="text-xs text-muted-foreground">{vendorProfiles[request.id].address}</p>
+                        )}
                       <p className="text-xs text-muted-foreground mt-1">
                         Demandé le {new Date(request.createdAt).toLocaleDateString("fr-DZ")}
                       </p>
