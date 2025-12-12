@@ -250,6 +250,7 @@ export default function VendorDashboard() {
       return 0
     }
   })
+  const [manualTotal, setManualTotal] = useState<number | null>(null)
   const featureFlags = useMemo(() => ({
     orderPause: true,
     prepTimeEta: true,
@@ -348,6 +349,75 @@ export default function VendorDashboard() {
   useEffect(() => {
     refreshOfflineQueueCount()
   }, [refreshOfflineQueueCount])
+
+  // Automatically push any queued offline sales when we're back online
+  const syncOfflineSales = useCallback(async () => {
+    if (typeof window === "undefined") return
+
+    try {
+      const queued = JSON.parse(localStorage.getItem("offline-sales-queue") || "[]")
+      if (!Array.isArray(queued) || queued.length === 0) {
+        setOfflineQueueCount(0)
+        return
+      }
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setOfflineQueueCount(queued.length)
+        return
+      }
+
+      const remaining: any[] = []
+      let syncedCount = 0
+
+      for (const entry of queued) {
+        try {
+          const res = await fetch(`/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`, {
+            method: "POST",
+            body: JSON.stringify(entry.payload),
+          })
+          const data = await res.json()
+
+          if (res.ok && data?.success) {
+            syncedCount += 1
+          } else {
+            remaining.push(entry)
+          }
+        } catch (err) {
+          remaining.push(entry)
+        }
+      }
+
+      localStorage.setItem("offline-sales-queue", JSON.stringify(remaining))
+      setOfflineQueueCount(remaining.length)
+
+      if (syncedCount > 0) {
+        fetchDashboardData(activeVendorId)
+        fetchInventory(activeVendorId)
+        fetchSales(activeVendorId)
+        toast({
+          title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"),
+          description: translate(
+            `${syncedCount} vente(s) ont été envoyées`,
+            `تم إرسال ${syncedCount} عملية بيع`
+          ),
+        })
+      }
+    } catch (error) {
+      console.warn("[POS] Failed to sync offline queue automatically", error)
+    }
+  }, [activeVendorId, fetchDashboardData, fetchInventory, fetchSales, isElectronRuntime, setOfflineQueueCount, toast, translate])
+
+  useEffect(() => {
+    syncOfflineSales()
+    const handleOnline = () => syncOfflineSales()
+    window.addEventListener("online", handleOnline)
+    const interval = setInterval(syncOfflineSales, 15000)
+
+    return () => {
+      window.removeEventListener("online", handleOnline)
+      clearInterval(interval)
+    }
+  }, [syncOfflineSales])
 
   const handleToggleAcceptingOrders = useCallback(async () => {
     if (!storeId) {
@@ -466,6 +536,7 @@ export default function VendorDashboard() {
     setPosKeypadValue,
     setPosSearch,
     addToCart,
+    addCustomItemToCart,
     removeFromCart,
     updateCartQuantity,
     clearCart,
@@ -740,17 +811,17 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   })
 
   // ALL HOOKS MUST BE CALLED BEFORE CONDITIONAL RETURNS
-  // Calculate remaining cart values derived from subtotal
-  const cartTax = useMemo(() => {
-    const subtotalAfterDiscount = cartSubtotal - posDiscount
-    return subtotalAfterDiscount * (posTaxPercent / 100) // Adjustable tax percentage
-  }, [cartSubtotal, posDiscount, posTaxPercent])
-  const cartTotal = cartSubtotal - posDiscount + cartTax
+  // Calculate remaining cart values derived from subtotal (tax removed)
+  const cartTax = 0 // Tax removed
+  const calculatedTotal = cartSubtotal - posDiscount
+  const cartTotal = manualTotal !== null ? manualTotal : calculatedTotal
   
-  // Update posTax when cart changes
+  // Clear manual total when cart is cleared
   useEffect(() => {
-    setPosTax(cartTax)
-  }, [cartTax, setPosTax])
+    if (posCart.length === 0) {
+      setManualTotal(null)
+    }
+  }, [posCart.length])
 
   // POS Handler Functions - using custom hook
   const {
@@ -769,6 +840,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     clearCart,
     setPosTaxPercentDefault: setPosTaxPercent,
   })
+
+  // Manual total handler
+  const handleManualTotalChange = useCallback((value: number | null) => {
+    setManualTotal(value)
+  }, [])
 
   // Show loading state while checking authentication
   if (isLoading || status === "loading") {
@@ -829,13 +905,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
           {/* POS Tab - Modern ALBAZ Design */}
           <TabsContent value="pos" className="space-y-0 p-0 -mx-2 sm:-mx-4">
-            {featureFlags.offlineQueue && offlineQueueCount > 0 && (
-              <div className="mx-4 my-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-4 py-2 text-sm flex items-center justify-between gap-3 flex-wrap">
-                <span>
-                  {translate("Ventes en attente de synchronisation", "مبيعات تنتظر المزامنة")}: {offlineQueueCount}
-                </span>
-              </div>
-            )}
             <POSView
               products={products}
               categories={categories}
@@ -850,6 +919,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               cartSubtotal={cartSubtotal}
               cartTax={cartTax}
               cartTotal={cartTotal}
+              manualTotal={manualTotal}
               isBarcodeDetectorSupported={isBarcodeDetectorSupported}
               isArabic={isArabic}
               translate={translate}
@@ -863,6 +933,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onKeypadKey={handleKeypadKey}
               onClearDiscount={handleClearDiscount}
               onClearCart={handleClearCart}
+              onManualTotalChange={handleManualTotalChange}
+              onAddCustomItem={addCustomItemToCart}
               onCompleteSale={completeSale}
             />
           </TabsContent>

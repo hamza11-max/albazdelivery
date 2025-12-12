@@ -45,6 +45,21 @@ export function usePOSCart() {
     })
   }, [])
 
+  const addCustomItemToCart = useCallback((name: string, price: number) => {
+    const customId = -Date.now() // Use negative timestamp for custom items
+    setPosCart((prevCart) => [
+      ...prevCart,
+      {
+        id: customId,
+        productId: customId,
+        productName: name,
+        quantity: 1,
+        price: price,
+        discount: 0,
+      },
+    ])
+  }, [])
+
   const removeFromCart = useCallback((id: number) => {
     setPosCart(posCart.filter((item) => item.id !== id))
   }, [posCart])
@@ -97,6 +112,7 @@ export function usePOSCart() {
     
     // Actions
     addToCart,
+    addCustomItemToCart,
     removeFromCart,
     updateCartQuantity,
     clearCart,

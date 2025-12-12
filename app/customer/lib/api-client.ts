@@ -145,6 +145,11 @@ export const ordersAPI = {
       body: JSON.stringify({ status, driverId }),
     })
   },
+
+  async track(orderId: string) {
+    const query = new URLSearchParams({ orderId }).toString()
+    return fetchAPI(`/api/orders/track?${query}`)
+  },
 }
 
 // ============================================

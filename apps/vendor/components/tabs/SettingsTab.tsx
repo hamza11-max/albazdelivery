@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/c
 import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import { Textarea } from "@/root/components/ui/textarea"
-import { Store, Receipt } from "lucide-react"
+import { Store, Receipt, Clock } from "lucide-react"
+import { DayHoursInput } from "../DayHoursInput"
 
 interface SettingsTabProps {
   isDarkMode: boolean
@@ -123,6 +124,37 @@ export function SettingsTab({
                 العربية
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Horaires & Capacité */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5" />
+            {translate("Horaires & Capacité", "المواعيد والقدرة")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            {[
+              { key: 'sunday', label: { fr: 'Dimanche', ar: 'الأحد' }, isWeekend: false },
+              { key: 'monday', label: { fr: 'Lundi', ar: 'الإثنين' }, isWeekend: false },
+              { key: 'tuesday', label: { fr: 'Mardi', ar: 'الثلاثاء' }, isWeekend: false },
+              { key: 'wednesday', label: { fr: 'Mercredi', ar: 'الأربعاء' }, isWeekend: false },
+              { key: 'thursday', label: { fr: 'Jeudi', ar: 'الخميس' }, isWeekend: false },
+              { key: 'friday', label: { fr: 'Vendredi', ar: 'الجمعة' }, isWeekend: true },
+              { key: 'saturday', label: { fr: 'Samedi', ar: 'السبت' }, isWeekend: true },
+            ].map((day) => (
+              <DayHoursInput
+                key={day.key}
+                dayKey={day.key}
+                dayLabel={day.label}
+                isWeekend={day.isWeekend}
+                translate={translate}
+              />
+            ))}
           </div>
         </CardContent>
       </Card>

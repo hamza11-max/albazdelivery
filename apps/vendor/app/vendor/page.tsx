@@ -295,6 +295,7 @@ export default function VendorDashboard() {
       return 0
     }
   })
+  const [manualTotal, setManualTotal] = useState<number | null>(null)
   const defaultSchedule = useMemo(() => ([
     { id: "weekday", kind: "weekday", start: "09:00", end: "22:00", enabled: true },
     { id: "weekend", kind: "weekend", start: "10:00", end: "23:00", enabled: true },
@@ -470,63 +471,6 @@ export default function VendorDashboard() {
     }
   }, [autoPauseOutsideSchedule, isWithinSchedule, isAcceptingOrders, setIsAcceptingOrders, toast, translate])
 
-  // Refresh offline queue count (Electron offline DB preferred)
-  const refreshOfflineQueueCount = useCallback(async () => {
-    if (typeof window === 'undefined') return
-    const electronAPI = (window as any)?.electronAPI
-    if (electronAPI?.offline?.getStats) {
-      try {
-        const stats = await electronAPI.offline.getStats()
-        if (stats?.pendingSales != null) {
-          setOfflineQueueCount(stats.pendingSales)
-          return
-        }
-      } catch (error) {
-        console.warn('[Vendor] Failed to load offline stats', error)
-      }
-    }
-    // Fallback to localStorage queue used in web mode
-    try {
-      const queued = JSON.parse(localStorage.getItem('offline-sales-queue') || '[]')
-      setOfflineQueueCount(Array.isArray(queued) ? queued.length : 0)
-    } catch (e) {
-      setOfflineQueueCount(0)
-    }
-  }, [])
-
-  // Load vendor store info to control intake/pause
-  useEffect(() => {
-    const targetVendorId = isAdmin ? activeVendorId : user?.id
-    if (!targetVendorId) return
-
-    const controller = new AbortController()
-    const loadStore = async () => {
-      try {
-        const res = await fetch(`/api/stores?vendorId=${targetVendorId}&includeInactive=true&limit=1`, {
-          signal: controller.signal,
-        })
-        const data = await res.json()
-        const stores = data?.data?.stores || data?.stores || []
-        if (stores.length > 0) {
-          setStoreId(stores[0].id)
-          setIsAcceptingOrders(stores[0].isActive !== false)
-        }
-      } catch (error) {
-        console.warn('[Vendor] Failed to load store info', error)
-      }
-    }
-
-    loadStore()
-    return () => controller.abort()
-  }, [user?.id, activeVendorId, isAdmin, setStoreId, setIsAcceptingOrders])
-
-  // Initial offline queue count
-  useEffect(() => {
-    if (isElectronRuntime) {
-      refreshOfflineQueueCount()
-    }
-  }, [isElectronRuntime, refreshOfflineQueueCount])
-
   // Persist prep time
   useEffect(() => {
     try {
@@ -648,6 +592,162 @@ export default function VendorDashboard() {
     fetchOrders,
     fetchCategories
   } = useDashboardData()
+
+  // Refresh offline queue count (Electron offline DB preferred)
+  const refreshOfflineQueueCount = useCallback(async () => {
+    if (typeof window === 'undefined') return
+    const electronAPI = (window as any)?.electronAPI
+    if (electronAPI?.offline?.getStats) {
+      try {
+        const stats = await electronAPI.offline.getStats()
+        if (stats?.pendingSales != null) {
+          setOfflineQueueCount(stats.pendingSales)
+          return
+        }
+      } catch (error) {
+        console.warn('[Vendor] Failed to load offline stats', error)
+      }
+    }
+    // Fallback to localStorage queue used in web mode
+    try {
+      const queued = JSON.parse(localStorage.getItem('offline-sales-queue') || '[]')
+      setOfflineQueueCount(Array.isArray(queued) ? queued.length : 0)
+    } catch (e) {
+      setOfflineQueueCount(0)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshOfflineQueueCount()
+  }, [refreshOfflineQueueCount])
+
+  // Automatically push any queued offline sales when we're back online
+  const syncOfflineSales = useCallback(async () => {
+    if (typeof window === "undefined") return
+
+    try {
+      // Electron runtime: delegate to offline sync service when available
+      if (isElectronRuntime && (window as any)?.electronAPI?.offline?.syncNow) {
+        const stats = await (window as any).electronAPI.offline.syncNow()
+        const pending = typeof stats?.pendingSales === "number" ? stats.pendingSales : offlineQueueCount
+        setOfflineQueueCount(pending)
+
+        if (stats?.syncedSales > 0) {
+          fetchDashboardData(activeVendorId)
+          fetchInventory(activeVendorId)
+          fetchSales(activeVendorId)
+          toast({
+            title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"),
+            description: translate(
+              `${stats.syncedSales} vente(s) ont été envoyées`,
+              `تم إرسال ${stats.syncedSales} عملية بيع`
+            ),
+          })
+        }
+        return
+      }
+
+      // Web runtime: sync queued payloads stored in localStorage
+      const queued = JSON.parse(localStorage.getItem("offline-sales-queue") || "[]")
+      if (!Array.isArray(queued) || queued.length === 0) {
+        setOfflineQueueCount(0)
+        return
+      }
+
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setOfflineQueueCount(queued.length)
+        return
+      }
+
+      const remaining: any[] = []
+      let syncedCount = 0
+
+      for (const entry of queued) {
+        try {
+          const res = await fetch(`/api/erp/sales${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`, {
+            method: "POST",
+            body: JSON.stringify(entry.payload),
+          })
+          const data = await res.json()
+
+          if (res.ok && data?.success) {
+            syncedCount += 1
+          } else {
+            remaining.push(entry)
+          }
+        } catch (err) {
+          remaining.push(entry)
+        }
+      }
+
+      localStorage.setItem("offline-sales-queue", JSON.stringify(remaining))
+      setOfflineQueueCount(remaining.length)
+
+      if (syncedCount > 0) {
+        fetchDashboardData(activeVendorId)
+        fetchInventory(activeVendorId)
+        fetchSales(activeVendorId)
+        toast({
+          title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"),
+          description: translate(
+            `${syncedCount} vente(s) ont été envoyées`,
+            `تم إرسال ${syncedCount} عملية بيع`
+          ),
+        })
+      }
+    } catch (error) {
+      console.warn("[POS] Failed to sync offline queue automatically", error)
+    }
+  }, [activeVendorId, fetchDashboardData, fetchInventory, fetchSales, isElectronRuntime, offlineQueueCount, toast, translate])
+
+  useEffect(() => {
+    syncOfflineSales()
+    const handleOnline = () => syncOfflineSales()
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline)
+    }
+    const interval = setInterval(syncOfflineSales, 15000)
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline)
+      }
+      clearInterval(interval)
+    }
+  }, [syncOfflineSales])
+
+  // Load vendor store info to control intake/pause
+  useEffect(() => {
+    const targetVendorId = isAdmin ? activeVendorId : user?.id
+    if (!targetVendorId) return
+
+    const controller = new AbortController()
+    const loadStore = async () => {
+      try {
+        const res = await fetch(`/api/stores?vendorId=${targetVendorId}&includeInactive=true&limit=1`, {
+          signal: controller.signal,
+        })
+        const data = await res.json()
+        const stores = data?.data?.stores || data?.stores || []
+        if (stores.length > 0) {
+          setStoreId(stores[0].id)
+          setIsAcceptingOrders(stores[0].isActive !== false)
+        }
+      } catch (error) {
+        console.warn('[Vendor] Failed to load store info', error)
+      }
+    }
+
+    loadStore()
+    return () => controller.abort()
+  }, [user?.id, activeVendorId, isAdmin, setStoreId, setIsAcceptingOrders])
+
+  // Initial offline queue count
+  useEffect(() => {
+    if (isElectronRuntime) {
+      refreshOfflineQueueCount()
+    }
+  }, [isElectronRuntime, refreshOfflineQueueCount])
   
   // POS States - using custom hook
   const {
@@ -672,6 +772,7 @@ export default function VendorDashboard() {
     setPosKeypadValue,
     setPosSearch,
     addToCart,
+    addCustomItemToCart,
     removeFromCart,
     updateCartQuantity,
     clearCart,
@@ -989,17 +1090,17 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   })
 
   // ALL HOOKS MUST BE CALLED BEFORE CONDITIONAL RETURNS
-  // Calculate remaining cart values derived from subtotal
-  const cartTax = useMemo(() => {
-    const subtotalAfterDiscount = cartSubtotal - posDiscount
-    return subtotalAfterDiscount * (posTaxPercent / 100) // Adjustable tax percentage
-  }, [cartSubtotal, posDiscount, posTaxPercent])
-  const cartTotal = cartSubtotal - posDiscount + cartTax
+  // Calculate remaining cart values derived from subtotal (tax removed)
+  const cartTax = 0 // Tax removed
+  const calculatedTotal = cartSubtotal - posDiscount
+  const cartTotal = manualTotal !== null ? manualTotal : calculatedTotal
   
-  // Update posTax when cart changes
+  // Clear manual total when cart is cleared
   useEffect(() => {
-    setPosTax(cartTax)
-  }, [cartTax, setPosTax])
+    if (posCart.length === 0) {
+      setManualTotal(null)
+    }
+  }, [posCart.length])
 
   // POS Handler Functions - using custom hook
   const {
@@ -1018,6 +1119,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     clearCart,
     setPosTaxPercentDefault: setPosTaxPercent,
   })
+
+  // Manual total handler
+  const handleManualTotalChange = useCallback((value: number | null) => {
+    setManualTotal(value)
+  }, [])
 
   const handleShopInfoChange = (field: string, value: string) => {
     setShopInfo((prev: any) => ({ ...prev, [field]: value }))
@@ -1137,40 +1243,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
           {/* POS Tab - Modern ALBAZ Design */}
           <TabsContent value="pos" className="space-y-0 p-0 -mx-2 sm:-mx-4">
-          {featureFlags.offlineQueue && (
-            <div className="mx-4 my-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-4 py-2 text-sm flex items-center justify-between gap-3 flex-wrap">
-              <span>
-                {translate("Ventes en attente de synchronisation", "مبيعات تنتظر المزامنة")}: {offlineQueueCount}
-              </span>
-              {isElectronRuntime && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                      const stats = await (window as any)?.electronAPI?.offline?.syncNow?.()
-                      if (stats?.pendingSales != null) {
-                        setOfflineQueueCount(stats.pendingSales)
-                        toast({
-                          title: translate("Synchronisation terminée", "تمت المزامنة"),
-                          description: translate("Ventes en attente mises à jour", "تم تحديث المبيعات المعلقة"),
-                        })
-                      }
-                    } catch (error) {
-                      console.warn('[Vendor] Offline sync failed', error)
-                      toast({
-                        title: translate("Échec de la synchronisation", "فشل المزامنة"),
-                        description: translate("Réessayez plus tard ou vérifiez la connexion", "أعد المحاولة لاحقاً أو تحقق من الاتصال"),
-                        variant: "destructive",
-                      })
-                    }
-                  }}
-                >
-                  {translate("Synchroniser maintenant", "مزامنة الآن")}
-                </Button>
-              )}
-            </div>
-          )}
       <POSView
               products={products}
               categories={categories}
@@ -1185,6 +1257,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               cartSubtotal={cartSubtotal}
               cartTax={cartTax}
               cartTotal={cartTotal}
+              manualTotal={manualTotal}
               isBarcodeDetectorSupported={isBarcodeDetectorSupported}
               isArabic={isArabic}
               translate={translate}
@@ -1198,6 +1271,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onKeypadKey={handleKeypadKey}
               onClearDiscount={handleClearDiscount}
               onClearCart={handleClearCart}
+              onManualTotalChange={handleManualTotalChange}
+              onAddCustomItem={addCustomItemToCart}
         onCompleteSale={completeSale}
             />
           </TabsContent>
@@ -1393,6 +1468,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <SalesTab
               sales={sales}
               translate={translate}
+              user={user}
+              shopInfo={shopInfo}
             />
           </TabsContent>
 

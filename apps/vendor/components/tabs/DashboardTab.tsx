@@ -1,11 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/root/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/card"
 import { Badge } from "@/root/components/ui/badge"
-import { DollarSign, TrendingUp, BarChart3, AlertTriangle, ShoppingCart, Plus, Package, History } from "lucide-react"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
+import { DollarSign, TrendingUp, BarChart3, AlertTriangle, ShoppingCart, Plus, Package, History, Users, Edit, Trash2 } from "lucide-react"
 import type { InventoryProduct } from "@/root/lib/types"
 import type { TopProductData } from "../../app/vendor/types"
+import { StaffDialog, type StaffMember } from "../dialogs/StaffDialog"
 
 interface DashboardTabProps {
   todaySales: number
@@ -28,6 +31,65 @@ export function DashboardTab({
   setActiveTab,
   setShowProductDialog,
 }: DashboardTabProps) {
+  const [staff, setStaff] = useState<StaffMember[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('vendor-staff')
+      return stored ? JSON.parse(stored) : []
+    }
+    return []
+  })
+  const [showStaffDialog, setShowStaffDialog] = useState(false)
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
+
+  const handleAddStaff = () => {
+    setSelectedStaff(null)
+    setShowStaffDialog(true)
+  }
+
+  const handleEditStaff = (staffMember: StaffMember) => {
+    setSelectedStaff(staffMember)
+    setShowStaffDialog(true)
+  }
+
+  const handleDeleteStaff = (id: string) => {
+    if (confirm(translate("Êtes-vous sûr de vouloir supprimer ce membre du personnel?", "هل أنت متأكد من حذف هذا الموظف?"))) {
+      const updated = staff.filter((s) => s.id !== id)
+      setStaff(updated)
+      localStorage.setItem('vendor-staff', JSON.stringify(updated))
+    }
+  }
+
+  const handleSaveStaff = (staffData: StaffMember) => {
+    if (selectedStaff && selectedStaff.id) {
+      // Update existing
+      const updated = staff.map((s) => (s.id === selectedStaff.id ? { ...staffData, id: selectedStaff.id } : s))
+      setStaff(updated)
+      localStorage.setItem('vendor-staff', JSON.stringify(updated))
+    } else {
+      // Add new
+      const newStaff: StaffMember = {
+        ...staffData,
+        id: Date.now().toString(),
+      }
+      const updated = [...staff, newStaff]
+      setStaff(updated)
+      localStorage.setItem('vendor-staff', JSON.stringify(updated))
+    }
+    setShowStaffDialog(false)
+    setSelectedStaff(null)
+  }
+
+  const getRoleLabel = (role: string) => {
+    const roles: Record<string, { fr: string; ar: string }> = {
+      owner: { fr: "Propriétaire", ar: "المالك" },
+      manager: { fr: "Gestionnaire", ar: "المدير" },
+      cashier: { fr: "Caissier", ar: "أمين الصندوق" },
+      staff: { fr: "Personnel", ar: "موظف" },
+    }
+    const roleInfo = roles[role] || roles.staff
+    return translate(roleInfo.fr, roleInfo.ar)
+  }
+
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       {/* Sales Metrics */}
@@ -144,6 +206,76 @@ export function DashboardTab({
         </Card>
       </div>
 
+      {/* Staff Management */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              {translate("Gestion du personnel", "إدارة الموظفين")}
+            </CardTitle>
+            <Button onClick={handleAddStaff} size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              {translate("Ajouter", "إضافة")}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {staff.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground mb-4">
+                {translate("Aucun membre du personnel", "لا يوجد موظفين")}
+              </p>
+              <Button onClick={handleAddStaff} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                {translate("Ajouter du personnel", "إضافة موظف")}
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{translate("Nom", "الاسم")}</TableHead>
+                  <TableHead>{translate("Email", "البريد")}</TableHead>
+                  <TableHead>{translate("Rôle", "الدور")}</TableHead>
+                  <TableHead className="text-right">{translate("Actions", "الإجراءات")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {staff.map((member) => (
+                  <TableRow key={member.id}>
+                    <TableCell className="font-medium">{member.name}</TableCell>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{getRoleLabel(member.role)}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditStaff(member)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => member.id && handleDeleteStaff(member.id)}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Quick Actions */}
       <Card>
         <CardHeader>
@@ -170,6 +302,15 @@ export function DashboardTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* Staff Dialog */}
+      <StaffDialog
+        open={showStaffDialog}
+        onOpenChange={setShowStaffDialog}
+        staff={selectedStaff}
+        translate={translate}
+        onSave={handleSaveStaff}
+      />
     </div>
   )
 }

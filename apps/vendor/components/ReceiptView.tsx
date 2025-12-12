@@ -98,6 +98,25 @@ export function ReceiptView({
                 <span className="font-medium font-mono">{completedSale.id.slice(0, 8)}</span>
               </div>
             </div>
+            
+            {/* Barcode for Order */}
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col items-center">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                  {translate("Code-barres pour remboursement", "رمز شريطي للاسترداد")}
+                </p>
+                <div className="bg-white p-3 rounded border border-gray-300 dark:border-gray-700">
+                  <img
+                    src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(completedSale.id)}&code=Code128&dpi=96&dataseparator=`}
+                    alt={translate("Code-barres", "رمز شريطي")}
+                    className="h-16 w-auto max-w-full"
+                  />
+                </div>
+                <p className="text-xs font-mono text-gray-700 dark:text-gray-300 mt-2">
+                  {completedSale.id}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Items */}
@@ -154,11 +173,6 @@ export function ReceiptView({
             <p className="text-xs text-gray-500 dark:text-gray-500">
               {translate("Paiement", "الدفع")}: {completedSale.paymentMethod === "cash" ? translate("Espèces", "نقد") : translate("Carte", "بطاقة")}
             </p>
-            {shopInfo?.cover && (
-              <div className="mt-4 w-full h-24 rounded-md overflow-hidden border">
-                <img src={shopInfo.cover} alt="Cover" className="w-full h-full object-cover" />
-              </div>
-            )}
           </div>
 
           {/* Actions */}

@@ -33,6 +33,26 @@ export function ReceiptDialog({
               <p className="text-sm text-muted-foreground">
                 {translate("Date", "التاريخ")}: {new Date(lastSale.createdAt).toLocaleString()}
               </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {translate("Numéro", "الرقم")}: {lastSale.id.slice(0, 8)}
+              </p>
+              
+              {/* Barcode for Order */}
+              <div className="mt-4 pt-4 border-t">
+                <p className="text-xs text-muted-foreground mb-2">
+                  {translate("Code-barres", "رمز شريطي")}
+                </p>
+                <div className="bg-white p-2 rounded border border-gray-300 inline-block">
+                  <img
+                    src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(lastSale.id)}&code=Code128&dpi=96&dataseparator=`}
+                    alt={translate("Code-barres", "رمز شريطي")}
+                    className="h-12 w-auto max-w-full"
+                  />
+                </div>
+                <p className="text-xs font-mono text-muted-foreground mt-1">
+                  {lastSale.id}
+                </p>
+              </div>
             </div>
             <div className="space-y-2">
               <h4 className="font-medium">{translate("Articles", "العناصر")}:</h4>
