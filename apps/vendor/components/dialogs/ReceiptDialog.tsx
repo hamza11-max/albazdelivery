@@ -1,8 +1,15 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/root/components/ui/dialog"
+import { useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/root/components/ui/dialog"
 import { Badge } from "@/root/components/ui/badge"
+import { Button } from "@/root/components/ui/button"
+import { Input } from "@/root/components/ui/input"
+import { Label } from "@/root/components/ui/label"
+import { Mail, Send } from "lucide-react"
 import type { Sale } from "@/root/lib/types"
+import { sendReceiptEmail } from "../../utils/emailUtils"
+import { useToast } from "@/root/hooks/use-toast"
 
 interface ReceiptDialogProps {
   open: boolean
@@ -17,6 +24,49 @@ export function ReceiptDialog({
   lastSale,
   translate,
 }: ReceiptDialogProps) {
+  const { toast } = useToast()
+  const [customerEmail, setCustomerEmail] = useState("")
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [showEmailInput, setShowEmailInput] = useState(false)
+
+  const handleSendEmail = async () => {
+    if (!lastSale || !customerEmail.trim()) {
+      toast({
+        title: translate("Email requis", "البريد الإلكتروني مطلوب"),
+        description: translate("Veuillez entrer une adresse email", "يرجى إدخال عنوان بريد إلكتروني"),
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsSendingEmail(true)
+    try {
+      const result = await sendReceiptEmail(lastSale, customerEmail.trim())
+      if (result.success) {
+        toast({
+          title: translate("Email envoyé", "تم إرسال البريد"),
+          description: translate("Le reçu a été envoyé par email avec succès", "تم إرسال الإيصال عبر البريد الإلكتروني بنجاح"),
+        })
+        setShowEmailInput(false)
+        setCustomerEmail("")
+      } else {
+        toast({
+          title: translate("Erreur", "خطأ"),
+          description: result.message,
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: translate("Erreur", "خطأ"),
+        description: translate("Échec de l'envoi de l'email", "فشل إرسال البريد الإلكتروني"),
+        variant: "destructive",
+      })
+    } finally {
+      setIsSendingEmail(false)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -90,8 +140,45 @@ export function ReceiptDialog({
                 </Badge>
               </div>
             </div>
+            {showEmailInput && (
+              <div className="pt-4 border-t space-y-2">
+                <Label>{translate("Envoyer le reçu par email", "إرسال الإيصال عبر البريد")}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder={translate("email@exemple.com", "email@exemple.com")}
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSendEmail}
+                    disabled={isSendingEmail || !customerEmail.trim()}
+                    size="sm"
+                  >
+                    {isSendingEmail ? (
+                      <Send className="w-4 h-4 animate-pulse" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
+        <DialogFooter>
+          {!showEmailInput && (
+            <Button
+              variant="outline"
+              onClick={() => setShowEmailInput(true)}
+              className="w-full"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              {translate("Envoyer par email", "إرسال عبر البريد")}
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

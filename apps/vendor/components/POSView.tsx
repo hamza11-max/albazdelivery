@@ -42,6 +42,11 @@ interface POSViewProps {
   onManualTotalChange: (value: number | null) => void
   onAddCustomItem: (name: string, price: number) => void
   onCompleteSale: (paymentMethod: "cash" | "card") => void
+  posCouponCode?: string
+  posAppliedCoupon?: any
+  onCouponCodeChange?: (code: string) => void
+  onApplyCoupon?: () => void
+  onRemoveCoupon?: () => void
 }
 
 export function POSView({
@@ -75,6 +80,11 @@ export function POSView({
   onManualTotalChange,
   onAddCustomItem,
   onCompleteSale,
+  posCouponCode = "",
+  posAppliedCoupon = null,
+  onCouponCodeChange = () => {},
+  onApplyCoupon = () => {},
+  onRemoveCoupon = () => {},
 }: POSViewProps) {
   const [showCustomItemDialog, setShowCustomItemDialog] = useState(false)
   const [customItemName, setCustomItemName] = useState("")
@@ -305,6 +315,45 @@ export function POSView({
             <span className="text-gray-600 dark:text-gray-400">{translate("Sous-total", "المجموع الفرعي")}:</span>
             <span className="font-semibold text-gray-900 dark:text-gray-100">{cartSubtotal.toFixed(2)} {translate("DZD", "دج")}</span>
           </div>
+          
+          {/* Coupon Code Input */}
+          <div className="space-y-2">
+            <Label className="text-xs text-gray-600 dark:text-gray-400">{translate("Code promo", "رمز الخصم")}</Label>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder={translate("Entrez le code", "أدخل الرمز")}
+                value={posCouponCode}
+                onChange={(e) => onCouponCodeChange(e.target.value.toUpperCase())}
+                className="flex-1 h-8 text-xs"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onApplyCoupon}
+                className="h-8 px-3 text-xs"
+              >
+                {translate("Appliquer", "تطبيق")}
+              </Button>
+            </div>
+            {posAppliedCoupon && (
+              <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded text-xs">
+                <span className="text-green-700 dark:text-green-300">
+                  {translate("Coupon appliqué", "تم تطبيق الكوبون")}: {posAppliedCoupon.code}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onRemoveCoupon}
+                  className="h-6 w-6 p-0 text-red-500"
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-between text-sm gap-2">
             <div className="flex items-center gap-2 flex-1">
               <span className="text-gray-600 dark:text-gray-400">{translate("Remise", "الخصم")}:</span>

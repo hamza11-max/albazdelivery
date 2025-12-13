@@ -3,6 +3,7 @@
 import type { Sale } from "@/root/lib/types"
 import type { CartItem } from "../app/vendor/types"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
+import { addLoyaltyPoints, calculatePointsEarned, getLoyaltyRules } from "./loyaltyUtils"
 
 interface CompleteSaleParams {
   paymentMethod: "cash" | "card"
@@ -166,6 +167,28 @@ export async function completeSale({
     setLowStockProducts(storedProducts.filter((p: any) => p.stock <= (p.lowStockThreshold ?? 10)))
     
     // Show success
+    // Award loyalty points if customer exists
+    if (posCustomerId) {
+      try {
+        const rules = getLoyaltyRules()
+        const activeRule = rules.find((r) => r.isActive) || rules[0]
+        if (activeRule) {
+          const pointsEarned = calculatePointsEarned(totalForAPI, activeRule)
+          if (pointsEarned > 0) {
+            addLoyaltyPoints(
+              String(posCustomerId),
+              localSale.customerName || translate("Client", "عميل"),
+              localSale.customerPhone || "",
+              pointsEarned,
+              totalForAPI
+            )
+          }
+        }
+      } catch (error) {
+        console.warn('[POS] Failed to award loyalty points:', error)
+      }
+    }
+
     setLastSale(localSale)
     setCompletedSale(localSale)
     setShowSaleSuccessDialog(true)
@@ -266,6 +289,29 @@ export async function completeSale({
     
     if (data.success) {
       const saleWithTax = { ...data.sale, tax }
+      
+      // Award loyalty points if customer exists
+      if (posCustomerId && data.sale) {
+        try {
+          const rules = getLoyaltyRules()
+          const activeRule = rules.find((r) => r.isActive) || rules[0]
+          if (activeRule) {
+            const pointsEarned = calculatePointsEarned(totalForAPI, activeRule)
+            if (pointsEarned > 0) {
+              addLoyaltyPoints(
+                String(posCustomerId),
+                data.sale.customerName || translate("Client", "عميل"),
+                data.sale.customerPhone || "",
+                pointsEarned,
+                totalForAPI
+              )
+            }
+          }
+        } catch (error) {
+          console.warn('[POS] Failed to award loyalty points:', error)
+        }
+      }
+      
       setLastSale(saleWithTax)
       setCompletedSale(saleWithTax)
       setShowSaleSuccessDialog(true)

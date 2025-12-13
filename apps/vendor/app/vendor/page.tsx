@@ -70,6 +70,14 @@ import { CustomersTab } from "../../components/tabs/CustomersTab"
 import { SuppliersTab } from "../../components/tabs/SuppliersTab"
 import { AITab } from "../../components/tabs/AITab"
 import { SettingsTab } from "../../components/tabs/SettingsTab"
+import { ReportsTab } from "../../components/tabs/ReportsTab"
+import { CouponsTab } from "../../components/tabs/CouponsTab"
+import { BackupTab } from "../../components/tabs/BackupTab"
+import { CloudSyncTab } from "../../components/tabs/CloudSyncTab"
+import { EmailTab } from "../../components/tabs/EmailTab"
+import { PermissionsTab } from "../../components/tabs/PermissionsTab"
+import { LoyaltyTab } from "../../components/tabs/LoyaltyTab"
+import { InventoryAlertsTab } from "../../components/tabs/InventoryAlertsTab"
 import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
 import { ReceiptDialog } from "../../components/dialogs/ReceiptDialog"
 import { ImageUploadDialog } from "../../components/dialogs/ImageUploadDialog"
@@ -771,11 +779,16 @@ export default function VendorDashboard() {
     setPosOrderNumber,
     setPosKeypadValue,
     setPosSearch,
+    posCouponCode,
+    posAppliedCoupon,
+    setPosCouponCode,
+    setPosAppliedCoupon,
     addToCart,
     addCustomItemToCart,
     removeFromCart,
     updateCartQuantity,
     clearCart,
+    applyCoupon,
   } = usePOSCart()
   
   // Update discount when keypad value changes
@@ -797,6 +810,47 @@ export default function VendorDashboard() {
       }
     }
   }, [posKeypadValue, cartSubtotal, setPosDiscount, setPosDiscountPercent])
+
+  // Coupon handlers
+  const handleApplyCoupon = useCallback(() => {
+    if (!posCouponCode.trim()) return
+
+    const coupons: any[] = JSON.parse(localStorage.getItem('vendor-coupons') || '[]')
+    const coupon = coupons.find((c) => c.code.toUpperCase() === posCouponCode.toUpperCase())
+
+    if (!coupon) {
+      toast({
+        title: translate("Coupon invalide", "كوبون غير صالح"),
+        description: translate("Le code coupon n'existe pas", "رمز الكوبون غير موجود"),
+        variant: "destructive",
+      })
+      return
+    }
+
+    const result = applyCoupon(coupon, cartSubtotal)
+    if (result.discount > 0) {
+      setPosAppliedCoupon(coupon)
+      setPosDiscount(result.discount)
+      setPosDiscountPercent((result.discount / cartSubtotal) * 100)
+      toast({
+        title: translate("Coupon appliqué", "تم تطبيق الكوبون"),
+        description: translate(`Réduction de ${result.discount.toFixed(2)} DZD appliquée`, `تم تطبيق خصم بقيمة ${result.discount.toFixed(2)} دج`),
+      })
+    } else {
+      toast({
+        title: translate("Coupon non applicable", "الكوبون غير قابل للتطبيق"),
+        description: translate("Le coupon ne peut pas être appliqué à cette commande", "لا يمكن تطبيق الكوبون على هذا الطلب"),
+        variant: "destructive",
+      })
+    }
+  }, [posCouponCode, cartSubtotal, applyCoupon, toast, translate, setPosAppliedCoupon, setPosDiscount, setPosDiscountPercent])
+
+  const handleRemoveCoupon = useCallback(() => {
+    setPosAppliedCoupon(null)
+    setPosCouponCode("")
+    setPosDiscount(0)
+    setPosDiscountPercent(0)
+  }, [setPosAppliedCoupon, setPosCouponCode, setPosDiscount, setPosDiscountPercent])
 
   // Barcode Scanner - now using hook (must be after translate is defined)
   const {
@@ -998,6 +1052,19 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   // Complete Sale - using utility function
   const completeSale = async (paymentMethod: "cash" | "card") => {
     if (!guardOrderWindow()) return
+    
+    // Track coupon usage if a coupon was applied
+    if (posAppliedCoupon && posAppliedCoupon.id) {
+      const coupons: any[] = JSON.parse(localStorage.getItem('vendor-coupons') || '[]')
+      const updatedCoupons = coupons.map((c) => {
+        if (c.id === posAppliedCoupon.id) {
+          return { ...c, usedCount: (c.usedCount || 0) + 1 }
+        }
+        return c
+      })
+      localStorage.setItem('vendor-coupons', JSON.stringify(updatedCoupons))
+    }
+    
     const success = await completeSaleUtil({
       paymentMethod,
       posCart,
@@ -1273,7 +1340,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onClearCart={handleClearCart}
               onManualTotalChange={handleManualTotalChange}
               onAddCustomItem={addCustomItemToCart}
-        onCompleteSale={completeSale}
+              onCompleteSale={completeSale}
+              posCouponCode={posCouponCode}
+              posAppliedCoupon={posAppliedCoupon}
+              onCouponCodeChange={setPosCouponCode}
+              onApplyCoupon={handleApplyCoupon}
+              onRemoveCoupon={handleRemoveCoupon}
             />
           </TabsContent>
 
@@ -1471,6 +1543,53 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               user={user}
               shopInfo={shopInfo}
             />
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <ReportsTab
+              sales={sales}
+              products={products}
+              translate={translate}
+            />
+          </TabsContent>
+
+          {/* Coupons Tab */}
+          <TabsContent value="coupons" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <CouponsTab
+              translate={translate}
+              isArabic={isArabic}
+            />
+          </TabsContent>
+
+          {/* Backup Tab */}
+          <TabsContent value="backup" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <BackupTab translate={translate} />
+          </TabsContent>
+
+          {/* Cloud Sync Tab */}
+          <TabsContent value="cloud-sync" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <CloudSyncTab translate={translate} vendorId={activeVendorId} />
+          </TabsContent>
+
+          {/* Email Tab */}
+          <TabsContent value="email" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <EmailTab translate={translate} />
+          </TabsContent>
+
+          {/* Permissions Tab */}
+          <TabsContent value="permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <PermissionsTab translate={translate} />
+          </TabsContent>
+
+          {/* Loyalty Tab */}
+          <TabsContent value="loyalty" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <LoyaltyTab translate={translate} />
+          </TabsContent>
+
+          {/* Inventory Alerts Tab */}
+          <TabsContent value="inventory-alerts" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <InventoryAlertsTab translate={translate} />
           </TabsContent>
 
           {/* Customers Tab */}

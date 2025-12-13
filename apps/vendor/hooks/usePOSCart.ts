@@ -15,6 +15,8 @@ export function usePOSCart() {
   })
   const [posKeypadValue, setPosKeypadValue] = useState<string>("")
   const [posSearch, setPosSearch] = useState("")
+  const [posCouponCode, setPosCouponCode] = useState<string>("")
+  const [posAppliedCoupon, setPosAppliedCoupon] = useState<any>(null)
 
   const cartSubtotal = useMemo(() => {
     return posCart.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -81,7 +83,37 @@ export function usePOSCart() {
     setPosDiscount(0)
     setPosDiscountPercent(0)
     setPosKeypadValue("")
+    setPosCouponCode("")
+    setPosAppliedCoupon(null)
     setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
+  }, [])
+
+  const applyCoupon = useCallback((coupon: any, subtotal: number) => {
+    if (!coupon || !coupon.isActive) return { discount: 0, coupon: null }
+
+    const now = new Date()
+    const start = new Date(coupon.startDate)
+    const end = new Date(coupon.endDate)
+    
+    // Check if coupon is valid
+    if (now < start || now > end) return { discount: 0, coupon: null }
+    if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) return { discount: 0, coupon: null }
+    if (coupon.minPurchase > 0 && subtotal < coupon.minPurchase) return { discount: 0, coupon: null }
+
+    let discount = 0
+    if (coupon.type === "percentage") {
+      discount = (subtotal * coupon.value) / 100
+      if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+        discount = coupon.maxDiscount
+      }
+    } else {
+      discount = coupon.value
+      if (discount > subtotal) {
+        discount = subtotal
+      }
+    }
+
+    return { discount, coupon }
   }, [])
 
   return {
@@ -96,6 +128,8 @@ export function usePOSCart() {
     posOrderNumber,
     posKeypadValue,
     posSearch,
+    posCouponCode,
+    posAppliedCoupon,
     cartSubtotal,
     
     // Setters
@@ -109,6 +143,8 @@ export function usePOSCart() {
     setPosOrderNumber,
     setPosKeypadValue,
     setPosSearch,
+    setPosCouponCode,
+    setPosAppliedCoupon,
     
     // Actions
     addToCart,
@@ -116,6 +152,7 @@ export function usePOSCart() {
     removeFromCart,
     updateCartQuantity,
     clearCart,
+    applyCoupon,
   }
 }
 

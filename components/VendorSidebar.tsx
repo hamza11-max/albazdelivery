@@ -15,6 +15,13 @@ import {
   ShoppingBag,
   UserCog,
   Store,
+  Percent,
+  Database,
+  Cloud,
+  Mail,
+  Shield,
+  Gift,
+  Bell,
 } from "lucide-react"
 import { cn } from "../lib/utils"
 
@@ -77,6 +84,54 @@ export default function VendorSidebar({
       icon: History,
       labelFr: "Ventes",
       labelAr: "المبيعات",
+    },
+    {
+      id: "reports",
+      icon: BarChart3,
+      labelFr: "Rapports",
+      labelAr: "التقارير",
+    },
+    {
+      id: "coupons",
+      icon: Percent,
+      labelFr: "Coupons",
+      labelAr: "الكوبونات",
+    },
+    {
+      id: "backup",
+      icon: Database,
+      labelFr: "Sauvegarde",
+      labelAr: "النسخ الاحتياطي",
+    },
+    {
+      id: "cloud-sync",
+      icon: Cloud,
+      labelFr: "Sync Cloud",
+      labelAr: "مزامنة السحابة",
+    },
+    {
+      id: "email",
+      icon: Mail,
+      labelFr: "Email",
+      labelAr: "البريد الإلكتروني",
+    },
+    {
+      id: "permissions",
+      icon: Shield,
+      labelFr: "Permissions",
+      labelAr: "الصلاحيات",
+    },
+    {
+      id: "loyalty",
+      icon: Gift,
+      labelFr: "Fidélité",
+      labelAr: "الولاء",
+    },
+    {
+      id: "inventory-alerts",
+      icon: Bell,
+      labelFr: "Alertes",
+      labelAr: "التنبيهات",
     },
     {
       id: "customers",
