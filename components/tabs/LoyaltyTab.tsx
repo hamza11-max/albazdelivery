@@ -24,7 +24,7 @@ import {
   type LoyaltyTier,
   type LoyaltyRule,
   type CustomerLoyalty,
-} from \"@/utils/loyaltyUtils"
+} from "@/utils/loyaltyUtils"
 import { useToast } from "@/hooks/use-toast"
 
 interface LoyaltyTabProps {

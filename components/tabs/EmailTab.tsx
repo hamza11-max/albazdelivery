@@ -8,7 +8,7 @@ import { Label } from "@/root/components/ui/label"
 import { Switch } from "@/root/components/ui/switch"
 import { Badge } from "@/root/components/ui/badge"
 import { Mail, Send, Settings, TestTube, AlertCircle, CheckCircle2 } from "lucide-react"
-import { getEmailConfig, saveEmailConfig, sendEmail, type EmailConfig } from \"@/utils/emailUtils"
+import { getEmailConfig, saveEmailConfig, sendEmail, type EmailConfig } from "@/utils/emailUtils"
 import { useToast } from "@/hooks/use-toast"
 
 interface EmailTabProps {

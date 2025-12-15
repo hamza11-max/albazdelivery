@@ -7,7 +7,7 @@ import { Switch } from "@/root/components/ui/switch"
 import { Label } from "@/root/components/ui/label"
 import { Badge } from "@/root/components/ui/badge"
 import { Cloud, CloudOff, RefreshCw, CheckCircle2, AlertCircle, Clock, Wifi, WifiOff } from "lucide-react"
-import { getCloudSyncManager, type SyncStatus } from \"@/utils/cloudSyncUtils"
+import { getCloudSyncManager, type SyncStatus } from "@/utils/cloudSyncUtils"
 import { useToast } from "@/hooks/use-toast"
 
 interface CloudSyncTabProps {

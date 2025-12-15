@@ -7,7 +7,7 @@ import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import { Badge } from "@/root/components/ui/badge"
 import { Download, Upload, Database, Clock, History, AlertCircle, CheckCircle2 } from "lucide-react"
-import { createBackup, restoreBackup, downloadBackup, uploadBackup, getBackupInfo, saveBackupHistory, type BackupData } from \"@/utils/backupUtils"
+import { createBackup, restoreBackup, downloadBackup, uploadBackup, getBackupInfo, saveBackupHistory, type BackupData } from "@/utils/backupUtils"
 import { useToast } from "@/hooks/use-toast"
 
 interface BackupTabProps {

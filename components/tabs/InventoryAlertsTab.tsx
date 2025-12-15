@@ -22,7 +22,7 @@ import {
   type AlertHistory,
   type AlertChannel,
   type AlertType,
-} from \"@/utils/inventoryAlertsUtils"
+} from "@/utils/inventoryAlertsUtils"
 import { useToast } from "@/hooks/use-toast"
 
 interface InventoryAlertsTabProps {
