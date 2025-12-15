@@ -18,8 +18,8 @@ import {
   type Permission,
   type Role,
   type StaffMember,
-} from "../../utils/permissionsUtils"
-import { useToast } from "@/root/hooks/use-toast"
+} from "@/utils/permissionsUtils"
+import { useToast } from "@/hooks/use-toast"
 
 interface PermissionsTabProps {
   translate: (fr: string, ar: string) => string

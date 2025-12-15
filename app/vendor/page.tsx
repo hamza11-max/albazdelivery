@@ -71,6 +71,17 @@ import { CustomersTab } from "../../components/tabs/CustomersTab"
 import { SuppliersTab } from "../../components/tabs/SuppliersTab"
 import { AITab } from "../../components/tabs/AITab"
 import { SettingsTab } from "../../components/tabs/SettingsTab"
+import { ReportsTab } from "../../components/tabs/ReportsTab"
+import { CouponsTab } from "../../components/tabs/CouponsTab"
+import { BackupTab } from "../../components/tabs/BackupTab"
+import { CloudSyncTab } from "../../components/tabs/CloudSyncTab"
+import { EmailTab } from "../../components/tabs/EmailTab"
+import { PermissionsTab } from "../../components/tabs/PermissionsTab"
+import { LoyaltyTab } from "../../components/tabs/LoyaltyTab"
+import { InventoryAlertsTab } from "../../components/tabs/InventoryAlertsTab"
+import { InvoiceView } from "../../components/InvoiceView"
+import { DayHoursInput } from "../../components/DayHoursInput"
+import { StaffDialog } from "../../components/dialogs/StaffDialog"
 import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
 import { ReceiptDialog } from "../../components/dialogs/ReceiptDialog"
 import { ImageUploadDialog } from "../../components/dialogs/ImageUploadDialog"
@@ -1131,6 +1142,56 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               sales={sales}
               translate={translate}
             />
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <ReportsTab
+              sales={sales}
+              products={products}
+              translate={translate}
+            />
+          </TabsContent>
+
+          {/* Coupons Tab */}
+          <TabsContent value="coupons" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <CouponsTab
+              translate={translate}
+              isArabic={language === "ar"}
+            />
+          </TabsContent>
+
+          {/* Backup Tab */}
+          <TabsContent value="backup" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <BackupTab translate={translate} />
+          </TabsContent>
+
+          {/* Cloud Sync Tab */}
+          <TabsContent value="cloud-sync" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <CloudSyncTab
+              translate={translate}
+              vendorId={user?.id}
+            />
+          </TabsContent>
+
+          {/* Email Tab */}
+          <TabsContent value="email" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <EmailTab translate={translate} />
+          </TabsContent>
+
+          {/* Permissions Tab */}
+          <TabsContent value="permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <PermissionsTab translate={translate} />
+          </TabsContent>
+
+          {/* Loyalty Tab */}
+          <TabsContent value="loyalty" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <LoyaltyTab translate={translate} />
+          </TabsContent>
+
+          {/* Inventory Alerts Tab */}
+          <TabsContent value="inventory-alerts" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <InventoryAlertsTab translate={translate} />
           </TabsContent>
 
           {/* Customers Tab */}

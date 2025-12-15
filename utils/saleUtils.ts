@@ -3,6 +3,8 @@
 import type { Sale } from "@/root/lib/types"
 import type { CartItem } from "../app/vendor/types"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
+import { addLoyaltyPoints, getLoyaltyRules, calculatePointsEarned } from "./loyaltyUtils"
+import { checkProductAlerts } from "./inventoryAlertsChecker"
 
 interface CompleteSaleParams {
   paymentMethod: "cash" | "card"
@@ -132,6 +134,40 @@ export async function completeSale({
     setProducts(storedProducts)
     setLowStockProducts(storedProducts.filter((p: any) => p.stock <= (p.lowStockThreshold ?? 10)))
     
+    // Check inventory alerts
+    try {
+      await checkProductAlerts(storedProducts)
+    } catch (alertError) {
+      console.warn('[Sale] Failed to check inventory alerts:', alertError)
+    }
+    
+    // Add loyalty points if customer is provided
+    if (posCustomerId) {
+      try {
+        const rules = getLoyaltyRules()
+        const activeRule = rules.find(r => r.isActive) || rules[0]
+        if (activeRule) {
+          const points = calculatePointsEarned(totalWithTax, activeRule)
+          if (points > 0) {
+            // Get customer info from localStorage or use a default
+            const customers = safeLocalStorageGet<any[]>('electron-customers', [])
+            const customer = customers.find((c: any) => c.id === posCustomerId || String(c.id) === String(posCustomerId))
+            if (customer) {
+              addLoyaltyPoints(
+                String(posCustomerId),
+                customer.name || translate("Client", "العميل"),
+                customer.phone || "",
+                points,
+                totalWithTax
+              )
+            }
+          }
+        }
+      } catch (loyaltyError) {
+        console.warn('[Sale] Failed to add loyalty points:', loyaltyError)
+      }
+    }
+    
     // Show success
     setLastSale(localSale)
     setCompletedSale(localSale)
@@ -226,6 +262,42 @@ export async function completeSale({
     }
     
     if (data.success) {
+      // Add loyalty points if customer is provided
+      if (posCustomerId) {
+        try {
+          const rules = getLoyaltyRules()
+          const activeRule = rules.find(r => r.isActive) || rules[0]
+          if (activeRule) {
+            const points = calculatePointsEarned(totalWithTax, activeRule)
+            if (points > 0) {
+              // Get customer info from customers list or use defaults
+              // In a real implementation, you'd fetch customer details from API
+              const customerName = translate("Client", "العميل")
+              const customerPhone = ""
+              addLoyaltyPoints(
+                String(posCustomerId),
+                customerName,
+                customerPhone,
+                points,
+                totalWithTax
+              )
+            }
+          }
+        } catch (loyaltyError) {
+          console.warn('[Sale] Failed to add loyalty points:', loyaltyError)
+        }
+      }
+      
+      // Check inventory alerts after sale
+      try {
+        const products = await fetchInventory(activeVendorId)
+        if (products && Array.isArray(products)) {
+          await checkProductAlerts(products)
+        }
+      } catch (alertError) {
+        console.warn('[Sale] Failed to check inventory alerts:', alertError)
+      }
+      
       setLastSale(data.sale)
       setCompletedSale(data.sale)
       setShowSaleSuccessDialog(true)
