@@ -262,6 +262,19 @@ export default function VendorDashboard() {
     }
   })
   const [manualTotal, setManualTotal] = useState<number | null>(null)
+  const [shopInfo, setShopInfo] = useState<{
+    name?: string
+    phone?: string
+    email?: string
+    address?: string
+    logo?: string
+  }>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('vendor-shop-info')
+      return stored ? JSON.parse(stored) : {}
+    }
+    return {}
+  })
   const featureFlags = useMemo(() => ({
     orderPause: true,
     prepTimeEta: true,
@@ -1141,6 +1154,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <SalesTab
               sales={sales}
               translate={translate}
+              user={user}
+              shopInfo={shopInfo}
             />
           </TabsContent>
 
