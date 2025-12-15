@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from "react"
-import { useToast } from "@/root/hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { playSuccessSound } from "@/root/lib/notifications"
 import type { InventoryProduct } from "@/root/lib/types"
 
