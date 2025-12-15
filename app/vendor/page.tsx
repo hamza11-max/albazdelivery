@@ -148,6 +148,19 @@ export default function VendorDashboard() {
   const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
   
+  // Dashboard Data and Loading States - must be early to avoid initialization order issues
+  const {
+    loadingState,
+    setLoadingState,
+    fetchWithCache,
+    fetchSales,
+    fetchCustomers,
+    fetchSuppliers,
+    fetchProducts,
+    fetchOrders,
+    fetchCategories
+  } = useDashboardData()
+  
   // All vendor state - using custom hook
   const {
     electronUser,
@@ -524,19 +537,6 @@ export default function VendorDashboard() {
     }
   }, [disputeForm, toast, translate])
   
-  // Dashboard Data and Loading States
-  const {
-    loadingState,
-    setLoadingState,
-    fetchWithCache,
-    fetchSales,
-    fetchCustomers,
-    fetchSuppliers,
-    fetchProducts,
-    fetchOrders,
-    fetchCategories
-  } = useDashboardData()
-  
   // POS States - using custom hook
   const {
     posCart,
@@ -586,7 +586,7 @@ export default function VendorDashboard() {
     }
   }, [posKeypadValue, cartSubtotal, setPosDiscount, setPosDiscountPercent])
 
-  // Barcode Scanner - now using hook (must be after translate is defined)
+  // Barcode Scanner - now using hook (must be after translate and toast are defined)
   const {
     isBarcodeScannerOpen,
     setIsBarcodeScannerOpen,
@@ -598,6 +598,7 @@ export default function VendorDashboard() {
     onProductFound: addToCart,
     onBarcodeScanned: setPosSearch,
     translate,
+    toast,
   })
 
 
@@ -977,7 +978,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               setShowProductDialog={setShowProductDialog}
               setEditingProduct={setEditingProduct}
               setProductForm={setProductForm}
-              setSelectedProductForImage={setSelectedProductForImage}
+              setSelectedProductForImage={(id) => setSelectedProductForImage(typeof id === 'number' ? id : null)}
               setShowImageUploadDialog={setShowImageUploadDialog}
               fetchProducts={fetchProducts}
               handlePostProductToDelivery={handlePostProductToDelivery}

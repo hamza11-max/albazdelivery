@@ -10,6 +10,7 @@ interface UseBarcodeScannerProps {
   onProductFound: (product: InventoryProduct) => void
   onBarcodeScanned?: (barcode: string) => void
   translate: (fr: string, ar: string) => string
+  toast?: ReturnType<typeof useToast>['toast']
 }
 
 export function useBarcodeScanner({
@@ -17,6 +18,7 @@ export function useBarcodeScanner({
   onProductFound,
   onBarcodeScanned,
   translate,
+  toast: toastProp,
 }: UseBarcodeScannerProps) {
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false)
   const [isBarcodeDetectorSupported, setIsBarcodeDetectorSupported] = useState(false)
@@ -27,7 +29,9 @@ export function useBarcodeScanner({
   const barcodeAnimationFrameRef = useRef<number>()
   const barcodeDetectorRef = useRef<any>(null)
   
-  const { toast } = useToast()
+  // Use passed toast or fallback to useToast hook
+  const toastHook = useToast()
+  const toast = toastProp || toastHook.toast
 
   // Check if BarcodeDetector is supported
   useEffect(() => {
