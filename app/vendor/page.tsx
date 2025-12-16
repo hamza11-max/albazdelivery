@@ -41,7 +41,16 @@ import {
   Send,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Home,
+  User,
+  UserCog,
+  Mail,
+  Shield,
+  Gift,
+  Bell,
+  Database,
+  Cloud
 } from "lucide-react"
 
 // UI Components
@@ -112,6 +121,7 @@ import { LoadingScreen } from "../../components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData } from "@/utils/electronUtils"
 import { ErrorBoundary } from "../../components/ErrorBoundary"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 // Types
 import type {
@@ -149,6 +159,10 @@ export default function VendorDashboard() {
   const router = useRouter()
   const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
+  const isMobile = useIsMobile()
+  
+  // Mobile view state - 'home' shows homepage, other values show specific tabs
+  const [mobileView, setMobileView] = useState<'home' | string>('home')
   
   // Dashboard Data and Loading States - must be early to avoid initialization order issues
   const {
@@ -873,6 +887,109 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     setManualTotal(value)
   }, [])
 
+  // Sync mobileView with activeTab when on mobile
+  useEffect(() => {
+    if (isMobile && activeTab !== 'home' && activeTab !== 'settings') {
+      setMobileView(activeTab)
+    } else if (isMobile && activeTab === 'settings') {
+      setMobileView('settings')
+    }
+  }, [activeTab, isMobile])
+
+  // Handle mobile navigation
+  const handleMobileNav = useCallback((tab: string) => {
+    if (tab === 'home') {
+      setMobileView('home')
+    } else {
+      setMobileView(tab)
+      setActiveTab(tab)
+    }
+  }, [setActiveTab])
+
+  // Mobile Homepage Component
+  const MobileHomepage = () => {
+    const menuItems = [
+      { id: "dashboard", icon: LayoutDashboard, labelFr: "Tableau de bord", labelAr: "لوحة التحكم" },
+      { id: "inventory", icon: Package, labelFr: "Inventaire", labelAr: "المخزون" },
+      { id: "orders", icon: ShoppingBag, labelFr: "Commandes", labelAr: "الطلبات" },
+      { id: "sales", icon: History, labelFr: "Ventes", labelAr: "المبيعات" },
+      { id: "reports", icon: BarChart3, labelFr: "Rapports", labelAr: "التقارير" },
+      { id: "coupons", icon: Percent, labelFr: "Coupons", labelAr: "الكوبونات" },
+      { id: "backup", icon: Database, labelFr: "Sauvegarde", labelAr: "النسخ الاحتياطي" },
+      { id: "cloud-sync", icon: Cloud, labelFr: "Sync Cloud", labelAr: "مزامنة السحابة" },
+      { id: "email", icon: Mail, labelFr: "Email", labelAr: "البريد الإلكتروني" },
+      { id: "permissions", icon: Shield, labelFr: "Permissions", labelAr: "الصلاحيات" },
+      { id: "loyalty", icon: Gift, labelFr: "Fidélité", labelAr: "الولاء" },
+      { id: "inventory-alerts", icon: Bell, labelFr: "Alertes", labelAr: "التنبيهات" },
+      { id: "customers", icon: Users, labelFr: "Clients", labelAr: "العملاء" },
+      { id: "drivers", icon: UserCog, labelFr: "Chauffeurs", labelAr: "السائقون" },
+      { id: "suppliers", icon: Truck, labelFr: "Fournisseurs", labelAr: "الموردون" },
+      { id: "ai", icon: BarChart3, labelFr: "Analyse IA", labelAr: "تحليلات الذكاء الاصطناعي" },
+    ]
+
+    return (
+      <div className="p-4 pb-24">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold mb-2">{translate("Menu Principal", "القائمة الرئيسية")}</h1>
+          <p className="text-muted-foreground text-sm">{translate("Sélectionnez une fonctionnalité", "اختر ميزة")}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {menuItems.map((item) => {
+            const Icon = item.icon
+            const label = translate(item.labelFr, item.labelAr)
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleMobileNav(item.id)}
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border border-border hover:bg-accent transition-colors gap-2"
+              >
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Icon className="w-6 h-6 text-primary" />
+                </div>
+                <span className="text-sm font-medium text-center">{label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // Mobile Bottom Navigation
+  const MobileBottomNav = () => (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-t border-border shadow-lg" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex items-center justify-around py-2 px-4">
+        <button
+          onClick={() => handleMobileNav('home')}
+          className={`flex flex-col items-center gap-1 transition-colors p-2 min-w-[60px] ${
+            mobileView === 'home' ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          <Home className="w-6 h-6" />
+          <span className="text-xs font-medium">{translate("Accueil", "الرئيسية")}</span>
+        </button>
+        <button
+          onClick={() => handleMobileNav('pos')}
+          className={`flex flex-col items-center gap-1 transition-colors p-2 min-w-[60px] ${
+            mobileView === 'pos' ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          <ShoppingCart className="w-6 h-6" />
+          <span className="text-xs font-medium">{translate("POS", "نقطة البيع")}</span>
+        </button>
+        <button
+          onClick={() => handleMobileNav('settings')}
+          className={`flex flex-col items-center gap-1 transition-colors p-2 min-w-[60px] ${
+            mobileView === 'settings' ? 'text-primary' : 'text-muted-foreground'
+          }`}
+        >
+          <User className="w-6 h-6" />
+          <span className="text-xs font-medium">{translate("Profil", "الملف الشخصي")}</span>
+        </button>
+      </div>
+    </nav>
+  )
+
   // Show loading state while checking authentication
   if (isLoading || status === "loading") {
     return <LoadingScreen />
@@ -887,36 +1004,45 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   return (
     <ErrorBoundary>
       <div className={`min-h-screen bg-background flex ${isDarkMode ? 'dark' : ''}`} dir={isArabic ? "rtl" : "ltr"}>
-      {/* Vertical Sidebar */}
-      <VendorSidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        language={language}
-        setLanguage={setLanguage}
-        isDarkMode={isDarkMode}
-        setIsDarkMode={setIsDarkMode}
-        translate={translate}
-      />
+      {/* Vertical Sidebar - Hidden on mobile */}
+      {!isMobile && (
+        <VendorSidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          language={language}
+          setLanguage={setLanguage}
+          isDarkMode={isDarkMode}
+          setIsDarkMode={setIsDarkMode}
+          translate={translate}
+        />
+      )}
 
       {/* Main Content */}
-      <main className="flex-1 w-full transition-all duration-300 pl-0 md:pl-[70px] pb-20 md:pb-0 min-w-0 overflow-x-auto" dir={isArabic ? "rtl" : "ltr"}>
+      <main className={`flex-1 w-full transition-all duration-300 ${!isMobile ? 'pl-0 md:pl-[70px] pb-20 md:pb-0' : 'pb-20'} min-w-0 overflow-x-auto`} dir={isArabic ? "rtl" : "ltr"}>
         <div className="w-full h-full px-2 sm:px-4 py-4 sm:py-6">
-          <AdminVendorSelector
-            isAdmin={isAdmin}
-            selectedVendorId={selectedVendorId}
-            setSelectedVendorId={setSelectedVendorId}
-            availableVendors={availableVendors}
-            isLoadingVendors={isLoadingVendors}
-            translate={translate}
-          />
+          {!isMobile && (
+            <AdminVendorSelector
+              isAdmin={isAdmin}
+              selectedVendorId={selectedVendorId}
+              setSelectedVendorId={setSelectedVendorId}
+              availableVendors={availableVendors}
+              isLoadingVendors={isLoadingVendors}
+              translate={translate}
+            />
+          )}
         
         {/* Topbar removed — navigation is handled by the left sidebar */}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          {/* Horizontal tabs removed - navigation now in vertical sidebar */}
+        {/* Mobile Homepage */}
+        {isMobile && mobileView === 'home' && <MobileHomepage />}
 
-          {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+        {/* Tabs - Hidden on mobile when showing homepage */}
+        {(!isMobile || mobileView !== 'home') && (
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            {/* Horizontal tabs removed - navigation now in vertical sidebar */}
+
+            {/* Dashboard Tab */}
+            <TabsContent value="dashboard" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
             <DashboardTab
               todaySales={todaySales}
               weekSales={weekSales}
@@ -1654,8 +1780,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      {isMobile && <MobileBottomNav />}
 
       {/* Sale Success Dialog */}
       <SaleSuccessDialog
