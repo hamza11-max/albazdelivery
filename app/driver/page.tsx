@@ -315,7 +315,7 @@ export default function DriverApp() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
+              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
               onClick={() => {
                 fetchAvailableDeliveries()
                 fetchActiveDelivery()
@@ -323,7 +323,7 @@ export default function DriverApp() {
             >
               <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Button variant="ghost" size="icon" className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" onClick={() => signOut({ callbackUrl: "/login" })}>
+            <Button variant="ghost" size="icon" className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10" onClick={() => signOut({ callbackUrl: "/login" })}>
               <LogOut className="w-5 h-5" />
             </Button>
           </div>
