@@ -906,34 +906,37 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     }
   }, [setActiveTab])
 
-  // Mobile Homepage Component
+  // Mobile Homepage Component - Clean icon grid, no dashboard content
   const MobileHomepage = () => {
     const menuItems = [
-      { id: "dashboard", icon: LayoutDashboard, labelFr: "Tableau de bord", labelAr: "لوحة التحكم" },
-      { id: "inventory", icon: Package, labelFr: "Inventaire", labelAr: "المخزون" },
-      { id: "orders", icon: ShoppingBag, labelFr: "Commandes", labelAr: "الطلبات" },
-      { id: "sales", icon: History, labelFr: "Ventes", labelAr: "المبيعات" },
-      { id: "reports", icon: BarChart3, labelFr: "Rapports", labelAr: "التقارير" },
-      { id: "coupons", icon: Percent, labelFr: "Coupons", labelAr: "الكوبونات" },
-      { id: "backup", icon: Database, labelFr: "Sauvegarde", labelAr: "النسخ الاحتياطي" },
-      { id: "cloud-sync", icon: Cloud, labelFr: "Sync Cloud", labelAr: "مزامنة السحابة" },
-      { id: "email", icon: Mail, labelFr: "Email", labelAr: "البريد الإلكتروني" },
-      { id: "permissions", icon: Shield, labelFr: "Permissions", labelAr: "الصلاحيات" },
-      { id: "loyalty", icon: Gift, labelFr: "Fidélité", labelAr: "الولاء" },
-      { id: "inventory-alerts", icon: Bell, labelFr: "Alertes", labelAr: "التنبيهات" },
-      { id: "customers", icon: Users, labelFr: "Clients", labelAr: "العملاء" },
-      { id: "drivers", icon: UserCog, labelFr: "Chauffeurs", labelAr: "السائقون" },
-      { id: "suppliers", icon: Truck, labelFr: "Fournisseurs", labelAr: "الموردون" },
-      { id: "ai", icon: BarChart3, labelFr: "Analyse IA", labelAr: "تحليلات الذكاء الاصطناعي" },
+      { id: "dashboard", icon: LayoutDashboard, labelFr: "Tableau de bord", labelAr: "لوحة التحكم", color: "from-blue-500 to-cyan-500" },
+      { id: "inventory", icon: Package, labelFr: "Inventaire", labelAr: "المخزون", color: "from-purple-500 to-pink-500" },
+      { id: "orders", icon: ShoppingBag, labelFr: "Commandes", labelAr: "الطلبات", color: "from-orange-500 to-red-500" },
+      { id: "sales", icon: History, labelFr: "Ventes", labelAr: "المبيعات", color: "from-green-500 to-emerald-500" },
+      { id: "reports", icon: BarChart3, labelFr: "Rapports", labelAr: "التقارير", color: "from-indigo-500 to-blue-500" },
+      { id: "coupons", icon: Percent, labelFr: "Coupons", labelAr: "الكوبونات", color: "from-yellow-500 to-orange-500" },
+      { id: "backup", icon: Database, labelFr: "Sauvegarde", labelAr: "النسخ الاحتياطي", color: "from-gray-500 to-slate-500" },
+      { id: "cloud-sync", icon: Cloud, labelFr: "Sync Cloud", labelAr: "مزامنة السحابة", color: "from-cyan-500 to-blue-500" },
+      { id: "email", icon: Mail, labelFr: "Email", labelAr: "البريد الإلكتروني", color: "from-red-500 to-pink-500" },
+      { id: "permissions", icon: Shield, labelFr: "Permissions", labelAr: "الصلاحيات", color: "from-amber-500 to-yellow-500" },
+      { id: "loyalty", icon: Gift, labelFr: "Fidélité", labelAr: "الولاء", color: "from-pink-500 to-rose-500" },
+      { id: "inventory-alerts", icon: Bell, labelFr: "Alertes", labelAr: "التنبيهات", color: "from-red-500 to-orange-500" },
+      { id: "customers", icon: Users, labelFr: "Clients", labelAr: "العملاء", color: "from-teal-500 to-cyan-500" },
+      { id: "drivers", icon: UserCog, labelFr: "Chauffeurs", labelAr: "السائقون", color: "from-blue-500 to-indigo-500" },
+      { id: "suppliers", icon: Truck, labelFr: "Fournisseurs", labelAr: "الموردون", color: "from-violet-500 to-purple-500" },
+      { id: "ai", icon: Sparkles, labelFr: "Analyse IA", labelAr: "تحليلات الذكاء الاصطناعي", color: "from-purple-500 to-indigo-500" },
     ]
 
     return (
-      <div className="p-4 pb-24">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold mb-2">{translate("Menu Principal", "القائمة الرئيسية")}</h1>
+      <div className="min-h-screen pb-24 pt-4 px-4">
+        {/* Header */}
+        <div className="mb-6 text-center">
+          <h1 className="text-3xl font-bold mb-1">{translate("Menu Principal", "القائمة الرئيسية")}</h1>
           <p className="text-muted-foreground text-sm">{translate("Sélectionnez une fonctionnalité", "اختر ميزة")}</p>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+
+        {/* Icon Grid */}
+        <div className="grid grid-cols-2 gap-4">
           {menuItems.map((item) => {
             const Icon = item.icon
             const label = translate(item.labelFr, item.labelAr)
@@ -941,12 +944,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               <button
                 key={item.id}
                 onClick={() => handleMobileNav(item.id)}
-                className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border border-border hover:bg-accent transition-colors gap-2"
+                className="flex flex-col items-center justify-center p-6 rounded-2xl bg-card border border-border/50 hover:border-primary/50 active:scale-95 transition-all duration-200 gap-3 shadow-sm hover:shadow-md"
               >
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Icon className="w-6 h-6 text-primary" />
+                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-lg`}>
+                  <Icon className="w-8 h-8 text-white" />
                 </div>
-                <span className="text-sm font-medium text-center">{label}</span>
+                <span className="text-sm font-semibold text-center leading-tight">{label}</span>
               </button>
             )
           })}

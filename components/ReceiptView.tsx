@@ -3,6 +3,7 @@
 import { Printer } from "lucide-react"
 import { Button } from "@/root/components/ui/button"
 import type { Sale } from "@/root/lib/types"
+import { useEffect, useRef } from "react"
 
 interface ReceiptViewProps {
   showReceipt: boolean
@@ -23,14 +24,103 @@ export function ReceiptView({
   onClose,
   onPrint,
 }: ReceiptViewProps) {
-  if (!showReceipt || !completedSale) return null
-
+  const printRef = useRef<HTMLDivElement>(null)
   const userWithExtras = user as any
 
+  // Handle print functionality
+  const handlePrint = () => {
+    if (isElectronRuntime) {
+      // For Electron, use the onPrint callback
+      onPrint()
+      return
+    }
+
+    // For browser, create a print-friendly window
+    if (!completedSale || !printRef.current) return
+
+    const printContent = printRef.current.innerHTML
+    const printWindow = window.open('', '_blank', 'width=800,height=600')
+    
+    if (!printWindow) {
+      // Fallback if popup is blocked
+      onPrint()
+      return
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${translate("Reçu", "إيصال")}</title>
+          <style>
+            @media print {
+              @page {
+                size: 80mm auto;
+                margin: 0;
+              }
+              body {
+                margin: 0;
+                padding: 10px;
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+            body {
+              margin: 0;
+              padding: 10px;
+              font-family: Arial, sans-serif;
+              font-size: 12px;
+              background: white;
+              color: black;
+            }
+            .receipt-container {
+              max-width: 80mm;
+              margin: 0 auto;
+            }
+            .text-center { text-align: center; }
+            .font-bold { font-weight: bold; }
+            .mb-2 { margin-bottom: 8px; }
+            .mb-4 { margin-bottom: 16px; }
+            .mt-4 { margin-top: 16px; }
+            .pt-4 { padding-top: 16px; }
+            .border-t { border-top: 1px solid #e5e7eb; }
+            .border-b { border-bottom: 1px solid #e5e7eb; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .space-y-2 > * + * { margin-top: 8px; }
+            .space-y-3 > * + * { margin-top: 12px; }
+            table { width: 100%; border-collapse: collapse; }
+            td { padding: 4px 0; }
+            img { max-width: 100%; height: auto; }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-container">
+            ${printContent}
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() {
+                window.close();
+              };
+            };
+          </script>
+        </body>
+      </html>
+    `)
+    printWindow.document.close()
+  }
+
+  if (!showReceipt || !completedSale) return null
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 print:hidden">
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-8">
+        <div className="p-8" ref={printRef}>
           {/* Logo */}
           <div className="flex justify-center mb-6">
             <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center shadow-lg">
@@ -152,7 +242,7 @@ export function ReceiptView({
           </div>
 
           {/* Actions */}
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex gap-3 no-print">
             <Button
               onClick={onClose}
               variant="outline"
@@ -161,7 +251,7 @@ export function ReceiptView({
               {translate("Fermer", "إغلاق")}
             </Button>
             <Button
-              onClick={onPrint}
+              onClick={handlePrint}
               className="flex-1 bg-albaz-green-gradient hover:opacity-90 text-white"
             >
               <Printer className="w-4 h-4 mr-2" />
