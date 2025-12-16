@@ -170,16 +170,21 @@ export async function POST(request: NextRequest) {
 
     // Check subscription limits for product count
     if (!isAdmin) {
-      const productCount = await prisma.inventoryProduct.count({
-        where: { vendorId },
-      })
+      try {
+        const productCount = await prisma.inventoryProduct.count({
+          where: { vendorId },
+        })
 
-      const canAdd = await checkUsageLimit(vendorId, 'maxProducts', productCount)
-      if (!canAdd) {
-        return errorResponse(
-          new Error('Product limit reached. Please upgrade your plan to add more products.'),
-          403
-        )
+        const canAdd = await checkUsageLimit(vendorId, 'maxProducts', productCount)
+        if (!canAdd) {
+          return errorResponse(
+            new Error('Product limit reached. Please upgrade your plan to add more products.'),
+            403
+          )
+        }
+      } catch (error) {
+        // If subscription check fails (e.g., no subscription system configured), allow the operation
+        console.warn('[Inventory] Subscription check failed, allowing operation:', error)
       }
     }
 
