@@ -94,6 +94,7 @@ import { StaffDialog } from "../../components/dialogs/StaffDialog"
 import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
 import { ReceiptDialog } from "../../components/dialogs/ReceiptDialog"
 import { ImageUploadDialog } from "../../components/dialogs/ImageUploadDialog"
+import { BarcodeScannerDialog } from "../../components/dialogs/BarcodeScannerDialog"
 import { SubscriptionManager } from "../../components/subscription/SubscriptionManager"
 import { FeatureGate } from "../../components/subscription/FeatureGate"
 
@@ -1898,6 +1899,15 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         onOpenChange={setShowImageUploadDialog}
         onFileUpload={handleFileUpload}
         fileInputRef={fileInputRef}
+        translate={translate}
+      />
+
+      {/* Barcode Scanner Dialog */}
+      <BarcodeScannerDialog
+        open={isBarcodeScannerOpen}
+        onOpenChange={setIsBarcodeScannerOpen}
+        videoRef={barcodeVideoRef}
+        error={barcodeScannerError}
         translate={translate}
       />
       </div>
