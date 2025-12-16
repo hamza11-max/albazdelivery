@@ -7,6 +7,7 @@ import { Badge } from "@/root/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Check, X, Crown, Zap, Building, Rocket, Lock } from "lucide-react"
 import { useSubscription } from "@/hooks/useSubscription"
+import { PLAN_FEATURES } from "@/root/lib/stripe"
 
 interface PlanInfo {
   name: string

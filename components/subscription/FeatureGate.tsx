@@ -35,7 +35,16 @@ export function FeatureGate({ feature, children, fallback, showUpgrade = true }:
         <p className="text-sm text-muted-foreground mb-4 text-center">
           This feature is not available on your current plan ({subscription?.plan || "STARTER"}).
         </p>
-        <Button onClick={() => window.location.href = "/vendor/settings?tab=subscription"}>
+        <Button onClick={() => {
+          const vendorPage = document.querySelector('[data-vendor-page]')
+          if (vendorPage) {
+            // If we're in vendor page, switch to settings tab
+            const event = new CustomEvent('switchTab', { detail: 'settings' })
+            window.dispatchEvent(event)
+          } else {
+            window.location.href = "/vendor?tab=settings"
+          }
+        }}>
           Upgrade Plan
         </Button>
       </CardContent>

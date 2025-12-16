@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { PLAN_FEATURES, type PlanFeatures } from "@/lib/stripe"
+import { PLAN_FEATURES, type PlanFeatures } from "@/root/lib/stripe"
 
 interface Subscription {
   id: string

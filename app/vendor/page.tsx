@@ -86,6 +86,7 @@ import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
 import { ReceiptDialog } from "../../components/dialogs/ReceiptDialog"
 import { ImageUploadDialog } from "../../components/dialogs/ImageUploadDialog"
 import { SubscriptionManager } from "../../components/subscription/SubscriptionManager"
+import { FeatureGate } from "../../components/subscription/FeatureGate"
 
 // Hooks
 // Use custom hooks
