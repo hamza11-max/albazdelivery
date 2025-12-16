@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma"
-import type { PlanFeatures } from "./stripe"
 import { PLAN_FEATURES, type PlanFeatures } from "./stripe"
 
 export async function checkFeatureAccess(
