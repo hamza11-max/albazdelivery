@@ -49,6 +49,7 @@ model User {
   notifications       Notification[]
   driverLocation      DriverLocation?
   driverPerformance   DriverPerformance?
+  subscription        Subscription?
   
   @@index([email])
   @@index([phone])
@@ -807,4 +808,89 @@ model Ad {
   
   @@index([isActive])
   @@index([displayOrder])
+}
+
+// ========================================
+// Subscription Management
+// ========================================
+
+enum SubscriptionPlan {
+  STARTER
+  PROFESSIONAL
+  BUSINESS
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+  TRIAL
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Subscription {
+  id                String                      @id @default(cuid())
+  userId            String                      @unique
+  plan              SubscriptionPlan            @default(STARTER)
+  status            SubscriptionStatus          @default(TRIAL)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean                    @default(false)
+  cancelledAt       DateTime?
+  trialStart        DateTime?
+  trialEnd          DateTime?
+  stripeCustomerId  String?                     @unique
+  stripeSubscriptionId String?                   @unique
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  
+  user              User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionPayments SubscriptionPayment[]
+  usage             SubscriptionUsage[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([plan])
+}
+
+model SubscriptionPayment {
+  id                String                      @id @default(cuid())
+  subscriptionId    String
+  amount            Float
+  currency          String                      @default("USD")
+  status            SubscriptionPaymentStatus   @default(PENDING)
+  stripePaymentId   String?                     @unique
+  invoiceUrl        String?
+  paidAt            DateTime?
+  createdAt         DateTime                    @default(now())
+  
+  subscription      Subscription                @relation(fields: [subscriptionId], references: [id])
+  
+  @@index([subscriptionId])
+  @@index([status])
+}
+
+model SubscriptionUsage {
+  id                String                      @id @default(cuid())
+  subscriptionId    String
+  feature           String                      // e.g., "products", "users", "locations"
+  currentUsage      Int                         @default(0)
+  limit             Int
+  periodStart       DateTime
+  periodEnd         DateTime
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  
+  subscription      Subscription                @relation(fields: [subscriptionId], references: [id])
+  
+  @@unique([subscriptionId, feature, periodStart])
+  @@index([subscriptionId])
 }

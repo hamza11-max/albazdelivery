@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { createInventoryProductSchema, updateInventoryProductSchema } from '@/lib/validations/api'
+import { checkUsageLimit } from '@/lib/featureGate'
 import { z } from 'zod'
 
 // GET - Fetch all inventory products
@@ -165,6 +166,21 @@ export async function POST(request: NextRequest) {
     })
     if (existingSku) {
       return errorResponse(new Error('SKU already exists'), 409)
+    }
+
+    // Check subscription limits for product count
+    if (!isAdmin) {
+      const productCount = await prisma.inventoryProduct.count({
+        where: { vendorId },
+      })
+
+      const canAdd = await checkUsageLimit(vendorId, 'maxProducts', productCount)
+      if (!canAdd) {
+        return errorResponse(
+          new Error('Product limit reached. Please upgrade your plan to add more products.'),
+          403
+        )
+      }
     }
 
     const product = await prisma.inventoryProduct.create({

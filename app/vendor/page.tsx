@@ -85,6 +85,7 @@ import { StaffDialog } from "../../components/dialogs/StaffDialog"
 import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
 import { ReceiptDialog } from "../../components/dialogs/ReceiptDialog"
 import { ImageUploadDialog } from "../../components/dialogs/ImageUploadDialog"
+import { SubscriptionManager } from "../../components/subscription/SubscriptionManager"
 
 // Hooks
 // Use custom hooks
@@ -1632,6 +1633,22 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     {translate("Désactivé", "معطل")}
                   </Button>
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Subscription Management */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="w-5 h-5" />
+                  {translate("Abonnement", "الاشتراك")}
+                </CardTitle>
+                <CardDescription>
+                  {translate("Gérez votre plan d'abonnement et accédez à plus de fonctionnalités", "إدارة خطة الاشتراك والوصول إلى المزيد من الميزات")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SubscriptionManager />
               </CardContent>
             </Card>
           </TabsContent>
