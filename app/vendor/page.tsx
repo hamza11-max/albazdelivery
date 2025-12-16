@@ -47,7 +47,7 @@ import {
 // UI Components
 import { Button } from "@/root/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/root/components/ui/card"
 import { Badge } from "@/root/components/ui/badge"
 import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
