@@ -31,6 +31,7 @@ import {
 } from "lucide-react"
 import type { Order, User as UserType, RegistrationRequest } from "@/lib/types"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { SubscriptionsView } from "./components/SubscriptionsView"
 import { useToast } from "@/hooks/use-toast"
 import {
   Dialog,
@@ -764,7 +765,7 @@ export default function AdminPanel() {
       <Header />
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="approvals" className="relative">
               Approbations
               {registrationRequests.length > 0 && (
@@ -772,6 +773,7 @@ export default function AdminPanel() {
               )}
             </TabsTrigger>
             <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
+            <TabsTrigger value="subscriptions">Abonnements</TabsTrigger>
             <TabsTrigger value="ads">Publicités</TabsTrigger>
             <TabsTrigger value="customers">Clients</TabsTrigger>
             <TabsTrigger value="drivers">Livreurs</TabsTrigger>
@@ -784,6 +786,10 @@ export default function AdminPanel() {
 
           <TabsContent value="dashboard">
             <DashboardView />
+          </TabsContent>
+
+          <TabsContent value="subscriptions">
+            <SubscriptionsView />
           </TabsContent>
 
           <TabsContent value="customers">
