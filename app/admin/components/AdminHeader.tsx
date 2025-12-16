@@ -29,15 +29,15 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }
               }}
             />
             <div>
-              <h1 className="text-lg font-bold text-[var(--albaz-text)] dark:text-white">Panneau d'Administration</h1>
-              <p className="text-xs text-[var(--albaz-text-soft)] dark:text-white/80">AL-baz Delivery</p>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">Panneau d'Administration</h1>
+              <p className="text-xs text-gray-600 dark:text-white/80">AL-baz Delivery</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
+              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
               onClick={() => setLanguage(language === "fr" ? "ar" : "fr")}
               title={language === "fr" ? "العربية" : "Français"}
             >
@@ -46,7 +46,7 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }
             <Button
               variant="ghost"
               size="icon"
-              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
+              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
               onClick={() => setIsDarkMode(!isDarkMode)}
             >
               {isDarkMode ? (
@@ -58,7 +58,7 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }
             <Button 
               variant="ghost" 
               size="icon" 
-              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" 
+              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10" 
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <LogOut className="w-5 h-5" />

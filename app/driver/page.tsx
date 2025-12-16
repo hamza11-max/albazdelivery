@@ -275,7 +275,7 @@ export default function DriverApp() {
 
   // Header Component
   const Header = () => (
-    <header className="sticky top-0 z-50 albaz-nav text-[var(--albaz-text)] dark:text-white">
+    <header className="sticky top-0 z-50 albaz-nav">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -290,15 +290,15 @@ export default function DriverApp() {
               }}
             />
             <div>
-              <h1 className="text-lg font-bold text-[var(--albaz-text)] dark:text-white">{t("AL-baz Driver", "سائق AL-baz")}</h1>
-              <p className="text-xs text-[var(--albaz-text-soft)] dark:text-white/80">{user?.name || "Driver"}</p>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white">{t("AL-baz Driver", "سائق AL-baz")}</h1>
+              <p className="text-xs text-gray-600 dark:text-white/80">{user?.name || "Driver"}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="icon"
-              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
+              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
               onClick={() => setLanguage(language === "fr" ? "ar" : "fr")}
               title={language === "fr" ? "العربية" : "Français"}
             >
@@ -307,7 +307,7 @@ export default function DriverApp() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
+              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
               onClick={() => setIsDarkMode(!isDarkMode)}
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
