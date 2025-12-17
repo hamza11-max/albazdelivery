@@ -23,6 +23,20 @@ const config = {
   // Enable source maps for debugging
   productionBrowserSourceMaps: true,
   transpilePackages: ['@albaz/shared', '@albaz/ui', '@albaz/auth'],
+  // Allow camera access from this origin (needed for barcode scanner)
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self)',
+          },
+        ],
+      },
+    ]
+  },
   webpack: (config, { isServer }) => {
     // Allow imports from root directories
     config.resolve.alias = {
