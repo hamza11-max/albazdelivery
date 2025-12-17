@@ -10,6 +10,7 @@ interface BarcodeScannerDialogProps {
   videoRef: React.RefObject<HTMLDivElement>
   error: string | null
   translate: (fr: string, ar: string) => string
+  onBarcodeScanned?: (barcode: string) => void
 }
 
 export function BarcodeScannerDialog({
@@ -18,6 +19,7 @@ export function BarcodeScannerDialog({
   videoRef,
   error,
   translate,
+  onBarcodeScanned,
 }: BarcodeScannerDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
