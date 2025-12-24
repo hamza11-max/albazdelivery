@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { useFetchWithCache, type LoadingState } from "@/root/hooks/use-fetch-with-cache"
+import { useFetchWithCache, type LoadingState } from "@/hooks/use-fetch-with-cache"
 import type {
   Sale,
   Customer,

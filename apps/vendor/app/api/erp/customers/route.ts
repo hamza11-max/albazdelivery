@@ -27,13 +27,7 @@ export async function GET(request: NextRequest) {
     const sortParam = searchParams.get('sort') // 'totalPurchases' | 'lastPurchaseDate'
     const vendorIdParam = searchParams.get('vendorId')
 
-<<<<<<< Updated upstream
-    const vendorId = isAdmin ? vendorIdParam : session.user.id
-
-    if (!vendorId) {
-      return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
-=======
-    let vendorId = isAdmin ? vendorIdParam : null // session.user.id
+    let vendorId = isAdmin ? vendorIdParam : session.user.id
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !vendorId) {
@@ -62,7 +56,6 @@ export async function GET(request: NextRequest) {
           pages: 0,
         },
       })
->>>>>>> Stashed changes
     }
 
     // Validate and parse pagination

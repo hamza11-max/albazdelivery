@@ -1,9 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { signOut } from "next-auth/react"
 import {
-  LogOut, 
   LayoutDashboard,
   Package,
   ShoppingCart,
@@ -22,6 +20,7 @@ import {
   Shield,
   Gift,
   Bell,
+  UserCheck,
 } from "lucide-react"
 import { cn } from "../lib/utils"
 
@@ -100,26 +99,14 @@ export default function VendorSidebar({
     {
       id: "backup",
       icon: Database,
-      labelFr: "Sauvegarde",
-      labelAr: "النسخ الاحتياطي",
-    },
-    {
-      id: "cloud-sync",
-      icon: Cloud,
-      labelFr: "Sync Cloud",
-      labelAr: "مزامنة السحابة",
+      labelFr: "Sauvegarde & Sync",
+      labelAr: "النسخ الاحتياطي والمزامنة",
     },
     {
       id: "email",
       icon: Mail,
       labelFr: "Email",
       labelAr: "البريد الإلكتروني",
-    },
-    {
-      id: "permissions",
-      icon: Shield,
-      labelFr: "Permissions",
-      labelAr: "الصلاحيات",
     },
     {
       id: "loyalty",
@@ -158,16 +145,16 @@ export default function VendorSidebar({
       labelAr: "تحليلات الذكاء الاصطناعي",
     },
     {
+      id: "staff",
+      icon: UserCheck,
+      labelFr: "Personnel",
+      labelAr: "الموظفون",
+    },
+    {
       id: "settings",
       icon: Settings,
       labelFr: "Paramètres",
       labelAr: "الإعدادات",
-    },
-    {
-      id: "logout",
-      icon: LogOut,
-      labelFr: "Déconnexion",
-      labelAr: "تسجيل الخروج",
     },
   ]
 
@@ -177,7 +164,7 @@ export default function VendorSidebar({
     <>
       <aside
         className={cn(
-          "fixed left-3 top-4 bottom-4 rounded-2xl shadow-2xl z-50 hidden md:flex md:flex-col transition-all duration-200 ease-in-out",
+          "fixed left-3 top-20 bottom-4 rounded-2xl shadow-2xl z-50 hidden md:flex md:flex-col transition-all duration-200 ease-in-out",
           "bg-gradient-to-b from-[#0a0f14] via-[#0d1419] to-[#0f181d]",
           "backdrop-blur-xl border border-white/10",
           "text-white"
@@ -203,8 +190,9 @@ export default function VendorSidebar({
               >
                 <button
                   onClick={() => {
-                    if (item.id === "logout") {
-                      signOut({ callbackUrl: "/login" })
+                    if (item.id === "staff") {
+                      // Navigate to staff management page
+                      window.location.href = "/vendor/staff"
                     } else {
                       setActiveTab(item.id)
                     }

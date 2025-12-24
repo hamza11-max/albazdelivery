@@ -57,6 +57,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/root/components/ui/tabs"
 import VendorSidebar from "@/root/components/VendorSidebar"
 import ElectronLogin from "@/root/components/ElectronLogin"
+import { StaffLoginScreen } from "../../components/StaffLoginScreen"
+import { VendorHeader } from "../../components/VendorHeader"
+import type { StaffUser } from "../../components/types"
 import { POSView } from "../../components/POSView"
 import { ProductDialog } from "../../components/dialogs/ProductDialog"
 import { CustomerDialog } from "../../components/dialogs/CustomerDialog"
@@ -72,10 +75,8 @@ import { AITab } from "../../components/tabs/AITab"
 import { SettingsTab } from "../../components/tabs/SettingsTab"
 import { ReportsTab } from "../../components/tabs/ReportsTab"
 import { CouponsTab } from "../../components/tabs/CouponsTab"
-import { BackupTab } from "../../components/tabs/BackupTab"
-import { CloudSyncTab } from "../../components/tabs/CloudSyncTab"
+import { BackupSyncTab } from "../../components/tabs/BackupSyncTab"
 import { EmailTab } from "../../components/tabs/EmailTab"
-import { PermissionsTab } from "../../components/tabs/PermissionsTab"
 import { LoyaltyTab } from "../../components/tabs/LoyaltyTab"
 import { InventoryAlertsTab } from "../../components/tabs/InventoryAlertsTab"
 import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
@@ -267,6 +268,17 @@ export default function VendorDashboard() {
     }
   }, [isElectronRuntime, electronAuthChecked, setElectronUser, setElectronAuthChecked, setProducts, setLowStockProducts, setSales, setSuppliers, setCustomers, setTodaySales, setWeekSales, setMonthSales, setTopProducts])
 
+  // Read tab from localStorage when component mounts (for navigation from staff page)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedTab = localStorage.getItem('vendor-active-tab')
+      if (savedTab) {
+        setActiveTab(savedTab)
+        localStorage.removeItem('vendor-active-tab') // Clear after reading
+      }
+    }
+  }, [setActiveTab])
+
   // Persist and apply dark-mode immediately when toggled
   useEffect(() => {
     try {
@@ -357,6 +369,11 @@ export default function VendorDashboard() {
     }
     return { name: "", phone: "", email: "", address: "", description: "", logo: "", cover: "" }
   })
+  
+  // Staff login state
+  const [currentStaff, setCurrentStaff] = useState<StaffUser | null>(null)
+  const [showStaffLogin, setShowStaffLogin] = useState(false)
+  
   const featureFlags = useMemo(() => ({
     orderPause: true,
     prepTimeEta: true,
@@ -439,6 +456,28 @@ export default function VendorDashboard() {
       loadShopInfo()
     }
   }, [status, loadShopInfo])
+
+  // Load current staff and show login if needed
+  useEffect(() => {
+    if (isAuthenticated && !isElectronRuntime) {
+      try {
+        const stored = localStorage.getItem("vendor-current-staff")
+        if (stored) {
+          const staff = JSON.parse(stored)
+          setCurrentStaff(staff)
+          setShowStaffLogin(false)
+        } else {
+          // Show staff login if authenticated but no staff selected
+          setShowStaffLogin(true)
+        }
+      } catch {
+        setShowStaffLogin(true)
+      }
+    } else if (isElectronRuntime) {
+      // In Electron, skip staff login for now (can be enabled later)
+      setShowStaffLogin(false)
+    }
+  }, [isAuthenticated, isElectronRuntime])
 
   const isWithinSchedule = useCallback(() => {
     if (!menuSchedule.length) return true
@@ -1251,20 +1290,94 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     handleDiscountPercentChange(capped)
   }, [handleDiscountPercentChange, allowedMaxDiscount, toast, translate])
 
+  // Handle staff logout
+  const handleStaffLogout = useCallback(() => {
+    setCurrentStaff(null)
+    setShowStaffLogin(true)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("vendor-current-staff")
+    }
+  }, [])
+
+  // Handle staff role change
+  const handleStaffRoleChange = useCallback(() => {
+    handleStaffLogout()
+  }, [handleStaffLogout])
+
+  // Filter sales by current staff
+  const filteredSales = useMemo(() => {
+    if (!currentStaff?.id) return sales
+    return sales.filter((sale: Sale) => (sale as any).staffId === currentStaff.id)
+  }, [sales, currentStaff])
+
+  // Recalculate sales metrics based on filtered sales
+  const filteredTodaySales = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return filteredSales
+      .filter((sale: Sale) => {
+        const saleDate = new Date(sale.createdAt)
+        saleDate.setHours(0, 0, 0, 0)
+        return saleDate.getTime() === today.getTime()
+      })
+      .reduce((sum: number, sale: Sale) => sum + sale.total, 0)
+  }, [filteredSales])
+
+  const filteredWeekSales = useMemo(() => {
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    return filteredSales
+      .filter((sale: Sale) => new Date(sale.createdAt) >= weekAgo)
+      .reduce((sum: number, sale: Sale) => sum + sale.total, 0)
+  }, [filteredSales])
+
+  const filteredMonthSales = useMemo(() => {
+    const monthAgo = new Date()
+    monthAgo.setMonth(monthAgo.getMonth() - 1)
+    return filteredSales
+      .filter((sale: Sale) => new Date(sale.createdAt) >= monthAgo)
+      .reduce((sum: number, sale: Sale) => sum + sale.total, 0)
+  }, [filteredSales])
+
   // Show loading state while checking authentication
   if (isLoading || status === "loading") {
     return <LoadingScreen />
   }
-  
+
   // Redirect if not authenticated (handled in useEffect, but show nothing while redirecting)
   // Skip auth check in Electron for development
   if (!isElectronRuntime && (!isAuthenticated || !user)) {
     return null
   }
 
+  // Show staff login screen if authenticated but no staff selected
+  if (showStaffLogin && isAuthenticated && !isElectronRuntime) {
+    return (
+      <StaffLoginScreen
+        vendorName={shopInfo.name || user?.name || "AlBaz Vendor"}
+        onStaffLogin={(staff) => {
+          setCurrentStaff(staff)
+          setShowStaffLogin(false)
+          if (typeof window !== 'undefined') {
+            localStorage.setItem("vendor-current-staff", JSON.stringify(staff))
+          }
+        }}
+        translate={translate}
+      />
+    )
+  }
+
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen bg-background flex ${isDarkMode ? 'dark' : ''}`} dir={isArabic ? "rtl" : "ltr"}>
+      <div className={`min-h-screen bg-background flex flex-col ${isDarkMode ? 'dark' : ''}`} dir={isArabic ? "rtl" : "ltr"}>
+      {/* Header */}
+      <VendorHeader
+        vendorName={shopInfo.name || user?.name || "AlBaz Vendor"}
+        currentStaff={currentStaff}
+        onRoleChange={handleStaffRoleChange}
+        translate={translate}
+      />
+
       {/* Vertical Sidebar */}
       <VendorSidebar
         activeTab={activeTab}
@@ -1277,7 +1390,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 w-full transition-all duration-300 pl-0 md:pl-[70px] pb-20 md:pb-0 min-w-0 overflow-x-auto" dir={isArabic ? "rtl" : "ltr"}>
+      <main className="flex-1 w-full transition-all duration-300 pl-0 md:pl-[70px] pt-0 pb-20 md:pb-0 min-w-0 overflow-x-auto" dir={isArabic ? "rtl" : "ltr"}>
         <div className="w-full h-full px-2 sm:px-4 py-4 sm:py-6">
           <AdminVendorSelector
             isAdmin={isAdmin}
@@ -1296,14 +1409,15 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
             <DashboardTab
-              todaySales={todaySales}
-              weekSales={weekSales}
-              monthSales={monthSales}
+              todaySales={currentStaff ? filteredTodaySales : todaySales}
+              weekSales={currentStaff ? filteredWeekSales : weekSales}
+              monthSales={currentStaff ? filteredMonthSales : monthSales}
               topProducts={topProducts}
               lowStockProducts={lowStockProducts}
               translate={translate}
               setActiveTab={setActiveTab}
               setShowProductDialog={setShowProductDialog}
+              currentStaffId={currentStaff?.id}
             />
           </TabsContent>
 
@@ -1562,24 +1676,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             />
           </TabsContent>
 
-          {/* Backup Tab */}
+          {/* Backup & Sync Tab */}
           <TabsContent value="backup" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <BackupTab translate={translate} />
-          </TabsContent>
-
-          {/* Cloud Sync Tab */}
-          <TabsContent value="cloud-sync" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <CloudSyncTab translate={translate} vendorId={activeVendorId} />
+            <BackupSyncTab translate={translate} vendorId={activeVendorId} />
           </TabsContent>
 
           {/* Email Tab */}
           <TabsContent value="email" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
             <EmailTab translate={translate} />
-          </TabsContent>
-
-          {/* Permissions Tab */}
-          <TabsContent value="permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <PermissionsTab translate={translate} />
           </TabsContent>
 
           {/* Loyalty Tab */}

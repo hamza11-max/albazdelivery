@@ -118,9 +118,11 @@ export function errorResponse(
         error: {
           code: 'VALIDATION_ERROR',
           message: 'Invalid input data',
-          details: error.errors.map((err) => ({
-            path: err.path.join('.'),
-            message: err.message,
+          // Zod's error shape may be available as `errors` or `issues` depending
+          // on versions. Guard against missing shapes to avoid runtime TypeErrors
+          details: (Array.isArray((error as any).errors) ? (error as any).errors : (Array.isArray((error as any).issues) ? (error as any).issues : [])).map((err: any) => ({
+            path: Array.isArray(err.path) ? err.path.join('.') : String(err.path || ''),
+            message: err.message || String(err),
           })),
         },
         meta: {
