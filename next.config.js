@@ -35,8 +35,9 @@ module.exports = {
       '@/root/hooks': path.resolve(__dirname, './hooks'),
       '@albaz/ui': path.resolve(__dirname, 'packages/ui/src/index.ts'),
       '@albaz/shared': path.resolve(__dirname, 'packages/shared/src/index.ts'),
-      // Point the utils alias at the folder (allow index.* resolution)
-      '@albaz/shared/utils': path.resolve(__dirname, 'packages/shared/src/utils'),
+      // Point the utils alias directly at the index file to avoid extension
+      // resolution issues on some CI/build systems.
+      '@albaz/shared/utils': path.resolve(__dirname, 'packages/shared/src/utils/index.ts'),
     };
     
     // Ensure modules can be resolved from project root
@@ -46,6 +47,15 @@ module.exports = {
     if (!config.resolve.modules.includes(rootPath)) {
       config.resolve.modules = [rootPath, ...config.resolve.modules];
     }
+
+    // Ensure webpack will resolve TypeScript files for our aliases
+    config.resolve.extensions = [
+      '.ts',
+      '.tsx',
+      '.js',
+      '.jsx',
+      '.json',
+    ].concat(config.resolve.extensions || [])
     
     // Optimize module resolution
     config.optimization = {
