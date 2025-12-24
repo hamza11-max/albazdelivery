@@ -18,7 +18,17 @@ export function useVendorState() {
     }
     return false
   })
-  const [activeTab, setActiveTab] = useState("dashboard")
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') {
+      // Check if there's a tab saved from navigation
+      const saved = localStorage.getItem('vendor-active-tab')
+      if (saved) {
+        localStorage.removeItem('vendor-active-tab') // Clear after reading
+        return saved
+      }
+    }
+    return "dashboard"
+  })
   const [language, setLanguage] = useState("fr")
   const [showProductDialog, setShowProductDialog] = useState(false)
   const [showCustomerDialog, setShowCustomerDialog] = useState(false)

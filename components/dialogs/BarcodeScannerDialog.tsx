@@ -1,6 +1,6 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/root/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/root/components/ui/dialog"
 import { X } from "lucide-react"
 import { Button } from "@/root/components/ui/button"
 
@@ -36,6 +36,12 @@ export function BarcodeScannerDialog({
               <X className="h-4 w-4" />
             </Button>
           </DialogTitle>
+          <DialogDescription>
+            {translate(
+              "Pointez la caméra vers un code-barres pour le scanner automatiquement.",
+              "وجه الكاميرا نحو الرمز الشريطي للمسح التلقائي."
+            )}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 p-6 pt-0">
           <div className="relative aspect-video bg-black rounded-lg overflow-hidden">

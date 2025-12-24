@@ -34,14 +34,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (!vendorId) {
-<<<<<<< Updated upstream
-      return errorResponse(new Error('vendorId is required'), 400)
-    }
-
-    // Only vendors can access their own dashboard, admins can access any
-    if (session.user.role !== 'VENDOR' && session.user.role !== 'ADMIN') {
-      throw new ForbiddenError('Only vendors and admins can access this dashboard')
-=======
       try {
         const firstVendor = await prisma.user.findFirst({
           where: { role: 'VENDOR', status: 'APPROVED' },
@@ -65,7 +57,11 @@ export async function GET(request: NextRequest) {
         topProducts: [],
         lowStockProducts: [],
       })
->>>>>>> Stashed changes
+    }
+
+    // Only vendors can access their own dashboard, admins can access any
+    if (session.user.role !== 'VENDOR' && session.user.role !== 'ADMIN') {
+      throw new ForbiddenError('Only vendors and admins can access this dashboard')
     }
 
     if (session.user.role === 'VENDOR' && session.user.id !== vendorId) {
