@@ -214,6 +214,18 @@ See [MONOREPO_NEXT_STEPS.md](./MONOREPO_NEXT_STEPS.md) for detailed deployment i
 4. Build to verify: `npm run build`
 5. Submit a pull request
 
+## Dev helper scripts
+
+- **`scripts/unlock-and-install.ps1`**: Windows PowerShell helper that attempts to stop common dev processes (Electron/Node), take ownership of locked native binaries (Prisma/Electron), remove `node_modules` if needed, set `ELECTRON_SKIP_BINARY_DOWNLOAD=1`, run `npm ci --no-optional`, and then run `npm test`.
+- Usage (PowerShell):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/unlock-and-install.ps1
+```
+
+Note: This script is intended to help unblock Windows environments where native binaries (Electron or Prisma engines) are locked by running processes or antivirus. It modifies file permissions and will stop processes — run it only on developer machines you control.
+
+
 ## 📄 License
 
 [Add your license here]
