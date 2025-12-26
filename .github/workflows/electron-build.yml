@@ -1,0 +1,44 @@
+name: Electron Build
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+      - 'chore/*'
+
+jobs:
+  build:
+    name: Build Electron on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies (root)
+        run: npm ci
+
+      - name: Install vendor deps and build
+        run: |
+          cd apps/vendor
+          npm ci
+          # Use your existing electron build script; adjust if different
+          npm run electron:build --if-present
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-dist-${{ matrix.os }}
+          path: apps/vendor/dist/**
+
+      - name: Note about codesigning
+        run: |
+          echo "If you need codesigning or notarization, set secrets for SIGN_CERT and MAC_NOTARIZE_KEYS and add signing steps to this workflow."

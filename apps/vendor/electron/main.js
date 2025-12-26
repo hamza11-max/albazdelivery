@@ -4,14 +4,9 @@ const { spawn, exec } = require('child_process')
 const { createAuthWindow, closeAuthWindow } = require('./auth-window')
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
-// Try to use keytar for secure token storage; fall back to electron-store if unavailable
-let keytar = null
+// Use keytar-wrapper for secure token storage with fallback
+const keytarWrapper = require('./keytar-wrapper')
 const KEYTAR_SERVICE = 'albaz-vendor-auth'
-try {
-  keytar = require('keytar')
-} catch (e) {
-  console.warn('[Electron] keytar not available, falling back to electron-store for tokens')
-}
 
 // Optional modules - graceful fallback if native modules aren't built for Electron
 let offlineDb = null
@@ -143,18 +138,11 @@ async function checkAuthenticationAndLoad() {
 
   try {
     let token = null
-    if (keytar) {
-      try {
-        token = await keytar.getPassword(KEYTAR_SERVICE, 'auth-token')
-      } catch (e) {
-        console.warn('[Electron Auth] keytar.getPassword failed', e)
-        token = null
-      }
-    } else {
-      const Store = require('electron-store').default || require('electron-store')
-      const store = new Store({ name: 'vendor-auth' })
-      const authState = store.get('vendor_auth_state')
-      token = authState && authState.token ? authState.token : null
+    try {
+      token = await keytarWrapper.getPassword(KEYTAR_SERVICE, 'auth-token')
+    } catch (e) {
+      console.warn('[Electron Auth] keytarWrapper.getPassword failed', e)
+      token = null
     }
 
     if (token) {
@@ -323,18 +311,6 @@ function startNextStandaloneServer() {
   })
 }
 
-// Authentication check and load
-function checkAuthenticationAndLoad() {
-  // Skip auth for development - go directly to vendor page
-  isAuthenticated = true
-  if (isDev) {
-    // In dev, start the Next.js dev server
-    startNextDevServer()
-  } else {
-    startNextStandaloneServer()
-  }
-}
-
 // IPC handlers for authentication
 ipcMain.handle('auth-login', async (event, credentials) => {
   try {
@@ -378,16 +354,12 @@ ipcMain.handle('auth-login', async (event, credentials) => {
         })
 
         // Save token securely via keytar when available
-        if (data.token && keytar) {
+        if (data.token) {
           try {
-            await keytar.setPassword(KEYTAR_SERVICE, 'auth-token', data.token)
+            await keytarWrapper.setPassword(KEYTAR_SERVICE, 'auth-token', data.token)
           } catch (e) {
-            console.warn('[Electron Auth] Failed to save token in keytar', e)
-            store.set('vendor_auth_state.token', data.token)
+            console.warn('[Electron Auth] keytarWrapper.setPassword failed; keytar unavailable, token may be stored in electron-store', e)
           }
-        } else if (data.token) {
-          // Fallback: store token in electron-store (less secure)
-          store.set('vendor_auth_state.token', data.token)
         }
 
         isAuthenticated = true
@@ -419,11 +391,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
     })
 
     const devToken = 'electron-dev-' + Date.now()
-    if (keytar) {
-      try { await keytar.setPassword(KEYTAR_SERVICE, 'auth-token', devToken) } catch (e) { store.set('vendor_auth_state.token', devToken) }
-    } else {
-      store.set('vendor_auth_state.token', devToken)
-    }
+    try { await keytarWrapper.setPassword(KEYTAR_SERVICE, 'auth-token', devToken) } catch (e) { console.warn('[Electron Auth] keytarWrapper.setPassword failed for dev token', e) }
 
     isAuthenticated = true
     try { closeAuthWindow() } catch (_) {}
@@ -444,9 +412,7 @@ ipcMain.handle('auth-logout', async () => {
     store.delete('vendor_auth_state')
 
     // Remove token from secure storage when available
-    if (keytar) {
-      try { await keytar.deletePassword(KEYTAR_SERVICE, 'auth-token') } catch (e) { console.warn('[Electron Auth] Failed to delete keytar token', e) }
-    }
+    try { await keytarWrapper.deletePassword(KEYTAR_SERVICE, 'auth-token') } catch (e) { console.warn('[Electron Auth] keytarWrapper.deletePassword failed', e) }
 
     isAuthenticated = false
 
@@ -471,9 +437,7 @@ ipcMain.handle('auth-check', async () => {
 
     // Prefer secure token from keytar; fallback to store token
     let token = null
-    if (keytar) {
-      try { token = await keytar.getPassword(KEYTAR_SERVICE, 'auth-token') } catch (e) { token = null }
-    }
+    try { token = await keytarWrapper.getPassword(KEYTAR_SERVICE, 'auth-token') } catch (e) { token = null }
     if (!token && authState && authState.token) token = authState.token
 
     if (token && authState && authState.isAuthenticated && authState.expiresAt > Date.now()) {
@@ -489,13 +453,11 @@ ipcMain.handle('auth-check', async () => {
 ipcMain.handle('auth-get-token', async () => {
   try {
     // Prefer keytar
-    if (keytar) {
-      try {
-        const token = await keytar.getPassword(KEYTAR_SERVICE, 'auth-token')
-        return token || null
-      } catch (e) {
-        console.warn('[Electron Auth] keytar.getPassword failed', e)
-      }
+    try {
+      const token = await keytarWrapper.getPassword(KEYTAR_SERVICE, 'auth-token')
+      if (token) return token
+    } catch (e) {
+      console.warn('[Electron Auth] keytarWrapper.getPassword failed', e)
     }
 
     const Store = require('electron-store')

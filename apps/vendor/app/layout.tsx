@@ -7,6 +7,7 @@ import { ThemeInitializer } from "../../../components/ThemeInitializer"
 import { ErrorBoundary } from "../../../components/ErrorBoundary"
 import { SessionProvider } from "@/root/components/providers/SessionProvider"
 import OfflineInitializer from '../../components/OfflineInitializer'
+import OfflineStatus from '../../components/OfflineStatus'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -36,6 +37,7 @@ export default function VendorLayout({
             </div>
           </ErrorBoundary>
           <OfflineInitializer />
+          <OfflineStatus />
           <Toaster />
         </SessionProvider>
       </body>
