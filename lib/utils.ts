@@ -16,35 +16,39 @@ import { type ClassValue, clsx } from "clsx"
  * 4. Handles different module export formats
  * 5. Includes error handling and fallback
  */
-let twMergeCache: ReturnType<typeof import("tailwind-merge").twMerge> | null = null
+let twMergeCache: ((input: string) => string) | null = null
 
-function getTwMerge() {
+function getTwMerge(): (input: string) => string {
   if (twMergeCache === null) {
     try {
       // Access the module at runtime, not during module evaluation
       // This prevents webpack from hoisting and creating circular dependencies
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const tailwindMergeModule = require("tailwind-merge")
-      twMergeCache = tailwindMergeModule.twMerge || tailwindMergeModule.default?.twMerge || tailwindMergeModule.default
-      
-      if (!twMergeCache) {
-        console.error("[utils] Failed to load tailwind-merge, falling back to clsx only")
-        // Fallback: return a function that just uses clsx
-        twMergeCache = ((...args: string[]) => args.join(" ")) as any
+      // tailwind-merge exports a function named `twMerge`. If module uses default export,
+      // normalize to a function. We expect a function of signature (input: string) => string.
+      const candidate = tailwindMergeModule.twMerge || tailwindMergeModule.default?.twMerge || tailwindMergeModule.default
+      if (typeof candidate === 'function') {
+        twMergeCache = candidate
+      } else {
+        console.error("[utils] Failed to load tailwind-merge, falling back to clsx-only merger")
+        // Fallback: function that returns the string unchanged (clsx already merged)
+        twMergeCache = (s: string) => String(s)
       }
     } catch (error) {
       console.error("[utils] Error loading tailwind-merge:", error)
-      // Fallback: return a function that just uses clsx
-      twMergeCache = ((...args: string[]) => args.join(" ")) as any
+      // Fallback: return identity function
+      twMergeCache = (s: string) => String(s)
     }
   }
-  return twMergeCache
+  // At this point twMergeCache is guaranteed to be a function
+  return twMergeCache!
 }
 
 export function cn(...inputs: ClassValue[]) {
-  const merged = clsx(inputs)
+  const merged = clsx(...inputs)
   const twMerge = getTwMerge()
-  return twMerge(merged)
+  return twMerge(String(merged))
 }
 
 export function formatPrice(amount: number, currency: string = 'USD'): string {
