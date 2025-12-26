@@ -72,7 +72,44 @@ const mockFetch: FetchFunc = jest.fn(async () =>
   } as Response)
 );
 
-Object.defineProperty(globalThis, 'fetch', { value: mockFetch, writable: true });
+// Install a resilient global.fetch wrapper so any assignment becomes a Jest mock
+function createFetchWrapper(mockImpl?: any) {
+  const m = jest.fn(mockImpl) as any
+  if (typeof m.mockResolvedValueOnce !== 'function') {
+    m.mockResolvedValueOnce = function (value: any) {
+      return this.mockImplementationOnce(() => Promise.resolve(value))
+    }
+  }
+  if (typeof m.mockRejectedValueOnce !== 'function') {
+    m.mockRejectedValueOnce = function (err: any) {
+      return this.mockImplementationOnce(() => Promise.reject(err))
+    }
+  }
+  return m
+}
+
+try {
+  const existing = (globalThis as any).fetch
+  Object.defineProperty(globalThis, 'fetch', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return (this as any).__fetchMock
+    },
+    set(v: any) {
+      ;(this as any).__fetchMock = createFetchWrapper(v)
+    },
+  })
+
+  // Initialize with our mock implementation
+  ;(globalThis as any).fetch = mockFetch
+} catch (e) {
+  // Best-effort: if this fails, fallback to directly defining the function
+  // so tests can still mock it.
+  // eslint-disable-next-line no-console
+  console.warn('Could not install fetch getter/setter wrapper, using direct mock', e)
+  Object.defineProperty(globalThis, 'fetch', { value: mockFetch, writable: true })
+}
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({

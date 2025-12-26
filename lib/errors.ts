@@ -110,27 +110,40 @@ export function errorResponse(
     })
   }
 
-  // Handle Zod validation errors
-  if (error instanceof ZodError) {
-    return NextResponse.json<ApiResponse>(
-      {
-        success: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Invalid input data',
-          details: error.errors.map((err) => ({
-            path: err.path.join('.'),
-            message: err.message,
-          })),
+    // Handle Zod validation errors (duck-typed)
+    // Some environments bundle multiple copies of `zod` which can make
+    // `instanceof ZodError` unreliable. Detect Zod-like structures instead.
+    const maybeZod = (err: unknown) => {
+      if (!err || typeof err !== 'object') return false
+      const e: any = err
+      if (e instanceof ZodError) return true
+      if (e && (Array.isArray(e.errors) || Array.isArray(e.issues))) return true
+      if (e && typeof e.name === 'string' && e.name === 'ZodError') return true
+      return false
+    }
+
+    if (maybeZod(error)) {
+      const e: any = error
+      const items = Array.isArray(e.errors) ? e.errors : Array.isArray(e.issues) ? e.issues : []
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid input data',
+            details: items.map((errItem: any) => ({
+              path: Array.isArray(errItem.path) ? errItem.path.join('.') : String(errItem.path || ''),
+              message: errItem.message || String(errItem || ''),
+            })),
+          },
+          meta: {
+            timestamp: new Date().toISOString(),
+            requestId: crypto.randomUUID(),
+          },
         },
-        meta: {
-          timestamp: new Date().toISOString(),
-          requestId: crypto.randomUUID(),
-        },
-      },
-      { status: 400 }
-    )
-  }
+        { status: 400 }
+      )
+    }
 
   // Handle Prisma errors (narrow at runtime to avoid blanket `any` casts)
   const isPrismaError = (err: unknown): err is { code: string; meta?: any } => {

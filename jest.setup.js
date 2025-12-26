@@ -58,3 +58,40 @@ jest.mock('next-auth/react', () => ({
 process.env.NEXTAUTH_SECRET = 'test-secret'
 process.env.NEXTAUTH_URL = 'http://localhost:3000'
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
+
+// Resilient global.fetch wrapper for UI tests.
+function __createFetchWrapper(mockImpl) {
+  const m = jest.fn(mockImpl)
+  if (typeof m.mockResolvedValueOnce !== 'function') {
+    m.mockResolvedValueOnce = function (value) {
+      return this.mockImplementationOnce(() => Promise.resolve(value))
+    }
+  }
+  if (typeof m.mockRejectedValueOnce !== 'function') {
+    m.mockRejectedValueOnce = function (err) {
+      return this.mockImplementationOnce(() => Promise.reject(err))
+    }
+  }
+  return m
+}
+
+try {
+  const existing = globalThis.fetch
+  Object.defineProperty(globalThis, 'fetch', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      return this.__fetchMock
+    },
+    set(v) {
+      this.__fetchMock = __createFetchWrapper(v)
+    },
+  })
+  // initialize with a default mock
+  globalThis.fetch = __createFetchWrapper()
+} catch (e) {
+  // Fallback: define a basic jest.fn fetch to avoid tests blowing up
+  // eslint-disable-next-line no-console
+  console.warn('[Jest Setup] Could not install fetch getter/setter wrapper', e)
+  globalThis.fetch = jest.fn()
+}
