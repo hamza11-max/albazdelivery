@@ -45,4 +45,8 @@
     "electron-updater": "^6.6.2",
     "typescript": "^5"
   }
+  ,
+  "dependencies": {
+    "keytar": "^8.1.0"
+  }
 }

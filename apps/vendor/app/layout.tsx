@@ -6,6 +6,7 @@ import { Toaster } from "@albaz/ui"
 import { ThemeInitializer } from "../../../components/ThemeInitializer"
 import { ErrorBoundary } from "../../../components/ErrorBoundary"
 import { SessionProvider } from "@/root/components/providers/SessionProvider"
+import OfflineInitializer from '../../components/OfflineInitializer'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -34,6 +35,7 @@ export default function VendorLayout({
               {children}
             </div>
           </ErrorBoundary>
+          <OfflineInitializer />
           <Toaster />
         </SessionProvider>
       </body>

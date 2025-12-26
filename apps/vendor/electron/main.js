@@ -4,6 +4,15 @@ const { spawn, exec } = require('child_process')
 const { createAuthWindow, closeAuthWindow } = require('./auth-window')
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
+// Try to use keytar for secure token storage; fall back to electron-store if unavailable
+let keytar = null
+const KEYTAR_SERVICE = 'albaz-vendor-auth'
+try {
+  keytar = require('keytar')
+} catch (e) {
+  console.warn('[Electron] keytar not available, falling back to electron-store for tokens')
+}
+
 // Optional modules - graceful fallback if native modules aren't built for Electron
 let offlineDb = null
 let syncService = null
@@ -121,6 +130,46 @@ function createWindow() {
     require('electron').shell.openExternal(url)
     return { action: 'deny' }
   })
+}
+
+// Authentication check and load
+async function checkAuthenticationAndLoad() {
+  // Start Next server depending on mode
+  if (isDev) {
+    startNextDevServer()
+  } else {
+    startNextStandaloneServer()
+  }
+
+  try {
+    let token = null
+    if (keytar) {
+      try {
+        token = await keytar.getPassword(KEYTAR_SERVICE, 'auth-token')
+      } catch (e) {
+        console.warn('[Electron Auth] keytar.getPassword failed', e)
+        token = null
+      }
+    } else {
+      const Store = require('electron-store').default || require('electron-store')
+      const store = new Store({ name: 'vendor-auth' })
+      const authState = store.get('vendor_auth_state')
+      token = authState && authState.token ? authState.token : null
+    }
+
+    if (token) {
+      isAuthenticated = true
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.loadURL('http://localhost:3001/vendor')
+      }
+    } else {
+      // No token: show auth window so the user can log in
+      createAuthWindow()
+    }
+  } catch (e) {
+    console.error('[Electron Auth] checkAuthenticationAndLoad error:', e)
+    createAuthWindow()
+  }
 }
 
 // Helper function to kill process on port 3001
@@ -320,36 +369,67 @@ ipcMain.handle('auth-login', async (event, credentials) => {
       if (data.success && data.user) {
         const Store = require('electron-store').default || require('electron-store')
         const store = new Store({ name: 'vendor-auth' })
-        
+
+        // Save non-secret user info in electron-store
         store.set('vendor_auth_state', {
           isAuthenticated: true,
           user: data.user,
-          token: data.token || 'electron-session-' + Date.now(),
           expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
         })
-        
+
+        // Save token securely via keytar when available
+        if (data.token && keytar) {
+          try {
+            await keytar.setPassword(KEYTAR_SERVICE, 'auth-token', data.token)
+          } catch (e) {
+            console.warn('[Electron Auth] Failed to save token in keytar', e)
+            store.set('vendor_auth_state.token', data.token)
+          }
+        } else if (data.token) {
+          // Fallback: store token in electron-store (less secure)
+          store.set('vendor_auth_state.token', data.token)
+        }
+
         isAuthenticated = true
+        // Close auth window and show main app
+        try { closeAuthWindow() } catch (_) {}
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL('http://localhost:3001/vendor')
+        }
+
         return { success: true, user: data.user }
       }
     }
 
-    // Fallback: store credentials for dev mode
+    // Fallback: store credentials for dev mode (without storing plain tokens when keytar available)
     const Store = require('electron-store').default || require('electron-store')
     const store = new Store({ name: 'vendor-auth' })
-    
+
+    const devUser = {
+      id: 'electron-dev',
+      email: credentials.email,
+      name: credentials.email.split('@')[0],
+      role: 'VENDOR',
+    }
+
     store.set('vendor_auth_state', {
       isAuthenticated: true,
-      user: {
-        id: 'electron-dev',
-        email: credentials.email,
-        name: credentials.email.split('@')[0],
-        role: 'VENDOR',
-      },
-      token: 'electron-dev-' + Date.now(),
+      user: devUser,
       expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
     })
-    
+
+    const devToken = 'electron-dev-' + Date.now()
+    if (keytar) {
+      try { await keytar.setPassword(KEYTAR_SERVICE, 'auth-token', devToken) } catch (e) { store.set('vendor_auth_state.token', devToken) }
+    } else {
+      store.set('vendor_auth_state.token', devToken)
+    }
+
     isAuthenticated = true
+    try { closeAuthWindow() } catch (_) {}
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL('http://localhost:3001/vendor')
+    }
     return { success: true }
   } catch (error) {
     console.error('[Electron Auth] Login error:', error)
@@ -362,14 +442,20 @@ ipcMain.handle('auth-logout', async () => {
     const Store = require('electron-store')
     const store = new Store({ name: 'vendor-auth' })
     store.delete('vendor_auth_state')
+
+    // Remove token from secure storage when available
+    if (keytar) {
+      try { await keytar.deletePassword(KEYTAR_SERVICE, 'auth-token') } catch (e) { console.warn('[Electron Auth] Failed to delete keytar token', e) }
+    }
+
     isAuthenticated = false
-    
+
     // Close main window and show login
     if (mainWindow) {
       mainWindow.close()
     }
     createAuthWindow()
-    
+
     return { success: true }
   } catch (error) {
     console.error('[Electron Auth] Logout error:', error)
@@ -382,8 +468,15 @@ ipcMain.handle('auth-check', async () => {
     const Store = require('electron-store')
     const store = new Store({ name: 'vendor-auth' })
     const authState = store.get('vendor_auth_state')
-    
-    if (authState && authState.isAuthenticated && authState.expiresAt > Date.now()) {
+
+    // Prefer secure token from keytar; fallback to store token
+    let token = null
+    if (keytar) {
+      try { token = await keytar.getPassword(KEYTAR_SERVICE, 'auth-token') } catch (e) { token = null }
+    }
+    if (!token && authState && authState.token) token = authState.token
+
+    if (token && authState && authState.isAuthenticated && authState.expiresAt > Date.now()) {
       return { isAuthenticated: true, user: authState.user }
     }
     return { isAuthenticated: false, user: null }
@@ -395,12 +488,21 @@ ipcMain.handle('auth-check', async () => {
 
 ipcMain.handle('auth-get-token', async () => {
   try {
+    // Prefer keytar
+    if (keytar) {
+      try {
+        const token = await keytar.getPassword(KEYTAR_SERVICE, 'auth-token')
+        return token || null
+      } catch (e) {
+        console.warn('[Electron Auth] keytar.getPassword failed', e)
+      }
+    }
+
     const Store = require('electron-store')
     const store = new Store({ name: 'vendor-auth' })
     const authState = store.get('vendor_auth_state')
-    
     if (authState && authState.isAuthenticated && authState.expiresAt > Date.now()) {
-      return authState.token
+      return authState.token || null
     }
     return null
   } catch (error) {
