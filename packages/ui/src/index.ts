@@ -10,5 +10,7 @@ export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../../components/ui/table'
 export { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs'
 export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select'
+export { Separator } from '../../../components/ui/separator'
+export { Alert, AlertTitle, AlertDescription } from '../../../components/ui/alert'
 export { Toaster } from '../../../components/ui/toaster'
 export { useToast, toast } from '../../../hooks/use-toast'
