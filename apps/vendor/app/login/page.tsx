@@ -15,6 +15,17 @@ export const dynamic = 'force-dynamic'
 function LoginForm() {
   const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
+  const [passkey, setPasskey] = useState("")
+  const [ownerName, setOwnerName] = useState("")
+  const [ownerPhone, setOwnerPhone] = useState("")
+  const [ownerEmail, setOwnerEmail] = useState("")
+  const [ownerPassword, setOwnerPassword] = useState("")
+  const [ownerPasswordConfirm, setOwnerPasswordConfirm] = useState("")
+  const [usePinLogin, setUsePinLogin] = useState(false)
+  const [pin, setPin] = useState("")
+  const [staffCode, setStaffCode] = useState("")
+  const [setupStep, setSetupStep] = useState<"passkey" | "owner" | "login">("login")
+  const [isElectron, setIsElectron] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const router = useRouter()
@@ -57,12 +68,114 @@ function LoginForm() {
     }
   }, [searchParams])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const electron = !!(window as any)?.electronAPI?.isElectron
+    setIsElectron(electron)
+    if (!electron) return
+
+    ;(window as any).electronAPI?.auth?.getSetup?.().then((result: any) => {
+      if (result?.setupComplete) {
+        setSetupStep("login")
+      } else {
+        setSetupStep("passkey")
+      }
+    }).catch(() => {
+      setSetupStep("passkey")
+    })
+  }, [])
+
+  const handleVerifyPasskey = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    try {
+      const result = await (window as any).electronAPI?.auth?.verifyPasskey?.(passkey)
+      if (result?.success) {
+        setSetupStep("owner")
+      } else {
+        setError(result?.error || "Passkey invalide")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Erreur lors de la vérification du passkey")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleOwnerSetup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+    try {
+      if (ownerPassword !== ownerPasswordConfirm) {
+        setError("Les mots de passe ne correspondent pas")
+        setLoading(false)
+        return
+      }
+      const result = await (window as any).electronAPI?.auth?.setupOwner?.({
+        name: ownerName,
+        phone: ownerPhone,
+        email: ownerEmail,
+        password: ownerPassword,
+      })
+      if (result?.success) {
+        // Auto-register owner (vendor request) via API
+        if (!result?.alreadyComplete) {
+          const registerResponse = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: ownerName,
+              email: ownerEmail,
+              phone: ownerPhone,
+              password: ownerPassword,
+              role: 'VENDOR',
+              autoApprove: true,
+            }),
+          })
+          if (!registerResponse.ok) {
+            const data = await registerResponse.json().catch(() => null)
+            throw new Error(data?.error?.message || data?.message || 'Registration failed')
+          }
+        }
+        setIdentifier(ownerEmail)
+        setSetupStep("login")
+      } else {
+        if (result?.error === 'Setup already complete') {
+          setSetupStep("login")
+          return
+        }
+        setError(result?.error || "Impossible de créer le propriétaire")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Erreur lors de la configuration")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setLoading(true)
 
     try {
+      if (isElectron) {
+        const result = await (window as any).electronAPI?.auth?.login?.({
+          identifier,
+          password: usePinLogin ? undefined : password,
+          pin: usePinLogin ? pin : undefined,
+          staffCode: usePinLogin ? staffCode : undefined,
+        })
+        if (result?.success) {
+          return
+        }
+        setError(result?.error || "Email ou mot de passe incorrect")
+        setLoading(false)
+        return
+      }
+
       if (process.env.NODE_ENV === 'development') {
         console.log('[Login] Attempting login with:', { identifier })
       }
@@ -170,50 +283,206 @@ function LoginForm() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="identifier">Email ou Téléphone</Label>
-              <Input
-                id="identifier"
-                type="text"
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="email@example.com ou 0551234567"
-                required
+          {isElectron && setupStep === "passkey" ? (
+            <form onSubmit={handleVerifyPasskey} className="space-y-4">
+              <div>
+                <Label htmlFor="passkey">Passkey (16 caractères)</Label>
+                <Input
+                  id="passkey"
+                  type="text"
+                  value={passkey}
+                  onChange={(e) => setPasskey(e.target.value)}
+                  placeholder="0000-0000-0000-0000"
+                  required
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <p className="text-xs text-gray-500">
+                Utilisez la clé d'abonnement fournie par l'administration.
+              </p>
+              <Button
+                type="submit"
                 disabled={loading}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="password">Mot de passe</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
+                className="w-full bg-gradient-to-r from-teal-600 to-cyan-500 hover:from-teal-700 hover:to-cyan-600"
+              >
+                {loading ? "Vérification..." : "Vérifier"}
+              </Button>
+            </form>
+          ) : isElectron && setupStep === "owner" ? (
+            <form onSubmit={handleOwnerSetup} className="space-y-4">
+              <div>
+                <Label htmlFor="ownerName">Nom du propriétaire</Label>
+                <Input
+                  id="ownerName"
+                  type="text"
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  placeholder="Nom complet"
+                  required
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ownerPhone">Téléphone</Label>
+                <Input
+                  id="ownerPhone"
+                  type="tel"
+                  value={ownerPhone}
+                  onChange={(e) => setOwnerPhone(e.target.value)}
+                  placeholder="05XXXXXXXX"
+                  required
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ownerEmail">Email</Label>
+                <Input
+                  id="ownerEmail"
+                  type="email"
+                  value={ownerEmail}
+                  onChange={(e) => setOwnerEmail(e.target.value)}
+                  placeholder="email@example.com"
+                  required
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ownerPassword">Mot de passe</Label>
+                <Input
+                  id="ownerPassword"
+                  type="password"
+                  value={ownerPassword}
+                  onChange={(e) => setOwnerPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="ownerPasswordConfirm">Confirmer le mot de passe</Label>
+                <Input
+                  id="ownerPasswordConfirm"
+                  type="password"
+                  value={ownerPasswordConfirm}
+                  onChange={(e) => setOwnerPasswordConfirm(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={loading}
+                  className="mt-1"
+                />
+              </div>
+              <Button
+                type="submit"
                 disabled={loading}
-                className="mt-1"
-              />
+                className="w-full bg-gradient-to-r from-teal-600 to-cyan-500 hover:from-teal-700 hover:to-cyan-600"
+              >
+                {loading ? "Création..." : "Créer le compte propriétaire"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isElectron ? (
+                <div>
+                  <Label htmlFor="identifier">Email ou Téléphone</Label>
+                  <Input
+                    id="identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="email@example.com ou 0551234567"
+                    required
+                    disabled={loading}
+                    className="mt-1"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label htmlFor="identifier">Email ou Téléphone</Label>
+                  <Input
+                    id="identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="email@example.com ou 0551234567"
+                    required
+                    disabled={loading}
+                    className="mt-1"
+                  />
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="password">Mot de passe</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  disabled={loading || usePinLogin}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  id="usePin"
+                  type="checkbox"
+                  checked={usePinLogin}
+                  onChange={(e) => setUsePinLogin(e.target.checked)}
+                />
+                <Label htmlFor="usePin">Utiliser un PIN (POS rapide)</Label>
+              </div>
+              {usePinLogin && (
+                <div>
+                  <Label htmlFor="staffCode">Code personnel</Label>
+                  <Input
+                    id="staffCode"
+                    type="text"
+                    value={staffCode}
+                    onChange={(e) => setStaffCode(e.target.value)}
+                    placeholder="1234"
+                    required
+                    disabled={loading}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="pin" className="mt-3 block">PIN</Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder="••••"
+                    required
+                    disabled={loading}
+                    className="mt-1"
+                  />
+                </div>
+              )}
+
+              <Button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-teal-600 to-cyan-500 hover:from-teal-700 hover:to-cyan-600"
+              >
+                {loading ? "Connexion..." : "Se connecter"}
+              </Button>
+            </form>
+          )}
+
+          {!isElectron && (
+            <div className="mt-6 text-center text-sm text-gray-600">
+              <p>Vous n'avez pas de compte ?</p>
+              <Link href="/signup" className="text-teal-600 hover:text-teal-700 font-medium">
+                Créer un compte vendeur
+              </Link>
             </div>
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-teal-600 to-cyan-500 hover:from-teal-700 hover:to-cyan-600"
-            >
-              {loading ? "Connexion..." : "Se connecter"}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-gray-600">
-            <p>Vous n'avez pas de compte ?</p>
-            <Link href="/signup" className="text-teal-600 hover:text-teal-700 font-medium">
-              Créer un compte vendeur
-            </Link>
-          </div>
+          )}
         </div>
       </div>
     </div>

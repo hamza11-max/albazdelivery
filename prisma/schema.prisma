@@ -855,6 +855,7 @@ model Subscription {
   user              User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscriptionPayments SubscriptionPayment[]
   usage             SubscriptionUsage[]
+  passkeys          SubscriptionPasskey[]
   
   @@index([userId])
   @@index([status])
@@ -893,4 +894,19 @@ model SubscriptionUsage {
   
   @@unique([subscriptionId, feature, periodStart])
   @@index([subscriptionId])
+}
+
+model SubscriptionPasskey {
+  id              String       @id @default(cuid())
+  subscriptionId  String
+  passkeyHash     String       @unique
+  createdAt       DateTime     @default(now())
+  expiresAt       DateTime?
+  usedAt          DateTime?
+  createdBy       String?
+
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([usedAt])
 }

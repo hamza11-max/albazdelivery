@@ -345,6 +345,19 @@ export default function VendorDashboard() {
     if (stored === "manager" || stored === "cashier" || stored === "owner") return stored
     return "owner"
   })
+  const [staffAccounts, setStaffAccounts] = useState<any[]>([])
+  const [staffForm, setStaffForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    role: "cashier",
+    password: "",
+    confirmPassword: "",
+    pin: "",
+    staffCode: "",
+  })
+  const [staffPinResetOpen, setStaffPinResetOpen] = useState(false)
+  const [staffPinResetTarget, setStaffPinResetTarget] = useState<any | null>(null)
   const [shopInfo, setShopInfo] = useState(() => {
     if (typeof window === "undefined") {
       return { name: "", phone: "", email: "", address: "", description: "", logo: "", cover: "" }
@@ -409,6 +422,152 @@ export default function VendorDashboard() {
       // ignore
     }
   }, [staffRole])
+
+  const hashLocalPassword = useCallback(async (password: string, salt: string) => {
+    const encoder = new TextEncoder()
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(password),
+      { name: "PBKDF2" },
+      false,
+      ["deriveBits"]
+    )
+    const derived = await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        salt: encoder.encode(salt),
+        iterations: 100000,
+        hash: "SHA-512",
+      },
+      keyMaterial,
+      512
+    )
+    const bytes = new Uint8Array(derived)
+    return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("")
+  }, [])
+
+  const loadStaffAccounts = useCallback(async () => {
+    if (typeof window === "undefined") return
+    const electronAPI = (window as any)?.electronAPI
+    if (!electronAPI?.store?.get) return
+    const stored = await Promise.resolve(electronAPI.store.get("device_staff_accounts")).catch(() => [])
+    if (Array.isArray(stored)) {
+      setStaffAccounts(stored)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isElectronRuntime) return
+    loadStaffAccounts()
+  }, [isElectronRuntime, loadStaffAccounts])
+
+  const handleAddStaffAccount = useCallback(async () => {
+    if (!isElectronRuntime) return
+    if (!staffForm.name || !staffForm.password || !staffForm.confirmPassword) {
+      toast({
+        title: translate("Champs requis", "حقول مطلوبة"),
+        description: translate("Remplissez le nom et le mot de passe.", "املأ الاسم وكلمة المرور."),
+        variant: "destructive",
+      })
+      return
+    }
+    if (staffForm.password !== staffForm.confirmPassword) {
+      toast({
+        title: translate("Mot de passe invalide", "كلمة المرور غير متطابقة"),
+        description: translate("Les mots de passe ne correspondent pas.", "كلمتا المرور غير متطابقتين."),
+        variant: "destructive",
+      })
+      return
+    }
+    const normalizeCode = (code: string) => code.replace(/\D/g, '').slice(0, 4)
+    const existingCodes = new Set(
+      staffAccounts.map((acc) => String(acc.staffCode || '').trim())
+    )
+    let staffCode = normalizeCode(staffForm.staffCode || '')
+    if (staffCode && existingCodes.has(staffCode)) {
+      toast({
+        title: translate("Code existant", "الرمز مستخدم"),
+        description: translate("Choisissez un code unique.", "اختر رمزاً فريداً."),
+        variant: "destructive",
+      })
+      return
+    }
+    if (!staffCode) {
+      let attempts = 0
+      while (attempts < 20) {
+        const candidate = String(Math.floor(1000 + Math.random() * 9000))
+        if (!existingCodes.has(candidate)) {
+          staffCode = candidate
+          break
+        }
+        attempts += 1
+      }
+    }
+    if (!staffCode) {
+      toast({
+        title: translate("Erreur", "خطأ"),
+        description: translate("Impossible de générer un code unique.", "تعذر إنشاء رمز فريد."),
+        variant: "destructive",
+      })
+      return
+    }
+    const electronAPI = (window as any)?.electronAPI
+    const salt = crypto.getRandomValues(new Uint8Array(16))
+    const saltHex = Array.from(salt).map((b) => b.toString(16).padStart(2, "0")).join("")
+    const passwordHash = await hashLocalPassword(staffForm.password, saltHex)
+    const pinSalt = crypto.getRandomValues(new Uint8Array(16))
+    const pinSaltHex = Array.from(pinSalt).map((b) => b.toString(16).padStart(2, "0")).join("")
+    const pinHash = staffForm.pin
+      ? await hashLocalPassword(staffForm.pin, pinSaltHex)
+      : null
+    const next = [
+      ...staffAccounts,
+      {
+        id: `staff-${Date.now()}`,
+        name: staffForm.name,
+        phone: staffForm.phone,
+        email: staffForm.email,
+        role: staffForm.role,
+        staffCode,
+        passwordHash,
+        salt: saltHex,
+        pinHash,
+        pinSalt: pinHash ? pinSaltHex : null,
+        createdAt: new Date().toISOString(),
+      },
+    ]
+    await Promise.resolve(electronAPI.store.set("device_staff_accounts", next)).catch(() => null)
+    setStaffAccounts(next)
+    setStaffForm({ name: "", phone: "", email: "", role: "cashier", password: "", confirmPassword: "", pin: "", staffCode: "" })
+    toast({
+      title: translate("Compte créé", "تم إنشاء الحساب"),
+      description: translate("Le compte du personnel est prêt.", "تم إنشاء حساب الموظف."),
+    })
+  }, [hashLocalPassword, isElectronRuntime, staffAccounts, staffForm, toast, translate])
+
+  const handleResetStaffPin = useCallback(async (id: string) => {
+    if (!isElectronRuntime) return
+    const electronAPI = (window as any)?.electronAPI
+    const next = staffAccounts.map((acc) =>
+      acc.id === id ? { ...acc, pinHash: null, pinSalt: null } : acc
+    )
+    await Promise.resolve(electronAPI.store.set("device_staff_accounts", next)).catch(() => null)
+    setStaffAccounts(next)
+    toast({
+      title: translate("PIN réinitialisé", "تمت إعادة تعيين PIN"),
+      description: translate("Le personnel devra définir un nouveau PIN.", "يجب على الموظف تعيين PIN جديد."),
+    })
+    setStaffPinResetOpen(false)
+    setStaffPinResetTarget(null)
+  }, [isElectronRuntime, staffAccounts, toast, translate])
+
+  const handleRemoveStaffAccount = useCallback(async (id: string) => {
+    if (!isElectronRuntime) return
+    const electronAPI = (window as any)?.electronAPI
+    const next = staffAccounts.filter((acc) => acc.id !== id)
+    await Promise.resolve(electronAPI.store.set("device_staff_accounts", next)).catch(() => null)
+    setStaffAccounts(next)
+  }, [isElectronRuntime, staffAccounts])
 
   const loadShopInfo = useCallback(async () => {
     try {
@@ -1891,6 +2050,178 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Staff Accounts (Electron) */}
+          {isElectronRuntime && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  {translate("Comptes du personnel", "حسابات الموظفين")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{translate("Nom", "الاسم")}</Label>
+                    <Input
+                      value={staffForm.name}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, name: e.target.value }))}
+                      placeholder={translate("Nom complet", "الاسم الكامل")}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("Téléphone", "الهاتف")}</Label>
+                    <Input
+                      value={staffForm.phone}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, phone: e.target.value }))}
+                      placeholder="05XXXXXXXX"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("Email", "البريد الإلكتروني")}</Label>
+                    <Input
+                      value={staffForm.email}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, email: e.target.value }))}
+                      placeholder="email@example.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("Rôle", "الدور")}</Label>
+                    <select
+                      className="border rounded-md px-3 py-2 bg-background"
+                      value={staffForm.role}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, role: e.target.value }))}
+                    >
+                      <option value="owner">{translate("Propriétaire", "مالك")}</option>
+                      <option value="manager">{translate("Manager", "مدير")}</option>
+                      <option value="cashier">{translate("Caissier", "أمين صندوق")}</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("Code personnel (4 chiffres)", "رمز الموظف (4 أرقام)")}</Label>
+                    <Input
+                      value={staffForm.staffCode}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, staffCode: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                      placeholder="1234"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("Mot de passe", "كلمة المرور")}</Label>
+                    <Input
+                      type="password"
+                      value={staffForm.password}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, password: e.target.value }))}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("Confirmer le mot de passe", "تأكيد كلمة المرور")}</Label>
+                    <Input
+                      type="password"
+                      value={staffForm.confirmPassword}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{translate("PIN (optionnel)", "رمز PIN (اختياري)")}</Label>
+                    <Input
+                      type="password"
+                      value={staffForm.pin}
+                      onChange={(e) => setStaffForm((prev) => ({ ...prev, pin: e.target.value }))}
+                      placeholder="••••"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={handleAddStaffAccount}>
+                    {translate("Ajouter le personnel", "إضافة موظف")}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {staffAccounts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {translate("Aucun compte créé", "لا توجد حسابات")}
+                    </p>
+                  ) : (
+                    staffAccounts.map((account) => (
+                      <div key={account.id} className="border rounded-md p-3 flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{account.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {account.email || account.phone || translate("Sans contact", "بدون جهة اتصال")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{account.role}</p>
+                          {account.staffCode && (
+                            <p className="text-xs text-muted-foreground">
+                              {translate("Code", "الرمز")}: {account.staffCode}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {account.staffCode && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigator.clipboard.writeText(String(account.staffCode))}
+                            >
+                              {translate("Copier le code", "نسخ الرمز")}
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setStaffPinResetTarget(account)
+                              setStaffPinResetOpen(true)
+                            }}
+                          >
+                            {translate("Réinitialiser PIN", "إعادة تعيين PIN")}
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleRemoveStaffAccount(account.id)}>
+                            {translate("Supprimer", "حذف")}
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Dialog open={staffPinResetOpen} onOpenChange={setStaffPinResetOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{translate("Confirmer la réinitialisation", "تأكيد إعادة التعيين")}</DialogTitle>
+                <DialogDescription>
+                  {translate(
+                    "Réinitialiser le PIN de ce membre du personnel ?",
+                    "هل تريد إعادة تعيين رقم PIN لهذا الموظف؟"
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="text-sm text-muted-foreground">
+                {staffPinResetTarget?.name || translate("Compte sélectionné", "الحساب المحدد")}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setStaffPinResetOpen(false)}>
+                  {translate("Annuler", "إلغاء")}
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (staffPinResetTarget?.id) {
+                      handleResetStaffPin(staffPinResetTarget.id)
+                    }
+                  }}
+                >
+                  {translate("Réinitialiser", "إعادة التعيين")}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Schedule & Capacity */}
           <Card>

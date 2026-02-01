@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     // Parse and validate request body
     const body = await request.json()
     const validatedData = registerSchema.parse(body)
+    const autoApprove = body?.autoApprove === true
     const normalizedEmail = validatedData.email.toLowerCase().trim()
     const normalizedPhone = validatedData.phone.trim()
 
@@ -90,6 +91,52 @@ export async function POST(request: Request) {
           user,
           autoApproved: true,
           message: 'Account created successfully',
+        },
+        201
+      )
+    }
+
+    if (validatedData.role === 'VENDOR' && autoApprove) {
+      const user = await prisma.$transaction(async (tx: any) => {
+        const newUser = await tx.user.create({
+          data: {
+            name: validatedData.name,
+            email: normalizedEmail,
+            phone: normalizedPhone,
+            password: hashedPassword,
+            role: validatedData.role,
+            status: 'APPROVED',
+            shopType: validatedData.shopType,
+          },
+        })
+
+        await tx.store.create({
+          data: {
+            name: validatedData.name,
+            type: validatedData.shopType || 'General',
+            categoryId: 1,
+            vendorId: newUser.id,
+            address: 'To be updated',
+            city: 'Algiers',
+            phone: normalizedPhone,
+            deliveryTime: '30-45 min',
+            isActive: true,
+          },
+        })
+
+        return newUser
+      })
+
+      return successResponse(
+        {
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+          },
+          autoApproved: true,
+          message: 'Vendor auto-approved successfully',
         },
         201
       )

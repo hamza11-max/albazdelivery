@@ -2,6 +2,7 @@ const { BrowserWindow } = require('electron')
 const path = require('path')
 
 let authWindow = null
+let allowClose = false
 
 function createAuthWindow() {
   authWindow = new BrowserWindow({
@@ -35,11 +36,23 @@ function createAuthWindow() {
     authWindow = null
   })
 
+  authWindow.on('close', (event) => {
+    if (!allowClose) {
+      event.preventDefault()
+      try {
+        authWindow.show()
+      } catch (e) {
+        // ignore
+      }
+    }
+  })
+
   return authWindow
 }
 
 function closeAuthWindow() {
   if (authWindow) {
+    allowClose = true
     authWindow.close()
     authWindow = null
   }
@@ -49,5 +62,11 @@ module.exports = {
   createAuthWindow,
   closeAuthWindow,
   getAuthWindow: () => authWindow,
+  setAuthWindowClosable: (canClose) => {
+    allowClose = !!canClose
+    if (authWindow && authWindow.setClosable) {
+      authWindow.setClosable(!!canClose)
+    }
+  },
 }
 

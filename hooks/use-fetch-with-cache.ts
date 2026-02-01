@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/root/hooks/use-toast"
 import { getCachedData, setCachedData } from "@/root/lib/api-cache"
 
 // Define LoadingState locally to avoid circular dependencies

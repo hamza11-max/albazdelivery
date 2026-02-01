@@ -1,6 +1,8 @@
 {
   "name": "@albaz/vendor",
   "version": "0.1.0",
+  "description": "AlBaz Vendor desktop app for store and order management",
+  "author": "AlBaz Delivery",
   "private": true,
   "main": "electron/main.js",
   "homepage": "./",
@@ -39,7 +41,7 @@
     "@types/node": "^22.19.0",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^18.3.7",
-    "electron": "^39.2.3",
+    "electron": "39.2.3",
     "electron-builder": "^26.0.12",
     "electron-store": "^10.0.0",
     "electron-updater": "^6.6.2",

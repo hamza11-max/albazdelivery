@@ -15,6 +15,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     checkAuth: () => ipcRenderer.invoke('auth-check'),
     getToken: () => ipcRenderer.invoke('auth-get-token'),
     getUser: () => ipcRenderer.invoke('auth-get-user'),
+    getSetup: () => ipcRenderer.invoke('auth-get-setup'),
+    verifyPasskey: (passkey) => ipcRenderer.invoke('auth-verify-passkey', passkey),
+    setupOwner: (payload) => {
+      if (!payload || typeof payload !== 'object') throw new TypeError('payload must be an object')
+      return ipcRenderer.invoke('auth-setup-owner', payload)
+    },
+    setPasskey: (passkey) => ipcRenderer.invoke('auth-set-passkey', passkey),
   },
   
   // Store operations via IPC

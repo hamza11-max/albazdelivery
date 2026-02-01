@@ -1,7 +1,8 @@
 const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, session } = require('electron')
 const path = require('path')
 const { spawn, exec } = require('child_process')
-const { createAuthWindow, closeAuthWindow } = require('./auth-window')
+const crypto = require('crypto')
+const { createAuthWindow, closeAuthWindow, setAuthWindowClosable } = require('./auth-window')
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
 // Optional modules - graceful fallback if native modules aren't built for Electron
@@ -37,6 +38,106 @@ try {
 let mainWindow = null
 let nextProcess = null
 let isAuthenticated = false
+let passkeyVerified = false
+const currentSessionId = crypto.randomUUID()
+
+function getAuthStore() {
+  const Store = require('electron-store').default || require('electron-store')
+  return new Store({ name: 'vendor-auth' })
+}
+
+function normalizePasskey(input) {
+  if (!input) return ''
+  const raw = String(input).toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return raw.match(/.{1,4}/g)?.join('-') || raw
+}
+
+function generatePasskey() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = crypto.randomBytes(16)
+  let out = ''
+  for (let i = 0; i < 16; i += 1) {
+    out += chars[bytes[i] % chars.length]
+  }
+  return out.match(/.{1,4}/g)?.join('-') || out
+}
+
+function ensureDevicePasskey() {
+  const store = getAuthStore()
+  const existing = store.get('device_passkey')
+  if (existing) return normalizePasskey(existing)
+  const fromEnv = process.env.ALBAZ_ELECTRON_PASSKEY
+  const passkey = isDev
+    ? '0000-0000-0000-0000'
+    : normalizePasskey(fromEnv || generatePasskey())
+  store.set('device_passkey', passkey)
+  return passkey
+}
+
+function getSetupState() {
+  const store = getAuthStore()
+  const setupComplete = !!store.get('device_setup_complete')
+  const ownerProfile = store.get('device_owner_profile') || null
+  return { setupComplete, ownerProfile }
+}
+
+function hashPassword(password, salt) {
+  return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex')
+}
+
+function getStaffAccounts() {
+  const store = getAuthStore()
+  const accounts = store.get('device_staff_accounts')
+  return Array.isArray(accounts) ? accounts : []
+}
+
+function findLocalAccount(identifier) {
+  const store = getAuthStore()
+  const ownerProfile = store.get('device_owner_profile')
+  const ownerAuth = store.get('device_owner_auth')
+  const normalized = String(identifier || '').trim().toLowerCase()
+  if (ownerProfile && ownerAuth) {
+    const ownerEmail = String(ownerProfile.email || '').toLowerCase()
+    const ownerPhone = String(ownerProfile.phone || '').toLowerCase()
+    if (normalized && (normalized === ownerEmail || normalized === ownerPhone)) {
+      return { type: 'owner', profile: ownerProfile, auth: ownerAuth }
+    }
+  }
+  const staff = getStaffAccounts()
+  const match = staff.find((item) => {
+    const email = String(item.email || '').toLowerCase()
+    const phone = String(item.phone || '').toLowerCase()
+    return normalized && (normalized === email || normalized === phone)
+  })
+  if (match) {
+    return { type: 'staff', profile: match, auth: { passwordHash: match.passwordHash, salt: match.salt } }
+  }
+  return null
+}
+
+function findStaffByCode(staffCode) {
+  const staff = getStaffAccounts()
+  const normalized = String(staffCode || '').trim()
+  if (!normalized) return null
+  return staff.find((item) => String(item.staffCode || '').trim() === normalized) || null
+}
+
+function handlePostServerReady() {
+  const setupState = getSetupState()
+  if (isAuthenticated && setupState.setupComplete) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.loadURL('http://localhost:3001/vendor')
+      mainWindow.show()
+    }
+  } else {
+    createAuthWindow()
+    setAuthWindowClosable(false)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide()
+      mainWindow.loadURL('about:blank')
+    }
+  }
+}
 let tray = null
 let isQuitting = false
 
@@ -98,7 +199,9 @@ function createWindow() {
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
-    mainWindow.show()
+    if (isAuthenticated) {
+      mainWindow.show()
+    }
     if (isDev) {
       mainWindow.webContents.openDevTools()
     }
@@ -178,9 +281,7 @@ function startNextDevServer() {
         serverReady = true
         // Wait a bit for server to be fully ready
         setTimeout(() => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.loadURL('http://localhost:3001/vendor')
-          }
+          handlePostServerReady()
         }, 2000)
       }
     })
@@ -206,7 +307,7 @@ function startNextDevServer() {
     nextProcess.on('error', (error) => {
       console.error('[Next.js] Failed to start:', error)
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.loadURL('http://localhost:3001/vendor')
+        mainWindow.loadURL('about:blank')
       }
     })
   })
@@ -250,9 +351,7 @@ function startNextStandaloneServer() {
     if (!serverReady && (output.includes('Ready') || output.includes('Local:') || output.includes('localhost:3001'))) {
       serverReady = true
       setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL('http://localhost:3001/vendor')
-        }
+        handlePostServerReady()
       }, 2000)
     }
   })
@@ -269,48 +368,151 @@ function startNextStandaloneServer() {
   nextProcess.on('error', (error) => {
     console.error('[Next.js Standalone] Failed to start:', error)
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL('http://localhost:3001/vendor')
+      mainWindow.loadURL('about:blank')
     }
   })
 }
 
 // Authentication check and load
 function checkAuthenticationAndLoad() {
-  // Skip auth for development - go directly to vendor page
-  isAuthenticated = true
+  ensureDevicePasskey()
+  const store = getAuthStore()
+  const authState = store.get('vendor_auth_state')
+  const setupState = getSetupState()
+
+  if (
+    authState &&
+    authState.isAuthenticated &&
+    authState.expiresAt > Date.now() &&
+    authState.sessionId === currentSessionId
+  ) {
+    isAuthenticated = true
+  } else {
+    isAuthenticated = false
+  }
+
   if (isDev) {
-    // In dev, start the Next.js dev server
     startNextDevServer()
   } else {
     startNextStandaloneServer()
+  }
+
+  if (!setupState.setupComplete || !isAuthenticated) {
+    createAuthWindow()
+    setAuthWindowClosable(false)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide()
+      mainWindow.loadURL('about:blank')
+    }
   }
 }
 
 // IPC handlers for authentication
 ipcMain.handle('auth-login', async (event, credentials) => {
   try {
-    if (!credentials || !credentials.email || !credentials.password) {
-      return { success: false, error: 'Email and password required' }
+    const identifier = credentials?.identifier || credentials?.email
+    if (!identifier || !credentials?.password) {
+      return { success: false, error: 'Email/phone and password required' }
     }
 
-    // Make API call to authenticate
-    const response = await fetch('http://localhost:3001/api/auth/callback/credentials', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: credentials.email,
-        password: credentials.password,
-        redirect: false,
-        json: true,
-      }),
-    })
+    const localAccount = findLocalAccount(identifier)
+    if (!localAccount && credentials?.staffCode && credentials?.pin) {
+      const staff = findStaffByCode(credentials.staffCode)
+      if (staff?.pinSalt && staff?.pinHash) {
+        const attemptHash = hashPassword(String(credentials.pin), staff.pinSalt)
+        if (attemptHash === staff.pinHash) {
+          const store = getAuthStore()
+          const userProfile = {
+            id: `local-staff-${Date.now()}`,
+            name: staff.name || 'Staff',
+            email: staff.email || '',
+            phone: staff.phone || '',
+            role: staff.role || 'STAFF',
+          }
+          store.set('vendor_auth_state', {
+            isAuthenticated: true,
+            user: userProfile,
+            token: `electron-local-${Date.now()}`,
+            expiresAt: Date.now() + (12 * 60 * 60 * 1000),
+            sessionId: currentSessionId,
+          })
+          isAuthenticated = true
+          closeAuthWindow()
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.loadURL('http://localhost:3001/vendor')
+            mainWindow.show()
+          }
+          return { success: true, user: userProfile }
+        }
+      }
+    }
+    if (credentials?.pin && localAccount?.profile?.pinSalt && localAccount?.profile?.pinHash) {
+      const attemptHash = hashPassword(String(credentials.pin), localAccount.profile.pinSalt)
+      if (attemptHash === localAccount.profile.pinHash) {
+        const store = getAuthStore()
+        const userProfile = {
+          id: `local-${localAccount.type}-${Date.now()}`,
+          name: localAccount.profile?.name || 'Local User',
+          email: localAccount.profile?.email || '',
+          phone: localAccount.profile?.phone || '',
+          role: localAccount.type === 'owner' ? 'OWNER' : (localAccount.profile?.role || 'STAFF'),
+        }
+        store.set('vendor_auth_state', {
+          isAuthenticated: true,
+          user: userProfile,
+          token: `electron-local-${Date.now()}`,
+          expiresAt: Date.now() + (12 * 60 * 60 * 1000),
+          sessionId: currentSessionId,
+        })
+        isAuthenticated = true
+        closeAuthWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL('http://localhost:3001/vendor')
+          mainWindow.show()
+        }
+        return { success: true, user: userProfile }
+      }
+    }
+
+    if (localAccount?.auth?.salt && localAccount?.auth?.passwordHash) {
+      const attemptHash = hashPassword(String(credentials.password), localAccount.auth.salt)
+      if (attemptHash === localAccount.auth.passwordHash) {
+        const store = getAuthStore()
+        const userProfile = {
+          id: `local-${localAccount.type}-${Date.now()}`,
+          name: localAccount.profile?.name || 'Local User',
+          email: localAccount.profile?.email || '',
+          phone: localAccount.profile?.phone || '',
+          role: localAccount.type === 'owner' ? 'OWNER' : (localAccount.profile?.role || 'STAFF'),
+        }
+        store.set('vendor_auth_state', {
+          isAuthenticated: true,
+          user: userProfile,
+          token: `electron-local-${Date.now()}`,
+          expiresAt: Date.now() + (12 * 60 * 60 * 1000),
+          sessionId: currentSessionId,
+        })
+        isAuthenticated = true
+        closeAuthWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL('http://localhost:3001/vendor')
+          mainWindow.show()
+        }
+        return { success: true, user: userProfile }
+      }
+    }
+
+    const isEmail = String(identifier).includes('@')
+    if (!isEmail) {
+      return { success: false, error: 'Invalid credentials' }
+    }
 
     // Try direct login API
     const loginResponse = await fetch('http://localhost:3001/api/auth/electron-login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: credentials.email,
+        email: identifier,
         password: credentials.password,
       }),
     })
@@ -326,31 +528,19 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           user: data.user,
           token: data.token || 'electron-session-' + Date.now(),
           expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
+          sessionId: currentSessionId,
         })
         
         isAuthenticated = true
+        closeAuthWindow()
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL('http://localhost:3001/vendor')
+          mainWindow.show()
+        }
         return { success: true, user: data.user }
       }
     }
-
-    // Fallback: store credentials for dev mode
-    const Store = require('electron-store').default || require('electron-store')
-    const store = new Store({ name: 'vendor-auth' })
-    
-    store.set('vendor_auth_state', {
-      isAuthenticated: true,
-      user: {
-        id: 'electron-dev',
-        email: credentials.email,
-        name: credentials.email.split('@')[0],
-        role: 'VENDOR',
-      },
-      token: 'electron-dev-' + Date.now(),
-      expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000),
-    })
-    
-    isAuthenticated = true
-    return { success: true }
+    return { success: false, error: 'Invalid credentials' }
   } catch (error) {
     console.error('[Electron Auth] Login error:', error)
     return { success: false, error: error.message }
@@ -359,8 +549,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
 
 ipcMain.handle('auth-logout', async () => {
   try {
-    const Store = require('electron-store')
-    const store = new Store({ name: 'vendor-auth' })
+    const store = getAuthStore()
     store.delete('vendor_auth_state')
     isAuthenticated = false
     
@@ -369,6 +558,7 @@ ipcMain.handle('auth-logout', async () => {
       mainWindow.close()
     }
     createAuthWindow()
+    setAuthWindowClosable(false)
     
     return { success: true }
   } catch (error) {
@@ -379,11 +569,17 @@ ipcMain.handle('auth-logout', async () => {
 
 ipcMain.handle('auth-check', async () => {
   try {
-    const Store = require('electron-store')
-    const store = new Store({ name: 'vendor-auth' })
+    const store = getAuthStore()
     const authState = store.get('vendor_auth_state')
+    const setupState = getSetupState()
     
-    if (authState && authState.isAuthenticated && authState.expiresAt > Date.now()) {
+    if (
+      setupState.setupComplete &&
+      authState &&
+      authState.isAuthenticated &&
+      authState.expiresAt > Date.now() &&
+      authState.sessionId === currentSessionId
+    ) {
       return { isAuthenticated: true, user: authState.user }
     }
     return { isAuthenticated: false, user: null }
@@ -395,11 +591,15 @@ ipcMain.handle('auth-check', async () => {
 
 ipcMain.handle('auth-get-token', async () => {
   try {
-    const Store = require('electron-store')
-    const store = new Store({ name: 'vendor-auth' })
+    const store = getAuthStore()
     const authState = store.get('vendor_auth_state')
     
-    if (authState && authState.isAuthenticated && authState.expiresAt > Date.now()) {
+    if (
+      authState &&
+      authState.isAuthenticated &&
+      authState.expiresAt > Date.now() &&
+      authState.sessionId === currentSessionId
+    ) {
       return authState.token
     }
     return null
@@ -411,17 +611,119 @@ ipcMain.handle('auth-get-token', async () => {
 
 ipcMain.handle('auth-get-user', async () => {
   try {
-    const Store = require('electron-store')
-    const store = new Store({ name: 'vendor-auth' })
+    const store = getAuthStore()
     const authState = store.get('vendor_auth_state')
     
-    if (authState && authState.isAuthenticated && authState.expiresAt > Date.now()) {
+    if (
+      authState &&
+      authState.isAuthenticated &&
+      authState.expiresAt > Date.now() &&
+      authState.sessionId === currentSessionId
+    ) {
       return authState.user
     }
     return null
   } catch (error) {
     console.error('[Electron Auth] Get user error:', error)
     return null
+  }
+})
+
+ipcMain.handle('auth-get-setup', async () => {
+  try {
+    ensureDevicePasskey()
+    const setupState = getSetupState()
+    return { setupComplete: setupState.setupComplete, ownerProfile: setupState.ownerProfile }
+  } catch (error) {
+    console.error('[Electron Auth] Setup check error:', error)
+    return { setupComplete: false, ownerProfile: null, error: error.message }
+  }
+})
+
+ipcMain.handle('auth-verify-passkey', async (event, passkey) => {
+  try {
+    const provided = normalizePasskey(passkey)
+    if (!provided) {
+      return { success: false, error: 'Invalid passkey' }
+    }
+
+    if (isDev && provided === '0000-0000-0000-0000') {
+      const store = getAuthStore()
+      store.set('device_passkey', provided)
+      passkeyVerified = true
+      return { success: true, dev: true }
+    }
+
+    const response = await fetch('http://localhost:3001/api/auth/verify-passkey', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ passkey: provided }),
+    })
+    const data = await response.json().catch(() => null)
+    if (response.ok && data?.success) {
+      const store = getAuthStore()
+      store.set('device_passkey', provided)
+      if (data?.subscriptionId) {
+        store.set('device_subscription_id', data.subscriptionId)
+      }
+      passkeyVerified = true
+      return { success: true }
+    }
+    return { success: false, error: data?.error?.message || 'Invalid passkey' }
+  } catch (error) {
+    console.error('[Electron Auth] Passkey verify error:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('auth-setup-owner', async (event, payload) => {
+  try {
+    const setupState = getSetupState()
+    if (setupState.setupComplete) {
+      return { success: true, alreadyComplete: true }
+    }
+    if (!passkeyVerified) {
+      return { success: false, error: 'Passkey not verified' }
+    }
+    const { name, phone, email, password } = payload || {}
+    if (!name || !phone || !email || !password) {
+      return { success: false, error: 'Missing required fields' }
+    }
+
+    const store = getAuthStore()
+    const salt = crypto.randomBytes(16).toString('hex')
+    const passwordHash = hashPassword(String(password), salt)
+
+    store.set('device_owner_profile', {
+      name,
+      phone,
+      email,
+      role: 'OWNER',
+      createdAt: Date.now(),
+    })
+    store.set('device_owner_auth', { passwordHash, salt })
+    store.set('device_setup_complete', true)
+    passkeyVerified = false
+
+    return { success: true }
+  } catch (error) {
+    console.error('[Electron Auth] Setup owner error:', error)
+    return { success: false, error: error.message }
+  }
+})
+
+ipcMain.handle('auth-set-passkey', async (event, passkey) => {
+  try {
+    const store = getAuthStore()
+    const normalized = normalizePasskey(passkey)
+    if (!normalized || normalized.length < 16) {
+      return { success: false, error: 'Invalid passkey' }
+    }
+    store.set('device_passkey', normalized)
+    return { success: true }
+  } catch (error) {
+    console.error('[Electron Auth] Set passkey error:', error)
+    return { success: false, error: error.message }
   }
 })
 
