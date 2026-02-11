@@ -7,7 +7,7 @@ import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import { Badge } from "@/root/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/root/hooks/use-toast"
 import { KeyRound, RefreshCw, Copy, CheckCircle2, AlertTriangle } from "lucide-react"
 
 interface PasskeyRecord {
