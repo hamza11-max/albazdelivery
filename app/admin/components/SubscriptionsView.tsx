@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -19,9 +20,11 @@ import {
   Clock,
   AlertCircle,
   Download,
-  RefreshCw
+  RefreshCw,
+  KeyRound
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { PasskeysTab } from "@/components/tabs/PasskeysTab"
 
 interface Subscription {
   id: string
@@ -210,8 +213,23 @@ export function SubscriptionsView() {
     )
   }
 
+  const translate = (fr: string, _ar: string) => fr
+
   return (
     <div className="space-y-6">
+      <Tabs defaultValue="subscriptions" className="space-y-4">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="subscriptions" className="gap-2">
+            <CreditCard className="w-4 h-4" />
+            Abonnements
+          </TabsTrigger>
+          <TabsTrigger value="passkeys" className="gap-2">
+            <KeyRound className="w-4 h-4" />
+            Passkeys
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="subscriptions" className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -382,6 +400,12 @@ export function SubscriptionsView() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="passkeys" className="space-y-6">
+          <PasskeysTab translate={translate} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
