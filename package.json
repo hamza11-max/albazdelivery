@@ -18,7 +18,7 @@
     "lint": "turbo run lint",
     "type-check": "tsc --noEmit",
     "clean": "turbo run clean",
-    "vercel-build": "node -e \"const fs=require('fs');['.next','app/customer/.next'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch{}});\" && prisma generate --schema=./prisma/schema.prisma && next build --webpack",
+    "vercel-build": "node -e \"const fs=require('fs');['.next','app/customer/.next'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch{}});\" && prisma generate --schema=./prisma/schema.prisma && prisma migrate deploy --schema=./prisma/schema.prisma && next build --webpack",
     "postinstall": "prisma generate --schema=./prisma/schema.prisma || exit 0",
     "prepare": "prisma generate --schema=./prisma/schema.prisma || exit 0",
     "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",

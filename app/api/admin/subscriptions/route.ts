@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { auth } from '@/root/lib/auth'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 
 // GET /api/admin/subscriptions - Get all subscriptions with stats
 export async function GET(request: NextRequest) {
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can access subscription data')
     }
 

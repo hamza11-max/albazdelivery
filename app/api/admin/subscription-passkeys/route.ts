@@ -26,13 +26,13 @@ function generatePasskey() {
 
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can generate passkeys')
     }
 
@@ -87,13 +87,13 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can view passkeys')
     }
 
