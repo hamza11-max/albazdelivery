@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@albaz/ui"
-import { LogOut, Sun, Moon, Globe, KeyRound } from "lucide-react"
+import { LogOut, Sun, Moon, Globe } from "lucide-react"
 import { signOut } from "next-auth/react"
 
 interface AdminHeaderProps {
@@ -9,10 +9,9 @@ interface AdminHeaderProps {
   setLanguage: (lang: string) => void
   isDarkMode: boolean
   setIsDarkMode: (dark: boolean) => void
-  onPasskeysClick?: () => void
 }
 
-export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode, onPasskeysClick }: AdminHeaderProps) {
+export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }: AdminHeaderProps) {
   return (
     <header className="sticky top-0 z-50 albaz-nav">
       <div className="container mx-auto px-4 py-4">
@@ -27,18 +26,6 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode, 
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {onPasskeysClick && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10 gap-2"
-                onClick={onPasskeysClick}
-                title="Passkeys"
-              >
-                <KeyRound className="w-4 h-4" />
-                Passkeys
-              </Button>
-            )}
             <Button
               variant="ghost"
               size="icon"

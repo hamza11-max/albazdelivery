@@ -300,7 +300,6 @@ export default function AdminPanel() {
         setLanguage={setLanguage}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
-        onPasskeysClick={() => setActiveTab("passkeys")}
       />
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
