@@ -20,6 +20,7 @@ import { EditUserDialog } from "../../components/EditUserDialog"
 import { DeleteUserDialog } from "../../components/DeleteUserDialog"
 import { useAdminData } from "../../hooks/useAdminData"
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@albaz/ui"
+import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
 
 export const dynamic = 'force-dynamic'
 
@@ -48,10 +49,6 @@ export default function AdminPanel() {
   // Registration requests state
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
-  const [passkeyEmail, setPasskeyEmail] = useState("")
-  const [passkeyResult, setPasskeyResult] = useState<{ passkey: string; expiresAt?: string | null } | null>(null)
-  const [isGeneratingPasskey, setIsGeneratingPasskey] = useState(false)
-  const [passkeyHistory, setPasskeyHistory] = useState<any[]>([])
   const [activeTab, setActiveTab] = useState("approvals")
 
   // Data fetching
@@ -163,59 +160,7 @@ export default function AdminPanel() {
     }
   }
 
-  const handleGeneratePasskey = async () => {
-    if (!passkeyEmail) return
-    setIsGeneratingPasskey(true)
-    try {
-      const response = await fetchWithCsrf("/api/admin/subscription-passkeys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorEmail: passkeyEmail, expiresInDays: 7 }),
-      })
-      const data = await response.json()
-      if (data?.success) {
-        setPasskeyResult({ passkey: data.passkey, expiresAt: data.expiresAt || null })
-        toast({
-          title: "Clé générée",
-          description: "Transmettez cette clé au propriétaire du site.",
-        })
-      } else {
-        toast({
-          title: "Erreur",
-          description: data?.error || "Impossible de générer la clé",
-          variant: "destructive",
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de générer la clé",
-        variant: "destructive",
-      })
-    } finally {
-      setIsGeneratingPasskey(false)
-    }
-  }
-
-  const loadPasskeyHistory = async () => {
-    try {
-      const response = await fetchWithCsrf("/api/admin/subscription-passkeys?limit=100", {
-        method: "GET",
-      })
-      const data = await response.json()
-      if (data?.success && Array.isArray(data.passkeys)) {
-        setPasskeyHistory(data.passkeys)
-      }
-    } catch (error) {
-      // ignore
-    }
-  }
-
-  useEffect(() => {
-    if (activeTab === "passkeys") {
-      loadPasskeyHistory()
-    }
-  }, [activeTab])
+  // Passkeys are loaded inside PasskeysTab when the tab mounts
 
   // Handle edit user
   const handleEditUser = (user: UserType) => {
@@ -543,74 +488,7 @@ export default function AdminPanel() {
           </TabsContent>
 
           <TabsContent value="passkeys">
-            <Card>
-              <CardHeader>
-                <CardTitle>Clé d’abonnement (passkey)</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Email vendeur</Label>
-                  <Input
-                    value={passkeyEmail}
-                    onChange={(e) => setPasskeyEmail(e.target.value)}
-                    placeholder="vendor@example.com"
-                  />
-                </div>
-                <Button onClick={handleGeneratePasskey} disabled={isGeneratingPasskey}>
-                  {isGeneratingPasskey ? "Génération..." : "Générer la clé"}
-                </Button>
-                {passkeyResult?.passkey && (
-                  <div className="rounded-md border p-3 text-sm space-y-1">
-                    <div className="font-semibold">Passkey</div>
-                    <div className="font-mono">{passkeyResult.passkey}</div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigator.clipboard.writeText(passkeyResult.passkey)}
-                    >
-                      Copier
-                    </Button>
-                    {passkeyResult.expiresAt && (
-                      <div className="text-muted-foreground">
-                        Expire le {new Date(passkeyResult.expiresAt).toLocaleString("fr-FR")}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>Historique des passkeys</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" onClick={loadPasskeyHistory}>
-                  Actualiser
-                </Button>
-                {passkeyHistory.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Aucune clé trouvée</p>
-                ) : (
-                  passkeyHistory.slice(0, 20).map((item) => (
-                    <div key={item.id} className="border rounded-md p-3 text-sm space-y-1">
-                      <div className="font-medium">
-                        {item.vendor?.name || "Vendor"} · {item.vendor?.email || "N/A"}
-                      </div>
-                      <div className="text-muted-foreground">
-                        Créée: {new Date(item.createdAt).toLocaleString("fr-FR")}
-                      </div>
-                      {item.expiresAt && (
-                        <div className="text-muted-foreground">
-                          Expire: {new Date(item.expiresAt).toLocaleString("fr-FR")}
-                        </div>
-                      )}
-                      <div className="text-muted-foreground">
-                        Statut: {item.usedAt ? "Utilisée" : "Non utilisée"}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
+            <PasskeysTab />
           </TabsContent>
         </Tabs>
       </main>

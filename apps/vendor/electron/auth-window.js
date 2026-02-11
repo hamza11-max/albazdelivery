@@ -5,6 +5,13 @@ let authWindow = null
 let allowClose = false
 
 function createAuthWindow() {
+  // Only one auth window: reuse if it already exists
+  if (authWindow && !authWindow.isDestroyed()) {
+    authWindow.show()
+    authWindow.focus()
+    return authWindow
+  }
+  allowClose = false
   authWindow = new BrowserWindow({
     width: 400,
     height: 600,
@@ -24,13 +31,7 @@ function createAuthWindow() {
     authWindow.show()
   })
 
-  // Load login page
-  const isDev = process.env.NODE_ENV === 'development' || !require('electron').app.isPackaged
-  if (isDev) {
-    authWindow.loadURL('http://localhost:3001/login')
-  } else {
-    authWindow.loadURL('http://localhost:3001/login')
-  }
+  authWindow.loadURL('http://localhost:3001/login')
 
   authWindow.on('closed', () => {
     authWindow = null

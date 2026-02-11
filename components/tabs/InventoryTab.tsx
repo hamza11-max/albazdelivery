@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/root/components/ui/badge"
 import { Edit, Upload, Send, Trash2, Plus, RotateCcw, Package } from "lucide-react"
 import type { InventoryProduct } from "@/root/lib/types"
+import { InventoryAlertsTab } from "./InventoryAlertsTab"
 
 interface InventoryTabProps {
   products: InventoryProduct[]
@@ -84,13 +85,30 @@ export function InventoryTab({
                 if (!file) return
                 
                 try {
-                  const XLSX = await import('xlsx')
+                  const ExcelJS = (await import('exceljs')).default
                   const data = await file.arrayBuffer()
-                  const workbook = XLSX.read(data)
-                  const sheetName = workbook.SheetNames[0]
-                  const worksheet = workbook.Sheets[sheetName]
-                  const jsonData = XLSX.utils.sheet_to_json(worksheet)
-                  
+                  const workbook = new ExcelJS.Workbook()
+                  await workbook.xlsx.load(data)
+                  const sheet = workbook.worksheets[0]
+                  if (!sheet) throw new Error('No sheet')
+                  const headers: string[] = []
+                  const jsonData: Record<string, unknown>[] = []
+                  sheet.eachRow((row, rowNumber) => {
+                    const values: (string | number | boolean | null | undefined)[] = []
+                    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                      values[colNumber - 1] = cell.value as string | number | boolean | null | undefined
+                    })
+                    if (rowNumber === 1) {
+                      headers.push(...values.map((v) => String(v ?? '')))
+                    } else {
+                      const obj: Record<string, unknown> = {}
+                      headers.forEach((h, i) => {
+                        obj[h] = values[i]
+                      })
+                      jsonData.push(obj)
+                    }
+                  })
+
                   let imported = 0
                   for (const row of jsonData as any[]) {
                     const productData = {
@@ -252,6 +270,8 @@ export function InventoryTab({
           )}
         </CardContent>
       </Card>
+
+      <InventoryAlertsTab translate={translate} />
     </div>
   )
 }

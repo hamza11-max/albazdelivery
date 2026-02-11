@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/root/components/ui/badge"
 import { Edit, Upload, Send, Trash2, Plus, RotateCcw, Package } from "lucide-react"
 import type { InventoryProduct } from "@/root/lib/types"
+import { InventoryAlertsTab } from "./InventoryAlertsTab"
 
 interface InventoryTabProps {
   products: InventoryProduct[]
@@ -252,6 +253,9 @@ export function InventoryTab({
           )}
         </CardContent>
       </Card>
+
+      {/* Alertes stock (merged from Alertes page) */}
+      <InventoryAlertsTab translate={translate} />
     </div>
   )
 }

@@ -2,7 +2,7 @@
 
 /**
  * Icon Setup Helper Script
- * Helps convert logo.png to required icon formats
+ * Uses logo.png as source; generates logo.ico for Windows (electron-builder uses assets/logo.ico).
  */
 
 const fs = require('fs')
@@ -10,10 +10,10 @@ const path = require('path')
 
 const assetsDir = path.join(__dirname, '../assets')
 const logoPath = path.join(assetsDir, 'logo.png')
+const logoIcoPath = path.join(assetsDir, 'logo.ico')
 
 console.log('🎨 AlBaz Vendor - Icon Setup Helper\n')
 
-// Check if logo exists
 if (!fs.existsSync(logoPath)) {
   console.error('❌ Error: logo.png not found in assets directory')
   console.log('   Expected location:', logoPath)
@@ -22,43 +22,66 @@ if (!fs.existsSync(logoPath)) {
 
 console.log('✅ Found logo.png')
 
-// Check for existing icons
-const iconIco = path.join(assetsDir, 'icon.ico')
-const iconIcns = path.join(assetsDir, 'icon.icns')
-const iconPng = path.join(assetsDir, 'icon.png')
-
-const icons = {
-  'icon.ico (Windows)': iconIco,
-  'icon.icns (macOS)': iconIcns,
-  'icon.png (Linux)': iconPng,
+// Try to generate logo.ico from logo.png (used by Electron Windows exe and window icon)
+function tryGenerateIco() {
+  try {
+    const mod = require('png-to-ico')
+    const pngToIco = typeof mod === 'function' ? mod : (mod.default || mod)
+    if (typeof pngToIco !== 'function') return false
+    return pngToIco
+  } catch (e) {
+    return false
+  }
 }
 
-console.log('\n📋 Icon Status:')
-let allExist = true
-for (const [name, filePath] of Object.entries(icons)) {
-  const exists = fs.existsSync(filePath)
-  console.log(`   ${exists ? '✅' : '❌'} ${name}`)
-  if (!exists) allExist = false
+async function run() {
+  const pngToIco = tryGenerateIco()
+  if (pngToIco && !fs.existsSync(logoIcoPath)) {
+    console.log('   Generating logo.ico from logo.png...')
+    try {
+      const buf = await pngToIco(logoPath)
+      fs.writeFileSync(logoIcoPath, buf)
+      console.log('✅ Created logo.ico (Windows)')
+    } catch (err) {
+      console.warn('   Could not generate logo.ico:', err.message)
+    }
+  }
+
+  // Status: electron-builder expects assets/logo.ico (win), assets/logo.icns (mac), assets/logo.png (linux)
+  const icons = {
+    'logo.ico (Windows exe & window)': logoIcoPath,
+    'logo.icns (macOS)': path.join(assetsDir, 'logo.icns'),
+    'logo.png (Linux & tray)': logoPath,
+  }
+
+  console.log('\n📋 Icon Status:')
+  for (const [name, filePath] of Object.entries(icons)) {
+    const exists = fs.existsSync(filePath)
+    console.log(`   ${exists ? '✅' : '❌'} ${name}`)
+  }
+
+  // electron-builder expects buildResources/build/icon.ico for Windows exe & shortcuts
+  const buildDir = path.join(__dirname, '../build')
+  const buildIconPath = path.join(buildDir, 'icon.ico')
+  if (fs.existsSync(logoIcoPath)) {
+    if (!fs.existsSync(buildDir)) fs.mkdirSync(buildDir, { recursive: true })
+    fs.copyFileSync(logoIcoPath, buildIconPath)
+    console.log('✅ Copied logo.ico → build/icon.ico (for installer & exe)')
+  }
+
+  if (fs.existsSync(logoIcoPath)) {
+    console.log('\n✅ Windows icon (logo.ico) is ready. You can run: npm run electron:build:win')
+  } else {
+    console.log('\n📝 To create logo.ico for Windows:')
+    console.log('   npm install png-to-ico --save-dev && npm run setup:icons')
+    console.log('   Or: https://convertio.co/png-ico/ → upload logo.png → save as assets/logo.ico')
+  }
+
+  console.log('\n📚 See assets/ICON_SETUP.md for more options')
 }
 
-if (allExist) {
-  console.log('\n✅ All icons are ready!')
-  console.log('   You can now build the Electron app: npm run electron:build:win')
-  process.exit(0)
-}
-
-console.log('\n📝 To create missing icons:')
-console.log('\n   Option 1: Online Converter (Easiest)')
-console.log('   1. Visit: https://convertio.co/png-ico/')
-console.log('   2. Upload:', logoPath)
-console.log('   3. Download icon.ico')
-console.log('   4. Save to:', assetsDir)
-console.log('\n   Option 2: electron-icon-maker')
-console.log('   npm install -g electron-icon-maker')
-console.log('   cd', assetsDir)
-console.log('   electron-icon-maker --input=logo.png --output=.')
-console.log('\n   Option 3: ImageMagick')
-console.log('   magick convert logo.png -define icon:auto-resize=16,32,48,64,128,256 icon.ico')
-
-console.log('\n📚 See assets/ICON_SETUP.md for detailed instructions')
+run().catch(err => {
+  console.error(err)
+  process.exit(1)
+})
 

@@ -8,6 +8,8 @@ const __dirname = path.dirname(__filename)
 const config = {
   // For Electron: use standalone output to bundle Next.js server
   output: process.env.ELECTRON_BUILD ? 'standalone' : undefined,
+  // Keep Prisma and native modules out of the server bundle
+  serverExternalPackages: ['@prisma/client', 'better-sqlite3'],
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -38,40 +40,33 @@ const config = {
     ]
   },
   webpack: (config, { isServer }) => {
-    // Allow imports from root directories
+    const rootDir = path.resolve(__dirname, '../..')
+    // Allow imports from root directories (single resolution to avoid chunk "factory" undefined)
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@/root/lib': path.resolve(__dirname, '../../lib'),
-      '@/root/components': path.resolve(__dirname, '../../components'),
-      '@/root/hooks': path.resolve(__dirname, '../../hooks'),
+      '@/root/lib': path.join(rootDir, 'lib'),
+      '@/root/components': path.join(rootDir, 'components'),
+      '@/root/hooks': path.join(rootDir, 'hooks'),
       '@/lib': path.resolve(__dirname, './lib'),
       '@/components': path.resolve(__dirname, './components'),
       '@/hooks': path.resolve(__dirname, './hooks'),
     }
 
-    // Webpack optimization settings - simplified after modularization
-    // The previous aggressive settings were needed for the monolithic component
-    // Now that the code is modular, we can use more standard settings
     config.optimization = {
       ...config.optimization,
       moduleIds: 'deterministic',
-      // Re-enable module concatenation for better performance
-      concatenateModules: true,
+      // Avoid aggressive concatenation that can break chunk loading in dev
+      concatenateModules: isServer,
     }
-    
-    // Client-side optimizations
+
     if (!isServer) {
-      // Use runtime chunk for better caching
-      config.optimization.runtimeChunk = {
-        name: 'runtime'
-      }
+      config.optimization.runtimeChunk = { name: 'runtime' }
     }
-    
-    // Module resolution
+
     config.resolve.fullySpecified = false
     config.resolve.symlinks = false
 
-    return config;
+    return config
   },
 };
 

@@ -1,5 +1,15 @@
 # Electron Setup Guide for AlBaz Vendor App
 
+## Architecture (Windows)
+
+The **Windows vendor app is standalone**. It bundles and runs an embedded Next.js server locally. That server is used for:
+
+- **Backup** – syncing data to the cloud
+- **Commands from customer app** – receiving instructions from the customer-facing app
+- **Updates** – app updates and related checks
+
+Core POS and offline operation do **not** depend on an external server; the embedded server is for the above features and for serving the in-app UI.
+
 ## ✅ Setup Complete!
 
 The Electron configuration has been set up. Here's what was installed and configured:

@@ -8,13 +8,17 @@
   "homepage": "./",
   "scripts": {
     "dev": "next dev -p 3001",
+    "dev:clean": "node -e \"const fs=require('fs');const p=require('path');const d=p.join(__dirname,'.next');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true});console.log('Cleaned .next');}\" && next dev -p 3001",
     "build": "next build",
     "build:electron": "cross-env ELECTRON_BUILD=true next build",
     "start": "next start -p 3001",
     "electron": "electron .",
     "electron:dev": "cross-env NODE_ENV=development electron .",
-    "electron:build": "npm run build:electron && electron-builder",
-    "electron:build:win": "npm run build:electron && electron-builder --win",
+    "electron:clean": "node scripts/clean-dist.js",
+    "electron:kill": "node -e \"const {execSync}=require('child_process');const p=require('path');try{if(process.platform==='win32')execSync('powershell -ExecutionPolicy Bypass -File '+p.join(__dirname,'scripts','kill-vendor-app.ps1'),{stdio:'ignore'});}catch(e){}\"",
+    "electron:build": "npm run electron:kill && npm run electron:clean && node scripts/clean-next.js && npm run build:electron && node scripts/copy-standalone-static.js && node scripts/copy-standalone-deps.js && node scripts/download-node-win.js && npm run electron:kill && node scripts/ensure-dist-unlocked.js && npm run setup:icons && npx electron-builder",
+    "electron:build:win": "npm run electron:kill && npm run electron:clean && node scripts/clean-next.js && npm run build:electron && node scripts/copy-standalone-static.js && node scripts/copy-standalone-deps.js && node scripts/download-node-win.js && npm run electron:kill && node scripts/ensure-dist-unlocked.js && npm run setup:icons && npx electron-builder --win",
+    "electron:verify": "node scripts/verify-build.js",
     "setup:icons": "node scripts/setup-icons.js",
     "kill:port": "powershell -ExecutionPolicy Bypass -File scripts/kill-port.ps1",
     "restart:dev": "powershell -ExecutionPolicy Bypass -File scripts/restart-dev.ps1",
@@ -30,11 +34,13 @@
     "@albaz/ui": "*",
     "better-sqlite3": "^12.4.6",
     "clsx": "^2.1.1",
+    "electron-store": "^10.0.0",
     "lucide-react": "^0.454.0",
     "next": "^15.5.6",
     "next-auth": "^5.0.0-beta.25",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "styled-jsx": "^5.1.0",
     "tailwind-merge": "^2.5.5"
   },
   "devDependencies": {
@@ -43,8 +49,8 @@
     "@types/react-dom": "^18.3.7",
     "electron": "39.2.3",
     "electron-builder": "^26.0.12",
-    "electron-store": "^10.0.0",
     "electron-updater": "^6.6.2",
+    "png-to-ico": "^3.0.1",
     "typescript": "^5"
   }
 }

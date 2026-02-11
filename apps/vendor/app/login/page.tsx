@@ -169,6 +169,11 @@ function LoginForm() {
           staffCode: usePinLogin ? staffCode : undefined,
         })
         if (result?.success) {
+          router.push('/vendor')
+          router.refresh()
+          setTimeout(() => {
+            window.location.href = '/vendor'
+          }, 100)
           return
         }
         setError(result?.error || "Email ou mot de passe incorrect")
@@ -267,9 +272,9 @@ function LoginForm() {
     <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
         {/* Logo Section */}
-        <div className="bg-gradient-to-r from-teal-600 to-cyan-500 p-8 text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">AL-baz</h1>
-          <p className="text-teal-100">Vendor Dashboard</p>
+        <div className="bg-black p-8 text-center flex flex-col items-center justify-center">
+          <img src="/logo.png" alt="AlBaz" className="h-16 w-auto object-contain mb-2" />
+          <p className="text-gray-300 text-sm">Vendor Dashboard</p>
         </div>
 
         {/* Form Section */}

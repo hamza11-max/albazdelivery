@@ -13,8 +13,8 @@ export const metadata: Metadata = {
   title: "AL-baz Vendor Dashboard",
   description: "Vendor dashboard for AL-baz delivery platform",
   icons: {
-    icon: '/logo.svg',
-    apple: '/logo.svg',
+    icon: '/logo.png',
+    apple: '/logo.png',
   },
 }
 

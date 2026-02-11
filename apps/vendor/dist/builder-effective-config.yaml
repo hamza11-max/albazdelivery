@@ -1,0 +1,71 @@
+directories:
+  output: dist
+  buildResources: build
+  app: .
+appId: com.albaz.vendor
+productName: AlBaz Vendor
+copyright: Copyright © 2024 AlBaz Delivery
+files:
+  - filter:
+      - out/**/*
+      - .next/standalone/**/*
+      - .next/static/**/*
+      - electron/**/*
+      - assets/**/*
+      - package.json
+      - node_modules/**/*
+      - '!node_modules/.cache'
+      - '!node_modules/**/*.{md,ts,map}'
+      - '!**/*.{md,ts,map}'
+asarUnpack:
+  - .next/standalone/**/*
+  - .next/static/**/*
+  - node_modules/better-sqlite3/**/*
+extraMetadata:
+  main: electron/main.js
+win:
+  executableName: AlBazVendor
+  extraResources:
+    - from: build/node
+      to: node
+  extraFiles:
+    - from: .next/standalone
+      to: .next/standalone
+    - from: .next/static
+      to: .next/static
+  signAndEditExecutable: false
+  target:
+    - target: nsis
+      arch: x64
+  icon: build/icon.ico
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  requestedExecutionLevel: asInvoker
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AlBaz Vendor
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: assets/logo.icns
+  category: public.app-category.business
+linux:
+  target:
+    - AppImage
+    - deb
+  icon: assets/logo.png
+  category: Office
+publish:
+  provider: github
+  owner: hamza11-max
+  repo: albazdelivery
+electronVersion: 39.2.3

@@ -76,18 +76,15 @@ import { InventoryTab } from "../../components/tabs/InventoryTab"
 import { OrdersTab } from "../../components/tabs/OrdersTab"
 import { DriversTab } from "../../components/tabs/DriversTab"
 import { SalesTab } from "../../components/tabs/SalesTab"
-import { CustomersTab } from "../../components/tabs/CustomersTab"
 import { SuppliersTab } from "../../components/tabs/SuppliersTab"
 import { AITab } from "../../components/tabs/AITab"
 import { SettingsTab } from "../../components/tabs/SettingsTab"
 import { ReportsTab } from "../../components/tabs/ReportsTab"
 import { CouponsTab } from "../../components/tabs/CouponsTab"
-import { BackupTab } from "../../components/tabs/BackupTab"
-import { CloudSyncTab } from "../../components/tabs/CloudSyncTab"
+import { SyncSaveTab } from "../../components/tabs/SyncSaveTab"
 import { EmailTab } from "../../components/tabs/EmailTab"
-import { PermissionsTab } from "../../components/tabs/PermissionsTab"
-import { LoyaltyTab } from "../../components/tabs/LoyaltyTab"
-import { InventoryAlertsTab } from "../../components/tabs/InventoryAlertsTab"
+import { StaffPermissionsTab } from "../../components/tabs/StaffPermissionsTab"
+import { ClientsLoyaltyTab } from "../../components/tabs/ClientsLoyaltyTab"
 import { InvoiceView } from "../../components/InvoiceView"
 import { DayHoursInput } from "../../components/DayHoursInput"
 import { StaffDialog } from "../../components/dialogs/StaffDialog"
@@ -267,6 +264,9 @@ export default function VendorDashboard() {
     activeVendorId,
   } = useVendorState()
 
+  // In Electron use electron store user; otherwise NextAuth user
+  const effectiveUser = isElectronRuntime ? electronUser : user
+
   const [storeId, setStoreId] = useState<string | null>(null)
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(true)
   const [isUpdatingStoreStatus, setIsUpdatingStoreStatus] = useState(false)
@@ -357,7 +357,7 @@ export default function VendorDashboard() {
 
   // Load vendor store info to control intake/pause
   useEffect(() => {
-    const targetVendorId = isAdmin ? activeVendorId : user?.id
+    const targetVendorId = isAdmin ? activeVendorId : effectiveUser?.id
     if (!targetVendorId) return
 
     const controller = new AbortController()
@@ -379,7 +379,7 @@ export default function VendorDashboard() {
 
     loadStore()
     return () => controller.abort()
-  }, [user?.id, activeVendorId, isAdmin])
+  }, [effectiveUser?.id, activeVendorId, isAdmin])
 
   // Persist prep time
   useEffect(() => {
@@ -829,7 +829,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   useDataLoading({
     status,
     isAuthenticated,
-    user,
+    user: effectiveUser,
     isAdmin,
     setIsAdmin,
     isElectronRuntime,
@@ -916,13 +916,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
       { id: "sales", icon: History, labelFr: "Ventes", labelAr: "المبيعات", color: "from-green-500 to-emerald-500" },
       { id: "reports", icon: BarChart3, labelFr: "Rapports", labelAr: "التقارير", color: "from-indigo-500 to-blue-500" },
       { id: "coupons", icon: Percent, labelFr: "Coupons", labelAr: "الكوبونات", color: "from-yellow-500 to-orange-500" },
-      { id: "backup", icon: Database, labelFr: "Sauvegarde", labelAr: "النسخ الاحتياطي", color: "from-gray-500 to-slate-500" },
-      { id: "cloud-sync", icon: Cloud, labelFr: "Sync Cloud", labelAr: "مزامنة السحابة", color: "from-cyan-500 to-blue-500" },
+      { id: "sync-save", icon: Cloud, labelFr: "Sync & Sauvegarde", labelAr: "المزامنة والنسخ الاحتياطي", color: "from-cyan-500 to-blue-500" },
       { id: "email", icon: Mail, labelFr: "Email", labelAr: "البريد الإلكتروني", color: "from-red-500 to-pink-500" },
-      { id: "permissions", icon: Shield, labelFr: "Permissions", labelAr: "الصلاحيات", color: "from-amber-500 to-yellow-500" },
-      { id: "loyalty", icon: Gift, labelFr: "Fidélité", labelAr: "الولاء", color: "from-pink-500 to-rose-500" },
-      { id: "inventory-alerts", icon: Bell, labelFr: "Alertes", labelAr: "التنبيهات", color: "from-red-500 to-orange-500" },
-      { id: "customers", icon: Users, labelFr: "Clients", labelAr: "العملاء", color: "from-teal-500 to-cyan-500" },
+      { id: "staff-permissions", icon: Shield, labelFr: "Personnel & Permissions", labelAr: "الموظفون والصلاحيات", color: "from-amber-500 to-yellow-500" },
+      { id: "clients-loyalty", icon: Gift, labelFr: "Clients & Fidélité", labelAr: "العملاء والولاء", color: "from-teal-500 to-cyan-500" },
       { id: "drivers", icon: UserCog, labelFr: "Chauffeurs", labelAr: "السائقون", color: "from-blue-500 to-indigo-500" },
       { id: "suppliers", icon: Truck, labelFr: "Fournisseurs", labelAr: "الموردون", color: "from-violet-500 to-purple-500" },
       { id: "ai", icon: Sparkles, labelFr: "Analyse IA", labelAr: "تحليلات الذكاء الاصطناعي", color: "from-purple-500 to-indigo-500" },
@@ -994,20 +991,37 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     </nav>
   )
 
-  // Show loading state while checking authentication
-  if (isLoading || status === "loading") {
+  // In Electron, gate on Electron auth check only (no NextAuth session in main window)
+  const showLoading = isElectronRuntime
+    ? !electronAuthChecked
+    : (isLoading || status === "loading")
+
+  if (showLoading) {
     return <LoadingScreen />
   }
-  
-  // Redirect if not authenticated (handled in useEffect, but show nothing while redirecting)
-  // Skip auth check in Electron for development
+
+  // When Electron auth checked but no user, show minimal message (e.g. session expired)
+  if (isElectronRuntime && !effectiveUser) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Session expired or not authenticated.</p>
+          <Button variant="outline" onClick={() => window.electronAPI?.auth?.logout?.()}>
+            Return to login
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Redirect if not authenticated (web only)
   if (!isElectronRuntime && (!isAuthenticated || !user)) {
     return null
   }
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen bg-background flex ${isDarkMode ? 'dark' : ''}`} dir={isArabic ? "rtl" : "ltr"}>
+      <div className={`min-h-screen bg-background flex ${isDarkMode ? 'dark' : ''}`} dir={isArabic ? "rtl" : "ltr"} data-vendor-page>
       {/* Vertical Sidebar - Hidden on mobile */}
       {!isMobile && (
         <VendorSidebar
@@ -1287,7 +1301,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <SalesTab
               sales={sales}
               translate={translate}
-              user={user}
+              user={effectiveUser}
               shopInfo={shopInfo}
             />
           </TabsContent>
@@ -1309,17 +1323,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             />
           </TabsContent>
 
-          {/* Backup Tab */}
-          <TabsContent value="backup" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <BackupTab translate={translate} />
-          </TabsContent>
-
-          {/* Cloud Sync Tab */}
-          <TabsContent value="cloud-sync" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <CloudSyncTab
-              translate={translate}
-              vendorId={user?.id}
-            />
+          {/* Sync & Save Tab (merged Backup + Cloud Sync) */}
+          <TabsContent value="sync-save" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <SyncSaveTab translate={translate} vendorId={effectiveUser?.id} />
           </TabsContent>
 
           {/* Email Tab */}
@@ -1327,24 +1333,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <EmailTab translate={translate} />
           </TabsContent>
 
-          {/* Permissions Tab */}
-          <TabsContent value="permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <PermissionsTab translate={translate} />
+          {/* Staff & Permissions Tab (merged) */}
+          <TabsContent value="staff-permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <StaffPermissionsTab translate={translate} />
           </TabsContent>
 
-          {/* Loyalty Tab */}
-          <TabsContent value="loyalty" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <LoyaltyTab translate={translate} />
-          </TabsContent>
-
-          {/* Inventory Alerts Tab */}
-          <TabsContent value="inventory-alerts" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <InventoryAlertsTab translate={translate} />
-          </TabsContent>
-
-          {/* Customers Tab */}
-          <TabsContent value="customers" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <CustomersTab
+          {/* Clients & Loyalty Tab (merged) */}
+          <TabsContent value="clients-loyalty" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <ClientsLoyaltyTab
               customers={customers}
               translate={translate}
               setShowCustomerDialog={setShowCustomerDialog}
@@ -1810,7 +1806,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
       <ReceiptView
         showReceipt={showReceipt}
         completedSale={completedSale}
-        user={user}
+        user={effectiveUser}
         translate={translate}
         isElectronRuntime={isElectronRuntime}
         onClose={() => {
@@ -1819,12 +1815,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         }}
         onPrint={async () => {
           if (!completedSale) return
-          const userWithExtras = user as any
+          const userWithExtras = effectiveUser as any
           const electronAPI = window.electronAPI
           if (isElectronRuntime && electronAPI?.print?.receipt) {
             try {
               const receiptData = {
-                storeName: user?.name || 'AlBaz Store',
+                storeName: effectiveUser?.name || shopInfo?.name || 'AlBaz Store',
                 items: completedSale.items.map(item => ({
                   name: item.productName,
                   quantity: item.quantity,
@@ -1839,7 +1835,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 date: new Date(completedSale.createdAt).toLocaleString(),
                 shopAddress: userWithExtras?.address || '',
                 shopPhone: userWithExtras?.phone || '',
-                shopEmail: user?.email || '',
+                shopEmail: effectiveUser?.email || shopInfo?.email || '',
                 shopCity: ''
               }
               await electronAPI.print.receipt(receiptData)
@@ -1862,6 +1858,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         editingProduct={editingProduct}
         onSave={handleSaveProduct}
         onFileUpload={handleFileUpload}
+        onScanBarcode={() => {
+          productFormScanRef.current = true
+          setIsBarcodeScannerOpen(true)
+        }}
         translate={translate}
       />
 

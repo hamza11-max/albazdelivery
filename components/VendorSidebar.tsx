@@ -21,7 +21,6 @@ import {
   Mail,
   Shield,
   Gift,
-  Bell,
 } from "lucide-react"
 import { cn } from "../lib/utils"
 
@@ -98,16 +97,10 @@ export default function VendorSidebar({
       labelAr: "الكوبونات",
     },
     {
-      id: "backup",
-      icon: Database,
-      labelFr: "Sauvegarde",
-      labelAr: "النسخ الاحتياطي",
-    },
-    {
-      id: "cloud-sync",
+      id: "sync-save",
       icon: Cloud,
-      labelFr: "Sync Cloud",
-      labelAr: "مزامنة السحابة",
+      labelFr: "Sync & Sauvegarde",
+      labelAr: "المزامنة والنسخ الاحتياطي",
     },
     {
       id: "email",
@@ -116,28 +109,16 @@ export default function VendorSidebar({
       labelAr: "البريد الإلكتروني",
     },
     {
-      id: "permissions",
+      id: "staff-permissions",
       icon: Shield,
-      labelFr: "Permissions",
-      labelAr: "الصلاحيات",
+      labelFr: "Personnel & Permissions",
+      labelAr: "الموظفون والصلاحيات",
     },
     {
-      id: "loyalty",
+      id: "clients-loyalty",
       icon: Gift,
-      labelFr: "Fidélité",
-      labelAr: "الولاء",
-    },
-    {
-      id: "inventory-alerts",
-      icon: Bell,
-      labelFr: "Alertes",
-      labelAr: "التنبيهات",
-    },
-    {
-      id: "customers",
-      icon: Users,
-      labelFr: "Clients",
-      labelAr: "العملاء",
+      labelFr: "Clients & Fidélité",
+      labelAr: "العملاء والولاء",
     },
     {
       id: "drivers",

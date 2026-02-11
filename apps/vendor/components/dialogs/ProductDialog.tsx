@@ -1,6 +1,6 @@
 "use client"
 
-import { X } from "lucide-react"
+import { X, ScanLine } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/root/components/ui/dialog"
 import { Button } from "@/root/components/ui/button"
 import { Input } from "@/root/components/ui/input"
@@ -16,6 +16,7 @@ interface ProductDialogProps {
   editingProduct: InventoryProduct | null
   onSave: () => void
   onFileUpload?: (event: ChangeEvent<HTMLInputElement>) => void
+  onScanBarcode?: () => void
   translate?: (fr: string, ar: string) => string
 }
 
@@ -27,6 +28,7 @@ export function ProductDialog({
   editingProduct,
   onSave,
   onFileUpload,
+  onScanBarcode,
   translate = (fr: string) => fr,
 }: ProductDialogProps) {
   return (
@@ -63,10 +65,19 @@ export function ProductDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label>Code-barres</Label>
+            <Label className="flex items-center justify-between">
+              <span>{translate("Code-barres", "الرمز الشريطي")}</span>
+              {onScanBarcode && (
+                <Button type="button" variant="outline" size="sm" onClick={onScanBarcode} className="h-7 px-2">
+                  <ScanLine className="w-4 h-4 mr-1" />
+                  {translate("Scanner", "مسح")}
+                </Button>
+              )}
+            </Label>
             <Input
               value={productForm.barcode}
               onChange={(e) => onFormChange({ ...productForm, barcode: e.target.value })}
+              placeholder={translate("EAN/UPC ou scanner", "EAN/UPC أو مسح")}
             />
           </div>
           <div className="space-y-2">

@@ -5,7 +5,7 @@ import { Button } from '@/root/components/ui/button'
 import { Input } from '@/root/components/ui/input'
 import { Label } from '@/root/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/root/components/ui/card'
-import { Store, Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 
 interface ElectronLoginProps {
   onLoginSuccess: (user: any) => void
@@ -45,8 +45,8 @@ export default function ElectronLogin({ onLoginSuccess }: ElectronLoginProps) {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <Card className="w-full max-w-md mx-4 bg-white/10 backdrop-blur-lg border-white/20">
         <CardHeader className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center shadow-lg">
-            <Store className="w-8 h-8 text-white" />
+          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl flex items-center justify-center overflow-hidden bg-black shadow-lg">
+            <img src="/logo.png" alt="AlBaz" className="w-full h-full object-contain" />
           </div>
           <CardTitle className="text-2xl text-white">AlBaz Vendor</CardTitle>
           <CardDescription className="text-gray-300">

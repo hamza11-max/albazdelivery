@@ -1,80 +1,49 @@
 # Icon Setup Instructions
 
 ## Current Status
-✅ Logo image copied: `logo.png`
+- **logo.png** – Main logo (eagle/raptor) used for web, tray, Linux, and as source for .ico
+- **logo.ico** – Generated from logo.png (run `npm run setup:icons`) for Windows exe and window icon
+- **build/icon.ico** – Copied from assets/logo.ico by `setup:icons`; electron-builder uses this for the **installed** exe, Desktop shortcut, and Start Menu so the icon appears correctly after install
 
 ## Required Icon Formats
 
-For Electron to work properly, you need to convert the logo to different formats:
-
 ### Windows (.ico)
-- **Required**: `icon.ico`
-- **Sizes**: 16x16, 32x32, 48x48, 64x64, 128x128, 256x256
-- **Location**: `apps/vendor/assets/icon.ico`
+- **Required**: `logo.ico` (used by electron-builder and app window)
+- **Location**: `apps/vendor/assets/logo.ico`
+- **Generate**: `npm install png-to-ico --save-dev && npm run setup:icons`
 
 ### macOS (.icns)
-- **Required**: `icon.icns`
-- **Location**: `apps/vendor/assets/icon.icns`
+- **Required**: `logo.icns`
+- **Location**: `apps/vendor/assets/logo.icns`
 
 ### Linux (.png)
-- **Required**: `icon.png` (512x512 recommended)
-- **Location**: `apps/vendor/assets/icon.png`
+- **Source**: `logo.png` (same file used for tray and web)
+- **Location**: `apps/vendor/assets/logo.png`
 
 ## Conversion Tools
 
-### Option 1: Online Converter (Easiest)
-1. Visit: https://convertio.co/png-ico/ or https://cloudconvert.com/png-to-ico
-2. Upload `logo.png`
-3. Download `icon.ico`
-4. Place in `apps/vendor/assets/icon.ico`
+### Option 1: Online converter (easiest for logo.ico)
+1. Visit https://convertio.co/png-ico/ or https://cloudconvert.com/png-to-ico
+2. Upload `assets/logo.png`
+3. Download as `logo.ico`
+4. Save to `apps/vendor/assets/logo.ico`
 
-### Option 2: ImageMagick (Command Line)
+### Option 2: ImageMagick
 ```bash
-# Install ImageMagick first
-# Windows: choco install imagemagick
-# Mac: brew install imagemagick
-
-# Convert to ICO with multiple sizes
-magick convert logo.png -define icon:auto-resize=16,32,48,64,128,256 icon.ico
-
-# Convert to ICNS (Mac only)
-magick convert logo.png -resize 512x512 icon.icns
+magick convert logo.png -define icon:auto-resize=16,32,48,64,128,256 logo.ico
 ```
 
-### Option 3: GIMP (Free Image Editor)
-1. Open `logo.png` in GIMP
-2. Export as ICO (File → Export As → icon.ico)
-3. Choose multiple sizes when prompted
-
-### Option 4: Electron Icon Generator
+### Option 3: npm script (if png-to-ico works)
 ```bash
-npm install -g electron-icon-maker
-cd apps/vendor/assets
-electron-icon-maker --input=logo.png --output=.
+cd apps/vendor && npm run setup:icons
 ```
-
-## Quick Setup (Recommended)
-
-Run this command to generate all icon formats:
-
-```bash
-cd apps/vendor/assets
-npm install -g electron-icon-maker
-electron-icon-maker --input=logo.png --output=.
-```
-
-Or use the online converter:
-1. Go to https://convertio.co/png-ico/
-2. Upload `logo.png`
-3. Download `icon.ico`
-4. Place in `apps/vendor/assets/`
 
 ## Verification
 
-After creating icons, verify they exist:
 ```bash
-ls apps/vendor/assets/
-# Should show: icon.ico, icon.icns, icon.png, logo.png
+# Windows build needs logo.ico and logo.png
+dir apps\vendor\assets\
+# Should have: logo.png, logo.ico (and optionally logo.icns for macOS)
 ```
 
 ## Notes
@@ -85,5 +54,5 @@ ls apps/vendor/assets/
   - Windows taskbar
   - App window title bar
   - Installer
-  - Desktop shortcut
+  - Desktop shortcut and Start Menu (when using build/icon.ico via `npm run setup:icons` before build)
 

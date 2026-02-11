@@ -66,18 +66,16 @@ import { InventoryTab } from "../../components/tabs/InventoryTab"
 import { OrdersTab } from "../../components/tabs/OrdersTab"
 import { DriversTab } from "../../components/tabs/DriversTab"
 import { SalesTab } from "../../components/tabs/SalesTab"
-import { CustomersTab } from "../../components/tabs/CustomersTab"
 import { SuppliersTab } from "../../components/tabs/SuppliersTab"
 import { AITab } from "../../components/tabs/AITab"
 import { SettingsTab } from "../../components/tabs/SettingsTab"
 import { ReportsTab } from "../../components/tabs/ReportsTab"
 import { CouponsTab } from "../../components/tabs/CouponsTab"
-import { BackupTab } from "../../components/tabs/BackupTab"
-import { CloudSyncTab } from "../../components/tabs/CloudSyncTab"
+import { SyncSaveTab } from "../../components/tabs/SyncSaveTab"
 import { EmailTab } from "../../components/tabs/EmailTab"
-import { PermissionsTab } from "../../components/tabs/PermissionsTab"
-import { LoyaltyTab } from "../../components/tabs/LoyaltyTab"
-import { InventoryAlertsTab } from "../../components/tabs/InventoryAlertsTab"
+import { StaffPermissionsTab } from "../../components/tabs/StaffPermissionsTab"
+import { ClientsLoyaltyTab } from "../../components/tabs/ClientsLoyaltyTab"
+import { BarcodeScannerDialog } from "../../components/dialogs/BarcodeScannerDialog"
 import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
 import { ReceiptDialog } from "../../components/dialogs/ReceiptDialog"
 import { ImageUploadDialog } from "../../components/dialogs/ImageUploadDialog"
@@ -237,6 +235,9 @@ export default function VendorDashboard() {
     isAcceptingOrders,
     setIsAcceptingOrders,
   } = useVendorState()
+
+  // In Electron use electron store user; otherwise NextAuth user
+  const effectiveUser = isElectronRuntime ? electronUser : user
 
   // Check Electron auth on mount and load offline data
   useEffect(() => {
@@ -883,9 +884,19 @@ export default function VendorDashboard() {
     }
   }, [syncOfflineSales])
 
+  useEffect(() => {
+    const onRefresh = () => {
+      fetchDashboardData(activeVendorId)
+      fetchInventory(activeVendorId)
+      fetchSales(activeVendorId)
+    }
+    window.addEventListener("vendor-refresh-data", onRefresh)
+    return () => window.removeEventListener("vendor-refresh-data", onRefresh)
+  }, [activeVendorId, fetchDashboardData, fetchInventory, fetchSales])
+
   // Load vendor store info to control intake/pause
   useEffect(() => {
-    const targetVendorId = isAdmin ? activeVendorId : user?.id
+    const targetVendorId = isAdmin ? activeVendorId : effectiveUser?.id
     if (!targetVendorId) return
 
     const controller = new AbortController()
@@ -907,7 +918,7 @@ export default function VendorDashboard() {
 
     loadStore()
     return () => controller.abort()
-  }, [user?.id, activeVendorId, isAdmin, setStoreId, setIsAcceptingOrders])
+  }, [effectiveUser?.id, activeVendorId, isAdmin, setStoreId, setIsAcceptingOrders])
 
   // Initial offline queue count
   useEffect(() => {
@@ -1011,6 +1022,10 @@ export default function VendorDashboard() {
     setPosDiscountPercent(0)
   }, [setPosAppliedCoupon, setPosCouponCode, setPosDiscount, setPosDiscountPercent])
 
+  // When scanner is opened from ProductDialog (add item), fill barcode field and close
+  const productFormScanRef = useRef(false)
+  const setBarcodeScannerOpenRef = useRef<(open: boolean) => void>(() => {})
+
   // Barcode Scanner - now using hook (must be after translate is defined)
   const {
     isBarcodeScannerOpen,
@@ -1021,9 +1036,18 @@ export default function VendorDashboard() {
   } = useBarcodeScanner({
     products,
     onProductFound: addToCart,
-    onBarcodeScanned: setPosSearch,
+    onBarcodeScanned: (value: string) => {
+      if (productFormScanRef.current) {
+        setProductForm((prev: any) => ({ ...prev, barcode: value }))
+        productFormScanRef.current = false
+        setBarcodeScannerOpenRef.current(false)
+      } else {
+        setPosSearch(value)
+      }
+    },
     translate,
   })
+  setBarcodeScannerOpenRef.current = setIsBarcodeScannerOpen
 
 
 // File upload handler - using utility function
@@ -1292,7 +1316,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   useDataLoading({
     status,
     isAuthenticated,
-    user,
+    user: effectiveUser,
     isAdmin,
     setIsAdmin,
     isElectronRuntime,
@@ -1410,13 +1434,30 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     handleDiscountPercentChange(capped)
   }, [handleDiscountPercentChange, allowedMaxDiscount, toast, translate])
 
-  // Show loading state while checking authentication
-  if (isLoading || status === "loading") {
+  // In Electron, gate on Electron auth check only (no NextAuth session in main window)
+  const showLoading = isElectronRuntime
+    ? !electronAuthChecked
+    : (isLoading || status === "loading")
+
+  if (showLoading) {
     return <LoadingScreen />
   }
-  
-  // Redirect if not authenticated (handled in useEffect, but show nothing while redirecting)
-  // Skip auth check in Electron for development
+
+  // When Electron auth checked but no user, show minimal message (e.g. session expired)
+  if (isElectronRuntime && !effectiveUser) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Session expired or not authenticated.</p>
+          <Button variant="outline" onClick={() => window.electronAPI?.auth?.logout?.()}>
+            Return to login
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Redirect if not authenticated (web only)
   if (!isElectronRuntime && (!isAuthenticated || !user)) {
     return null
   }
@@ -1699,7 +1740,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <SalesTab
               sales={sales}
               translate={translate}
-              user={user}
+              user={effectiveUser}
               shopInfo={shopInfo}
             />
           </TabsContent>
@@ -1721,14 +1762,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             />
           </TabsContent>
 
-          {/* Backup Tab */}
-          <TabsContent value="backup" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <BackupTab translate={translate} />
-          </TabsContent>
-
-          {/* Cloud Sync Tab */}
-          <TabsContent value="cloud-sync" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <CloudSyncTab translate={translate} vendorId={activeVendorId} />
+          {/* Sync & Save Tab (merged Backup + Cloud Sync) */}
+          <TabsContent value="sync-save" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <SyncSaveTab translate={translate} vendorId={activeVendorId} />
           </TabsContent>
 
           {/* Email Tab */}
@@ -1736,24 +1772,30 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <EmailTab translate={translate} />
           </TabsContent>
 
-          {/* Permissions Tab */}
-          <TabsContent value="permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <PermissionsTab translate={translate} />
+          {/* Staff & Permissions Tab (merged: staff add + permissions) */}
+          <TabsContent value="staff-permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <StaffPermissionsTab
+              translate={translate}
+              isElectronRuntime={isElectronRuntime}
+              electronStaffAccounts={staffAccounts}
+              electronStaffForm={staffForm}
+              onElectronStaffFormChange={setStaffForm}
+              onAddElectronStaff={handleAddStaffAccount}
+              onRemoveElectronStaff={handleRemoveStaffAccount}
+              onOpenElectronPinReset={(account) => {
+                setStaffPinResetTarget(account)
+                setStaffPinResetOpen(true)
+              }}
+              electronPinResetOpen={staffPinResetOpen}
+              onElectronPinResetOpenChange={setStaffPinResetOpen}
+              electronPinResetTarget={staffPinResetTarget}
+              onConfirmElectronPinReset={(id) => id && handleResetStaffPin(id)}
+            />
           </TabsContent>
 
-          {/* Loyalty Tab */}
-          <TabsContent value="loyalty" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <LoyaltyTab translate={translate} />
-          </TabsContent>
-
-          {/* Inventory Alerts Tab */}
-          <TabsContent value="inventory-alerts" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <InventoryAlertsTab translate={translate} />
-          </TabsContent>
-
-          {/* Customers Tab */}
-          <TabsContent value="customers" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <CustomersTab
+          {/* Clients & Loyalty Tab (merged) */}
+          <TabsContent value="clients-loyalty" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <ClientsLoyaltyTab
               customers={customers}
               translate={translate}
               setShowCustomerDialog={setShowCustomerDialog}
@@ -2051,177 +2093,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             </CardContent>
           </Card>
 
-          {/* Staff Accounts (Electron) */}
-          {isElectronRuntime && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  {translate("Comptes du personnel", "حسابات الموظفين")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{translate("Nom", "الاسم")}</Label>
-                    <Input
-                      value={staffForm.name}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, name: e.target.value }))}
-                      placeholder={translate("Nom complet", "الاسم الكامل")}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{translate("Téléphone", "الهاتف")}</Label>
-                    <Input
-                      value={staffForm.phone}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, phone: e.target.value }))}
-                      placeholder="05XXXXXXXX"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{translate("Email", "البريد الإلكتروني")}</Label>
-                    <Input
-                      value={staffForm.email}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, email: e.target.value }))}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{translate("Rôle", "الدور")}</Label>
-                    <select
-                      className="border rounded-md px-3 py-2 bg-background"
-                      value={staffForm.role}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, role: e.target.value }))}
-                    >
-                      <option value="owner">{translate("Propriétaire", "مالك")}</option>
-                      <option value="manager">{translate("Manager", "مدير")}</option>
-                      <option value="cashier">{translate("Caissier", "أمين صندوق")}</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{translate("Code personnel (4 chiffres)", "رمز الموظف (4 أرقام)")}</Label>
-                    <Input
-                      value={staffForm.staffCode}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, staffCode: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
-                      placeholder="1234"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{translate("Mot de passe", "كلمة المرور")}</Label>
-                    <Input
-                      type="password"
-                      value={staffForm.password}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, password: e.target.value }))}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{translate("Confirmer le mot de passe", "تأكيد كلمة المرور")}</Label>
-                    <Input
-                      type="password"
-                      value={staffForm.confirmPassword}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>{translate("PIN (optionnel)", "رمز PIN (اختياري)")}</Label>
-                    <Input
-                      type="password"
-                      value={staffForm.pin}
-                      onChange={(e) => setStaffForm((prev) => ({ ...prev, pin: e.target.value }))}
-                      placeholder="••••"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={handleAddStaffAccount}>
-                    {translate("Ajouter le personnel", "إضافة موظف")}
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {staffAccounts.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      {translate("Aucun compte créé", "لا توجد حسابات")}
-                    </p>
-                  ) : (
-                    staffAccounts.map((account) => (
-                      <div key={account.id} className="border rounded-md p-3 flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{account.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {account.email || account.phone || translate("Sans contact", "بدون جهة اتصال")}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{account.role}</p>
-                          {account.staffCode && (
-                            <p className="text-xs text-muted-foreground">
-                              {translate("Code", "الرمز")}: {account.staffCode}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {account.staffCode && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigator.clipboard.writeText(String(account.staffCode))}
-                            >
-                              {translate("Copier le code", "نسخ الرمز")}
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setStaffPinResetTarget(account)
-                              setStaffPinResetOpen(true)
-                            }}
-                          >
-                            {translate("Réinitialiser PIN", "إعادة تعيين PIN")}
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleRemoveStaffAccount(account.id)}>
-                            {translate("Supprimer", "حذف")}
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          <Dialog open={staffPinResetOpen} onOpenChange={setStaffPinResetOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{translate("Confirmer la réinitialisation", "تأكيد إعادة التعيين")}</DialogTitle>
-                <DialogDescription>
-                  {translate(
-                    "Réinitialiser le PIN de ce membre du personnel ?",
-                    "هل تريد إعادة تعيين رقم PIN لهذا الموظف؟"
-                  )}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="text-sm text-muted-foreground">
-                {staffPinResetTarget?.name || translate("Compte sélectionné", "الحساب المحدد")}
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setStaffPinResetOpen(false)}>
-                  {translate("Annuler", "إلغاء")}
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (staffPinResetTarget?.id) {
-                      handleResetStaffPin(staffPinResetTarget.id)
-                    }
-                  }}
-                >
-                  {translate("Réinitialiser", "إعادة التعيين")}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Staff add is in Staff & Permissions tab (sidebar) */}
 
           {/* Schedule & Capacity */}
           <Card>
@@ -2589,7 +2461,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
       <ReceiptView
         showReceipt={showReceipt}
         completedSale={completedSale}
-        user={user}
+        user={effectiveUser}
         translate={translate}
         isElectronRuntime={isElectronRuntime}
         onClose={() => {
@@ -2599,12 +2471,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         shopInfo={shopInfo}
         onPrint={async () => {
           if (!completedSale) return
-          const userWithExtras = user as any
+          const userWithExtras = effectiveUser as any
           const electronAPI = window.electronAPI
           if (isElectronRuntime && electronAPI?.print?.receipt) {
             try {
               const receiptData = {
-                storeName: shopInfo.name || user?.name || 'AlBaz Store',
+                storeName: shopInfo.name || effectiveUser?.name || 'AlBaz Store',
                 items: completedSale.items.map(item => ({
                   name: item.productName,
                   quantity: item.quantity,
@@ -2619,7 +2491,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 date: new Date(completedSale.createdAt).toLocaleString(),
                 shopAddress: shopInfo.address || userWithExtras?.address || '',
                 shopPhone: shopInfo.phone || userWithExtras?.phone || '',
-                shopEmail: shopInfo.email || user?.email || '',
+                shopEmail: shopInfo.email || effectiveUser?.email || '',
                 shopCity: '',
                 logo: shopInfo.logo,
               }
@@ -2643,6 +2515,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         editingProduct={editingProduct}
         onSave={handleSaveProduct}
         onFileUpload={handleFileUpload}
+        onScanBarcode={() => {
+          productFormScanRef.current = true
+          setIsBarcodeScannerOpen(true)
+        }}
         translate={translate}
       />
 
@@ -2680,6 +2556,15 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         onOpenChange={setShowImageUploadDialog}
         onFileUpload={handleFileUpload}
         fileInputRef={fileInputRef}
+        translate={translate}
+      />
+
+      {/* Barcode Scanner (used by POS and Add Product dialog) */}
+      <BarcodeScannerDialog
+        open={isBarcodeScannerOpen}
+        onOpenChange={setIsBarcodeScannerOpen}
+        videoRef={barcodeVideoRef}
+        error={barcodeScannerError}
         translate={translate}
       />
       </div>

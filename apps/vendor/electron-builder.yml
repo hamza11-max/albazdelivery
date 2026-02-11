@@ -9,23 +9,46 @@ directories:
 
 files:
   - 'out/**/*'
+  - '.next/standalone/**/*'
+  - '.next/static/**/*'
   - 'electron/**/*'
+  - 'assets/**/*'
   - 'package.json'
   - 'node_modules/**/*'
   - '!node_modules/.cache'
   - '!node_modules/**/*.{md,ts,map}'
   - '!**/*.{md,ts,map}'
 
+# Unpack standalone so Node can run server.js (asar is read-only for child processes)
+# Unpack native .node modules so they load on Windows
+asarUnpack:
+  - '.next/standalone/**/*'
+  - '.next/static/**/*'
+  - 'node_modules/better-sqlite3/**/*'
+
 extraMetadata:
   main: electron/main.js
 
+# Avoid rename ENOENT: use exe name without space; build one arch at a time if needed
 win:
+  executableName: AlBazVendor
+  # Bundle Node.js so the exe runs without Node installed (run node scripts/download-node-win.js before build)
+  extraResources:
+    - from: build/node
+      to: node
+  # Copy .next/standalone and .next/static next to exe so the app finds server (avoids asar/gitignore issues)
+  extraFiles:
+    - from: .next/standalone
+      to: .next/standalone
+    - from: .next/static
+      to: .next/static
+  # Skip code-signing tool download (avoids 7z symlink errors on Windows without admin/Developer Mode)
+  signAndEditExecutable: false
   target:
     - target: nsis
-      arch:
-        - x64
-        - ia32
-  icon: assets/logo.ico
+      arch: x64
+  # Use build/icon.ico (buildResources) so exe and shortcuts get the icon when installed
+  icon: build/icon.ico
   artifactName: ${productName}-${version}-${arch}.${ext}
   requestedExecutionLevel: asInvoker
 
@@ -35,11 +58,10 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: AlBaz Vendor
-  installerIcon: assets/logo.ico
-  uninstallerIcon: assets/logo.ico
-  installerHeaderIcon: assets/logo.ico
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
   deleteAppDataOnUninstall: false
-  include: build/installer.nsh
 
 mac:
   target:

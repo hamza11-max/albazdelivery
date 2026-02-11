@@ -1,9 +1,54 @@
+/**
+ * AlBaz Vendor Electron main process.
+ *
+ * Architecture (Windows): The vendor app is STANDALONE. It runs the embedded Next.js
+ * server only to serve the UI and for optional cloud features. The server is used for:
+ * - Backup / syncing data to the cloud
+ * - Receiving commands from the customer app
+ * - App updates
+ * Core POS and offline operation do not depend on an external server.
+ */
 const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, session } = require('electron')
 const path = require('path')
+const fs = require('fs')
+const http = require('http')
 const { spawn, exec } = require('child_process')
 const crypto = require('crypto')
-const { createAuthWindow, closeAuthWindow, setAuthWindowClosable } = require('./auth-window')
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
+
+function logStartup(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}\n`
+  if (!isDev && app.isPackaged) {
+    try {
+      const logPath = path.join(app.getPath('userData'), 'vendor-startup.log')
+      fs.appendFileSync(logPath, line)
+    } catch (e) { /* ignore */ }
+  }
+  console.log(line.trim())
+}
+
+// Catch main process errors so the app doesn't exit silently
+process.on('uncaughtException', (err) => {
+  logStartup('Uncaught exception: ' + err.message)
+  console.error('[Electron] Uncaught exception:', err)
+})
+process.on('unhandledRejection', (reason, promise) => {
+  logStartup('Unhandled rejection: ' + String(reason))
+  console.error('[Electron] Unhandled rejection at', promise, 'reason:', reason)
+})
+
+let createAuthWindow, closeAuthWindow, setAuthWindowClosable
+try {
+  const authWindow = require('./auth-window')
+  createAuthWindow = authWindow.createAuthWindow
+  closeAuthWindow = authWindow.closeAuthWindow
+  setAuthWindowClosable = authWindow.setAuthWindowClosable
+} catch (e) {
+  console.warn('Auth window module failed:', e.message)
+  createAuthWindow = () => null
+  closeAuthWindow = () => {}
+  setAuthWindowClosable = () => {}
+}
 
 // Optional modules - graceful fallback if native modules aren't built for Electron
 let offlineDb = null
@@ -44,6 +89,36 @@ const currentSessionId = crypto.randomUUID()
 function getAuthStore() {
   const Store = require('electron-store').default || require('electron-store')
   return new Store({ name: 'vendor-auth' })
+}
+
+function getVendorConfig() {
+  let config = {}
+  if (!app.isPackaged) return config
+  const toTry = []
+  if (process.platform === 'win32') {
+    toTry.push(path.join(path.dirname(app.getPath('exe')), 'vendor-config.json'))
+  }
+  toTry.push(path.join(app.getPath('userData'), 'vendor-config.json'))
+  for (const configPath of toTry) {
+    try {
+      if (fs.existsSync(configPath)) {
+        config = { ...config, ...JSON.parse(fs.readFileSync(configPath, 'utf8')) }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  return config
+}
+
+const DEFAULT_WEB_APP_URL = 'https://al-baz.app'
+
+function getVerifyPasskeyBaseUrl() {
+  const config = getVendorConfig()
+  const base = (config.ALBAZ_API_URL || config.BACKEND_URL || '').toString().trim().replace(/\/$/, '')
+  if (base) return base
+  if (app.isPackaged) return DEFAULT_WEB_APP_URL
+  return 'http://localhost:3001'
 }
 
 function normalizePasskey(input) {
@@ -141,22 +216,23 @@ function handlePostServerReady() {
 let tray = null
 let isQuitting = false
 
-// Configure CSP to avoid Electron warnings (dev allows HMR needs)
+// Configure CSP to avoid Electron warnings. Packaged app loads from localhost:3001 so we need
+// 'unsafe-inline' / 'unsafe-eval' for Next.js hydration; use same permissive policy for localhost.
 function configureCSP() {
-  const devPolicy = [
+  const localhostPolicy = [
     "default-src 'self' http://localhost:3001 ws://localhost:3001",
     "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:3001",
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' http://localhost:3001",
     "img-src 'self' data: blob: http://localhost:3001",
     "connect-src 'self' http://localhost:3001 ws://localhost:3001 https://*",
-    "font-src 'self' data:",
+    "font-src 'self' data: http://localhost:3001",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
   ].join('; ')
 
-  const prodPolicy = [
+  const strictPolicy = [
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
@@ -169,11 +245,27 @@ function configureCSP() {
     "form-action 'self'",
   ].join('; ')
 
-  const policy = isDev ? devPolicy : prodPolicy
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const url = details.url || ''
+    const isLocalhost = url.startsWith('http://localhost:3001') || url.startsWith('http://127.0.0.1:3001')
+    const policy = (isDev || isLocalhost) ? localhostPolicy : strictPolicy
     const headers = { ...details.responseHeaders, 'Content-Security-Policy': [policy] }
     callback({ responseHeaders: headers })
   })
+}
+
+function showErrorInWindow(win, title, message, options) {
+  if (!win || win.isDestroyed()) return
+  const escaped = String(message).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  let logSection = ''
+  if (options?.logPath) {
+    const logEscaped = String(options.logPath).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    logSection = '<p style="margin-top:1.2rem;padding:0.75rem;background:#f5f5f5;border-radius:6px;font-size:13px;"><strong>Log file (copy this path and open in Notepad):</strong><br><code style="word-break:break-all;">' + logEscaped + '</code></p>'
+  }
+  const steps = options?.showTroubleshoot ? '<p style="margin-top:1rem;"><strong>What to try:</strong></p><ul style="margin:0.5rem 0 0 1.2rem;line-height:1.6;"><li>Install or move the app to a folder <strong>without spaces</strong> in the path (e.g. <code>E:\\AlBazVendor</code> or <code>C:\\AlBazVendor</code>). Paths like "New folder (2)" often cause the server to fail on Windows.</li><li>Close the app and run it again.</li><li>Open the log file above and check the last lines for the real error.</li><li>If you see "Cannot find module" or "ENOENT", reinstall the app or run <code>npm run electron:build</code> from the project.</li><li>Install Node.js LTS and add it to PATH if the log says Node was not found.</li></ul>' : ''
+  const body = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + (title || 'Error') + '</title></head><body style="font-family:sans-serif;padding:2rem;max-width:620px;"><h1 style="margin-top:0;">' + (title || 'Error') + '</h1><p style="white-space:pre-wrap;word-break:break-word;">' + escaped + '</p>' + logSection + steps + '</body></html>'
+  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(body))
+  win.show()
 }
 
 function createWindow() {
@@ -197,17 +289,19 @@ function createWindow() {
   // Set app title
   mainWindow.setTitle('AlBaz Vendor App')
 
-  // Show window when ready to prevent visual flash
+  // Show a loading page immediately so the user always sees a window (packaged app)
+  const loadingHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AlBaz Vendor</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#1e293b;"><div style="text-align:center;color:#e2e8f0;"><p style="font-size:18px;">Starting AlBaz Vendor...</p><p style="color:#94a3b8;">Waiting for server</p><p style="font-size:12px;color:#64748b;margin-top:1rem;">If this stays, check: %APPDATA%\\@albaz\\vendor\\vendor-startup.log</p></div></body></html>'
+  mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(loadingHtml))
+
+  // Always show window when ready so user sees loading or error (not a blank screen)
   mainWindow.once('ready-to-show', () => {
-    if (isAuthenticated) {
-      mainWindow.show()
-    }
+    mainWindow.show()
     if (isDev) {
       mainWindow.webContents.openDevTools()
     }
   })
 
-  // Check authentication before loading
+  // Check authentication and start server
   checkAuthenticationAndLoad()
 
   // Handle window closed
@@ -223,6 +317,20 @@ function createWindow() {
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     require('electron').shell.openExternal(url)
     return { action: 'deny' }
+  })
+
+  // Show error in window if the app URL fails to load (avoids white screen in dev and packaged)
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    if (errorCode === -2) return // ERR_ABORTED (e.g. user navigation)
+    if (!validatedURL || validatedURL.startsWith('data:') || validatedURL === 'about:blank') return
+    if (validatedURL.startsWith('http://localhost:3001')) {
+      const logPath = app.isPackaged ? path.join(app.getPath('userData'), 'vendor-startup.log') : ''
+      const msg = isDev
+        ? `Could not load app: ${errorDescription || errorCode}. Is the Next dev server running on port 3001?`
+        : `Could not load app: ${errorDescription || errorCode}. Check the log: ${logPath}`
+      showErrorInWindow(mainWindow, 'Load failed', msg, logPath ? { logPath, showTroubleshoot: true } : undefined)
+      mainWindow.show()
+    }
   })
 }
 
@@ -272,17 +380,31 @@ function startNextDevServer() {
 
     let serverReady = false
 
+    function whenServerReady() {
+      if (serverReady) return
+      serverReady = true
+      // In dev, wait until localhost:3001 actually responds before loading the app (avoids white screen)
+      const check = () => {
+        const req = http.get('http://localhost:3001', { timeout: 2000 }, (res) => {
+          if (res.statusCode !== undefined) {
+            setTimeout(() => handlePostServerReady(), 500)
+          }
+        })
+        req.on('error', () => {
+          setTimeout(check, 800)
+        })
+        req.on('timeout', () => { req.destroy() })
+      }
+      setTimeout(check, 1500)
+    }
+
     nextProcess.stdout.on('data', (data) => {
       const output = data.toString()
       console.log('[Next.js]', output)
       
       // Check if server is ready
       if (!serverReady && (output.includes('Ready') || output.includes('Local:') || output.includes('localhost:3001'))) {
-        serverReady = true
-        // Wait a bit for server to be fully ready
-        setTimeout(() => {
-          handlePostServerReady()
-        }, 2000)
+        whenServerReady()
       }
     })
 
@@ -314,61 +436,172 @@ function startNextDevServer() {
 }
 
 function startNextStandaloneServer() {
-  // Start Next.js standalone server from .next/standalone
-  const standalonePath = path.join(__dirname, '../.next/standalone')
-  const serverPath = path.join(standalonePath, 'server.js')
-  
-  // Check if standalone build exists
-  const fs = require('fs')
+  // Dev: server at .next/standalone/apps/vendor/server.js
+  // Packaged: extraFiles copy .next next to exe, so use exe dir (avoids asar/unpack path issues)
+  const isPackaged = app.isPackaged
+  let standaloneRoot
+  if (isPackaged && process.platform === 'win32') {
+    const exeDir = path.dirname(app.getPath('exe'))
+    standaloneRoot = path.join(exeDir, '.next', 'standalone')
+  } else if (isPackaged) {
+    standaloneRoot = path.join(process.resourcesPath, 'app.asar.unpacked', '.next', 'standalone')
+  } else {
+    standaloneRoot = path.join(__dirname, '..', '.next', 'standalone')
+  }
+  // Standalone can be: .../standalone/apps/vendor (monorepo) or .../standalone (single-app build from apps/vendor)
+  let serverDir = path.join(standaloneRoot, 'apps', 'vendor')
+  let serverPath = path.join(serverDir, 'server.js')
   if (!fs.existsSync(serverPath)) {
-    console.error('[Electron] Standalone build not found. Run: npm run build')
-    mainWindow.loadURL('about:blank')
+    serverDir = standaloneRoot
+    serverPath = path.join(standaloneRoot, 'server.js')
+  }
+
+  logStartup('Standalone serverDir=' + serverDir)
+  logStartup('Server exists=' + fs.existsSync(serverPath))
+
+  if (!fs.existsSync(serverPath)) {
+    const msg = `Server not found at: ${serverPath}. Rebuild the app with "npm run electron:build".`
+    console.error('[Electron]', msg)
+    showErrorInWindow(mainWindow, 'Startup error', msg)
     return
   }
 
-  // Set PORT environment variable
+  // Windows: paths with spaces (e.g. "New folder (2)") often cause the Next server to exit with code 1
+  if (isPackaged && process.platform === 'win32' && serverDir.includes(' ')) {
+    const logPath = path.join(app.getPath('userData'), 'vendor-startup.log')
+    const msg = 'The app is installed in a folder whose path contains spaces (e.g. "New folder (2)"). On Windows this can make the server fail to start.\n\nReinstall the app to a path without spaces, for example:\nE:\\AlBazVendor\nor\nC:\\AlBazVendor'
+    showErrorInWindow(mainWindow, 'Unsupported install path', msg, { logPath, showTroubleshoot: true })
+    mainWindow.show()
+    return
+  }
+
   process.env.PORT = '3001'
   process.env.HOSTNAME = 'localhost'
 
-  // Start the standalone server
-  nextProcess = spawn('node', ['server.js'], {
-    cwd: standalonePath,
-    shell: true,
+  // Use bundled Node when packaged on Windows (user may not have Node in PATH)
+  const nodeBin = isPackaged && process.platform === 'win32'
+    ? path.join(process.resourcesPath, 'node', 'node.exe')
+    : 'node'
+  const useBundledNode = isPackaged && process.platform === 'win32' && fs.existsSync(nodeBin)
+  logStartup('Node bin=' + nodeBin + ' useBundled=' + useBundledNode)
+
+  if (isPackaged && process.platform === 'win32' && !useBundledNode) {
+    const msg = 'Bundled Node.js not found. Run "npm run electron:build" from the project to include Node, or install Node.js (LTS) and add it to PATH.'
+    console.warn('[Electron]', msg)
+  }
+
+  const spawnEnv = {
+    ...process.env,
+    PORT: '3001',
+    HOSTNAME: 'localhost',
+    NODE_ENV: process.env.NODE_ENV || 'production',
+  }
+  if (isPackaged && process.platform === 'win32') {
+    const exeDir = path.dirname(app.getPath('exe'))
+    const configPath = path.join(exeDir, 'vendor-config.json')
+    try {
+      if (fs.existsSync(configPath)) {
+        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+        if (config.DATABASE_URL) {
+          spawnEnv.DATABASE_URL = config.DATABASE_URL
+          logStartup('Loaded DATABASE_URL from vendor-config.json')
+        }
+      }
+    } catch (e) {
+      logStartup('Could not read vendor-config.json: ' + (e && e.message))
+    }
+  }
+  nextProcess = spawn(useBundledNode ? nodeBin : 'node', ['server.js'], {
+    cwd: serverDir,
+    shell: !useBundledNode,
     stdio: 'pipe',
-    env: {
-      ...process.env,
-      PORT: '3001',
-      HOSTNAME: 'localhost',
-    },
+    env: spawnEnv,
   })
+  logStartup('Server process spawned cwd=' + serverDir)
 
   let serverReady = false
+  const startupTimeoutMs = isPackaged ? 90000 : 45000
+  const serverReadyTimeout = setTimeout(() => {
+    if (serverReady) return
+    serverReady = true
+    if (pollInterval) clearInterval(pollInterval)
+    console.error('[Electron] Next.js server did not become ready in time')
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const logHint = isPackaged ? ' Check the log in AppData/Roaming/@albaz/vendor/vendor-startup.log for details.' : ''
+      showErrorInWindow(mainWindow, 'Startup timeout', 'The app server did not start in time. Try running the app again.' + logHint + ' If the problem continues, reinstall or rebuild the app.')
+      mainWindow.show()
+    }
+  }, startupTimeoutMs)
+
+  function markServerReady() {
+    if (serverReady) return
+    serverReady = true
+    clearTimeout(serverReadyTimeout)
+    if (pollInterval) clearInterval(pollInterval)
+    logStartup('Server ready')
+    setTimeout(() => {
+      handlePostServerReady()
+    }, 2000)
+  }
+
+  // Poll http://localhost:3001 so we detect ready even if Next.js doesn't print "Ready" to stdout
+  let pollInterval = setInterval(() => {
+    if (serverReady) return
+    const req = http.get('http://localhost:3001', { timeout: 3000 }, (res) => {
+      if (res.statusCode !== undefined) {
+        logStartup('Server responded with status ' + res.statusCode)
+        markServerReady()
+      }
+    })
+    req.on('error', () => {})
+    req.on('timeout', () => { req.destroy() })
+  }, 1500)
 
   nextProcess.stdout.on('data', (data) => {
     const output = data.toString()
     console.log('[Next.js Standalone]', output)
-    
     if (!serverReady && (output.includes('Ready') || output.includes('Local:') || output.includes('localhost:3001'))) {
-      serverReady = true
-      setTimeout(() => {
-        handlePostServerReady()
-      }, 2000)
+      markServerReady()
     }
   })
 
+  const serverStderrLines = []
+  const maxStderrLines = 15
   nextProcess.stderr.on('data', (data) => {
-    console.error('[Next.js Standalone Error]', data.toString())
+    const msg = data.toString()
+    logStartup('Server stderr: ' + msg.trim())
+    console.error('[Next.js Standalone Error]', msg)
+    const lines = msg.split('\n').map((l) => l.trim()).filter(Boolean)
+    serverStderrLines.push(...lines)
+    if (serverStderrLines.length > maxStderrLines) serverStderrLines.splice(0, serverStderrLines.length - maxStderrLines)
   })
 
   nextProcess.on('close', (code) => {
+    clearTimeout(serverReadyTimeout)
+    if (pollInterval) clearInterval(pollInterval)
+    logStartup('Server process exited with code ' + code)
     console.log(`[Next.js Standalone] Process exited with code ${code}`)
     nextProcess = null
+    if (!serverReady && code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
+      const stderrSnippet = serverStderrLines.length ? '\n\nLast error:\n' + serverStderrLines.slice(-5).join('\n') : ''
+      const logPath = isPackaged ? path.join(app.getPath('userData'), 'vendor-startup.log') : ''
+      const message = 'The app server exited unexpectedly (code ' + code + ').' + (stderrSnippet ? stderrSnippet : '')
+      showErrorInWindow(mainWindow, 'Server stopped', message, {
+        logPath: logPath || undefined,
+        showTroubleshoot: true,
+      })
+      mainWindow.show()
+    }
   })
 
   nextProcess.on('error', (error) => {
     console.error('[Next.js Standalone] Failed to start:', error)
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.loadURL('about:blank')
+      const errMsg = error.code === 'ENOENT'
+        ? 'Node.js was not found. Install Node.js (LTS) and add it to PATH, or rebuild the app with "npm run electron:build" to bundle Node.'
+        : 'Server failed to start: ' + error.message
+      showErrorInWindow(mainWindow, 'Unable to start', errMsg)
+      mainWindow.show()
     }
   })
 }
@@ -397,9 +630,9 @@ function checkAuthenticationAndLoad() {
     startNextStandaloneServer()
   }
 
+  // Do NOT create auth window here - server is not ready yet. handlePostServerReady() will
+  // create it after the server responds, so the login page loads successfully (avoids white screen / ERR_CONNECTION_REFUSED).
   if (!setupState.setupComplete || !isAuthenticated) {
-    createAuthWindow()
-    setAuthWindowClosable(false)
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.hide()
       mainWindow.loadURL('about:blank')
@@ -654,25 +887,39 @@ ipcMain.handle('auth-verify-passkey', async (event, passkey) => {
       return { success: true, dev: true }
     }
 
-    const response = await fetch('http://localhost:3001/api/auth/verify-passkey', {
+    const baseUrl = getVerifyPasskeyBaseUrl()
+    const apiUrl = baseUrl + '/api/auth/verify-passkey'
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ passkey: provided }),
     })
     const data = await response.json().catch(() => null)
-    if (response.ok && data?.success) {
+    const payload = data?.data || data
+    const success = !!data?.success
+    if (response.ok && success) {
       const store = getAuthStore()
       store.set('device_passkey', provided)
-      if (data?.subscriptionId) {
-        store.set('device_subscription_id', data.subscriptionId)
+      if (payload?.subscriptionId) {
+        store.set('device_subscription_id', payload.subscriptionId)
       }
       passkeyVerified = true
       return { success: true }
     }
-    return { success: false, error: data?.error?.message || 'Invalid passkey' }
+    let errMsg = data?.error?.message || payload?.error?.message || data?.error || 'Invalid passkey'
+    if (typeof errMsg !== 'string') errMsg = 'Invalid passkey'
+    if (errMsg === 'Internal server error' && baseUrl !== 'http://localhost:3001') {
+      errMsg = 'Passkey verification failed at ' + baseUrl + '. Check that the passkey is valid and the server is available.'
+    }
+    return { success: false, error: errMsg }
   } catch (error) {
     console.error('[Electron Auth] Passkey verify error:', error)
-    return { success: false, error: error.message }
+    const baseUrl = getVerifyPasskeyBaseUrl()
+    const msg = error.message || 'Unknown error'
+    if (baseUrl !== 'http://localhost:3001' && (msg.includes('fetch') || msg.includes('network') || msg.includes('ECONNREFUSED'))) {
+      return { success: false, error: 'Cannot reach ' + baseUrl + '. Check your internet connection or try again later.' }
+    }
+    return { success: false, error: msg }
   }
 })
 
