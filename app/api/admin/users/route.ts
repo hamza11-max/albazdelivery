@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, ValidationError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { hashPassword } from '@/lib/password'
 
 // GET /api/admin/users - Get all users (admin only)
 export async function GET(request: NextRequest) {
@@ -87,6 +88,90 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     })
+  } catch (error) {
+    return errorResponse(error)
+  }
+}
+
+// POST /api/admin/users - Create user (admin only, e.g. vendor)
+export async function POST(request: NextRequest) {
+  try {
+    await applyRateLimit(request, rateLimitConfigs.api)
+
+    const session = await auth()
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
+      throw new ForbiddenError('Only admins can create users')
+    }
+
+    const body = await request.json()
+    const { name, email, phone, password, role = 'VENDOR', shopType, address, city } = body || {}
+
+    if (!name || !email || !phone || !password) {
+      throw new ValidationError('name, email, phone and password are required')
+    }
+
+    const emailLower = String(email).toLowerCase().trim()
+    const phoneTrim = String(phone).trim()
+
+    // Check uniqueness
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [{ email: emailLower }, { phone: phoneTrim }],
+      },
+    })
+    if (existing) {
+      throw new ValidationError(existing.email === emailLower ? 'Email already registered' : 'Phone already registered')
+    }
+
+    const hashedPassword = await hashPassword(String(password))
+
+    const newUser = await prisma.$transaction(async (tx: any) => {
+      const user = await tx.user.create({
+        data: {
+          name: String(name).trim(),
+          email: emailLower,
+          phone: phoneTrim,
+          password: hashedPassword,
+          role: (String(role).toUpperCase() || 'VENDOR') as 'VENDOR',
+          status: 'APPROVED',
+          shopType: shopType || null,
+          address: address || null,
+          city: city || null,
+        },
+      })
+
+      if (user.role === 'VENDOR' && shopType) {
+        await tx.store.create({
+          data: {
+            name: user.name,
+            type: shopType,
+            categoryId: 1,
+            vendorId: user.id,
+            address: address || 'To be updated',
+            city: city || 'Algiers',
+            phone: user.phone,
+            deliveryTime: '30-45 min',
+            isActive: true,
+          },
+        })
+      }
+
+      return user
+    })
+
+    return successResponse({
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: newUser.role,
+      },
+      message: 'User created successfully',
+    }, 201)
   } catch (error) {
     return errorResponse(error)
   }

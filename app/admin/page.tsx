@@ -41,6 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = 'force-dynamic'
@@ -89,6 +90,15 @@ export default function AdminPanel() {
     linkUrl: "",
     isActive: true,
     displayOrder: 0,
+  })
+  const [showVendorDialog, setShowVendorDialog] = useState(false)
+  const [isCreatingVendor, setIsCreatingVendor] = useState(false)
+  const [vendorForm, setVendorForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    shopType: "restaurant",
   })
 
   useEffect(() => {
@@ -185,6 +195,54 @@ export default function AdminPanel() {
       setCustomers([])
       setDrivers([])
       setVendors([])
+    }
+  }
+
+  const handleCreateVendor = async () => {
+    if (!vendorForm.name || !vendorForm.email || !vendorForm.phone || !vendorForm.password) {
+      toast({
+        title: "Erreur",
+        description: "Tous les champs sont requis",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsCreatingVendor(true)
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: vendorForm.name,
+          email: vendorForm.email,
+          phone: vendorForm.phone,
+          password: vendorForm.password,
+          role: "VENDOR",
+          shopType: vendorForm.shopType,
+        }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({
+          title: "Succès",
+          description: "Le vendeur a été créé avec succès",
+        })
+        setShowVendorDialog(false)
+        setVendorForm({ name: "", email: "", phone: "", password: "", shopType: "restaurant" })
+        fetchUsers()
+      } else {
+        const errMsg = data?.error?.message ?? (typeof data?.error === "string" ? data.error : null) ?? "Erreur lors de la création"
+        throw new Error(errMsg)
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de créer le vendeur",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingVendor(false)
     }
   }
 
@@ -580,7 +638,7 @@ export default function AdminPanel() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Gestion des Vendeurs</h2>
-        <Button>
+        <Button onClick={() => setShowVendorDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Ajouter Vendeur
         </Button>
@@ -1021,6 +1079,74 @@ export default function AdminPanel() {
                 }}
               >
                 {selectedAd ? "Modifier" : "Créer"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Vendor Dialog */}
+        <Dialog open={showVendorDialog} onOpenChange={setShowVendorDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Ajouter un vendeur</DialogTitle>
+              <DialogDescription>Créez un compte vendeur. L&apos;email doit être unique.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nom</Label>
+                <Input
+                  value={vendorForm.name}
+                  onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
+                  placeholder="Nom du vendeur"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={vendorForm.email}
+                  onChange={(e) => setVendorForm({ ...vendorForm, email: e.target.value })}
+                  placeholder="vendeur@example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Téléphone</Label>
+                <Input
+                  value={vendorForm.phone}
+                  onChange={(e) => setVendorForm({ ...vendorForm, phone: e.target.value })}
+                  placeholder="+213 XXX XXX XXX"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Mot de passe</Label>
+                <Input
+                  type="password"
+                  value={vendorForm.password}
+                  onChange={(e) => setVendorForm({ ...vendorForm, password: e.target.value })}
+                  placeholder="Mot de passe de connexion"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Type de magasin</Label>
+                <Select value={vendorForm.shopType} onValueChange={(v) => setVendorForm({ ...vendorForm, shopType: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="restaurant">Restaurant / Plats préparés</SelectItem>
+                    <SelectItem value="grocery">Épicerie</SelectItem>
+                    <SelectItem value="parapharmacy">Parapharmacie & Beauté</SelectItem>
+                    <SelectItem value="gifts">Boutique de cadeaux</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowVendorDialog(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleCreateVendor} disabled={isCreatingVendor}>
+                {isCreatingVendor ? "Création..." : "Créer le vendeur"}
               </Button>
             </DialogFooter>
           </DialogContent>
