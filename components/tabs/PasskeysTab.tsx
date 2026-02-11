@@ -43,10 +43,11 @@ export function PasskeysTab({ translate = (fr) => fr }: PasskeysTabProps) {
   const loadPasskeys = async () => {
     try {
       setLoadingList(true)
-      const res = await fetch("/api/admin/subscription-passkeys?limit=50")
+      const res = await fetch("/api/admin/subscription-passkeys?limit=50", { credentials: "include" })
       const data = await res.json()
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to load passkeys")
+        const errMsg = data?.error?.message ?? (typeof data?.error === "string" ? data.error : null) ?? "Failed to load passkeys"
+        throw new Error(errMsg)
       }
       setPasskeys(data.data.passkeys || [])
     } catch (error: any) {
@@ -83,6 +84,7 @@ export function PasskeysTab({ translate = (fr) => fr }: PasskeysTabProps) {
 
       const res = await fetch("/api/admin/subscription-passkeys", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subscriptionId: subscriptionId || undefined,
@@ -93,7 +95,8 @@ export function PasskeysTab({ translate = (fr) => fr }: PasskeysTabProps) {
       const data = await res.json()
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Failed to generate passkey")
+        const errMsg = data?.error?.message ?? (typeof data?.error === "string" ? data.error : null) ?? "Failed to generate passkey"
+        throw new Error(errMsg)
       }
 
       setGeneratedPasskey(data.data.passkey)

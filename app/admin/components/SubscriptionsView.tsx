@@ -79,7 +79,7 @@ export function SubscriptionsView() {
   const fetchSubscriptions = async () => {
     try {
       setLoading(true)
-      const res = await fetch("/api/admin/subscriptions")
+      const res = await fetch("/api/admin/subscriptions", { credentials: "include" })
       const data = await res.json()
       
       if (data.success) {
