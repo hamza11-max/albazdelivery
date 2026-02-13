@@ -7,6 +7,14 @@ import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import { Badge } from "@/root/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/root/components/ui/dialog"
 import { useToast } from "@/root/hooks/use-toast"
 import { KeyRound, RefreshCw, Copy, CheckCircle2, AlertTriangle } from "lucide-react"
 
@@ -51,6 +59,7 @@ export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }:
   const [generatedPasskey, setGeneratedPasskey] = useState<string | null>(null)
   const [generatedMeta, setGeneratedMeta] = useState<{ subscriptionId: string; expiresAt: string | null } | null>(null)
   const [copied, setCopied] = useState(false)
+  const [showPasskeyDialog, setShowPasskeyDialog] = useState(false)
 
   const loadPasskeys = async () => {
     try {
@@ -132,9 +141,12 @@ export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }:
         }),
       })
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error?.message || "Échec")
-      setGeneratedPasskey(data.data.passkey)
-      setGeneratedMeta({ subscriptionId: data.data.subscriptionId, expiresAt: data.data.expiresAt || null })
+      if (!res.ok || !data.success) throw new Error(data.error?.message || data.error || "Échec")
+      const passkey = data.data?.passkey ?? data.passkey
+      if (!passkey) throw new Error(translate("La réponse ne contient pas de passkey.", "لم يتضمن الرد مفتاح مرور."))
+      setGeneratedPasskey(passkey)
+      setGeneratedMeta({ subscriptionId: data.data?.subscriptionId ?? data.subscriptionId, expiresAt: (data.data?.expiresAt ?? data.expiresAt) || null })
+      setShowPasskeyDialog(true)
       toast({ title: translate("Passkey générée", "تم إنشاء مفتاح المرور"), description: translate("Partagez ce code avec le client.", "شارك هذا الرمز مع الزبون.") })
       loadPasskeys()
     } catch (error: any) {
@@ -178,11 +190,14 @@ export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }:
         throw new Error(errMsg)
       }
 
-      setGeneratedPasskey(data.data.passkey)
+      const passkey = data.data?.passkey ?? data.passkey
+      if (!passkey) throw new Error(translate("La réponse ne contient pas de passkey.", "لم يتضمن الرد مفتاح مرور."))
+      setGeneratedPasskey(passkey)
       setGeneratedMeta({
-        subscriptionId: data.data.subscriptionId,
-        expiresAt: data.data.expiresAt || null,
+        subscriptionId: data.data?.subscriptionId ?? data.subscriptionId,
+        expiresAt: (data.data?.expiresAt ?? data.expiresAt) || null,
       })
+      setShowPasskeyDialog(true)
       toast({
         title: translate("Passkey générée", "تم إنشاء مفتاح المرور"),
         description: translate("Partagez ce code avec le client pour activer son abonnement.", "شارك هذا الرمز مع الزبون لتفعيل اشتراكه."),
@@ -219,8 +234,61 @@ export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }:
   const hasSubscription = (v: VendorBasic) =>
     subscriptionsMap[v.id] || passkeys.some((pk) => pk.vendor?.id === v.id || pk.vendor?.email === v.email)
 
+  const handleCopyInDialog = async () => {
+    if (!generatedPasskey || typeof navigator === "undefined" || !navigator.clipboard) return
+    try {
+      await navigator.clipboard.writeText(generatedPasskey)
+      setCopied(true)
+      toast({ title: translate("Copié dans le presse-papiers", "تم النسخ إلى الحافظة") })
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast({ title: translate("Impossible de copier", "تعذر النسخ"), variant: "destructive" })
+    }
+  }
+
   return (
     <div className="space-y-6">
+      <Dialog open={showPasskeyDialog && !!generatedPasskey} onOpenChange={setShowPasskeyDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              {translate("Passkey générée", "تم إنشاء مفتاح المرور")}
+            </DialogTitle>
+            <DialogDescription>
+              {translate("Copiez ce code et partagez-le avec le client pour activer son abonnement.", "انسخ هذا الرمز وشاركه مع الزبون لتفعيل اشتراكه.")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {generatedMeta?.subscriptionId && (
+              <p className="text-sm text-muted-foreground">
+                {translate("Abonnement", "الاشتراك")}: <Badge variant="outline">{generatedMeta.subscriptionId}</Badge>
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={generatedPasskey ?? ""}
+                className="font-mono font-bold text-xl tracking-widest text-center"
+              />
+              <Button type="button" variant="outline" size="icon" onClick={handleCopyInDialog}>
+                {copied ? <CheckCircle2 className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+            {generatedMeta?.expiresAt && (
+              <p className="text-xs text-muted-foreground">
+                {translate("Expire le", "ينتهي في")} {new Date(generatedMeta.expiresAt).toLocaleString()}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setShowPasskeyDialog(false)}>
+              {translate("Fermer", "إغلاق")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {vendors.length > 0 && (
         <Card>
           <CardHeader>
