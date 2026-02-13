@@ -14,22 +14,26 @@ import {
   TrendingUp, 
   Users, 
   DollarSign, 
-  Calendar,
   CheckCircle2,
   XCircle,
   Clock,
   AlertCircle,
   Download,
   RefreshCw,
-  KeyRound
+  KeyRound,
+  Store,
+  Plus,
+  CalendarPlus,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { PasskeysTab } from "@/components/tabs/PasskeysTab"
+import type { User as UserType } from "@/lib/types"
 
 interface Subscription {
   id: string
   userId: string
   user?: {
+    id: string
     name: string
     email: string
   }
@@ -59,8 +63,20 @@ interface SubscriptionStats {
   monthlyRecurringRevenue: number
 }
 
-export function SubscriptionsView() {
+interface SubscriptionsViewProps {
+  vendors?: UserType[]
+  searchQuery?: string
+  setSearchQuery?: (v: string) => void
+  setShowVendorDialog?: (v: boolean) => void
+  fetchUsers?: () => void
+  toast?: ReturnType<typeof useToast>["toast"]
+}
+
+export function SubscriptionsView(props: SubscriptionsViewProps) {
+  const { toast: toastProp, vendors = [], searchQuery = "", setSearchQuery = () => {}, setShowVendorDialog = () => {}, fetchUsers = () => {} } = props
   const { toast } = useToast()
+  const t = toastProp ?? toast
+
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [stats, setStats] = useState<SubscriptionStats>({
     total: 0,
@@ -72,16 +88,15 @@ export function SubscriptionsView() {
     monthlyRecurringRevenue: 0,
   })
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [planFilter, setPlanFilter] = useState<string>("all")
+  const [extendingId, setExtendingId] = useState<string | null>(null)
 
   const fetchSubscriptions = async () => {
     try {
       setLoading(true)
       const res = await fetch("/api/admin/subscriptions", { credentials: "include" })
       const data = await res.json()
-      
       if (data.success) {
         setSubscriptions(data.data.subscriptions || [])
         setStats(data.data.stats || stats)
@@ -89,13 +104,37 @@ export function SubscriptionsView() {
         throw new Error(data.error || "Failed to fetch subscriptions")
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to fetch subscriptions",
+      t({
+        title: "Erreur",
+        description: error.message || "Impossible de charger les abonnements",
         variant: "destructive",
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleExtendSubscription = async (subId: string, days: number) => {
+    setExtendingId(subId)
+    try {
+      const res = await fetch(`/api/admin/subscriptions/${subId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ extendDays: days }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error?.message || "Échec")
+      t({ title: "Succès", description: `Abonnement prolongé de ${days} jours` })
+      fetchSubscriptions()
+    } catch (error: any) {
+      t({
+        title: "Erreur",
+        description: error.message || "Impossible de prolonger",
+        variant: "destructive",
+      })
+    } finally {
+      setExtendingId(null)
     }
   }
 
@@ -109,10 +148,8 @@ export function SubscriptionsView() {
       sub.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       sub.user?.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       sub.id.toLowerCase().includes(searchQuery.toLowerCase())
-    
     const matchesStatus = statusFilter === "all" || sub.status === statusFilter
     const matchesPlan = planFilter === "all" || sub.plan === planFilter
-
     return matchesSearch && matchesStatus && matchesPlan
   })
 
@@ -124,7 +161,6 @@ export function SubscriptionsView() {
       EXPIRED: "destructive",
       PAST_DUE: "destructive",
     }
-
     const icons: Record<string, typeof CheckCircle2> = {
       ACTIVE: CheckCircle2,
       TRIAL: Clock,
@@ -132,11 +168,9 @@ export function SubscriptionsView() {
       EXPIRED: XCircle,
       PAST_DUE: AlertCircle,
     }
-
     const Icon = icons[status] || AlertCircle
-
     return (
-      <Badge variant={variants[status] || "outline"} className="flex items-center gap-1">
+      <Badge variant={variants[status] || "outline"} className="flex items-center gap-1 w-fit">
         <Icon className="w-3 h-3" />
         {status}
       </Badge>
@@ -150,28 +184,13 @@ export function SubscriptionsView() {
       BUSINESS: "bg-purple-500",
       ENTERPRISE: "bg-gradient-to-r from-yellow-500 to-orange-500",
     }
-
-    return (
-      <Badge className={colors[plan] || "bg-gray-500"}>
-        {plan}
-      </Badge>
-    )
+    return <Badge className={colors[plan] || "bg-gray-500"}>{plan}</Badge>
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
-  }
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount)
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
 
   const exportToCSV = () => {
     const headers = ["User", "Email", "Plan", "Status", "Start Date", "End Date", "Revenue"]
@@ -186,119 +205,115 @@ export function SubscriptionsView() {
         sub.subscriptionPayments?.reduce((sum, p) => sum + (p.status === "COMPLETED" ? p.amount : 0), 0) || 0
       ),
     ])
-
-    const csv = [headers, ...rows]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n")
-
+    const csv = [headers, ...rows].map((row) => row.map((c) => `"${c}"`).join(",")).join("\n")
     const blob = new Blob([csv], { type: "text/csv" })
-    const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
-    a.href = url
+    a.href = URL.createObjectURL(blob)
     a.download = `subscriptions-${new Date().toISOString().split("T")[0]}.csv`
     a.click()
-    URL.revokeObjectURL(url)
-
-    toast({
-      title: "Export successful",
-      description: "Subscriptions data exported to CSV",
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    )
+    URL.revokeObjectURL(a.href)
+    t({ title: "Export réussi", description: "Données exportées en CSV" })
   }
 
   const translate = (fr: string, _ar: string) => fr
 
-  return (
-    <div className="space-y-6">
-      <Tabs defaultValue="subscriptions" className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="subscriptions" className="gap-2">
-            <CreditCard className="w-4 h-4" />
-            Abonnements
-          </TabsTrigger>
-          <TabsTrigger value="passkeys" className="gap-2">
-            <KeyRound className="w-4 h-4" />
-            Passkeys
-          </TabsTrigger>
-        </TabsList>
+  const VendorsTab = () => (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Liste des Vendeurs</h2>
+        <Button onClick={() => setShowVendorDialog(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Ajouter Vendeur
+        </Button>
+      </div>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        <Input
+          placeholder="Rechercher un vendeur..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+      <div className="grid gap-4">
+        {vendors.filter((v) => !searchQuery || v.name?.toLowerCase().includes(searchQuery.toLowerCase()) || v.email?.toLowerCase().includes(searchQuery.toLowerCase()) || v.phone?.includes(searchQuery)).map((vendor) => (
+          <Card key={vendor.id}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Store className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">{vendor.name}</p>
+                    <p className="text-sm text-muted-foreground">{vendor.email}</p>
+                    <p className="text-sm text-muted-foreground">{vendor.phone}</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  )
 
-        <TabsContent value="subscriptions" className="space-y-6">
-      {/* Stats Cards */}
+  const SubscriptionsTab = () => (
+    <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Subscriptions</CardTitle>
+            <CardTitle className="text-sm font-medium">Total</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.active} active
-            </p>
+            <p className="text-xs text-muted-foreground">{stats.active} actifs</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
+            <CardTitle className="text-sm font-medium">Actifs</CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.trial} in trial
-            </p>
+            <p className="text-xs text-muted-foreground">{stats.trial} en essai</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Revenu mensuel</CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.monthlyRecurringRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              Recurring monthly
-            </p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">Revenu total</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground">
-              All time
-            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters and Actions */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="w-5 h-5" />
-            Subscriptions Management
+            Gestion des abonnements
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                placeholder="Search by user name, email, or subscription ID..."
+                placeholder="Rechercher par nom, email ou ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -306,23 +321,22 @@ export function SubscriptionsView() {
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
+                <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="TRIAL">Trial</SelectItem>
-                <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                <SelectItem value="EXPIRED">Expired</SelectItem>
-                <SelectItem value="PAST_DUE">Past Due</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="ACTIVE">Actif</SelectItem>
+                <SelectItem value="TRIAL">Essai</SelectItem>
+                <SelectItem value="CANCELLED">Annulé</SelectItem>
+                <SelectItem value="EXPIRED">Expiré</SelectItem>
               </SelectContent>
             </Select>
             <Select value={planFilter} onValueChange={setPlanFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by plan" />
+                <SelectValue placeholder="Plan" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Plans</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
                 <SelectItem value="STARTER">Starter</SelectItem>
                 <SelectItem value="PROFESSIONAL">Professional</SelectItem>
                 <SelectItem value="BUSINESS">Business</SelectItem>
@@ -331,32 +345,36 @@ export function SubscriptionsView() {
             </Select>
             <Button variant="outline" onClick={exportToCSV}>
               <Download className="w-4 h-4 mr-2" />
-              Export CSV
+              Export
             </Button>
             <Button variant="outline" onClick={fetchSubscriptions}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
           </div>
 
-          {/* Subscriptions Table */}
           <div className="border rounded-lg">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
+                  <TableHead>Vendeur</TableHead>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Revenue</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead>Période</TableHead>
+                  <TableHead>Revenu</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSubscriptions.length === 0 ? (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-8">
+                      <RefreshCw className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredSubscriptions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No subscriptions found
+                      Aucun abonnement
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -373,12 +391,7 @@ export function SubscriptionsView() {
                       <TableCell>
                         <div className="text-sm">
                           <div>{formatDate(sub.currentPeriodStart)}</div>
-                          <div className="text-muted-foreground">to {formatDate(sub.currentPeriodEnd)}</div>
-                          {sub.cancelAtPeriodEnd && (
-                            <Badge variant="outline" className="mt-1">
-                              Cancels at period end
-                            </Badge>
-                          )}
+                          <div className="text-muted-foreground">→ {formatDate(sub.currentPeriodEnd)}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -390,7 +403,25 @@ export function SubscriptionsView() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">{formatDate(sub.createdAt)}</div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={extendingId === sub.id}
+                            onClick={() => handleExtendSubscription(sub.id, 30)}
+                          >
+                            <CalendarPlus className="w-4 h-4 mr-1" />
+                            +30j
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={extendingId === sub.id}
+                            onClick={() => handleExtendSubscription(sub.id, 90)}
+                          >
+                            +90j
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -400,13 +431,39 @@ export function SubscriptionsView() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  )
+
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="vendors" className="space-y-4">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsTrigger value="vendors" className="gap-2">
+            <Store className="w-4 h-4" />
+            Vendeurs
+          </TabsTrigger>
+          <TabsTrigger value="subscriptions" className="gap-2">
+            <CreditCard className="w-4 h-4" />
+            Abonnements
+          </TabsTrigger>
+          <TabsTrigger value="passkeys" className="gap-2">
+            <KeyRound className="w-4 h-4" />
+            Passkeys
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="vendors">
+          <VendorsTab />
         </TabsContent>
 
-        <TabsContent value="passkeys" className="space-y-6">
-          <PasskeysTab translate={translate} />
+        <TabsContent value="subscriptions">
+          <SubscriptionsTab />
+        </TabsContent>
+
+        <TabsContent value="passkeys">
+          <PasskeysTab translate={translate} vendors={vendors} onRefresh={fetchSubscriptions} />
         </TabsContent>
       </Tabs>
     </div>
   )
 }
-

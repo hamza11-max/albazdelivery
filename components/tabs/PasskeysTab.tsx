@@ -24,18 +24,30 @@ interface PasskeyRecord {
   } | null
 }
 
-interface PasskeysTabProps {
-  translate?: (fr: string, ar: string) => string
+interface VendorBasic {
+  id: string
+  name?: string
+  email?: string
+  phone?: string
 }
 
-export function PasskeysTab({ translate = (fr) => fr }: PasskeysTabProps) {
+interface PasskeysTabProps {
+  translate?: (fr: string, ar: string) => string
+  vendors?: VendorBasic[]
+  onRefresh?: () => void
+}
+
+export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }: PasskeysTabProps) {
   const { toast } = useToast()
   const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([])
   const [loadingList, setLoadingList] = useState(false)
   const [loadingGenerate, setLoadingGenerate] = useState(false)
+  const [activatingId, setActivatingId] = useState<string | null>(null)
+  const [generatingForEmail, setGeneratingForEmail] = useState<string | null>(null)
   const [vendorEmail, setVendorEmail] = useState("")
   const [subscriptionId, setSubscriptionId] = useState("")
   const [expiresInDays, setExpiresInDays] = useState<string>("7")
+  const [subscriptionsMap, setSubscriptionsMap] = useState<Record<string, string>>({}) // vendorId -> subscriptionId
   const [generatedPasskey, setGeneratedPasskey] = useState<string | null>(null)
   const [generatedMeta, setGeneratedMeta] = useState<{ subscriptionId: string; expiresAt: string | null } | null>(null)
   const [copied, setCopied] = useState(false)
@@ -64,6 +76,73 @@ export function PasskeysTab({ translate = (fr) => fr }: PasskeysTabProps) {
   useEffect(() => {
     loadPasskeys()
   }, [])
+
+  useEffect(() => {
+    if (vendors.length === 0) return
+    fetch("/api/admin/subscriptions", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.data?.subscriptions) {
+          const map: Record<string, string> = {}
+          data.data.subscriptions.forEach((s: { id: string; user?: { id: string } }) => {
+            if (s.user?.id) map[s.user.id] = s.id
+          })
+          setSubscriptionsMap(map)
+        }
+      })
+      .catch(() => {})
+  }, [vendors.length])
+
+  const handleActivate = async (vendor: VendorBasic) => {
+    if (!vendor.email) return
+    setActivatingId(vendor.id)
+    try {
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId: vendor.id, plan: "STARTER", durationDays: 30 }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error?.message || "Échec")
+      if (data.data?.subscription?.id) {
+        setSubscriptionsMap((m) => ({ ...m, [vendor.id]: data.data.subscription.id }))
+      }
+      toast({ title: translate("Abonnement créé", "تم إنشاء الاشتراك"), description: translate("Le vendeur peut maintenant recevoir des passkeys.", "يمكن للبائع الآن استلام مفاتيح المرور.") })
+      onRefresh?.()
+      loadPasskeys()
+    } catch (error: any) {
+      toast({ title: translate("Erreur", "خطأ"), description: error.message || translate("Impossible d'activer", "تعذر التفعيل"), variant: "destructive" })
+    } finally {
+      setActivatingId(null)
+    }
+  }
+
+  const handleGenerateForVendor = async (vendor: VendorBasic, days: number) => {
+    if (!vendor.email) return
+    setGeneratingForEmail(vendor.email)
+    try {
+      const res = await fetch("/api/admin/subscription-passkeys", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorEmail: vendor.email,
+          expiresInDays: days === 0 ? null : days,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error?.message || "Échec")
+      setGeneratedPasskey(data.data.passkey)
+      setGeneratedMeta({ subscriptionId: data.data.subscriptionId, expiresAt: data.data.expiresAt || null })
+      toast({ title: translate("Passkey générée", "تم إنشاء مفتاح المرور"), description: translate("Partagez ce code avec le client.", "شارك هذا الرمز مع الزبون.") })
+      loadPasskeys()
+    } catch (error: any) {
+      toast({ title: translate("Erreur", "خطأ"), description: error.message || translate("Impossible de générer", "تعذر الإنشاء"), variant: "destructive" })
+    } finally {
+      setGeneratingForEmail(null)
+    }
+  }
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -137,8 +216,86 @@ export function PasskeysTab({ translate = (fr) => fr }: PasskeysTabProps) {
     }
   }
 
+  const hasSubscription = (v: VendorBasic) =>
+    subscriptionsMap[v.id] || passkeys.some((pk) => pk.vendor?.id === v.id || pk.vendor?.email === v.email)
+
   return (
     <div className="space-y-6">
+      {vendors.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>{translate("Vendeurs – Activer & Générer des passkeys", "البائعون – تفعيل وإنشاء مفاتيح")}</CardTitle>
+            <CardDescription>
+              {translate("Activez un abonnement pour un vendeur sans abonnement, puis générez un passkey.", "فعّل اشتراكاً للبائع الذي لا يملك اشتراكاً، ثم أنشئ مفتاح مرور.")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{translate("Vendeur", "البائع")}</TableHead>
+                    <TableHead>{translate("Email", "البريد")}</TableHead>
+                    <TableHead>{translate("Statut", "الحالة")}</TableHead>
+                    <TableHead>{translate("Actions", "الإجراءات")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {vendors.map((v) => {
+                    const hasSub = hasSubscription(v)
+                    return (
+                      <TableRow key={v.id}>
+                        <TableCell className="font-medium">{v.name || "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{v.email || "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant={hasSub ? "default" : "secondary"}>
+                            {hasSub ? translate("Actif", "نشط") : translate("Sans abonnement", "بدون اشتراك")}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            {!hasSub && v.email && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={!!activatingId}
+                                onClick={() => handleActivate(v)}
+                              >
+                                {activatingId === v.id ? translate("...", "...") : translate("Activer", "تفعيل")}
+                              </Button>
+                            )}
+                            {hasSub && v.email && (
+                              <>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  disabled={!!generatingForEmail}
+                                  onClick={() => handleGenerateForVendor(v, 7)}
+                                >
+                                  {generatingForEmail === v.email ? "..." : translate("Passkey 7j", "7 أيام")}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!!generatingForEmail}
+                                  onClick={() => handleGenerateForVendor(v, 30)}
+                                >
+                                  {translate("30j", "30 يوماً")}
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <div>

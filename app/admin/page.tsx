@@ -99,6 +99,8 @@ export default function AdminPanel() {
     phone: "",
     password: "",
     shopType: "restaurant",
+    subscriptionPlan: "STARTER",
+    subscriptionDurationDays: "30",
   })
 
   useEffect(() => {
@@ -220,6 +222,8 @@ export default function AdminPanel() {
           password: vendorForm.password,
           role: "VENDOR",
           shopType: vendorForm.shopType,
+          subscriptionPlan: vendorForm.subscriptionPlan,
+          subscriptionDurationDays: parseInt(vendorForm.subscriptionDurationDays) || 30,
         }),
       })
       const data = await response.json()
@@ -229,7 +233,7 @@ export default function AdminPanel() {
           description: "Le vendeur a été créé avec succès",
         })
         setShowVendorDialog(false)
-        setVendorForm({ name: "", email: "", phone: "", password: "", shopType: "restaurant" })
+        setVendorForm({ name: "", email: "", phone: "", password: "", shopType: "restaurant", subscriptionPlan: "STARTER", subscriptionDurationDays: "30" })
         fetchUsers()
       } else {
         const errMsg = data?.error?.message ?? (typeof data?.error === "string" ? data.error : null) ?? "Erreur lors de la création"
@@ -634,56 +638,22 @@ export default function AdminPanel() {
     </div>
   )
 
-  const VendorsView = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Gestion des Vendeurs</h2>
-        <Button onClick={() => setShowVendorDialog(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Ajouter Vendeur
-        </Button>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Rechercher un vendeur..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      <div className="grid gap-4">
-        {vendors.map((vendor) => (
-          <Card key={vendor.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Store className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{vendor.name}</p>
-                    <p className="text-sm text-muted-foreground">{vendor.email}</p>
-                    <p className="text-sm text-muted-foreground">{vendor.phone}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="icon">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" className="text-red-600 hover:text-red-700 bg-transparent">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+  const VendorsView = ({ vendors: vendorsProp, searchQuery: sq, setSearchQuery: setSq, setShowVendorDialog: setSvd, fetchUsers: fetchU, toast: t }: {
+    vendors: UserType[]
+    searchQuery: string
+    setSearchQuery: (v: string) => void
+    setShowVendorDialog: (v: boolean) => void
+    fetchUsers: () => void
+    toast: ReturnType<typeof useToast>["toast"]
+  }) => (
+    <SubscriptionsView
+      vendors={vendorsProp}
+      searchQuery={sq}
+      setSearchQuery={setSq}
+      setShowVendorDialog={setSvd}
+      fetchUsers={fetchU}
+      toast={t}
+    />
   )
 
   const ApprovalsView = () => (
@@ -823,7 +793,7 @@ export default function AdminPanel() {
       <Header />
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="approvals" className="relative">
               Approbations
               {registrationRequests.length > 0 && (
@@ -831,11 +801,10 @@ export default function AdminPanel() {
               )}
             </TabsTrigger>
             <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
-            <TabsTrigger value="subscriptions">Abonnements</TabsTrigger>
+            <TabsTrigger value="vendors">Vendeurs & Abonnements</TabsTrigger>
             <TabsTrigger value="ads">Publicités</TabsTrigger>
             <TabsTrigger value="customers">Clients</TabsTrigger>
             <TabsTrigger value="drivers">Livreurs</TabsTrigger>
-            <TabsTrigger value="vendors">Vendeurs</TabsTrigger>
           </TabsList>
 
           <TabsContent value="approvals">
@@ -844,10 +813,6 @@ export default function AdminPanel() {
 
           <TabsContent value="dashboard">
             <DashboardView />
-          </TabsContent>
-
-          <TabsContent value="subscriptions">
-            <SubscriptionsView />
           </TabsContent>
 
           <TabsContent value="customers">
@@ -859,7 +824,14 @@ export default function AdminPanel() {
           </TabsContent>
 
           <TabsContent value="vendors">
-            <VendorsView />
+            <VendorsView
+              vendors={vendors}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              setShowVendorDialog={setShowVendorDialog}
+              fetchUsers={fetchUsers}
+              toast={toast}
+            />
           </TabsContent>
 
           <TabsContent value="ads">
@@ -1139,6 +1111,39 @@ export default function AdminPanel() {
                     <SelectItem value="gifts">Boutique de cadeaux</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="border-t pt-4 mt-2 space-y-3">
+                <p className="text-sm font-medium text-muted-foreground">Abonnement (optionnel)</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Type d&apos;abonnement</Label>
+                    <Select value={vendorForm.subscriptionPlan} onValueChange={(v) => setVendorForm({ ...vendorForm, subscriptionPlan: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="STARTER">Starter</SelectItem>
+                        <SelectItem value="PROFESSIONAL">Professional</SelectItem>
+                        <SelectItem value="BUSINESS">Business</SelectItem>
+                        <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Durée (jours)</Label>
+                    <Select value={vendorForm.subscriptionDurationDays} onValueChange={(v) => setVendorForm({ ...vendorForm, subscriptionDurationDays: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7">7 jours</SelectItem>
+                        <SelectItem value="30">30 jours</SelectItem>
+                        <SelectItem value="90">90 jours</SelectItem>
+                        <SelectItem value="365">1 an</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
             <DialogFooter>

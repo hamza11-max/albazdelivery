@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, ValidationError } from '@/lib/errors'
-import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
+import { prisma } from '@/root/lib/prisma'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, ValidationError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { auth } from '@/root/lib/auth'
 import { hashPassword } from '@/lib/password'
 
 // GET /api/admin/users - Get all users (admin only)
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, email, phone, password, role = 'VENDOR', shopType, address, city } = body || {}
+    const { name, email, phone, password, role = 'VENDOR', shopType, address, city, subscriptionPlan, subscriptionDurationDays } = body || {}
 
     if (!name || !email || !phone || !password) {
       throw new ValidationError('name, email, phone and password are required')
@@ -155,6 +155,23 @@ export async function POST(request: NextRequest) {
             phone: user.phone,
             deliveryTime: '30-45 min',
             isActive: true,
+          },
+        })
+      }
+
+      if (user.role === 'VENDOR' && subscriptionPlan) {
+        const validPlans = ['STARTER', 'PROFESSIONAL', 'BUSINESS', 'ENTERPRISE']
+        const plan = validPlans.includes(String(subscriptionPlan).toUpperCase()) ? String(subscriptionPlan).toUpperCase() : 'STARTER'
+        const days = Math.max(1, Number(subscriptionDurationDays) || 30)
+        const now = new Date()
+        const endDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000)
+        await tx.subscription.create({
+          data: {
+            userId: user.id,
+            plan: plan as any,
+            status: 'ACTIVE',
+            currentPeriodStart: now,
+            currentPeriodEnd: endDate,
           },
         })
       }
