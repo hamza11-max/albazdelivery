@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('subscriptionId or vendorEmail is required'), 400)
     }
 
+    const subscriptionExists = await prisma.subscription.findUnique({
+      where: { id: targetSubscriptionId },
+      select: { id: true },
+    })
+    if (!subscriptionExists) {
+      throw new NotFoundError('Subscription')
+    }
+
     const passkey = normalizePasskey(generatePasskey())
     const passkeyHash = hashPasskey(passkey)
     const expiresAt = expiresInDays ? new Date(Date.now() + Number(expiresInDays) * 24 * 60 * 60 * 1000) : null

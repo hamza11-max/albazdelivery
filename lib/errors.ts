@@ -177,6 +177,24 @@ export function errorResponse(
       )
     }
 
+    // Foreign key constraint failed (referenced record does not exist)
+    if (prismaError.code === 'P2003') {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: {
+            code: 'NOT_FOUND',
+            message: 'Subscription not found. Create a subscription for the vendor first.',
+          },
+          meta: {
+            timestamp: new Date().toISOString(),
+            requestId: crypto.randomUUID(),
+          },
+        },
+        { status: 404 }
+      )
+    }
+
     // Record not found
     if (prismaError.code === 'P2025') {
       return NextResponse.json<ApiResponse>(
