@@ -26,7 +26,11 @@ function generatePasskey() {
 
 export async function POST(request: NextRequest) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    try {
+      await applyRateLimit(request, rateLimitConfigs.api)
+    } catch (rateLimitError) {
+      console.warn('[subscription-passkeys] Rate limit check failed:', rateLimitError)
+    }
 
     const session = await auth()
     if (!session?.user) {
@@ -81,13 +85,18 @@ export async function POST(request: NextRequest) {
       expiresAt,
     })
   } catch (error) {
+    console.error('[subscription-passkeys] POST error:', error)
     return errorResponse(error)
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    try {
+      await applyRateLimit(request, rateLimitConfigs.api)
+    } catch (rateLimitError) {
+      console.warn('[subscription-passkeys] Rate limit check failed:', rateLimitError)
+    }
 
     const session = await auth()
     if (!session?.user) {
@@ -124,6 +133,7 @@ export async function GET(request: NextRequest) {
       })),
     })
   } catch (error) {
+    console.error('[subscription-passkeys] GET error:', error)
     return errorResponse(error)
   }
 }

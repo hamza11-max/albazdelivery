@@ -178,7 +178,6 @@ export function errorResponse(
     }
 
     // Record not found
-    // Record not found
     if (prismaError.code === 'P2025') {
       return NextResponse.json<ApiResponse>(
         {
@@ -193,6 +192,27 @@ export function errorResponse(
           },
         },
         { status: 404 }
+      )
+    }
+
+    // Database connection / schema errors (e.g. migrations not run, table missing)
+    if (['P1001', 'P1002', 'P1012', 'P2021'].includes(prismaError.code)) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: {
+            code: 'SERVICE_UNAVAILABLE',
+            message:
+              process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+                ? (prismaError as Error).message
+                : 'Database configuration error. Ensure migrations are run and the database is reachable.',
+          },
+          meta: {
+            timestamp: new Date().toISOString(),
+            requestId: crypto.randomUUID(),
+          },
+        },
+        { status: 503 }
       )
     }
   }

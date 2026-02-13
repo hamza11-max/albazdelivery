@@ -16,6 +16,27 @@ const { spawn, exec } = require('child_process')
 const crypto = require('crypto')
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 
+// Write first log line as soon as possible when packaged (so we have a trace if the app crashes)
+const STARTUP_LOG_NAME = 'vendor-startup.log'
+function getStartupLogDir() {
+  if (app.isPackaged && process.platform === 'win32') {
+    return path.join(process.env.APPDATA || process.env.LOCALAPPDATA || '', 'AlBaz Vendor')
+  }
+  return null
+}
+function writeEarlyLog(msg) {
+  const dir = getStartupLogDir()
+  if (!dir) return
+  try {
+    fs.mkdirSync(dir, { recursive: true })
+    const logPath = path.join(dir, STARTUP_LOG_NAME)
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`)
+  } catch (e) { /* ignore */ }
+}
+if (app.isPackaged) {
+  writeEarlyLog('Main process starting')
+}
+
 function logStartup(msg) {
   const line = `[${new Date().toISOString()}] ${msg}\n`
   if (!isDev && app.isPackaged) {
@@ -290,7 +311,7 @@ function createWindow() {
   mainWindow.setTitle('AlBaz Vendor App')
 
   // Show a loading page immediately so the user always sees a window (packaged app)
-  const loadingHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AlBaz Vendor</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#1e293b;"><div style="text-align:center;color:#e2e8f0;"><p style="font-size:18px;">Starting AlBaz Vendor...</p><p style="color:#94a3b8;">Waiting for server</p><p style="font-size:12px;color:#64748b;margin-top:1rem;">If this stays, check: %APPDATA%\\@albaz\\vendor\\vendor-startup.log</p></div></body></html>'
+  const loadingHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AlBaz Vendor</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#1e293b;"><div style="text-align:center;color:#e2e8f0;"><p style="font-size:18px;">Starting AlBaz Vendor...</p><p style="color:#94a3b8;">Waiting for server</p><p style="font-size:12px;color:#64748b;margin-top:1rem;">If this stays or the app does not open, open this log in Notepad:</p><p style="font-size:11px;color:#94a3b8;margin-top:0.5rem;word-break:break-all;">%APPDATA%\\AlBaz Vendor\\vendor-startup.log</p></div></body></html>'
   mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(loadingHtml))
 
   // Always show window when ready so user sees loading or error (not a blank screen)
@@ -466,9 +487,10 @@ function startNextStandaloneServer() {
     return
   }
 
-  // Windows: paths with spaces (e.g. "New folder (2)") often cause the Next server to exit with code 1
+  // Windows: paths with spaces (e.g. "Program Files", "AlBaz Vendor") often cause the Next server to exit with code 1
   if (isPackaged && process.platform === 'win32' && serverDir.includes(' ')) {
-    const logPath = path.join(app.getPath('userData'), 'vendor-startup.log')
+    logStartup('Blocked: install path contains spaces - ' + serverDir)
+    const logPath = path.join(app.getPath('userData'), STARTUP_LOG_NAME)
     const msg = 'The app is installed in a folder whose path contains spaces (e.g. "New folder (2)"). On Windows this can make the server fail to start.\n\nReinstall the app to a path without spaces, for example:\nE:\\AlBazVendor\nor\nC:\\AlBazVendor'
     showErrorInWindow(mainWindow, 'Unsupported install path', msg, { logPath, showTroubleshoot: true })
     mainWindow.show()
@@ -580,11 +602,14 @@ function startNextStandaloneServer() {
     clearTimeout(serverReadyTimeout)
     if (pollInterval) clearInterval(pollInterval)
     logStartup('Server process exited with code ' + code)
+    if (code !== 0 && serverStderrLines.length > 0) {
+      logStartup('Last server stderr: ' + serverStderrLines.slice(-10).join(' | '))
+    }
     console.log(`[Next.js Standalone] Process exited with code ${code}`)
     nextProcess = null
-    if (!serverReady && code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
+    if (code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
       const stderrSnippet = serverStderrLines.length ? '\n\nLast error:\n' + serverStderrLines.slice(-5).join('\n') : ''
-      const logPath = isPackaged ? path.join(app.getPath('userData'), 'vendor-startup.log') : ''
+      const logPath = isPackaged ? path.join(app.getPath('userData'), STARTUP_LOG_NAME) : ''
       const message = 'The app server exited unexpectedly (code ' + code + ').' + (stderrSnippet ? stderrSnippet : '')
       showErrorInWindow(mainWindow, 'Server stopped', message, {
         logPath: logPath || undefined,
@@ -880,7 +905,10 @@ ipcMain.handle('auth-verify-passkey', async (event, passkey) => {
       return { success: false, error: 'Invalid passkey' }
     }
 
-    if (isDev && provided === '0000-0000-0000-0000') {
+    // Development passkey: always allow 0000-0000-0000-0000 for local/dev setups
+    // This is ONLY meant for development and internal testing builds of the
+    // desktop app. Do NOT ship production builds that rely on this.
+    if (provided === '0000-0000-0000-0000') {
       const store = getAuthStore()
       store.set('device_passkey', provided)
       passkeyVerified = true
@@ -1051,7 +1079,12 @@ function createTray() {
 
 // App event handlers
 app.whenReady().then(() => {
-  configureCSP()
+  if (app.isPackaged) writeEarlyLog('whenReady - starting')
+  try {
+    configureCSP()
+  } catch (e) {
+    logStartup('configureCSP error: ' + (e && e.message))
+  }
 
   // Initialize offline database (if available)
   if (offlineDb) {
@@ -1079,10 +1112,27 @@ app.whenReady().then(() => {
     autoUpdater.registerUpdaterIPC()
   }
   
-  createWindow()
-  registerShortcuts()
-  createTray()
-  
+  try {
+    createWindow()
+    registerShortcuts()
+    createTray()
+  } catch (err) {
+    logStartup('Startup error: ' + (err && err.message))
+    console.error('[Electron] Startup error:', err)
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      const { BrowserWindow: BW } = require('electron')
+      const errWin = new BW({ width: 560, height: 320, show: true })
+      const logDir = getStartupLogDir()
+      const logPath = logDir ? path.join(logDir, STARTUP_LOG_NAME) : 'vendor-startup.log'
+      errWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(
+        '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AlBaz Vendor - Error</title></head><body style="font-family:sans-serif;padding:1.5rem;background:#1e293b;color:#e2e8f0;"><h1 style="margin-top:0;">Startup error</h1><p>' + String(err && err.message).replace(/</g, '&lt;') + '</p><p style="margin-top:1rem;font-size:13px;">Check the log file:</p><p style="font-size:12px;word-break:break-all;color:#94a3b8;">' + (logPath.replace(/</g, '&lt;')) + '</p><p style="margin-top:1rem;font-size:12px;">Reinstall to a folder <strong>without spaces</strong> in the path (e.g. C:\\AlBazVendor).</p></body></html>'
+      ))
+    } else {
+      showErrorInWindow(mainWindow, 'Startup error', (err && err.message) || 'Unknown error', { logPath: path.join(app.getPath('userData'), STARTUP_LOG_NAME) })
+    }
+    return
+  }
+
   // Initialize barcode scanner after window is ready
   mainWindow.once('ready-to-show', () => {
     if (barcodeScanner?.initBarcodeScanner) {

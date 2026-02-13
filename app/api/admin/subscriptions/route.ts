@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
       stats,
     })
   } catch (error) {
+    console.error('[admin/subscriptions] GET error:', error)
     return errorResponse(error)
   }
 }
