@@ -3,14 +3,36 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@/root/*": ["../../*"],
-      "@albaz/shared": ["../../packages/shared/src"],
-      "@albaz/ui": ["../../packages/ui/src"],
-      "@albaz/auth": ["../../packages/auth/src"]
-    }
+      "@/*": [
+        "./*"
+      ],
+      "@/root/*": [
+        "../../*"
+      ],
+      "@albaz/shared": [
+        "../../packages/shared/src"
+      ],
+      "@albaz/ui": [
+        "../../packages/ui/src"
+      ],
+      "@albaz/auth": [
+        "../../packages/auth/src"
+      ]
+    },
+    "jsx": "preserve"
   },
-  "include": ["next-env.d.ts", "next-auth.d.ts", "**/*.ts", "**/*.tsx", "../../lib/**/*", "../../components/**/*", "../../hooks/**/*"],
-  "exclude": ["node_modules", ".next"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../../components/**/*",
+    "../../hooks/**/*",
+    "../../lib/**/*",
+    "next-auth.d.ts",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next"
+  ]
 }
-
