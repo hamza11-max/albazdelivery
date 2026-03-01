@@ -7,10 +7,11 @@ interface BottomNavProps {
   cartItemCount: number
   onNavigate: (page: PageView) => void
   onResetSelection: () => void
+  onSearchFocusRequest?: () => void
   t: TranslationFn
 }
 
-export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelection, t }: BottomNavProps) {
+export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelection, onSearchFocusRequest, t }: BottomNavProps) {
   const handleNavigate = (page: PageView) => {
     if (page === 'home') {
       onResetSelection()
@@ -46,6 +47,7 @@ export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelec
           onClick={() => {
             onResetSelection()
             onNavigate('home')
+            onSearchFocusRequest?.()
           }}
           className={`flex flex-col items-center gap-1 py-2 transition-colors ${
             currentPage === 'home' ? 'active' : 'text-muted-foreground'

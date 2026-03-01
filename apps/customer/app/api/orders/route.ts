@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log('[API] Order created:', order.id)
+    if (process.env.NODE_ENV === 'development') console.log('[API] Order created:', order.id)
 
   // Emit order created event for SSE
   emitOrderCreated(order)

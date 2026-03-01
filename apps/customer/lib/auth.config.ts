@@ -13,6 +13,8 @@ declare module 'next-auth' {
     name: string
     role: UserRole
     phone?: string
+    address?: string
+    city?: string
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
   }
 
@@ -23,6 +25,9 @@ declare module 'next-auth' {
       email: string
       role: UserRole
       status: 'PENDING' | 'APPROVED' | 'REJECTED'
+      phone?: string
+      address?: string
+      city?: string
     }
   }
 }
@@ -32,6 +37,9 @@ declare module 'next-auth/jwt' {
     id: string
     role: UserRole
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    phone?: string
+    address?: string
+    city?: string
   }
 }
 
@@ -101,6 +109,9 @@ export const authConfig = {
           name: user.name,
           role: user.role as UserRole,
           status: user.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+          phone: user.phone,
+          address: user.address ?? undefined,
+          city: user.city ?? undefined,
         }
       },
     }),
@@ -112,6 +123,21 @@ export const authConfig = {
         token.id = user.id
         token.role = user.role as UserRole
         token.status = user.status as 'PENDING' | 'APPROVED' | 'REJECTED'
+        // Use provided values or fetch from DB (for OAuth users)
+        token.phone = user.phone
+        token.address = user.address
+        token.city = user.city
+        if (!user.phone && user.id) {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { phone: true, address: true, city: true },
+          })
+          if (dbUser) {
+            token.phone = dbUser.phone
+            token.address = dbUser.address ?? undefined
+            token.city = dbUser.city ?? undefined
+          }
+        }
       }
       return token
     },
@@ -120,6 +146,9 @@ export const authConfig = {
         session.user.id = token.id
         session.user.role = token.role
         session.user.status = token.status
+        session.user.phone = token.phone
+        session.user.address = token.address
+        session.user.city = token.city
       }
       return session
     },

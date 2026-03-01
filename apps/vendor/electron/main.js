@@ -457,6 +457,7 @@ function startNextDevServer() {
 }
 
 function startNextStandaloneServer() {
+  if (app.isPackaged) writeEarlyLog('startStandaloneServer called')
   // Dev: server at .next/standalone/apps/vendor/server.js
   // Packaged: extraFiles copy .next next to exe, so use exe dir (avoids asar/unpack path issues)
   const isPackaged = app.isPackaged
@@ -470,20 +471,37 @@ function startNextStandaloneServer() {
     standaloneRoot = path.join(__dirname, '..', '.next', 'standalone')
   }
   // Standalone can be: .../standalone/apps/vendor (monorepo) or .../standalone (single-app build from apps/vendor)
-  let serverDir = path.join(standaloneRoot, 'apps', 'vendor')
-  let serverPath = path.join(serverDir, 'server.js')
-  if (!fs.existsSync(serverPath)) {
-    serverDir = standaloneRoot
-    serverPath = path.join(standaloneRoot, 'server.js')
+  const possiblePaths = [
+    path.join(standaloneRoot, 'apps', 'vendor', 'server.js'),
+    path.join(standaloneRoot, 'server.js'),
+  ]
+  let serverPath = null
+  let serverDir = null
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      serverPath = p
+      serverDir = path.dirname(p)
+      break
+    }
+  }
+  if (!serverPath) {
+    serverDir = path.join(standaloneRoot, 'apps', 'vendor')
+    serverPath = path.join(serverDir, 'server.js')
   }
 
-  logStartup('Standalone serverDir=' + serverDir)
-  logStartup('Server exists=' + fs.existsSync(serverPath))
+  logStartup('Standalone root=' + standaloneRoot)
+  logStartup('Server dir=' + serverDir)
+  logStartup('Server exists=' + (serverPath && fs.existsSync(serverPath)))
 
-  if (!fs.existsSync(serverPath)) {
-    const msg = `Server not found at: ${serverPath}. Rebuild the app with "npm run electron:build".`
+  if (!serverPath || !fs.existsSync(serverPath)) {
+    const checked = possiblePaths.join('\n  - ')
+    const msg = `Server not found. Checked:\n  - ${checked}\n\nStandalone root: ${standaloneRoot}\n\nRebuild with: cd apps/vendor && npm run electron:build:win`
     console.error('[Electron]', msg)
-    showErrorInWindow(mainWindow, 'Startup error', msg)
+    logStartup('Server not found. standaloneRoot=' + standaloneRoot)
+    showErrorInWindow(mainWindow, 'Startup error', msg, {
+      logPath: isPackaged ? path.join(app.getPath('userData'), STARTUP_LOG_NAME) : undefined,
+      showTroubleshoot: true,
+    })
     return
   }
 
@@ -608,7 +626,7 @@ function startNextStandaloneServer() {
     console.log(`[Next.js Standalone] Process exited with code ${code}`)
     nextProcess = null
     if (code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
-      const stderrSnippet = serverStderrLines.length ? '\n\nLast error:\n' + serverStderrLines.slice(-5).join('\n') : ''
+      const stderrSnippet = serverStderrLines.length ? '\n\nServer output:\n' + serverStderrLines.slice(-15).join('\n') : ''
       const logPath = isPackaged ? path.join(app.getPath('userData'), STARTUP_LOG_NAME) : ''
       const message = 'The app server exited unexpectedly (code ' + code + ').' + (stderrSnippet ? stderrSnippet : '')
       showErrorInWindow(mainWindow, 'Server stopped', message, {
@@ -633,7 +651,9 @@ function startNextStandaloneServer() {
 
 // Authentication check and load
 function checkAuthenticationAndLoad() {
+  if (app.isPackaged) writeEarlyLog('checkAuth starting')
   ensureDevicePasskey()
+  if (app.isPackaged) writeEarlyLog('checkAuth passkey ok')
   const store = getAuthStore()
   const authState = store.get('vendor_auth_state')
   const setupState = getSetupState()
@@ -695,6 +715,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
             sessionId: currentSessionId,
           })
           isAuthenticated = true
+          setAuthWindowClosable(true)
           closeAuthWindow()
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.loadURL('http://localhost:3001/vendor')
@@ -723,6 +744,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           sessionId: currentSessionId,
         })
         isAuthenticated = true
+        setAuthWindowClosable(true)
         closeAuthWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.loadURL('http://localhost:3001/vendor')
@@ -751,6 +773,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           sessionId: currentSessionId,
         })
         isAuthenticated = true
+        setAuthWindowClosable(true)
         closeAuthWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.loadURL('http://localhost:3001/vendor')
@@ -790,6 +813,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
         })
         
         isAuthenticated = true
+        setAuthWindowClosable(true)
         closeAuthWindow()
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.loadURL('http://localhost:3001/vendor')
@@ -1004,6 +1028,13 @@ ipcMain.handle('auth-set-passkey', async (event, passkey) => {
 
 // Register keyboard shortcuts
 function registerShortcuts() {
+  // Kiosk mode (fullscreen) - F11
+  globalShortcut.register('F11', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(!mainWindow.isFullScreen())
+    }
+  })
+
   // POS shortcuts - send to renderer
   const shortcuts = {
     'F1': 'shortcut-help',
@@ -1030,29 +1061,43 @@ function registerShortcuts() {
     })
   })
   
-  console.log('[Shortcuts] Registered POS keyboard shortcuts')
+  console.log('[Shortcuts] Registered POS keyboard shortcuts (F11 = kiosk/fullscreen)')
 }
 
 // Create system tray
 function createTray() {
-  const iconPath = path.join(__dirname, '../assets/logo.png')
+  const iconPaths = [
+    path.join(__dirname, '../assets/logo.ico'),
+    path.join(__dirname, '../assets/logo.png'),
+  ]
   let trayIcon
-  
-  try {
-    trayIcon = nativeImage.createFromPath(iconPath)
-    if (trayIcon.isEmpty()) {
-      // Create a simple 16x16 icon if file not found
-      trayIcon = nativeImage.createEmpty()
+  for (const iconPath of iconPaths) {
+    try {
+      if (fs.existsSync(iconPath)) {
+        trayIcon = nativeImage.createFromPath(iconPath)
+        if (!trayIcon.isEmpty()) break
+      }
+    } catch (e) {
+      // try next
     }
-  } catch (e) {
+  }
+  if (!trayIcon || trayIcon.isEmpty()) {
     trayIcon = nativeImage.createEmpty()
   }
 
-  tray = new Tray(trayIcon)
-  
+  try {
+    tray = new Tray(trayIcon)
+  } catch (e) {
+    console.warn('[Tray] Failed to create tray:', e.message)
+    if (app.isPackaged) writeEarlyLog('tray create failed: ' + (e && e.message))
+    tray = null
+    return
+  }
+
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Open AlBaz Vendor', click: () => mainWindow?.show() },
     { type: 'separator' },
+    { label: 'Kiosk Mode / Fullscreen (F11)', click: () => { if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setFullScreen(!mainWindow.isFullScreen()) } },
     { label: 'New Sale (F2)', click: () => mainWindow?.webContents.send('shortcut-new-sale') },
     { label: 'Search (F3)', click: () => mainWindow?.webContents.send('shortcut-search') },
     { type: 'separator' },
@@ -1082,42 +1127,56 @@ app.whenReady().then(() => {
   if (app.isPackaged) writeEarlyLog('whenReady - starting')
   try {
     configureCSP()
+    if (app.isPackaged) writeEarlyLog('configureCSP ok')
   } catch (e) {
     logStartup('configureCSP error: ' + (e && e.message))
+    if (app.isPackaged) writeEarlyLog('configureCSP error: ' + (e && e.message))
   }
 
   // Initialize offline database (if available)
   if (offlineDb) {
     try {
       offlineDb.initDatabase()
+      if (app.isPackaged) writeEarlyLog('offlineDb init ok')
     } catch (e) {
       console.warn('Failed to initialize offline database:', e.message)
+      if (app.isPackaged) writeEarlyLog('offlineDb init failed: ' + (e && e.message))
     }
   }
   
   // Start sync service (if available)
   if (syncService) {
     try {
-      syncService.startAutoSync(30000) // Sync every 30 seconds
+      syncService.startAutoSync(30000)
+      if (app.isPackaged) writeEarlyLog('syncService ok')
     } catch (e) {
       console.warn('Failed to start sync service:', e.message)
+      if (app.isPackaged) writeEarlyLog('syncService failed: ' + (e && e.message))
     }
   }
   
-  // Register IPC handlers (if available)
-  if (barcodeScanner?.registerBarcodeIPC) {
-    barcodeScanner.registerBarcodeIPC()
-  }
-  if (autoUpdater?.registerUpdaterIPC) {
-    autoUpdater.registerUpdaterIPC()
+  // Register IPC handlers (if available) - wrap in try/catch; these can throw and crash the process
+  try {
+    if (barcodeScanner?.registerBarcodeIPC) barcodeScanner.registerBarcodeIPC()
+    if (autoUpdater?.registerUpdaterIPC) autoUpdater.registerUpdaterIPC()
+    if (app.isPackaged) writeEarlyLog('barcode/updater IPC ok')
+  } catch (e) {
+    console.warn('Barcode/updater IPC failed:', e.message)
+    if (app.isPackaged) writeEarlyLog('barcode/updater IPC failed: ' + (e && e.message))
   }
   
   try {
+    if (app.isPackaged) writeEarlyLog('createWindow starting')
     createWindow()
+    if (app.isPackaged) writeEarlyLog('createWindow done')
     registerShortcuts()
+    if (app.isPackaged) writeEarlyLog('shortcuts ok')
     createTray()
+    if (app.isPackaged) writeEarlyLog('tray ok')
   } catch (err) {
-    logStartup('Startup error: ' + (err && err.message))
+    const errMsg = (err && err.message) || String(err)
+    if (app.isPackaged) writeEarlyLog('Startup error: ' + errMsg)
+    logStartup('Startup error: ' + errMsg)
     console.error('[Electron] Startup error:', err)
     if (!mainWindow || mainWindow.isDestroyed()) {
       const { BrowserWindow: BW } = require('electron')

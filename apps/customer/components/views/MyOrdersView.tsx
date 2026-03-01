@@ -8,7 +8,10 @@ import { useOrdersQuery } from '../../hooks/use-orders-query'
 
 export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersViewProps) {
   const [activeTab, setActiveTab] = useState<'orders' | 'packages' | 'track'>('orders')
-  
+  const [trackOrderId, setTrackOrderId] = useState('')
+  const [trackLoading, setTrackLoading] = useState(false)
+  const [trackError, setTrackError] = useState<string | null>(null)
+
   // Fetch orders using React Query
   const { data: orders = [], isLoading, error } = useOrdersQuery()
 
@@ -125,12 +128,41 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
                   </label>
                   <input
                     type="text"
-                    placeholder={t('order-id-placeholder', 'Ex: ORD-123456', 'مثال: ORD-123456')}
+                    placeholder={t('order-id-placeholder', 'Collez l\'ID de la commande', 'الصق معرف الطلب')}
+                    value={trackOrderId}
+                    onChange={(e) => {
+                      setTrackOrderId(e.target.value.trim())
+                      setTrackError(null)
+                    }}
                     className="bg-muted border-border w-full rounded-lg px-3 py-2"
                   />
                 </div>
-                <Button className="w-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white font-bold py-6 rounded-full">
-                  {t('track', 'Suivre', 'تتبع')}
+                {trackError && (
+                  <p className="text-sm text-destructive">{trackError}</p>
+                )}
+                <Button
+                  className="w-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white font-bold py-6 rounded-full"
+                  disabled={!trackOrderId || trackLoading}
+                  onClick={async () => {
+                    if (!trackOrderId) return
+                    setTrackError(null)
+                    setTrackLoading(true)
+                    try {
+                      const res = await fetch(`/api/orders/${trackOrderId}`)
+                      const data = await res.json()
+                      if (data.success && data.order) {
+                        onOrderSelect(data.order)
+                      } else {
+                        setTrackError(data.error?.message || t('order-not-found', 'Commande non trouvée', 'الطلب غير موجود'))
+                      }
+                    } catch {
+                      setTrackError(t('error', 'Erreur', 'خطأ'))
+                    } finally {
+                      setTrackLoading(false)
+                    }
+                  }}
+                >
+                  {trackLoading ? t('loading', 'Chargement...', 'جاري التحميل...') : t('track', 'Suivre', 'تتبع')}
                 </Button>
               </div>
             </CardContent>
@@ -142,19 +174,35 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
 }
 
 function formatStatus(status: string, t: MyOrdersViewProps['t']) {
-  switch (status) {
+  const s = String(status).toUpperCase()
+  switch (s) {
     case 'DELIVERED':
       return t('delivered', 'Livrée', 'تم التوصيل')
     case 'IN_DELIVERY':
       return t('in-delivery', 'En Livraison', 'قيد التوصيل')
+    case 'CANCELLED':
+      return t('cancelled', 'Annulée', 'ملغاة')
+    case 'PENDING':
+      return t('pending', 'En Attente', 'قيد الانتظار')
+    case 'ACCEPTED':
+      return t('accepted', 'Acceptée', 'مقبولة')
+    case 'PREPARING':
+      return t('preparing', 'En Préparation', 'قيد التحضير')
+    case 'READY':
+      return t('ready', 'Prête', 'جاهزة')
+    case 'ASSIGNED':
+      return t('assigned', 'Assignée', 'معينة')
     default:
       return t('pending', 'En Attente', 'قيد الانتظار')
   }
 }
 
 function getStatusBadgeVariant(status: string) {
-  if (status === 'DELIVERED') return 'bg-green-500'
-  if (status === 'IN_DELIVERY') return 'bg-blue-500'
+  const s = String(status).toUpperCase()
+  if (s === 'DELIVERED') return 'bg-green-500'
+  if (s === 'IN_DELIVERY' || s === 'ASSIGNED') return 'bg-blue-500'
+  if (s === 'CANCELLED') return 'bg-red-500'
+  if (s === 'ACCEPTED' || s === 'PREPARING' || s === 'READY') return 'bg-amber-500'
   return 'bg-yellow-500'
 }
 

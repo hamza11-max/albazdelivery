@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Link from 'next/link'
 import { ArrowLeft, Bell, ChevronRight, Globe, HelpCircle, LogOut, MapPin, User, AlertCircle, Loader2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@albaz/ui'
@@ -57,9 +58,11 @@ export function ProfileView({ user, selectedLanguage, onSelectLanguage, onBackHo
                 <p className="text-sm text-muted-foreground">{user?.email || t('no-email', 'Aucun email', 'لا يوجد بريد إلكتروني')}</p>
               </div>
             </div>
-            <Button variant="outline" className="w-full bg-transparent">
-              {t('edit-profile', 'Modifier le profil', 'تعديل الملف الشخصي')}
-            </Button>
+            <Link href="/profile/edit">
+              <Button variant="outline" className="w-full bg-transparent">
+                {t('edit-profile', 'Modifier le profil', 'تعديل الملف الشخصي')}
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
@@ -104,7 +107,7 @@ export function ProfileView({ user, selectedLanguage, onSelectLanguage, onBackHo
             )}
 
             <ProfileRow icon={Bell} title={t('notifications', 'Notifications', 'الإشعارات')} subtitle={t('manage-notifications', 'Gérer les notifications', 'إدارة الإشعارات')} />
-            <ProfileRow icon={MapPin} title={t('addresses', 'Adresses', 'العناوين')} subtitle={t('manage-addresses', 'Gérer vos adresses', 'إدارة عناوينك')} />
+            <ProfileRow icon={MapPin} title={t('addresses', 'Adresses', 'العناوين')} subtitle={t('manage-addresses', 'Gérer vos adresses', 'إدارة عناوينك')} href="/profile/addresses" />
             <ProfileRow icon={HelpCircle} title={t('help', 'Aide & Support', 'المساعدة والدعم')} subtitle={t('faq', 'FAQ et contact', 'الأسئلة الشائعة والاتصال')} />
           </CardContent>
         </Card>
@@ -136,11 +139,12 @@ interface ProfileRowProps {
   icon: LucideIcon
   title: string
   subtitle: string
+  href?: string
 }
 
-function ProfileRow({ icon: Icon, title, subtitle }: ProfileRowProps) {
-  return (
-    <button className="w-full flex items-center justify-between p-4 hover:bg-muted rounded-lg transition-colors">
+function ProfileRow({ icon: Icon, title, subtitle, href }: ProfileRowProps) {
+  const content = (
+    <>
       <div className="flex items-center gap-3">
         <Icon className="w-5 h-5 text-muted-foreground" />
         <div className="text-left">
@@ -149,7 +153,16 @@ function ProfileRow({ icon: Icon, title, subtitle }: ProfileRowProps) {
         </div>
       </div>
       <ChevronRight className="w-5 h-5 text-muted-foreground" />
-    </button>
+    </>
   )
+  const className = "w-full flex items-center justify-between p-4 hover:bg-muted rounded-lg transition-colors"
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    )
+  }
+  return <button type="button" className={className}>{content}</button>
 }
 

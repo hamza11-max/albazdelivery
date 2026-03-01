@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       deliveryAddress,
       city,
       customerPhone,
+      promoCode,
     } = validatedData
 
     // Get store and vendor info
@@ -50,6 +51,7 @@ export async function POST(request: NextRequest) {
       data: {
         customerId: session.user.id,
         vendorId: store.vendorId,
+        storeId: store.id,
         subtotal,
         deliveryFee,
         total,
@@ -63,7 +65,6 @@ export async function POST(request: NextRequest) {
             productId: item.productId,
             quantity: item.quantity,
             price: item.price,
-            paymentMethod: normalizedPaymentMethod,
           })),
         },
       },
@@ -90,6 +91,29 @@ export async function POST(request: NextRequest) {
       },
     })
     emitNotificationSent(vendorNotification)
+
+    // Increment promo code usage if applied
+    if (promoCode && promoCode.trim()) {
+      await prisma.promoCode.updateMany({
+        where: { code: promoCode.trim().toUpperCase(), isActive: true },
+        data: { usedCount: { increment: 1 } },
+      })
+    }
+
+    // Deduct wallet balance if paying with wallet
+    if (normalizedPaymentMethod === 'WALLET') {
+      const wallet = await prisma.wallet.findUnique({ where: { customerId: session.user.id } })
+      if (!wallet || wallet.balance < total) {
+        return errorResponse(new Error('Insufficient wallet balance'), 400)
+      }
+      await prisma.wallet.update({
+        where: { customerId: session.user.id },
+        data: {
+          balance: { decrement: total },
+          totalSpent: { increment: total },
+        },
+      })
+    }
 
     // Create payment record if not cash
     if (normalizedPaymentMethod !== 'CASH') {

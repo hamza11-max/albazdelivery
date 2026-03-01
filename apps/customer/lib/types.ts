@@ -23,6 +23,7 @@ export interface HomePageProps {
   isDarkMode: boolean
   onToggleDarkMode: () => void
   onGoHome: () => void
+  searchInputRef?: React.RefObject<HTMLInputElement | null>
   t: TranslationFn
 }
 
@@ -57,6 +58,14 @@ export interface StoreViewProps {
   } | null
 }
 
+export interface SavedAddress {
+  id: string
+  label: string
+  address: string
+  city: string
+  isDefault: boolean
+}
+
 export interface CheckoutViewProps {
   cart: CartItem[]
   products: ProductDefinition[]
@@ -67,6 +76,14 @@ export interface CheckoutViewProps {
   promoDiscount: number
   promoError?: string
   paymentMethod: string
+  deliveryAddress: string
+  customerPhone: string
+  addresses?: SavedAddress[]
+  selectedAddressId?: string | null
+  walletBalance?: number
+  onDeliveryAddressChange: (value: string) => void
+  onCustomerPhoneChange: (value: string) => void
+  onAddressSelect?: (id: string | null) => void
   onPaymentMethodChange: (method: string) => void
   onUpdateQuantity: (productId: string, delta: number) => void
   onRemoveFromCart: (productId: string) => void

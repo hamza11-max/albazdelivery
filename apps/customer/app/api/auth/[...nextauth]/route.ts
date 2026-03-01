@@ -10,16 +10,9 @@ export const dynamic = 'force-dynamic'
 // Add debug logging wrapper
 const GET = async (req: NextRequest) => {
   try {
-    console.log('[Auth] Processing GET request', {
-      url: req.url,
-      headers: Object.fromEntries(req.headers.entries()),
-      cookies: req.cookies.getAll(),
-      env: {
-        hasNextAuthUrl: !!process.env.NEXTAUTH_URL,
-        hasSecret: !!process.env.NEXTAUTH_SECRET,
-        nodeEnv: process.env.NODE_ENV,
-      }
-    })
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Auth] GET', { url: req.url, hasSecret: !!process.env.NEXTAUTH_SECRET })
+    }
     return await handlers.GET(req)
   } catch (error) {
     console.error('[Auth] Error processing request:', error)
@@ -29,7 +22,7 @@ const GET = async (req: NextRequest) => {
 
 const POST = async (req: NextRequest) => {
   try {
-    console.log('[Auth] Processing POST request')
+    if (process.env.NODE_ENV === 'development') console.log('[Auth] POST')
     return await handlers.POST(req)
   } catch (error) {
     console.error('[Auth] Error processing POST request:', error)

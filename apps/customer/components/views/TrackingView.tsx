@@ -11,14 +11,15 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
   // Use fetched order if available, otherwise fall back to initial
   const currentOrder = fetchedOrder || initialOrder
   const getStepFromStatus = (status: string) => {
-    switch (status) {
-      case 'pending':
-      case 'accepted':
+    const s = String(status).toUpperCase()
+    switch (s) {
+      case 'PENDING':
+      case 'ACCEPTED':
         return 1
-      case 'preparing':
+      case 'PREPARING':
         return 2
-      case 'ready':
-      case 'assigned':
+      case 'READY':
+      case 'ASSIGNED':
       case 'IN_DELIVERY':
         return 3
       case 'DELIVERED':
@@ -199,21 +200,24 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
 }
 
 function getStatusText(status: string, t: TrackingViewProps['t']) {
-  switch (status) {
-    case 'pending':
+  const s = String(status).toUpperCase()
+  switch (s) {
+    case 'PENDING':
       return t('status-pending', "En attente d'acceptation par le restaurant", 'في انتظار قبول المطعم')
-    case 'accepted':
+    case 'ACCEPTED':
       return t('status-accepted', 'Commande acceptée par le restaurant', 'تم قبول الطلب من قبل المطعم')
-    case 'preparing':
+    case 'PREPARING':
       return t('status-preparing', 'Votre commande est en cours de préparation', 'طلبك قيد التحضير')
-    case 'ready':
+    case 'READY':
       return t('status-ready', 'Commande prête, en attente d’un livreur', 'الطلب جاهز، في انتظار السائق')
-    case 'assigned':
+    case 'ASSIGNED':
       return t('status-assigned', 'Un livreur a été assigné à votre commande', 'تم تعيين سائق لطلبك')
     case 'IN_DELIVERY':
       return t('status-in-delivery', 'Votre commande est en cours de livraison', 'طلبك قيد التوصيل')
     case 'DELIVERED':
       return t('status-delivered', 'Commande livrée avec succès', 'تم توصيل الطلب بنجاح')
+    case 'CANCELLED':
+      return t('status-cancelled', 'Commande annulée', 'تم إلغاء الطلب')
     default:
       return t('status-unknown', 'Statut inconnu', 'حالة غير معروفة')
   }

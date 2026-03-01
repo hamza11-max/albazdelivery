@@ -472,6 +472,57 @@ export const storesAPI = {
 }
 
 // ============================================
+// ADDRESSES API
+// ============================================
+
+export const addressesAPI = {
+  async list() {
+    return fetchAPI('/api/addresses')
+  },
+
+  async create(data: { label: string; address: string; city: string; isDefault?: boolean }) {
+    return fetchAPI('/api/addresses', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async update(id: string, data: { label?: string; address?: string; city?: string; isDefault?: boolean }) {
+    return fetchAPI(`/api/addresses/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
+
+  async delete(id: string) {
+    return fetchAPI(`/api/addresses/${id}`, { method: 'DELETE' })
+  },
+}
+
+// ============================================
+// DELIVERY FEE API
+// ============================================
+
+export const deliveryFeeAPI = {
+  async getByCity(city: string) {
+    return fetchAPI(`/api/delivery/fee?city=${encodeURIComponent(city)}`)
+  },
+}
+
+// ============================================
+// PROMO API
+// ============================================
+
+export const promoAPI = {
+  async validate(code: string, subtotal: number) {
+    return fetchAPI('/api/promo/validate', {
+      method: 'POST',
+      body: JSON.stringify({ code, subtotal }),
+    })
+  },
+}
+
+// ============================================
 // CATEGORIES API
 // ============================================
 

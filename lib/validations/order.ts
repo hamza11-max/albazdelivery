@@ -18,6 +18,8 @@ export const createOrderSchema = z.object({
   deliveryAddress: z.string().min(10, 'Delivery address must be at least 10 characters'),
   city: z.string().min(2, 'City is required'),
   customerPhone: z.string().regex(algerianPhoneRegex, 'Invalid phone number'),
+  promoCode: z.string().optional(),
+  discount: z.number().nonnegative().optional(),
 })
 
 export const createPackageDeliverySchema = z.object({

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ShoppingCart, Trash2, Minus, Plus, Loader2 } from 'lucide-react'
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@albaz/ui'
+import { ShoppingCart, Trash2, Minus, Plus, Loader2, MapPin, Phone, Wallet, CreditCard, Banknote } from 'lucide-react'
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Label } from '@albaz/ui'
 import type { CheckoutViewProps } from '../../lib/types'
 import { CartItemSkeleton } from '../ui/skeleton-loaders'
 import { useErrorHandler } from '../../hooks/use-error-handler'
@@ -16,6 +16,14 @@ export function CheckoutView({
   promoDiscount,
   promoError,
   paymentMethod,
+  deliveryAddress,
+  customerPhone,
+  addresses = [],
+  selectedAddressId,
+  walletBalance = 0,
+  onDeliveryAddressChange,
+  onCustomerPhoneChange,
+  onAddressSelect,
   onPaymentMethodChange,
   onUpdateQuantity,
   onRemoveFromCart,
@@ -135,6 +143,79 @@ export function CheckoutView({
 
           <Card className="albaz-card">
             <CardHeader>
+              <CardTitle>{t('delivery-details', 'Adresse de livraison', 'عنوان التوصيل')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {addresses.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">{t('saved-addresses', 'Adresses enregistrées', 'العناوين المحفوظة')}</Label>
+                  <div className="space-y-2">
+                    {addresses.map((addr) => (
+                      <button
+                        key={addr.id}
+                        type="button"
+                        onClick={() => onAddressSelect?.(addr.id)}
+                        className={`w-full text-left p-3 rounded-lg border-2 transition-colors flex items-start gap-3 ${
+                          selectedAddressId === addr.id
+                            ? 'border-[#1a4d1a] bg-[#1a4d1a]/5'
+                            : 'border-border hover:border-[#1a4d1a]/50'
+                        }`}
+                      >
+                        <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-[#1a4d1a]" />
+                        <div>
+                          <p className="font-semibold text-foreground">{addr.label}</p>
+                          <p className="text-sm text-muted-foreground">{addr.address}, {addr.city}</p>
+                        </div>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => onAddressSelect?.(null)}
+                      className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
+                        !selectedAddressId ? 'border-[#1a4d1a] bg-[#1a4d1a]/5' : 'border-border hover:border-[#1a4d1a]/50'
+                      }`}
+                    >
+                      <span className="font-medium">{t('other-address', 'Autre adresse', 'عنوان آخر')}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="delivery-address" className="text-sm font-medium">
+                  {t('address', 'Adresse complète', 'العنوان الكامل')}
+                </Label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="delivery-address"
+                    placeholder={t('address-placeholder', 'Rue, numéro, appartement, quartier...', 'الشارع، الرقم، الشقة، الحي...')}
+                    value={deliveryAddress}
+                    onChange={(e) => onDeliveryAddressChange(e.target.value)}
+                    className="pl-10 min-h-[44px]"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="customer-phone" className="text-sm font-medium">
+                  {t('phone', 'Téléphone', 'الهاتف')}
+                </Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="customer-phone"
+                    type="tel"
+                    placeholder="0555000000"
+                    value={customerPhone}
+                    onChange={(e) => onCustomerPhoneChange(e.target.value)}
+                    className="pl-10 min-h-[44px]"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="albaz-card">
+            <CardHeader>
               <CardTitle>{t('order-summary', 'Résumé de la commande', 'ملخص الطلب')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -198,7 +279,7 @@ export function CheckoutView({
               <CardTitle>{t('payment-method', 'Mode de paiement', 'طريقة الدفع')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <label className="flex items-center gap-3 p-4 border-2 border-[#1a4d1a] rounded-lg cursor-pointer bg-[#1a4d1a]/5">
+              <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors hover:bg-muted/50">
                 <input
                   type="radio"
                   name="payment"
@@ -207,6 +288,7 @@ export function CheckoutView({
                   onChange={(e) => onPaymentMethodChange(e.target.value)}
                   className="w-4 h-4 text-[#1a4d1a]"
                 />
+                <Banknote className="w-5 h-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">
                     {t('cash-on-delivery', 'Paiement à la Livraison', 'الدفع عند الاستلام')}
@@ -217,8 +299,26 @@ export function CheckoutView({
                 </div>
                 <Badge className="bg-[#1a4d1a] text-white">{t('recommended', 'Recommandé', 'موصى به')}</Badge>
               </label>
+              {walletBalance >= total && (
+                <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors hover:bg-muted/50">
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="wallet"
+                    checked={paymentMethod === 'wallet'}
+                    onChange={(e) => onPaymentMethodChange(e.target.value)}
+                    className="w-4 h-4 text-[#1a4d1a]"
+                  />
+                  <Wallet className="w-5 h-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-foreground">{t('wallet', 'Portefeuille', 'المحفظة')}</p>
+                    <p className="text-sm text-muted-foreground">{walletBalance} DZD {t('available', 'disponible', 'متاح')}</p>
+                  </div>
+                </label>
+              )}
               <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-not-allowed opacity-50">
                 <input type="radio" name="payment" value="card" disabled className="w-4 h-4" />
+                <CreditCard className="w-5 h-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">{t('credit-card', 'Carte Bancaire', 'بطاقة ائتمان')}</p>
                   <p className="text-sm text-muted-foreground">{t('coming-soon', 'Bientôt disponible', 'قريبًا')}</p>

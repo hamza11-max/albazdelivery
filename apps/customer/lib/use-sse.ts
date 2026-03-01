@@ -17,7 +17,7 @@ export function useSSE(url: string, enabled = true) {
 
     const connect = () => {
       if (reconnectAttemptsRef.current >= 3) {
-        console.log("[v0] SSE failed multiple times, switching to polling fallback")
+        if (process.env.NODE_ENV === 'development') console.log("[SSE] Failed multiple times, switching to polling")
         setUsePolling(true)
         setError(null)
         return
@@ -29,7 +29,7 @@ export function useSSE(url: string, enabled = true) {
       }
 
       try {
-        console.log("[v0] SSE connecting to:", url)
+        if (process.env.NODE_ENV === 'development') console.log("[SSE] Connecting to:", url)
         const eventSource = new EventSource(url)
         eventSourceRef.current = eventSource
 
@@ -37,43 +37,43 @@ export function useSSE(url: string, enabled = true) {
           setIsConnected(true)
           setError(null)
           reconnectAttemptsRef.current = 0
-          console.log("[v0] SSE connection opened")
+          if (process.env.NODE_ENV === 'development') console.log("[SSE] Connection opened")
         }
 
         eventSource.onmessage = (event) => {
           try {
             const parsedData = JSON.parse(event.data)
             setData(parsedData)
-            console.log("[v0] SSE message received:", parsedData.type)
+            if (process.env.NODE_ENV === 'development') console.log("[SSE] Message:", parsedData.type)
           } catch (err) {
-            console.error("[v0] Error parsing SSE data:", err)
+            if (process.env.NODE_ENV === 'development') console.error("[SSE] Parse error:", err)
           }
         }
 
         eventSource.onerror = (err) => {
-          console.error("[v0] SSE error, readyState:", eventSource.readyState)
+          if (process.env.NODE_ENV === 'development') console.error("[SSE] Error, readyState:", eventSource.readyState)
           setIsConnected(false)
 
           if (eventSource.readyState === EventSource.CLOSED) {
-            console.log("[v0] SSE connection closed")
+            if (process.env.NODE_ENV === 'development') console.log("[SSE] Connection closed")
             eventSource.close()
 
             if (reconnectAttemptsRef.current < 3) {
               const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000)
               reconnectAttemptsRef.current++
-              console.log(`[v0] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`)
+              if (process.env.NODE_ENV === 'development') console.log(`[SSE] Reconnecting in ${delay}ms`)
 
               reconnectTimeoutRef.current = setTimeout(() => {
                 connect()
               }, delay)
             } else {
-              console.log("[v0] Max reconnection attempts reached, switching to polling")
+              if (process.env.NODE_ENV === 'development') console.log("[SSE] Max reconnection attempts, switching to polling")
               setUsePolling(true)
             }
           }
         }
       } catch (err) {
-        console.error("[v0] Error creating EventSource:", err)
+        if (process.env.NODE_ENV === 'development') console.error("[SSE] EventSource error:", err)
         setError(err as Error)
         setIsConnected(false)
         setUsePolling(true)
@@ -85,7 +85,7 @@ export function useSSE(url: string, enabled = true) {
     }
 
     return () => {
-      console.log("[v0] SSE cleanup")
+      if (process.env.NODE_ENV === 'development') console.log("[SSE] Cleanup")
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current)
         reconnectTimeoutRef.current = null
@@ -100,7 +100,7 @@ export function useSSE(url: string, enabled = true) {
         eventSourceRef.current.close()
         eventSourceRef.current = null
         setIsConnected(false)
-        console.log("[v0] SSE connection closed")
+        if (process.env.NODE_ENV === 'development') console.log("[SSE] Connection closed")
       }
     }
   }, [url, enabled, usePolling])

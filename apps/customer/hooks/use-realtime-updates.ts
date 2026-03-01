@@ -45,8 +45,7 @@ export function useRealtimeUpdates(enabled: boolean = true) {
         break
 
       default:
-        // Unknown message type
-        console.warn('[Realtime] Unknown message type:', message.type)
+        if (process.env.NODE_ENV === 'development') console.warn('[Realtime] Unknown message type:', message.type)
     }
   }
 
@@ -61,13 +60,13 @@ export function useRealtimeUpdates(enabled: boolean = true) {
     enabled: enabled && !!userId,
     onMessage: handleMessage,
     onError: (error) => {
-      console.error('[Realtime] WebSocket error:', error)
+      if (process.env.NODE_ENV === 'development') console.error('[Realtime] WebSocket error:', error)
     },
     onOpen: () => {
-      console.log('[Realtime] WebSocket connected')
+      if (process.env.NODE_ENV === 'development') console.log('[Realtime] WebSocket connected')
     },
     onClose: () => {
-      console.log('[Realtime] WebSocket disconnected')
+      if (process.env.NODE_ENV === 'development') console.log('[Realtime] WebSocket disconnected')
     },
   })
 

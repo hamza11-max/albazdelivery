@@ -50,11 +50,47 @@ model User {
   driverLocation      DriverLocation?
   driverPerformance   DriverPerformance?
   subscription        Subscription?
+  addresses           CustomerAddress[]
   
   @@index([email])
   @@index([phone])
   @@index([role])
   @@index([status])
+}
+
+model CustomerAddress {
+  id        String   @id @default(cuid())
+  customerId String
+  label     String   // e.g. "Home", "Work"
+  address   String
+  city      String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  customer User @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  
+  @@index([customerId])
+}
+
+model PromoCode {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  discountType  String    // "percent" | "fixed"
+  discountValue Float     // percent 0-100 or fixed amount in DZD
+  maxDiscount   Float?    // cap for percent discounts (DZD)
+  minOrderAmount Float?   // minimum order to apply (DZD)
+  usageLimit    Int?     // total uses allowed
+  usedCount     Int      @default(0)
+  startsAt      DateTime @default(now())
+  expiresAt     DateTime
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([code])
+  @@index([isActive])
+  @@index([expiresAt])
 }
 
 model RegistrationRequest {

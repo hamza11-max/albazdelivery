@@ -22,6 +22,7 @@ lerna-debug.log*
 
 # env files (IMPORTANT: Never commit real credentials!)
 .env
+apps/vendor/vendor-config.json
 .env*.local
 .env.development.local
 .env.test.local

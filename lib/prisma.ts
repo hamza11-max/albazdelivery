@@ -61,8 +61,8 @@ function createDevPrismaFallback() {
 let prismaClient: PrismaClient | undefined
 let prismaExport: any
 
-// If DATABASE_URL is not provided in dev, export a safe fallback to avoid 500s
-if (!process.env.DATABASE_URL && process.env.NODE_ENV !== 'production') {
+// If DATABASE_URL is not provided, export a safe fallback to avoid crashes (dev and packaged app without config)
+if (!process.env.DATABASE_URL || String(process.env.DATABASE_URL).trim() === '') {
   // eslint-disable-next-line no-console
   console.warn('[prisma] DATABASE_URL not set — exporting dev fallback Prisma proxy')
   prismaExport = createDevPrismaFallback()

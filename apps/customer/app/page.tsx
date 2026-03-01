@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import type { Order } from '@albaz/shared'
@@ -21,7 +21,11 @@ import { useStoresQuery } from '../hooks/use-stores-query'
 import { useProductsQuery } from '../hooks/use-products-query'
 import { useRealtimeUpdates } from '../hooks/use-realtime-updates'
 import { useCreateOrder } from '../hooks/use-orders-mutation'
+import { useAddressesQuery } from '../hooks/use-addresses-query'
+import { useDeliveryFeeQuery } from '../hooks/use-delivery-fee-query'
+import { useWalletBalanceQuery } from '../hooks/use-wallet-query'
 import { getStoredTheme, setStoredTheme, applyTheme, getStoredLanguage, setStoredLanguage, applyLanguage } from '../lib/theme'
+import { normalizeAlgerianPhone } from '../lib/phone'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +39,7 @@ export default function AlBazApp() {
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [currentPage, setCurrentPage] = useState<PageView>('home')
-  const [selectedCity] = useState(() => cities[cities.length - 1] ?? 'Tamanrasset')
+  const [selectedCity, setSelectedCity] = useState(() => cities[cities.length - 1] ?? 'Tamanrasset')
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [selectedStore, setSelectedStore] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
@@ -48,8 +52,67 @@ export default function AlBazApp() {
   const [selectedLanguage, setSelectedLanguage] = useState('fr')
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
   const [vendorProfile, setVendorProfile] = useState<any | null>(null)
+  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [searchFocusRequested, setSearchFocusRequested] = useState(false)
 
   const customerId = user?.id || 'customer-1'
+
+  const { data: addresses = [] } = useAddressesQuery()
+  const { data: deliveryFeeData } = useDeliveryFeeQuery(selectedCity)
+  const { data: walletBalance = 0 } = useWalletBalanceQuery()
+  const deliveryFee = deliveryFeeData?.fee ?? 500
+
+  // Focus search input when Search nav is clicked
+  useEffect(() => {
+    if (currentPage === 'home' && searchFocusRequested) {
+      searchInputRef.current?.focus()
+      setSearchFocusRequested(false)
+    }
+  }, [currentPage, searchFocusRequested])
+
+  // Initialize delivery details from session user, then fetch latest from API
+  useEffect(() => {
+    if (!user?.id) return
+    if (user.address) setDeliveryAddress(user.address)
+    if (user.phone) setCustomerPhone(normalizeAlgerianPhone(user.phone))
+    if (user.city) setSelectedCity(user.city)
+    let cancelled = false
+    fetch('/api/profile')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (cancelled || !data?.success || !data.profile) return
+        if (data.profile.address) setDeliveryAddress(data.profile.address)
+        if (data.profile.phone) setCustomerPhone(normalizeAlgerianPhone(data.profile.phone))
+        if (data.profile.city) setSelectedCity(data.profile.city)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [user?.id])
+
+  // Sync address when selecting a saved address
+  useEffect(() => {
+    if (selectedAddressId && addresses.length > 0) {
+      const addr = addresses.find((a: { id: string }) => a.id === selectedAddressId)
+      if (addr) {
+        setDeliveryAddress(addr.address)
+        setSelectedCity(addr.city)
+      }
+    }
+  }, [selectedAddressId, addresses])
+
+  // Pre-select default address once when addresses first load
+  const hasInitializedAddress = useRef(false)
+  useEffect(() => {
+    if (addresses.length > 0 && !hasInitializedAddress.current) {
+      hasInitializedAddress.current = true
+      const defaultAddr = addresses.find((a: { isDefault: boolean }) => a.isDefault)
+      setSelectedAddressId(defaultAddr?.id ?? addresses[0].id)
+    }
+  }, [addresses])
+
   const shouldUseSSE = currentPage === 'tracking' && Boolean(orderId)
   const { data: sseData } = useSSE(`/api/notifications/sse?role=customer&userId=${customerId}`, shouldUseSSE)
 
@@ -124,7 +187,7 @@ export default function AlBazApp() {
       setCurrentOrder(sseData.order)
       // Logger will only output in development
       if (process.env.NODE_ENV === 'development') {
-        console.info('[v0] Order updated via SSE:', sseData.order)
+        console.info('[Customer] Order updated via SSE:', sseData.order)
       }
     }
   }, [sseData, orderId])
@@ -139,7 +202,7 @@ export default function AlBazApp() {
             setCurrentOrder(data.order)
           }
         } catch (error) {
-          console.error('[v0] Error fetching order:', error)
+          if (process.env.NODE_ENV === 'development') console.error('[Customer] Error fetching order:', error)
         }
       }
       fetchOrder()
@@ -256,7 +319,6 @@ export default function AlBazApp() {
     setCart((prev) => prev.filter((item) => item.productId !== productId))
   }, [])
 
-  const deliveryFee = 500 // DZD - TODO: import from constants after webpack config fix
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
   const total = useMemo(() => {
@@ -265,28 +327,40 @@ export default function AlBazApp() {
   }, [subtotal, promoDiscount, deliveryFee])
 
   const applyPromo = useCallback(
-    (codeRaw: string) => {
-      const code = codeRaw.toUpperCase()
+    async (codeRaw: string) => {
+      const code = codeRaw.trim().toUpperCase()
       if (!code) {
         setPromoError(t('promo-required', 'Entrez un code promo', 'أدخل رمزاً ترويجياً'))
         return
       }
-
-      let discount = 0
-      if (code === 'WELCOME10') {
-        discount = Math.min(Math.round(subtotal * 0.1), 1000)
-      } else if (code === 'SAVE15') {
-        discount = Math.min(Math.round(subtotal * 0.15), 1500)
-      } else {
+      try {
+        const res = await fetch('/api/promo/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, subtotal }),
+        })
+        const data = await res.json()
+        if (!data.success) {
+          setPromoError(data.error?.message || t('promo-invalid', 'Code promo invalide', 'رمز غير صالح'))
+          setPromoCode(code)
+          setPromoDiscount(0)
+          return
+        }
+        const { valid, discount: d, error: err } = data.data || {}
+        if (!valid || err) {
+          setPromoError(err || t('promo-invalid', 'Code promo invalide', 'رمز غير صالح'))
+          setPromoCode(code)
+          setPromoDiscount(0)
+          return
+        }
+        setPromoCode(code)
+        setPromoDiscount(d ?? 0)
+        setPromoError(null)
+      } catch {
         setPromoError(t('promo-invalid', 'Code promo invalide', 'رمز غير صالح'))
         setPromoCode(code)
         setPromoDiscount(0)
-        return
       }
-
-      setPromoCode(code)
-      setPromoDiscount(discount)
-      setPromoError(null)
     },
     [subtotal, t],
   )
@@ -298,9 +372,7 @@ export default function AlBazApp() {
   }, [])
 
   useEffect(() => {
-    if (promoCode) {
-      applyPromo(promoCode)
-    }
+    if (promoCode) applyPromo(promoCode)
   }, [subtotal, promoCode, applyPromo])
 
   const placeOrder = useCallback(async () => {
@@ -311,6 +383,23 @@ export default function AlBazApp() {
 
     if (!selectedStore) {
       alert(t('store-required', 'Veuillez sélectionner un magasin', 'يرجى اختيار متجر'))
+      return
+    }
+
+    const normalizedPhone = normalizeAlgerianPhone(customerPhone)
+    if (!/^0[567]\d{8}$/.test(normalizedPhone)) {
+      alert(t('phone-invalid', 'Veuillez entrer un numéro de téléphone algérien valide (ex: 0555000000)', 'يرجى إدخال رقم هاتف جزائري صالح'))
+      return
+    }
+
+    if (!deliveryAddress || deliveryAddress.trim().length < 10) {
+      alert(t('address-required', 'Veuillez entrer une adresse de livraison (au moins 10 caractères)', 'يرجى إدخال عنوان التوصيل (10 أحرف على الأقل)'))
+      return
+    }
+
+    const normalizedPaymentMethod = paymentMethod === 'wallet' ? 'WALLET' : paymentMethod === 'card' ? 'CARD' : 'CASH'
+    if (normalizedPaymentMethod === 'WALLET' && walletBalance < total) {
+      alert(t('insufficient-balance', 'Solde insuffisant dans votre portefeuille', 'رصيد غير كافٍ في محفظتك'))
       return
     }
 
@@ -329,29 +418,30 @@ export default function AlBazApp() {
       total,
       discount: promoDiscount,
       promoCode: promoCode || undefined,
-      paymentMethod,
-      deliveryAddress: '123 Rue Example, Appartement 4',
+      paymentMethod: normalizedPaymentMethod,
+      deliveryAddress: deliveryAddress.trim(),
       city: selectedCity,
-      customerPhone: '+213555000000',
+      customerPhone: normalizedPhone,
     }
 
     try {
       const result = await createOrder.mutateAsync(orderData)
-      
+
       if (result?.order) {
         setOrderId(result.order.id)
         setCurrentOrder(result.order)
         setCurrentPage('tracking')
         setCart([])
         if (process.env.NODE_ENV === 'development') {
-          console.info('[v0] Order placed successfully:', result.order.id)
+          console.info('[Customer] Order placed successfully:', result.order.id)
         }
       }
     } catch (error) {
-      // Error already handled by useCreateOrder hook with toast notification
-      console.error('[v0] Error placing order:', error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Customer] Error placing order:', error)
+      }
     }
-  }, [cart, selectedStore, products, subtotal, deliveryFee, total, promoDiscount, promoCode, paymentMethod, selectedCity, createOrder, t])
+  }, [cart, selectedStore, products, subtotal, deliveryFee, total, promoDiscount, promoCode, paymentMethod, selectedCity, deliveryAddress, customerPhone, walletBalance, createOrder, t])
 
   const handleResetSelections = () => {
     setSelectedCategory(null)
@@ -413,6 +503,7 @@ export default function AlBazApp() {
             isDarkMode={isDarkMode}
             onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
             onGoHome={handleGoHome}
+            searchInputRef={searchInputRef}
             t={t}
           />
         )}
@@ -456,6 +547,14 @@ export default function AlBazApp() {
             promoDiscount={promoDiscount}
             promoError={promoError || undefined}
             paymentMethod={paymentMethod}
+            deliveryAddress={deliveryAddress}
+            customerPhone={customerPhone}
+            addresses={addresses}
+            selectedAddressId={selectedAddressId}
+            walletBalance={walletBalance}
+            onDeliveryAddressChange={setDeliveryAddress}
+            onCustomerPhoneChange={setCustomerPhone}
+            onAddressSelect={setSelectedAddressId}
             onPaymentMethodChange={setPaymentMethod}
             onUpdateQuantity={updateQuantity}
             onRemoveFromCart={removeFromCart}
@@ -492,6 +591,7 @@ export default function AlBazApp() {
         cartItemCount={cartItemCount}
         onNavigate={setCurrentPage}
         onResetSelection={handleResetSelections}
+        onSearchFocusRequest={() => setSearchFocusRequested(true)}
         t={t}
       />
     </div>

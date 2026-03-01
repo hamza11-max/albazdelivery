@@ -210,7 +210,7 @@ export async function PATCH(
       },
     })
 
-  console.log('[API] Order status updated:', updatedOrder.id, '->', status)
+  if (process.env.NODE_ENV === 'development') console.log('[API] Order status updated:', updatedOrder.id, '->', status)
 
   // Emit SSE event
   emitOrderUpdated(updatedOrder)

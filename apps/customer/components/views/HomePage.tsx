@@ -15,6 +15,7 @@ export const HomePage = React.memo(function HomePage({
   isDarkMode,
   onToggleDarkMode,
   onGoHome,
+  searchInputRef,
   t,
 }: HomePageProps) {
   const firstRowCategories = categories.slice(0, 5)
@@ -37,6 +38,7 @@ export const HomePage = React.memo(function HomePage({
             <div className="albaz-search px-4 py-[11px] flex items-center gap-3 animate-[fadeSlideUp_0.65s_ease]">
               <Search className="w-5 h-5 text-[var(--albaz-text-soft)]" />
               <Input
+                ref={searchInputRef}
                 type="text"
                 placeholder={t('search', 'Search anything...', 'ابحث عن أي شيء...')}
                 value={searchQuery}

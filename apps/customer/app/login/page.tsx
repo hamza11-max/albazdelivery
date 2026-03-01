@@ -3,6 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { signIn } from "next-auth/react"
 import { Button, Input, Label } from "@albaz/ui"
 import Link from "next/link"
 
@@ -22,27 +23,22 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Use Next-Auth v5 signin endpoint
-      const response = await fetch('/api/auth/signin/credentials', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier,
-          password,
-          callbackUrl: '/',
-        }),
+      const result = await signIn("credentials", {
+        identifier,
+        password,
+        callbackUrl: "/",
+        redirect: false,
       })
 
-      if (response.ok) {
-        router.push('/')
+      if (result?.ok) {
+        router.push("/")
         router.refresh()
       } else {
-        const data = await response.json()
-        setError(data.error || "Email ou mot de passe incorrect")
-        setLoading(false)
+        setError(result?.error || "Email ou mot de passe incorrect")
       }
     } catch {
       setError("Une erreur s'est produite. Veuillez réessayer.")
+    } finally {
       setLoading(false)
     }
   }

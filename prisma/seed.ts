@@ -363,6 +363,53 @@ async function main() {
   }
   console.log(`✅ ${inventoryProducts.length} inventory products created`)
 
+  // Create Delivery Zones
+  const deliveryZones = [
+    { name: 'Alger Centre', city: 'Alger', deliveryFee: 400, estimatedTime: 30, coordinates: [{ lat: 36.7538, lng: 3.0588 }] },
+    { name: 'Oran', city: 'Oran', deliveryFee: 500, estimatedTime: 45, coordinates: [{ lat: 35.6969, lng: -0.6331 }] },
+    { name: 'Tamanrasset', city: 'Tamanrasset', deliveryFee: 800, estimatedTime: 60, coordinates: [{ lat: 22.7850, lng: 5.5228 }] },
+  ]
+  for (const zone of deliveryZones) {
+    const existing = await prisma.deliveryZone.findFirst({ where: { city: zone.city } })
+    if (!existing) {
+      await prisma.deliveryZone.create({
+        data: {
+          name: zone.name,
+          city: zone.city,
+          coordinates: zone.coordinates,
+          deliveryFee: zone.deliveryFee,
+          estimatedTime: zone.estimatedTime,
+        },
+      })
+    }
+  }
+  console.log(`✅ Delivery zones ensured`)
+
+  // Create Promo Codes
+  const expiresAt = new Date()
+  expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+  const promoCodes = [
+    { code: 'WELCOME10', discountType: 'percent', discountValue: 10, maxDiscount: 1000, minOrderAmount: 500, usageLimit: 1000 },
+    { code: 'SAVE15', discountType: 'percent', discountValue: 15, maxDiscount: 1500, minOrderAmount: 1000, usageLimit: 500 },
+    { code: 'FLAT500', discountType: 'fixed', discountValue: 500, minOrderAmount: 2000, usageLimit: 200 },
+  ]
+  for (const p of promoCodes) {
+    await prisma.promoCode.upsert({
+      where: { code: p.code },
+      update: {},
+      create: {
+        code: p.code,
+        discountType: p.discountType,
+        discountValue: p.discountValue,
+        maxDiscount: p.maxDiscount ?? null,
+        minOrderAmount: p.minOrderAmount ?? null,
+        usageLimit: p.usageLimit ?? null,
+        expiresAt,
+      },
+    })
+  }
+  console.log(`✅ ${promoCodes.length} promo codes created`)
+
   console.log('\n🎉 Database seeded successfully!')
   console.log('\n📝 Test Accounts:')
   console.log('─────────────────────────────────────────')

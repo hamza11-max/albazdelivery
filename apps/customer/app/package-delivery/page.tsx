@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 import { Button, Card, CardContent, Input, Textarea } from "@albaz/ui"
 import {
   ArrowLeft,
@@ -19,6 +20,7 @@ import {
 
 export default function PackageDeliveryPage() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const [selectedLanguage, setSelectedLanguage] = useState("fr")
   const [deliveryOption, setDeliveryOption] = useState("standard")
   const [showDeliveryOptions, setShowDeliveryOptions] = useState(false)
@@ -38,6 +40,12 @@ export default function PackageDeliveryPage() {
   const [recipientPhone, setRecipientPhone] = useState("")
   const [senderPhone, setSenderPhone] = useState("")
   const [promoCode, setPromoCode] = useState("")
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login")
+    }
+  }, [status, router])
 
   const t = (key: string, fr: string, ar: string) => {
     if (selectedLanguage === "ar") return ar
@@ -557,29 +565,36 @@ export default function PackageDeliveryPage() {
         <Button
           size="lg"
           className="w-full bg-black hover:bg-black/90 text-white font-bold py-6 rounded-full text-lg"
+          disabled={status !== "authenticated" || !session?.user}
           onClick={async () => {
             if (!fromLocation || !toLocation || !recipientPhone || !senderPhone) {
               alert(t("fill-all", "Veuillez remplir tous les champs", "يرجى ملء جميع الحقول"))
               return
             }
+            if (!packageDescription || packageDescription.trim().length < 5) {
+              alert(t("describe-package", "Décrivez votre colis (au moins 5 caractères)", "صف طردك (5 أحرف على الأقل)"))
+              return
+            }
+
+            const deliveryAddress = `${fromLocation} → ${toLocation}`
+            const city = toLocation.split(",")[0]?.trim() || "Alger"
 
             try {
               const response = await fetch("/api/package-delivery/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  customerId: "customer-1",
-                  fromLocation,
-                  toLocation,
-                  packageDescription,
-                  recipientName,
-                  recipientPhone,
-                  senderPhone,
-                  vehicleType,
-                  paymentMethod,
-                  whoPays,
-                  deliveryOption,
-                  total: serviceFee,
+                  packageDescription: packageDescription.trim(),
+                  recipientName: recipientName.trim() || "Destinataire",
+                  recipientPhone: recipientPhone.replace(/\D/g, '').replace(/^213/, '0').replace(/^(\d{9})$/, '0$1'),
+                  deliveryAddress,
+                  city,
+                  customerPhone: senderPhone.replace(/\D/g, '').replace(/^213/, '0').replace(/^(\d{9})$/, '0$1'),
+                  whoPays: whoPays === "sender" ? "customer" : "receiver",
+                  deliveryFee: serviceFee,
+                  paymentMethod: paymentMethod === "google-pay" ? "CARD" : "CASH",
+                  scheduledDate: deliveryOption === "schedule" ? undefined : undefined,
+                  scheduledTime: deliveryOption === "schedule" ? undefined : undefined,
                 }),
               })
 
@@ -588,10 +603,12 @@ export default function PackageDeliveryPage() {
                 alert(t("delivery-created", "Livraison créée avec succès!", "تم إنشاء التوصيل بنجاح!"))
                 router.push("/")
               } else {
-                alert(t("error", "Erreur lors de la création", "خطأ في الإنشاء"))
+                alert(data.error?.message || t("error", "Erreur lors de la création", "خطأ في الإنشاء"))
               }
             } catch (error) {
-              console.error("[v0] Error creating delivery:", error)
+              if (process.env.NODE_ENV === "development") {
+                console.error("[PackageDelivery] Error:", error)
+              }
               alert(t("error", "Erreur lors de la création", "خطأ في الإنشاء"))
             }
           }}
