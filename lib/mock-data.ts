@@ -99,7 +99,7 @@ export const products: ProductDefinition[] = [
     name: 'Poulet Tikka Masala',
     description: 'Poulet mariné dans une sauce crémeuse aux épices',
     price: 1200,
-    image: '/chicken-tikka-masala.png',
+    image: '/placeholder.svg',
     rating: 4.5,
   },
   {
@@ -117,7 +117,7 @@ export const products: ProductDefinition[] = [
     name: 'Naan au Fromage',
     description: 'Pain indien traditionnel garni de fromage',
     price: 350,
-    image: '/cheese-naan-bread.jpg',
+    image: '/placeholder.svg',
     rating: 4.8,
   },
   {

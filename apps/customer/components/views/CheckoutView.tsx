@@ -97,7 +97,7 @@ export function CheckoutView({
                   return (
                   <div key={item.productId} className="flex items-center gap-4 pb-4 border-b last:border-0 last:pb-0">
                     <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted shrink-0">
-                      <img src={product.image || '/placeholder.svg'} alt={product.name} className="w-full h-full object-cover" />
+                      <img src={product.image || '/placeholder.svg'} alt={product.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = '/placeholder.svg' }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-semibold mb-1 truncate text-foreground">{product.name}</h4>

@@ -70,7 +70,7 @@ export const StoreView = React.memo(function StoreView({ selectedStore, stores, 
 
         <div className="w-full aspect-square flex items-center justify-center p-8">
           <div className="w-full h-full max-w-md mx-auto rounded-full overflow-hidden shadow-xl bg-card">
-            <NextImage src={product.image || '/placeholder.svg'} alt={product.name} width={400} height={400} className="w-full h-full object-cover" />
+            <NextImage src={product.image || '/placeholder.svg'} alt={product.name} width={400} height={400} className="w-full h-full object-cover" onError={(e) => { const el = e.target as HTMLImageElement; if (el) el.src = '/placeholder.svg' }} />
           </div>
         </div>
 
@@ -201,7 +201,7 @@ export const StoreView = React.memo(function StoreView({ selectedStore, stores, 
               aria-label={t('view-product', 'Voir le produit', 'عرض المنتج') + ': ' + product.name}
             >
               <div className="aspect-square relative bg-muted flex items-center justify-center">
-                <NextImage src={product.image || '/placeholder.svg'} alt={product.name} width={400} height={400} className="w-full h-full object-cover" />
+                <NextImage src={product.image || '/placeholder.svg'} alt={product.name} width={400} height={400} className="w-full h-full object-cover" onError={(e) => { const el = e.target as HTMLImageElement; if (el) el.src = '/placeholder.svg' }} />
               </div>
               <CardContent className="p-3">
                 <h4 className="font-semibold text-sm text-foreground mb-1 line-clamp-2">{product.name}</h4>

@@ -58,13 +58,15 @@ export function useErrorHandler() {
     (error: unknown, options: ErrorHandlerOptions = {}) => {
       let errorMessage = 'Erreur lors de la communication avec le serveur'
 
-      // Handle API error responses
+      // Handle API error responses (including APIError with details)
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response) {
-          const response = error.response as { data?: { error?: { message?: string } } }
-          errorMessage = response.data?.error?.message || errorMessage
-        } else if ('message' in error) {
-          errorMessage = String(error.message)
+        const err = error as { message?: string; details?: { details?: { path?: string; message?: string }[] } }
+        if (err.message) errorMessage = String(err.message)
+        // APIError.details is the full error object; validation array may be at .details.details
+        const validationDetails = Array.isArray(err.details?.details) ? err.details.details : Array.isArray(err.details) ? err.details : []
+        if (validationDetails.length > 0) {
+          const lines = validationDetails.slice(0, 3).map((d: { path?: string; message?: string }) => d.message || d.path || '').filter(Boolean)
+          if (lines.length > 0) errorMessage = `${errorMessage}: ${lines.join('; ')}`
         }
       }
 

@@ -117,7 +117,7 @@ const products = [
     name: "Poulet Tikka Masala",
     description: "Poulet mariné dans une sauce crémeuse aux épices",
     price: 1200,
-    image: "/chicken-tikka-masala.png",
+    image: "/placeholder.svg",
     rating: 4.5,
   },
   {
@@ -126,7 +126,7 @@ const products = [
     name: "Biryani aux Légumes",
     description: "Riz basmati parfumé avec légumes et épices",
     price: 900,
-    image: "/vegetable-biryani.png",
+    image: "/placeholder.svg",
     rating: 4.7,
   },
   {
@@ -135,7 +135,7 @@ const products = [
     name: "Naan au Fromage",
     description: "Pain indien traditionnel garni de fromage",
     price: 350,
-    image: "/cheese-naan-bread.jpg",
+    image: "/placeholder.svg",
     rating: 4.8,
   },
   {
@@ -144,7 +144,7 @@ const products = [
     name: "Lait Candia 1L",
     description: "Lait demi-écrémé UHT",
     price: 120,
-    image: "/milk-carton.png",
+    image: "/placeholder.svg",
     rating: 4.6,
   },
   {
@@ -171,7 +171,7 @@ const products = [
     name: "Pizza Margherita",
     description: "Tomate, mozzarella, basilic frais",
     price: 1100,
-    image: "/margherita-pizza.png",
+    image: "/placeholder.svg",
     rating: 4.8,
   },
   {
@@ -180,7 +180,7 @@ const products = [
     name: "Pizza 4 Fromages",
     description: "Mozzarella, gorgonzola, parmesan, chèvre",
     price: 1300,
-    image: "/four-cheese-pizza.png",
+    image: "/placeholder.svg",
     rating: 4.6,
   },
   {
@@ -189,7 +189,7 @@ const products = [
     name: "Pizza Végétarienne",
     description: "Légumes grillés, olives, champignons",
     price: 1200,
-    image: "/vegetarian-pizza.jpg",
+    image: "/placeholder.svg",
     rating: 4.7,
   },
 ]
@@ -368,6 +368,15 @@ export default function AlBazApp() {
 
   const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
+  // Normalize Algerian phone to 0[567]xxxxxxxx format
+  const normalizePhone = (phone: string) => {
+    const digits = phone.replace(/\D/g, "")
+    if (digits.length === 9 && /^[567]/.test(digits)) return "0" + digits
+    if (digits.length === 10 && digits.startsWith("0") && /^0[567]/.test(digits)) return digits
+    if (digits.length >= 11 && digits.startsWith("213")) return "0" + digits.slice(3)
+    return phone
+  }
+
   // Updated placeOrder function to handle API calls
   const placeOrder = async () => {
     if (cart.length === 0) return
@@ -379,15 +388,21 @@ export default function AlBazApp() {
     // Determine storeId from the first item in the cart
     const firstItem = cart[0]
     const product = products.find((p) => p.id === firstItem.productId)
-    const storeId = product?.storeId || 1
+    const rawStoreId = product?.storeId ?? 1
+
+    // Use API store/product IDs when available (string cuid), otherwise mock (number)
+    const storeId = typeof rawStoreId === "string" ? rawStoreId : String(rawStoreId)
+    const paymentUpper = (paymentMethod === "wallet" ? "WALLET" : paymentMethod === "card" ? "CARD" : "CASH") as "CASH" | "CARD" | "WALLET"
+    const userExt = user as { phone?: string; address?: string } | undefined
+    const phone = normalizePhone(userExt?.phone || "+213555000000") || "0555000000"
+    const address = userExt?.address || "123 Rue Example, Appartement 4"
 
     const orderData = {
-      customerId,
       storeId,
       items: cart.map((item) => {
         const prod = products.find((p) => p.id === item.productId)
         return {
-          productId: item.productId,
+          productId: String(item.productId),
           quantity: item.quantity,
           price: prod?.price || 0,
         }
@@ -395,10 +410,10 @@ export default function AlBazApp() {
       subtotal,
       deliveryFee,
       total,
-      paymentMethod,
-      deliveryAddress: "123 Rue Example, Appartement 4", // Placeholder address
+      paymentMethod: paymentUpper,
+      deliveryAddress: address.length >= 10 ? address : "123 Rue Example, Appartement 4",
       city: selectedCity,
-      customerPhone: "+213555000000", // Placeholder phone number
+      customerPhone: phone,
     }
 
     try {
@@ -418,9 +433,11 @@ export default function AlBazApp() {
         console.log("[v0] Order placed successfully:", data.order.id)
       } else {
         console.error("[v0] Failed to place order:", data.error)
-        alert(
-          t("order-error", "Erreur lors de la commande. Veuillez réessayer.", "خطأ في الطلب. يرجى المحاولة مرة أخرى."),
-        )
+        const details = data.error?.details
+        const msg = Array.isArray(details) && details.length > 0
+          ? details.map((d: { path?: string; message?: string }) => `${d.path || ""}: ${d.message || ""}`).join("\n")
+          : data.error?.message || t("order-error", "Erreur lors de la commande. Veuillez réessayer.", "خطأ في الطلب. يرجى المحاولة مرة أخرى.")
+        alert(msg)
       }
     } catch (error) {
       console.error("[v0] Error placing order:", error)
