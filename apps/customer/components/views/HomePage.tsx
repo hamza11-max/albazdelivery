@@ -1,6 +1,7 @@
 import React from 'react'
 import { Search, MapPin, Sun, Moon } from 'lucide-react'
 import { Input } from '@albaz/ui'
+import { customerCopy } from '@albaz/shared'
 import type { HomePageProps } from '../../lib/types'
 import { CategoryIcon } from '../CategoryIcon'
 
@@ -40,7 +41,7 @@ export const HomePage = React.memo(function HomePage({
               <Input
                 ref={searchInputRef}
                 type="text"
-                placeholder={t('search', 'Search anything...', 'ابحث عن أي شيء...')}
+                placeholder={t('search', customerCopy.search.placeholder, 'ابحث عن أي شيء...')}
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 className="flex-1 bg-transparent outline-none text-sm font-semibold text-[var(--albaz-text)] dark:text-white placeholder:text-[var(--albaz-text-soft)] border-none shadow-none focus-visible:ring-0"

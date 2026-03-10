@@ -2,6 +2,7 @@ import React from 'react'
 import NextImage from 'next/image'
 import { ArrowLeft, Clock, Star, AlertCircle } from 'lucide-react'
 import { Badge, Button, Card, CardContent } from '@albaz/ui'
+import { customerCopy } from '@albaz/shared'
 import type { CategoryViewProps } from '../../lib/types'
 import { CategoryIcon } from '../CategoryIcon'
 import { StoreListSkeleton } from '../ui/skeleton-loaders'
@@ -64,7 +65,7 @@ export const CategoryView = React.memo(function CategoryView({
 
       <div className="px-4 py-6">
         <h2 className="text-lg font-bold mb-4 text-foreground">
-          {t('available-stores', 'Magasins disponibles', 'المتاجر المتاحة')}
+          {t('available-stores', customerCopy.sections.availableStores, 'المتاجر المتاحة')}
         </h2>
         {isLoading ? (
           <StoreListSkeleton />
@@ -72,7 +73,7 @@ export const CategoryView = React.memo(function CategoryView({
           <Card>
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">
-                {t('no-stores', 'Aucun magasin disponible', 'لا توجد متاجر متاحة')}
+                {t('no-stores', customerCopy.empty.noStores, 'لا توجد متاجر متاحة')}
               </p>
             </CardContent>
           </Card>

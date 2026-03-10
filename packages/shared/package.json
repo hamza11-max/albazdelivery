@@ -8,7 +8,8 @@
     ".": "./src/index.ts",
     "./types": "./src/types/index.ts",
     "./utils": "./src/utils/index.ts",
-    "./api": "./src/api/index.ts"
+    "./api": "./src/api/index.ts",
+    "./customer-copy": "./src/customer-copy.ts"
   },
   "scripts": {
     "type-check": "tsc --noEmit"

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Home, Search, ShoppingCart, Bell, User } from 'lucide-react'
+import { customerCopy } from '@albaz/shared'
 import type { PageView, TranslationFn } from '@/lib/types'
 
 interface BottomNavProps {
@@ -41,7 +42,7 @@ export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelec
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#1a4d1a] safe-area-bottom shadow-lg">
       <div className="flex items-center justify-around py-2 px-4">
-        {navButton('home', <Home className="w-6 h-6" />, t('home', 'Home', 'الرئيسية'))}
+        {navButton('home', <Home className="w-6 h-6" />, t('home', customerCopy.nav.home, 'الرئيسية'))}
         <button
           onClick={() => {
             onResetSelection()
@@ -52,20 +53,20 @@ export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelec
           }`}
         >
           <Search className="w-6 h-6" />
-          <span className="text-xs font-medium">{t('search', 'Search', 'بحث')}</span>
+          <span className="text-xs font-medium">{t('search', customerCopy.nav.search, 'بحث')}</span>
         </button>
         {navButton(
           'checkout',
           <ShoppingCart className="w-6 h-6" />,
-          t('shop', 'Shop', 'تسوق'),
+          t('shop', customerCopy.nav.shop, 'تسوق'),
           cartItemCount > 0 ? (
             <span className="absolute -top-1 -right-2 bg-[#ff9933] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
               {cartItemCount}
             </span>
           ) : null
         )}
-        {navButton('orders', <Bell className="w-6 h-6" />, t('dats', 'Dats', 'الإشعارات'))}
-        {navButton('profile', <User className="w-6 h-6" />, t('profile', 'Profile', 'الملف الشخصي'))}
+        {navButton('orders', <Bell className="w-6 h-6" />, t('dats', customerCopy.nav.dats, 'الإشعارات'))}
+        {navButton('profile', <User className="w-6 h-6" />, t('profile', customerCopy.nav.profile, 'الملف الشخصي'))}
       </div>
     </nav>
   )

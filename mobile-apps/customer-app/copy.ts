@@ -1,0 +1,42 @@
+/**
+ * Auto-generated from packages/shared/src/customer-copy.json
+ * Do not edit by hand. Run from repo root: npm run sync:customer-copy
+ */
+const copy = {
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "shop": "Shop",
+    "dats": "Dats",
+    "profile": "Profile"
+  },
+  "sections": {
+    "categories": "Catégories",
+    "availableStores": "Magasins disponibles"
+  },
+  "empty": {
+    "noStores": "Aucun magasin disponible",
+    "noProducts": "Aucun produit dans ce magasin",
+    "cartEmpty": "Votre panier est vide",
+    "noOrders": "Aucune commande"
+  },
+  "actions": {
+    "back": "Retour",
+    "continueShopping": "Continuer les achats",
+    "addToCart": "+ Ajouter",
+    "placeOrder": "Passer commande",
+    "checkout": "Checkout",
+    "order": "Commander"
+  },
+  "titles": {
+    "shop": "Shop",
+    "dats": "Dats",
+    "profile": "Profile",
+    "cart": "Mon panier"
+  },
+  "search": {
+    "placeholder": "Rechercher..."
+  }
+} as const;
+export type CustomerCopy = typeof copy;
+export default copy;

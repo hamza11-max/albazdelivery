@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import NextImage from 'next/image'
 import { ArrowLeft, Minus, Plus, Share2, Star, UtensilsCrossed, AlertCircle } from 'lucide-react'
 import { Button, Card, CardContent } from '@albaz/ui'
+import { customerCopy } from '@albaz/shared'
 import type { StoreViewProps } from '../../lib/types'
 import { ProductGridSkeleton } from '../ui/skeleton-loaders'
 import { useErrorHandler } from '../../hooks/use-error-handler'
@@ -117,7 +118,7 @@ export const StoreView = React.memo(function StoreView({ selectedStore, stores, 
               }}
               aria-label={t('add-to-cart', 'Ajouter au panier', 'أضف إلى السلة') + ': ' + product.name}
             >
-              {t('add-to-cart', 'Ajouter au Panier', 'أضف إلى السلة')}
+              {t('add-to-cart', customerCopy.actions.addToCart, 'أضف إلى السلة')}
             </Button>
           </div>
         </div>
@@ -180,7 +181,9 @@ export const StoreView = React.memo(function StoreView({ selectedStore, stores, 
         ) : storeProducts.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
-              <p className="text-muted-foreground">{t('no-products', 'Aucun produit disponible', 'لا توجد منتجات متاحة')}</p>
+              <p className="text-muted-foreground">
+                {t('no-products', customerCopy.empty.noProducts, 'لا توجد منتجات متاحة')}
+              </p>
             </CardContent>
           </Card>
         ) : (

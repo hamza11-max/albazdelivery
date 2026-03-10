@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { ArrowLeft, Package, ShoppingCart, AlertCircle } from 'lucide-react'
 import { Badge, Button, Card, CardContent } from '@albaz/ui'
 import type { Order } from '@albaz/shared'
+import { customerCopy } from '@albaz/shared'
 import type { MyOrdersViewProps } from '../../lib/types'
 import { OrderListSkeleton } from '../ui/skeleton-loaders'
 import { useOrdersQuery } from '../../hooks/use-orders-query'
@@ -74,7 +75,9 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
           <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-lg font-bold text-foreground">{t('my-orders', 'Mes Commandes', 'طلباتي')}</h1>
+          <h1 className="text-lg font-bold text-foreground">
+            {t('my-orders', customerCopy.titles.dats, 'طلباتي')}
+          </h1>
         </div>
       </div>
 
@@ -111,7 +114,13 @@ export function MyOrdersView({ customerId, onBack, onOrderSelect, t }: MyOrdersV
         ) : (
           <>
             {activeTab === 'orders' &&
-              renderOrders(allOrders, <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground" />, 'no-orders', 'Aucune commande', 'لا توجد طلبات')}
+              renderOrders(
+                allOrders,
+                <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground" />,
+                'no-orders',
+                customerCopy.empty.noOrders,
+                'لا توجد طلبات',
+              )}
 
             {activeTab === 'packages' &&
               renderOrders(packageDeliveries, <Package className="w-12 h-12 mx-auto text-muted-foreground" />, 'no-packages', 'Aucun colis', 'لا توجد حزم')}

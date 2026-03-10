@@ -1,304 +1,158 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
   ScrollView,
-  StyleSheet,
   TouchableOpacity,
-  TextInput,
-  Image,
-  Dimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import { colors, spacing, typography, borderRadius, shadows } from '../../shared/theme/colors';
-import { Logo } from '../../shared/components/Logo';
-import { BottomNavigation, TabType } from '../../shared/components/BottomNavigation';
+import { useQuery } from '@tanstack/react-query';
+import { colors, spacing, borderRadius, shadows } from '../theme';
+import { Box, Text, Input, Stack } from '../components/ui';
+import { Logo } from '../components/Logo';
+import { BottomNav, TabType } from '../components/BottomNav';
+import { categoriesAPI } from '../services/api-client';
+import copy from '../copy';
 
-const { width } = Dimensions.get('window');
+const CITIES = ['Alger', 'Ouargla', 'Ghardaïa', 'Tamanrasset'];
 
-interface Category {
-  id: string;
-  name: string;
-  icon: string;
+interface HomeScreenProps {
+  onTabChange: (tab: TabType) => void;
+  onCategorySelect: (id: number) => void;
+  onNavigateToStore: (storeId: string) => void;
 }
 
-interface Vendor {
-  id: string;
-  name: string;
-  image: string;
-}
-
-export const HomeScreen: React.FC = () => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({
+  onTabChange,
+  onCategorySelect,
+  onNavigateToStore,
+}) => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCity, setSelectedCity] = useState(CITIES[CITIES.length - 1] ?? 'Tamanrasset');
 
-  const categories: Category[] = [
-    { id: '1', name: 'Food', icon: '🍔' },
-    { id: '2', name: 'Groceries', icon: '🛒' },
-    { id: '3', name: 'Pharmacy', icon: '💊' },
-    { id: '4', name: 'Courier', icon: '📦' },
-  ];
+  const { data: categoriesData, isLoading, refetch, isRefetching } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await categoriesAPI.list();
+      return (res.data as { categories: Array<{ id: number; name: string; nameFr: string; nameAr: string }> }).categories;
+    },
+  });
 
-  const featuredVendors: Vendor[] = [
-    { id: '1', name: "Baker's", image: '🥖' },
-    { id: '2', name: 'Fresh Grocer', image: '🍊' },
-  ];
+  const categories = categoriesData ?? [];
+
+  const handleTabChange = (tab: TabType) => {
+    setActiveTab(tab);
+    onTabChange(tab);
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.headerButton}>
-          <Text style={styles.headerIcon}>☰</Text>
+    <Box flex={1} backgroundColor={colors.background}>
+      <Box
+        flexDirection="row"
+        alignItems="center"
+        justifyContent="space-between"
+        px="md"
+        pt="lg"
+        pb="md"
+        backgroundColor={colors.surface}
+        style={{ borderBottomWidth: 1, borderBottomColor: colors.border }}
+      >
+        <TouchableOpacity style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ fontSize: 24 }}>☰</Text>
         </TouchableOpacity>
         <Logo size="sm" />
-        <TouchableOpacity style={styles.headerButton}>
-          <Text style={styles.headerIcon}>🔍</Text>
+        <TouchableOpacity
+          style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center' }}
+          onPress={() => handleTabChange('search')}
+        >
+          <Text style={{ fontSize: 24 }}>🔍</Text>
         </TouchableOpacity>
-      </View>
+      </Box>
 
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[colors.olive]} />
+        }
       >
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search for food, groceries or shops"
-            placeholderTextColor={colors.text.tertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
+        <Input
+          placeholder={copy.search.placeholder}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          leftIcon={<Text style={{ fontSize: 18 }}>🔍</Text>}
+          containerStyle={{ marginHorizontal: spacing.md, marginTop: spacing.md, ...shadows.sm }}
+        />
 
-        {/* Categories */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesContainer}
-          contentContainerStyle={styles.categoriesContent}
-        >
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              style={styles.categoryCard}
-              activeOpacity={0.7}
+        <Box px="md" mt="sm" flexDirection="row" alignItems="center">
+          <Box
+            style={{
+              backgroundColor: colors.orange,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              borderRadius: borderRadius.full,
+            }}
+          >
+            <Text color="inverse" weight="semibold" size="sm">📍 {selectedCity}</Text>
+          </Box>
+        </Box>
+
+        {isLoading ? (
+          <Box mt="xl" alignItems="center">
+            <ActivityIndicator size="large" color={colors.olive} />
+          </Box>
+        ) : (
+          <>
+            <Text variant="h3" style={{ marginTop: spacing.lg, marginHorizontal: spacing.md }}>
+              {copy.sections.categories}
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginTop: spacing.md }}
+              contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.md, paddingBottom: spacing.md }}
             >
-              <Text style={styles.categoryIcon}>{category.icon}</Text>
-              <Text style={styles.categoryName}>{category.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => onCategorySelect(cat.id)}
+                  activeOpacity={0.7}
+                  style={{
+                    backgroundColor: colors.surface,
+                    paddingVertical: spacing.md,
+                    paddingHorizontal: spacing.lg,
+                    borderRadius: borderRadius.card,
+                    minWidth: 100,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    ...shadows.sm,
+                  }}
+                >
+                  <Text variant="label">{cat.nameFr || cat.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
 
-        {/* Promotional Banner */}
-        <View style={styles.bannerContainer}>
-          <View style={styles.banner}>
-            <View style={styles.bannerContent}>
-              <Text style={styles.bannerTitle}>FREE DELIVERY</Text>
-              <Text style={styles.bannerSubtitle}>on your first order</Text>
-            </View>
-            <View style={styles.bannerDecoration}>
-              <Text style={styles.bannerEmoji}>🐦</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Featured Vendors */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Featured Vendors</Text>
-          <View style={styles.vendorsGrid}>
-            {featuredVendors.map((vendor) => (
-              <TouchableOpacity
-                key={vendor.id}
-                style={styles.vendorCard}
-                activeOpacity={0.7}
-              >
-                <View style={styles.vendorImageContainer}>
-                  <Text style={styles.vendorImage}>{vendor.image}</Text>
-                </View>
-                <Text style={styles.vendorName}>{vendor.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
+            <Box
+              mx="md"
+              mt="lg"
+              p="lg"
+              backgroundColor={colors.olive}
+              borderRadius={borderRadius.card}
+              style={shadows.md}
+            >
+              <Text variant="h2" color="inverse">Livraison gratuite</Text>
+              <Text variant="body" color="inverse" style={{ opacity: 0.9, marginTop: 4 }}>
+                sur votre première commande
+              </Text>
+            </Box>
+          </>
+        )}
       </ScrollView>
 
-      {/* Bottom Navigation */}
-      <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-    </View>
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
+    </Box>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerIcon: {
-    fontSize: 24,
-    color: colors.text.primary,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: spacing.xl,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.sm,
-  },
-  searchIcon: {
-    fontSize: 20,
-    marginRight: spacing.sm,
-    color: colors.text.secondary,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: typography.fontSize.md,
-    color: colors.text.primary,
-    fontFamily: typography.fontFamily.regular,
-  },
-  categoriesContainer: {
-    marginBottom: spacing.lg,
-  },
-  categoriesContent: {
-    paddingHorizontal: spacing.md,
-    gap: spacing.md,
-  },
-  categoryCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surface,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.lg,
-    minWidth: 100,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.sm,
-  },
-  categoryIcon: {
-    fontSize: 32,
-    marginBottom: spacing.xs,
-  },
-  categoryName: {
-    fontSize: typography.fontSize.sm,
-    color: colors.text.primary,
-    fontFamily: typography.fontFamily.medium,
-    fontWeight: typography.fontWeight.medium,
-  },
-  bannerContainer: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  banner: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-    ...shadows.md,
-  },
-  bannerContent: {
-    flex: 1,
-  },
-  bannerTitle: {
-    fontSize: typography.fontSize.xxl,
-    fontFamily: typography.fontFamily.bold,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.white,
-    marginBottom: spacing.xs,
-  },
-  bannerSubtitle: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-    color: colors.white,
-    opacity: 0.9,
-  },
-  bannerDecoration: {
-    width: 80,
-    height: 80,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bannerEmoji: {
-    fontSize: 48,
-  },
-  section: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.text.primary,
-    marginBottom: spacing.md,
-  },
-  vendorsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  vendorCard: {
-    width: (width - spacing.md * 3) / 2,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.sm,
-  },
-  vendorImageContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.surfaceElevated,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  vendorImage: {
-    fontSize: 48,
-  },
-  vendorName: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semibold,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.text.primary,
-  },
-});
-

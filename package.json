@@ -19,7 +19,7 @@
     "type-check": "tsc --noEmit",
     "clean": "turbo run clean",
     "vercel-build": "node -e \"const fs=require('fs');['.next','app/customer/.next'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch{}});\" && prisma generate --schema=./prisma/schema.prisma && (prisma migrate deploy --schema=./prisma/schema.prisma || true) && next build --webpack",
-    "postinstall": "prisma generate --schema=./prisma/schema.prisma || exit 0",
+    "postinstall": "prisma generate --schema=./prisma/schema.prisma || exit 0; node scripts/sync-customer-copy-to-mobile.js",
     "prepare": "prisma generate --schema=./prisma/schema.prisma || exit 0",
     "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
     "db:generate": "cross-env NODE_ENV=development prisma generate --schema=./prisma/schema.prisma",
@@ -35,7 +35,8 @@
     "test:e2e": "playwright test tests-e2e/",
     "test:e2e:ui": "playwright test tests-e2e/ --ui",
     "test:e2e:debug": "playwright test tests-e2e/ --debug",
-    "test:ci": "cross-env NODE_ENV=test jest --ci --config jest.config.ts --coverage --maxWorkers=2 && playwright test tests-e2e/"
+    "test:ci": "cross-env NODE_ENV=test jest --ci --config jest.config.ts --coverage --maxWorkers=2 && playwright test tests-e2e/",
+    "sync:customer-copy": "node scripts/sync-customer-copy-to-mobile.js"
   },
   "dependencies": {
     "@albaz/ui": "file:./packages/ui",

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ShoppingCart, Trash2, Minus, Plus, Loader2 } from 'lucide-react'
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@albaz/ui'
+import { customerCopy } from '@albaz/shared'
 import type { CheckoutViewProps } from '../../lib/types'
 import { CartItemSkeleton } from '../ui/skeleton-loaders'
 import { useErrorHandler } from '../../hooks/use-error-handler'
@@ -32,7 +33,7 @@ export function CheckoutView({
   const handlePlaceOrder = async () => {
     // Validate cart
     if (cart.length === 0) {
-      handleValidationError({ errors: [{ message: t('cart-empty', 'Votre panier est vide', 'سلتك فارغة') }] })
+      handleValidationError({ errors: [{ message: t('cart-empty', customerCopy.empty.cartEmpty, 'سلتك فارغة') }] })
       return
     }
 
@@ -56,19 +57,23 @@ export function CheckoutView({
   return (
     <div className="container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-3xl">
       <Button variant="ghost" onClick={onContinueShopping} className="mb-4">
-        ← {t('continue-shopping', 'Continuer les achats', 'متابعة التسوق')}
+        ← {t('continue-shopping', customerCopy.actions.continueShopping, 'متابعة التسوق')}
       </Button>
 
-      <h2 className="text-2xl font-bold mb-6 text-foreground">{t('my-cart', 'Mon Panier', 'سلتي')}</h2>
+      <h2 className="text-2xl font-bold mb-6 text-foreground">
+        {t('my-cart', customerCopy.titles.cart, 'سلتي')}
+      </h2>
 
       {cart.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <p className="text-lg text-muted-foreground mb-4">
-              {t('empty-cart', 'Votre panier est vide', 'سلتك فارغة')}
+              {t('empty-cart', customerCopy.empty.cartEmpty, 'سلتك فارغة')}
             </p>
-            <Button onClick={onContinueShopping}>{t('start-shopping', 'Commencer vos achats', 'ابدأ التسوق')}</Button>
+            <Button onClick={onContinueShopping}>
+              {t('start-shopping', customerCopy.actions.continueShopping, 'ابدأ التسوق')}
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -239,7 +244,7 @@ export function CheckoutView({
                 {t('processing', 'Traitement...', 'جاري المعالجة...')}
               </>
             ) : (
-              `${t('pay-now', 'Payer Maintenant', 'ادفع الآن')} - ${total} DZD`
+              `${t('pay-now', customerCopy.actions.placeOrder, 'ادفع الآن')} - ${total} DZD`
             )}
           </Button>
         </div>
