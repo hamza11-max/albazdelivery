@@ -1,37 +1,34 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, typography } from '../theme/colors';
+import { colors, typography } from '../theme';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
-  showText?: boolean;
+  /** Optional: use theme-aware color (e.g. in dark mode) */
+  color?: string;
 }
 
-export const Logo: React.FC<LogoProps> = ({ size = 'md', showText = true }) => {
+export const Logo: React.FC<LogoProps> = ({ size = 'md', color }) => {
   const sizeMap = {
-    sm: { icon: 24, text: typography.fontSize.lg },
-    md: { icon: 32, text: typography.fontSize.xl },
-    lg: { icon: 48, text: typography.fontSize.xxxl },
+    sm: typography.fontSize.lg,
+    md: typography.fontSize.xl,
+    lg: typography.fontSize.xxxl,
   };
-  const { icon, text } = sizeMap[size];
+  const fontSize = sizeMap[size];
+  const textColor = color ?? colors.olive;
+
   return (
     <View style={styles.container}>
-      <View style={[styles.birdContainer, { width: icon, height: icon }]}>
-        <Text style={[styles.birdEmoji, { fontSize: icon }]}>🐦</Text>
-      </View>
-      {showText && <Text style={[styles.text, { fontSize: text }]}>ALBAZ</Text>}
+      <Text style={[styles.text, { fontSize, color: textColor }]}>ALBAZ</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  birdContainer: { justifyContent: 'center', alignItems: 'center' },
-  birdEmoji: { textAlign: 'center' },
+  container: { alignItems: 'center', justifyContent: 'center' },
   text: {
     fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeight.bold,
-    color: colors.olive,
-    letterSpacing: 1,
+    letterSpacing: 1.2,
   },
 });

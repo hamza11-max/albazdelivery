@@ -1,5 +1,5 @@
 import React from 'react'
-import { Search, MapPin, Sun, Moon } from 'lucide-react'
+import { Search, MapPin, Sun, Moon, Bell } from 'lucide-react'
 import { Input } from '@albaz/ui'
 import { customerCopy } from '@albaz/shared'
 import type { HomePageProps } from '../../lib/types'
@@ -26,41 +26,46 @@ export const HomePage = React.memo(function HomePage({
   return (
     <div className="albaz-shell min-h-screen pb-24 flex flex-col animate-[fadeSlideUp_0.6s_ease]">
       <div className="albaz-hero px-5 pt-6 pb-6 space-y-5">
-        {/* Header with logo, search, and location inline */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="ALBAZ" className="h-10 w-auto animate-[fadeSlideUp_0.8s_ease]" />
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--albaz-text-soft)]">
-              Livraison rapide
-            </div>
+        {/* Top bar: logo (left) | location pill (center) | theme + notifications (right) */}
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--albaz-border)] pb-4 -mx-5 px-5">
+          <div className="w-[100px] h-9 flex items-center shrink-0">
+            <img src="/logo.png" alt="ALBAZ" className="h-9 w-auto max-w-[100px] object-contain object-left animate-[fadeSlideUp_0.8s_ease]" />
           </div>
 
-          <div className="flex-1 min-w-[220px] max-w-4xl relative">
-            <div className="albaz-search px-4 py-[11px] flex items-center gap-3 animate-[fadeSlideUp_0.65s_ease]">
-              <Search className="w-5 h-5 text-[var(--albaz-text-soft)]" />
-              <Input
-                ref={searchInputRef}
-                type="text"
-                placeholder={t('search', customerCopy.search.placeholder, 'ابحث عن أي شيء...')}
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="flex-1 bg-transparent outline-none text-sm font-semibold text-[var(--albaz-text)] dark:text-white placeholder:text-[var(--albaz-text-soft)] border-none shadow-none focus-visible:ring-0"
-              />
-            </div>
-          </div>
+          <button className="albaz-location-pill px-3 py-2 flex items-center gap-2 text-sm font-semibold animate-[fadeSlideUp_0.75s_ease] whitespace-nowrap rounded-full bg-[var(--albaz-orange)] text-white">
+            <MapPin className="w-4 h-4" />
+            <span>{selectedCity}</span>
+          </button>
 
-          <div className="flex items-center gap-2">
-            <button className="albaz-location-pill px-3 py-3 flex items-center gap-2 text-sm font-semibold animate-[fadeSlideUp_0.75s_ease] whitespace-nowrap">
-              <MapPin className="w-4 h-4" />
-              <span>{selectedCity}</span>
-            </button>
+          <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={onToggleDarkMode}
-              className="rounded-full px-3 py-2 bg-white/80 dark:bg-white/5 border border-[var(--albaz-border)] shadow-sm hover:-translate-y-0.5 transition-all duration-200 text-[var(--albaz-text)] dark:text-white/90"
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-[var(--albaz-text)] dark:text-white/90"
               aria-label={isDarkMode ? t('light-mode', 'Light mode', 'وضع النهار') : t('dark-mode', 'Dark mode', 'الوضع الليلي')}
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
+            <button
+              className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-[var(--albaz-text)] dark:text-white/90"
+              aria-label={t('notifications', 'Notifications', 'الإشعارات')}
+            >
+              <Bell className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Search bar */}
+        <div className="flex-1 min-w-0 max-w-4xl">
+          <div className="albaz-search px-4 py-[11px] flex items-center gap-3 animate-[fadeSlideUp_0.65s_ease]">
+            <Search className="w-5 h-5 text-[var(--albaz-text-soft)] shrink-0" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder={t('search', customerCopy.search.placeholder, 'ابحث عن أي شيء...')}
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="flex-1 bg-transparent outline-none text-sm font-semibold text-[var(--albaz-text)] dark:text-white placeholder:text-[var(--albaz-text-soft)] border-none shadow-none focus-visible:ring-0 min-w-0"
+            />
           </div>
         </div>
 

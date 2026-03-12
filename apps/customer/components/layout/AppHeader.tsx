@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { MapPin, Moon, Sun } from 'lucide-react'
+import { MapPin, Moon, Sun, Bell } from 'lucide-react'
 
 interface AppHeaderProps {
   selectedCity: string
@@ -22,13 +22,21 @@ export function AppHeader({ selectedCity, isDarkMode, onToggleDarkMode, onGoHome
             <span className="text-sm font-medium">{selectedCity}</span>
           </div>
 
-          <button
-            onClick={onToggleDarkMode}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
-            aria-label="Toggle theme"
-          >
-            {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={onToggleDarkMode}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Toggle theme"
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
     </header>

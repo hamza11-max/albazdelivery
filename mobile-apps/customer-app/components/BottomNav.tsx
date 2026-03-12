@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, spacing, typography } from '../theme/colors';
 import { useCartStore } from '../stores/cart-store';
 import copy from '../copy';
+import { useThemeMode } from '../theme/ThemeProvider';
 
 export type TabType = 'home' | 'search' | 'cart' | 'orders' | 'profile';
 
@@ -21,9 +22,18 @@ const tabs: { key: TabType; label: string; icon: string }[] = [
 
 export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) => {
   const itemCount = useCartStore((s) => s.getItemCount());
+  const { isDark } = useThemeMode();
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: isDark ? 'rgba(10, 12, 16, 0.98)' : 'rgba(248, 245, 237, 0.95)',
+          borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : colors.border,
+        },
+      ]}
+    >
       {tabs.map((tab) => (
         <TouchableOpacity
           key={tab.key}
@@ -53,9 +63,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(248, 245, 237, 0.95)',
     borderTopWidth: 1,
-    borderTopColor: colors.border,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.sm,

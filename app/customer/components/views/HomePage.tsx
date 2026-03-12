@@ -1,5 +1,5 @@
 import React from 'react'
-import { Search, MapPin, Settings, Shield, Building2 } from 'lucide-react'
+import { Search, MapPin, Sun, Moon, Bell, Settings, Shield, Building2 } from 'lucide-react'
 import { Input } from '@albaz/ui'
 import { customerCopy } from '@albaz/shared'
 import type { HomePageProps } from '../../lib/types'
@@ -31,51 +31,68 @@ export const HomePage = React.memo(function HomePage({
 
   return (
     <div className="min-h-screen bg-white pb-20 flex flex-col">
-      {/* Header with logo, search, and location inline */}
-      <div className="px-4 pt-6 pb-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <img 
-              src="/logo.png" 
-              alt="ALBAZ" 
-              className="h-10 w-auto"
+      {/* Top bar: logo (left) | location pill (center) | theme + notifications (right) */}
+      <div className="px-4 pt-6 pb-3 border-b border-[#1a4d1a]/10">
+        <div className="flex items-center justify-between gap-3">
+          <div className="w-[100px] h-9 flex items-center shrink-0">
+            <img
+              src="/logo.png"
+              alt="ALBAZ"
+              className="h-9 w-auto max-w-[100px] object-contain object-left"
               onError={(e) => {
-                // Fallback to text logo if image fails
                 const target = e.target as HTMLImageElement
                 target.style.display = 'none'
                 const parent = target.parentElement
                 if (parent && !parent.querySelector('.text-logo')) {
                   const textLogo = document.createElement('div')
-                  textLogo.className = 'text-logo text-3xl font-bold text-[#1a4d1a]'
+                  textLogo.className = 'text-logo text-lg font-bold text-[#1a4d1a]'
                   textLogo.textContent = 'ALBAZ'
                   parent.appendChild(textLogo)
                 }
               }}
             />
-            <span className="text-3xl font-bold text-[#1a4d1a] tracking-tight">ALBAZ</span>
           </div>
 
-          <div className="flex-1 min-w-[220px] max-w-3xl relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1a4d1a]" />
-            <Input
-              type="text"
-              placeholder={t('search', customerCopy.search.placeholder, 'بحث...')}
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && searchQuery.trim()) {
-                  e.currentTarget.blur()
-                }
-              }}
-              className="pl-12 pr-4 py-3 w-full rounded-full bg-[#c8e6c9] border-0 focus:ring-2 focus:ring-[#ff9933] text-[#1a4d1a] placeholder:text-[#1a4d1a]/60"
-              aria-label={t('search', 'Rechercher des produits et magasins', 'البحث عن المنتجات والمتاجر')}
-            />
-          </div>
-
-          <button className="flex items-center justify-center gap-2 px-4 py-3 rounded-full bg-[#ff9933] text-white font-medium hover:bg-[#ff8800] transition-colors shadow-sm min-w-[140px]">
+          <button className="flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-[#ff9933] text-white font-semibold hover:bg-[#ff8800] transition-colors shadow-sm text-sm whitespace-nowrap">
             <MapPin className="w-4 h-4" />
-            <span className="text-sm whitespace-nowrap">{selectedCity}</span>
+            <span>{selectedCity}</span>
           </button>
+
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={onToggleDarkMode}
+              className="p-2 rounded-full hover:bg-[#1a4d1a]/10 transition-colors text-[#1a4d1a]"
+              aria-label={isDarkMode ? t('light-mode', 'Light mode', 'وضع النهار') : t('dark-mode', 'Dark mode', 'الوضع الليلي')}
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+            <button
+              className="p-2 rounded-full hover:bg-[#1a4d1a]/10 transition-colors text-[#1a4d1a]"
+              aria-label={t('notifications', 'Notifications', 'الإشعارات')}
+            >
+              <Bell className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="px-4 pt-3 pb-4">
+        <div className="max-w-3xl relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1a4d1a]" />
+          <Input
+            type="text"
+            placeholder={t('search', customerCopy.search.placeholder, 'بحث...')}
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && searchQuery.trim()) {
+                e.currentTarget.blur()
+              }
+            }}
+            className="pl-12 pr-4 py-3 w-full rounded-full bg-[#c8e6c9] border-0 focus:ring-2 focus:ring-[#ff9933] text-[#1a4d1a] placeholder:text-[#1a4d1a]/60"
+            aria-label={t('search', 'Rechercher des produits et magasins', 'البحث عن المنتجات والمتاجر')}
+          />
         </div>
       </div>
 

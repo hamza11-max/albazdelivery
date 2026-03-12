@@ -14,6 +14,7 @@ import { TrackingScreen } from './screens/TrackingScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import type { TabType } from './components/BottomNav';
+import { ThemeProvider } from './theme/ThemeProvider';
 
 const queryClient = new QueryClient();
 
@@ -171,7 +172,9 @@ export default function App() {
       <SafeAreaProvider>
         <AuthProvider>
           <OfflineWrapper>
-            <AppContent />
+            <ThemeProvider>
+              <AppContent />
+            </ThemeProvider>
             <StatusBar style="auto" />
           </OfflineWrapper>
         </AuthProvider>
