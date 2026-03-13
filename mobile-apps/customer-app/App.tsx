@@ -13,6 +13,13 @@ import { OrdersScreen } from './screens/OrdersScreen';
 import { TrackingScreen } from './screens/TrackingScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { LoginScreen } from './screens/LoginScreen';
+import { PackageDeliveryScreen } from './screens/PackageDeliveryScreen';
+import { WalletScreen } from './screens/WalletScreen';
+import { AddressesScreen } from './screens/AddressesScreen';
+import { NotificationsScreen } from './screens/NotificationsScreen';
+import { LoyaltyScreen } from './screens/LoyaltyScreen';
+import { SupportScreen } from './screens/SupportScreen';
+import { ReviewScreen } from './screens/ReviewScreen';
 import type { TabType } from './components/BottomNav';
 import { ThemeProvider } from './theme/ThemeProvider';
 
@@ -23,8 +30,10 @@ const CITIES = ['Alger', 'Ouargla', 'Ghardaïa', 'Tamanrasset'];
 function AppContent() {
   const { user, loading, logout } = useAuth();
   const [screen, setScreen] = useState<
-    'home' | 'category' | 'store' | 'cart' | 'checkout' | 'orders' | 'tracking' | 'profile' | 'login'
+    'home' | 'category' | 'store' | 'cart' | 'checkout' | 'orders' | 'tracking' | 'profile' | 'login' | 'packageDelivery' | 'wallet' | 'addresses' | 'notifications' | 'loyalty' | 'support' | 'review'
   >('home');
+  const [reviewOrderId, setReviewOrderId] = useState<string | null>(null);
+  const [notificationsReturnTo, setNotificationsReturnTo] = useState<'home' | 'profile'>('profile');
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
@@ -44,6 +53,10 @@ function AppContent() {
   const handleCategorySelect = useCallback((id: number) => {
     setSelectedCategoryId(id);
     setScreen('category');
+  }, []);
+
+  const handlePackageDelivery = useCallback(() => {
+    setScreen('packageDelivery');
   }, []);
 
   const handleStoreSelect = useCallback((id: string, name?: string) => {
@@ -115,6 +128,10 @@ function AppContent() {
           setTrackingOrderId(null);
           setScreen('orders');
         }}
+        onLeaveReview={() => {
+          setReviewOrderId(trackingOrderId);
+          setScreen('review');
+        }}
       />
     );
   }
@@ -153,6 +170,47 @@ function AppContent() {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onLogout={handleLogout}
+        onNavigateToWallet={() => setScreen('wallet')}
+        onNavigateToAddresses={() => setScreen('addresses')}
+        onNavigateToNotifications={() => { setNotificationsReturnTo('profile'); setScreen('notifications'); }}
+        onNavigateToLoyalty={() => setScreen('loyalty')}
+      />
+    );
+  }
+
+  if (screen === 'packageDelivery') {
+    return (
+      <PackageDeliveryScreen
+        onBack={() => setScreen('home')}
+        onSuccess={(orderId) => {
+          setTrackingOrderId(orderId);
+          setScreen('tracking');
+        }}
+      />
+    );
+  }
+
+  if (screen === 'wallet') {
+    return <WalletScreen onBack={() => setScreen('profile')} />;
+  }
+  if (screen === 'addresses') {
+    return <AddressesScreen onBack={() => setScreen('profile')} />;
+  }
+  if (screen === 'notifications') {
+    return <NotificationsScreen onBack={() => setScreen(notificationsReturnTo)} />;
+  }
+  if (screen === 'loyalty') {
+    return <LoyaltyScreen onBack={() => setScreen('profile')} />;
+  }
+  if (screen === 'support') {
+    return <SupportScreen onBack={() => setScreen('profile')} />;
+  }
+  if (screen === 'review' && reviewOrderId) {
+    return (
+      <ReviewScreen
+        orderId={reviewOrderId}
+        onBack={() => { setReviewOrderId(null); setScreen('tracking'); }}
+        onSuccess={() => setReviewOrderId(null)}
       />
     );
   }
@@ -161,7 +219,9 @@ function AppContent() {
     <HomeScreen
       onTabChange={handleTabChange}
       onCategorySelect={handleCategorySelect}
+      onPackageDelivery={handlePackageDelivery}
       onNavigateToStore={handleStoreSelect}
+      onNavigateToNotifications={() => { setNotificationsReturnTo('home'); setScreen('notifications'); }}
     />
   );
 }

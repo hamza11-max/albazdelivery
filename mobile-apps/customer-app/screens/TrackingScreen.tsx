@@ -1,8 +1,8 @@
 import React from 'react';
-import { TouchableOpacity, ActivityIndicator } from 'react-native';
-import { colors, spacing } from '../theme';
-import { Box, Text } from '../components/ui';
-import { useQuery } from '@tanstack/react-query';
+import { TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
+import { colors, spacing, borderRadius } from '../theme';
+import { Box, Text, Button } from '../components/ui';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ordersAPI } from '../services/api-client';
 import copy from '../copy';
 
@@ -11,19 +11,44 @@ const STATUS_STEPS = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'IN_DELIVERY'
 interface TrackingScreenProps {
   orderId: string;
   onBack: () => void;
+  onLeaveReview?: () => void;
 }
 
-export const TrackingScreen: React.FC<TrackingScreenProps> = ({ orderId, onBack }) => {
+export const TrackingScreen: React.FC<TrackingScreenProps> = ({ orderId, onBack, onLeaveReview }) => {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['order', orderId],
     queryFn: async () => {
       const res = await ordersAPI.getById(orderId);
-      return res.data as { order: { id: string; status: string; total: number; store?: { name: string } } };
+      return res.data as {
+        order: {
+          id: string;
+          status: string;
+          total: number;
+          store?: { name: string };
+          driver?: { id: string; name: string; phone?: string; vehicleType?: string };
+        };
+      };
     },
     refetchInterval: 5000,
   });
 
   const order = data?.order;
+  const driver = order?.driver;
+
+  const cancelMutation = useMutation({
+    mutationFn: () => ordersAPI.updateStatus(orderId, 'CANCELLED'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['order', orderId] });
+      Alert.alert('Annulée', 'La commande a été annulée.');
+      onBack();
+    },
+    onError: (e: Error) => Alert.alert('Erreur', e.message),
+  });
+
+  const canCancel = order?.status === 'PENDING';
+  const canReview = order?.status === 'DELIVERED';
 
   return (
     <Box flex={1} backgroundColor={colors.background}>
@@ -67,6 +92,34 @@ export const TrackingScreen: React.FC<TrackingScreenProps> = ({ orderId, onBack 
                 </Box>
               );
             })}
+          </Box>
+          {driver && (
+            <Box
+              p="md"
+              backgroundColor={colors.surface}
+              borderRadius={borderRadius.card}
+              style={{ marginTop: spacing.lg, borderWidth: 1, borderColor: colors.border }}
+            >
+              <Text variant="label" style={{ marginBottom: 4 }}>Chauffeur</Text>
+              <Text variant="body">{driver.name}</Text>
+              {driver.vehicleType && <Text variant="caption" color="secondary">{driver.vehicleType}</Text>}
+              {driver.phone && (
+                <TouchableOpacity
+                  onPress={() => Linking.openURL(`tel:${driver.phone}`)}
+                  style={{ marginTop: spacing.sm }}
+                >
+                  <Text variant="bodySmall" color={colors.olive} weight="semibold">📞 Appeler le chauffeur</Text>
+                </TouchableOpacity>
+              )}
+            </Box>
+          )}
+          <Box flexDirection="row" style={{ marginTop: spacing.xl, gap: spacing.sm }}>
+            {canCancel && (
+              <Button variant="destructive" onPress={() => Alert.alert('Annuler la commande', 'Confirmer l\'annulation ?', [{ text: 'Non', style: 'cancel' }, { text: 'Oui', onPress: () => cancelMutation.mutate() }])} loading={cancelMutation.isPending} style={{ flex: 1 }}>Annuler la commande</Button>
+            )}
+            {canReview && onLeaveReview && (
+              <Button variant="outline" onPress={onLeaveReview} style={{ flex: 1 }}>Laisser un avis</Button>
+            )}
           </Box>
         </Box>
       ) : (

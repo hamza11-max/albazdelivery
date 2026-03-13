@@ -4,7 +4,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Image,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { colors, spacing, borderRadius, shadows } from '../theme';
@@ -14,20 +13,22 @@ import { categoriesAPI } from '../services/api-client';
 import copy from '../copy';
 import { useThemeMode } from '../theme/ThemeProvider';
 
-const logoImage = require('../assets/albaz-logo.png');
-
 const CITIES = ['Alger', 'Ouargla', 'Ghardaïa', 'Tamanrasset'];
 
 interface HomeScreenProps {
   onTabChange: (tab: TabType) => void;
   onCategorySelect: (id: number) => void;
+  onPackageDelivery?: () => void;
   onNavigateToStore: (storeId: string) => void;
+  onNavigateToNotifications?: () => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
   onTabChange,
   onCategorySelect,
+  onPackageDelivery,
   onNavigateToStore,
+  onNavigateToNotifications,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,11 +84,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         style={{ borderBottomWidth: 1, borderBottomColor: palette.headerBorder }}
       >
         <Box style={{ width: 100, height: 36, justifyContent: 'center' }}>
-          <Image
-            source={logoImage}
-            style={{ width: 100, height: 36 }}
-            resizeMode="contain"
-          />
+          <Text variant="h2">ALBAZ</Text>
         </Box>
 
         <TouchableOpacity
@@ -114,6 +111,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Text style={{ fontSize: 22 }}>{isDark ? '☀️' : '🌙'}</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            onPress={onNavigateToNotifications}
             style={{ width: 40, height: 40, justifyContent: 'center', alignItems: 'center', marginLeft: spacing.xs }}
           >
             <Text style={{ fontSize: 22, color: palette.textPrimary }}>🔔</Text>
@@ -173,7 +171,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               {categories.map((cat) => (
                 <TouchableOpacity
                   key={cat.id}
-                  onPress={() => onCategorySelect(cat.id)}
+                  onPress={() => (cat.id === 5 && onPackageDelivery ? onPackageDelivery() : onCategorySelect(cat.id))}
                   activeOpacity={0.7}
                   style={{
                     alignItems: 'center',

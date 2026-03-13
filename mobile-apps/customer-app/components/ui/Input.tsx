@@ -15,6 +15,7 @@ export interface InputProps {
   containerStyle?: ViewStyle;
   leftIcon?: React.ReactNode;
   testID?: string;
+  multiline?: boolean;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -30,10 +31,11 @@ export const Input: React.FC<InputProps> = ({
   containerStyle,
   leftIcon,
   testID,
+  multiline,
 }) => {
   const input = (
     <TextInput
-      style={[styles.input, leftIcon ? styles.inputWithLeft : null]}
+      style={[styles.input, leftIcon ? styles.inputWithLeft : null, multiline ? styles.multiline : null]}
       value={value}
       onChangeText={onChangeText}
       placeholder={placeholder}
@@ -43,6 +45,7 @@ export const Input: React.FC<InputProps> = ({
       autoCapitalize={autoCapitalize}
       editable={editable}
       testID={testID}
+      multiline={multiline}
     />
   );
 
@@ -76,5 +79,9 @@ const styles = StyleSheet.create({
   },
   leftIcon: {
     marginRight: spacing.xs,
+  },
+  multiline: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
 });

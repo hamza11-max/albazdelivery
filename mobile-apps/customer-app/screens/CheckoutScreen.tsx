@@ -5,7 +5,8 @@ import { colors, spacing, borderRadius } from '../theme';
 import { Box, Text, Input, Button, Stack } from '../components/ui';
 import { useCartStore } from '../stores/cart-store';
 import { useAuth } from '../context/AuthContext';
-import { ordersAPI, deliveryAPI } from '../services/api-client';
+import { ordersAPI, deliveryAPI, promoAPI, addressesAPI } from '../services/api-client';
+import { WALLET_SUSPENDED } from '../config/features';
 import copy from '../copy';
 
 const CITIES = ['Alger', 'Ouargla', 'Ghardaïa', 'Tamanrasset'];
@@ -41,6 +42,15 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState(CITIES[0] ?? 'Alger');
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'WALLET'>('CASH');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [promoError, setPromoError] = useState<string | null>(null);
+
+  const { data: addressesData } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: () => addressesAPI.list(),
+  });
+  const savedAddresses = (addressesData as { data?: Array<{ id: string; label?: string; address: string; city: string }> })?.data ?? [];
 
   const subtotal = getTotal();
   const { data: feeData } = useQuery({
@@ -51,7 +61,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
     },
   });
   const deliveryFee = feeData?.fee ?? 500;
-  const total = subtotal + deliveryFee;
+  const total = Math.max(0, subtotal + deliveryFee - promoDiscount);
 
   const createOrder = useMutation({
     mutationFn: () =>
@@ -65,6 +75,7 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         deliveryAddress: address || 'Adresse à préciser',
         city,
         customerPhone: normalizePhone(phone) || '0555000000',
+        ...(promoDiscount > 0 && promoCode ? { promoCode, discount: promoDiscount } : {}),
       }),
     onSuccess: (res) => {
       const orderId = (res.data as { order?: { id: string } })?.order?.id;
@@ -126,6 +137,28 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         ))}
 
         <Text variant="h3" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>Adresse de livraison</Text>
+        {savedAddresses.length > 0 && (
+          <Box style={{ marginBottom: spacing.sm }}>
+            <Text variant="bodySmall" color="secondary" style={{ marginBottom: spacing.xs }}>Choisir une adresse enregistrée</Text>
+            {savedAddresses.map((a) => (
+              <TouchableOpacity
+                key={a.id}
+                onPress={() => { setAddress(a.address); setCity(a.city); }}
+                style={{
+                  padding: spacing.sm,
+                  marginBottom: spacing.xs,
+                  borderRadius: borderRadius.md,
+                  borderWidth: 1,
+                  borderColor: address === a.address ? colors.olive : colors.border,
+                  backgroundColor: address === a.address ? colors.olive + '15' : 'transparent',
+                }}
+              >
+                <Text variant="bodySmall" weight="medium">{a.label || 'Adresse'}</Text>
+                <Text variant="caption" color="secondary">{a.address}, {a.city}</Text>
+              </TouchableOpacity>
+            ))}
+          </Box>
+        )}
         <Input
           placeholder="Rue, numéro, quartier..."
           value={address}
@@ -139,6 +172,30 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
           keyboardType="phone-pad"
           containerStyle={{ marginBottom: spacing.sm }}
         />
+
+        <Text variant="h3" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>Code promo</Text>
+        <Box flexDirection="row" style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+          <Input placeholder="Code promo" value={promoCode} onChangeText={(t) => { setPromoCode(t); setPromoError(null); }} containerStyle={{ flex: 1 }} />
+          <TouchableOpacity
+            onPress={async () => {
+              if (!promoCode.trim()) return;
+              try {
+                const res = await promoAPI.validate(promoCode.trim(), subtotal);
+                const d = res.data as { discount?: number };
+                setPromoDiscount(d?.discount ?? 0);
+                setPromoError(null);
+              } catch {
+                setPromoDiscount(0);
+                setPromoError('Code invalide ou expiré');
+              }
+            }}
+            style={{ paddingHorizontal: spacing.md, justifyContent: 'center', backgroundColor: colors.olive, borderRadius: borderRadius.md }}
+          >
+            <Text variant="body" color="#fff" weight="semibold">Appliquer</Text>
+          </TouchableOpacity>
+        </Box>
+        {promoError && <Text variant="caption" style={{ color: colors.error, marginBottom: spacing.sm }}>{promoError}</Text>}
+        {promoDiscount > 0 && <Text variant="bodySmall" style={{ color: colors.olive, marginBottom: spacing.sm }}>−{promoDiscount} DZD appliqué</Text>}
 
         <Text variant="h3" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>Ville</Text>
         <Box flexDirection="row" flexWrap="wrap" style={{ gap: spacing.sm, marginBottom: spacing.md }}>
@@ -174,23 +231,26 @@ export const CheckoutScreen: React.FC<CheckoutScreenProps> = ({
         >
           <Text variant="body">💵 Espèces à la livraison</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => setPaymentMethod('WALLET')}
-          style={{
-            padding: spacing.md,
-            borderRadius: borderRadius.md,
-            borderWidth: 1,
-            borderColor: paymentMethod === 'WALLET' ? colors.olive : colors.border,
-            backgroundColor: paymentMethod === 'WALLET' ? colors.olive + '15' : 'transparent',
-            marginBottom: spacing.sm,
-          }}
-        >
-          <Text variant="body">👛 Portefeuille</Text>
-        </TouchableOpacity>
+        {!WALLET_SUSPENDED && (
+          <TouchableOpacity
+            onPress={() => setPaymentMethod('WALLET')}
+            style={{
+              padding: spacing.md,
+              borderRadius: borderRadius.md,
+              borderWidth: 1,
+              borderColor: paymentMethod === 'WALLET' ? colors.olive : colors.border,
+              backgroundColor: paymentMethod === 'WALLET' ? colors.olive + '15' : 'transparent',
+              marginBottom: spacing.sm,
+            }}
+          >
+            <Text variant="body">👛 Portefeuille</Text>
+          </TouchableOpacity>
+        )}
 
         <Box mt="lg" pt="lg" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
           <Text variant="body" style={{ marginBottom: 4 }}>Sous-total: <Text weight="semibold">{subtotal} DZD</Text></Text>
           <Text variant="body" style={{ marginBottom: 4 }}>Livraison: <Text weight="semibold">{deliveryFee} DZD</Text></Text>
+          {promoDiscount > 0 && <Text variant="body" style={{ marginBottom: 4 }}>Réduction: <Text weight="semibold">−{promoDiscount} DZD</Text></Text>}
           <Text variant="h3" style={{ marginTop: spacing.sm }}>Total: <Text weight="bold" color={colors.olive}>{total} DZD</Text></Text>
         </Box>
 
