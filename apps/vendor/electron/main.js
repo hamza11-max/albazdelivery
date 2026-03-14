@@ -174,7 +174,8 @@ function getSetupState() {
   const store = getAuthStore()
   const setupComplete = !!store.get('device_setup_complete')
   const ownerProfile = store.get('device_owner_profile') || null
-  return { setupComplete, ownerProfile }
+  const shopType = store.get('shop_type') || 'other'
+  return { setupComplete, ownerProfile, shopType }
 }
 
 function hashPassword(password, salt) {
@@ -915,10 +916,37 @@ ipcMain.handle('auth-get-setup', async () => {
   try {
     ensureDevicePasskey()
     const setupState = getSetupState()
-    return { setupComplete: setupState.setupComplete, ownerProfile: setupState.ownerProfile }
+    return {
+      setupComplete: setupState.setupComplete,
+      ownerProfile: setupState.ownerProfile,
+      shopType: setupState.shopType || 'other',
+    }
   } catch (error) {
     console.error('[Electron Auth] Setup check error:', error)
-    return { setupComplete: false, ownerProfile: null, error: error.message }
+    return { setupComplete: false, ownerProfile: null, shopType: 'other', error: error.message }
+  }
+})
+
+ipcMain.handle('auth-get-shop-type', async () => {
+  try {
+    const setupState = getSetupState()
+    return setupState.shopType || 'other'
+  } catch (error) {
+    console.error('[Electron Auth] Get shop type error:', error)
+    return 'other'
+  }
+})
+
+ipcMain.handle('auth-set-shop-type', async (event, shopType) => {
+  try {
+    const valid = ['restaurant', 'retail', 'grocery', 'other'].includes(String(shopType))
+    const value = valid ? String(shopType) : 'other'
+    const store = getAuthStore()
+    store.set('shop_type', value)
+    return { success: true, shopType: value }
+  } catch (error) {
+    console.error('[Electron Auth] Set shop type error:', error)
+    return { success: false, error: error.message }
   }
 })
 
@@ -1280,6 +1308,11 @@ ipcMain.handle('offline-get-products', (event, vendorId) => {
 ipcMain.handle('offline-get-product-by-barcode', (event, barcode) => {
   if (!offlineDb) return null
   return offlineDb.getProductByBarcode(barcode)
+})
+
+ipcMain.handle('offline-get-product-by-rfid', (event, tagId) => {
+  if (!offlineDb) return null
+  return offlineDb.getProductByRfidTag(tagId)
 })
 
 ipcMain.handle('offline-save-sale', (event, sale) => {

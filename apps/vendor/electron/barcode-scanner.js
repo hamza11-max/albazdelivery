@@ -1,6 +1,8 @@
 /**
  * Hardware Barcode Scanner Module
- * Supports USB HID and Serial barcode scanners
+ * Supports USB HID and Serial barcode scanners.
+ * Also supports RFID keyboard wedge: if the reader sends a prefix "RFID:" then
+ * we emit 'rfid-scanned' with the tag ID; otherwise we emit 'barcode-scanned'.
  */
 
 const { ipcMain } = require('electron')
@@ -9,51 +11,50 @@ let scannerBuffer = ''
 let scannerTimeout = null
 let scannerCallback = null
 const SCAN_TIMEOUT = 50 // ms between keystrokes for barcode
+const RFID_PREFIX = 'RFID:'
 
 /**
- * USB HID barcode scanners typically work as keyboard devices
- * They send characters rapidly followed by Enter
- * This module detects rapid keyboard input patterns
+ * USB HID barcode scanners (and RFID readers in keyboard wedge mode) typically
+ * work as keyboard devices: they send characters rapidly followed by Enter.
+ * This module detects that pattern. If the buffer starts with "RFID:", we
+ * emit rfid-scanned(tagId); otherwise we emit barcode-scanned(barcode).
  */
 function initBarcodeScanner(mainWindow) {
   if (!mainWindow) return
-  
-  // Listen for keyboard input in the renderer
+
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    // Only process key presses, not releases
     if (input.type !== 'keyDown') return
-    
-    // Check if this looks like scanner input (rapid keystrokes)
+
     if (scannerTimeout) {
       clearTimeout(scannerTimeout)
     }
-    
-    // Handle Enter key - end of barcode
+
     if (input.key === 'Enter' && scannerBuffer.length > 3) {
-      const barcode = scannerBuffer
+      const raw = scannerBuffer
       scannerBuffer = ''
-      
-      // Send barcode to renderer
-      mainWindow.webContents.send('barcode-scanned', barcode)
-      console.log('[Barcode Scanner] Scanned:', barcode)
-      
-      // Prevent the Enter from being processed
+
+      if (raw.startsWith(RFID_PREFIX)) {
+        const tagId = raw.slice(RFID_PREFIX.length).trim()
+        mainWindow.webContents.send('rfid-scanned', tagId)
+        console.log('[RFID] Scanned:', tagId)
+      } else {
+        mainWindow.webContents.send('barcode-scanned', raw)
+        console.log('[Barcode Scanner] Scanned:', raw)
+      }
+
       event.preventDefault()
       return
     }
-    
-    // Accumulate printable characters
+
     if (input.key.length === 1 && !input.control && !input.alt && !input.meta) {
       scannerBuffer += input.key
-      
-      // Reset buffer after timeout (user is typing normally)
       scannerTimeout = setTimeout(() => {
         scannerBuffer = ''
       }, SCAN_TIMEOUT)
     }
   })
-  
-  console.log('[Barcode Scanner] USB HID scanner support initialized')
+
+  console.log('[Barcode Scanner] USB HID scanner + RFID keyboard wedge support initialized')
 }
 
 /**

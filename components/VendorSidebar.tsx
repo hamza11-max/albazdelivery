@@ -32,6 +32,8 @@ interface VendorSidebarProps {
   isDarkMode?: boolean
   setIsDarkMode?: (mode: boolean) => void
   translate: (fr: string, ar: string) => string
+  /** When set (e.g. from shop type), only these tab ids are shown. Omit to show all. */
+  allowedTabIds?: string[]
 }
 
 interface MenuItem {
@@ -49,11 +51,12 @@ export default function VendorSidebar({
   isDarkMode = false,
   setIsDarkMode,
   translate,
+  allowedTabIds,
 }: VendorSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [hoveredItem, setHoveredItem] = useState<string | null>(null)
 
-  const menuItems: MenuItem[] = [
+  const allMenuItems: MenuItem[] = [
     {
       id: "dashboard",
       icon: LayoutDashboard,
@@ -152,7 +155,10 @@ export default function VendorSidebar({
     },
   ]
 
-  // Social icons removed
+  const menuItems =
+    allowedTabIds && allowedTabIds.length > 0
+      ? allMenuItems.filter((item) => allowedTabIds.includes(item.id))
+      : allMenuItems
 
   return (
     <>
@@ -267,7 +273,7 @@ export default function VendorSidebar({
         "bg-gradient-to-t from-[#0a0f14] to-[#0d1419]",
         "backdrop-blur-md border-t border-white/10"
       )}>
-        {menuItems.slice(0, 5).map((it) => {
+        {menuItems.filter((it) => it.id !== "logout").slice(0, 5).map((it) => {
           const Icon = it.icon
           const isActive = activeTab === it.id
           return (

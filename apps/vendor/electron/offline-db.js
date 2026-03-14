@@ -87,6 +87,23 @@ function initDatabase() {
     -- Create indexes
     CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode);
     CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendorId);
+  `)
+
+  try {
+    db.exec('ALTER TABLE products ADD COLUMN rfid_tag_id TEXT')
+  } catch (e) {
+    if (!e.message || (!e.message.includes('duplicate') && !e.message.includes('already exists'))) {
+      console.warn('[Offline DB] rfid_tag_id column:', e.message)
+    }
+  }
+  try {
+    db.exec('CREATE INDEX IF NOT EXISTS idx_products_rfid_tag ON products(rfid_tag_id)')
+  } catch (e) {
+    if (!e.message || !e.message.includes('duplicate')) {
+      console.warn('[Offline DB] rfid_tag index:', e.message)
+    }
+  }
+  db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sales_vendor ON sales(vendorId);
     CREATE INDEX IF NOT EXISTS idx_sales_needsSync ON sales(needsSync);
     CREATE INDEX IF NOT EXISTS idx_sync_queue_table ON sync_queue(tableName);
@@ -107,10 +124,20 @@ function getProductByBarcode(barcode) {
   return stmt.get(barcode)
 }
 
+function getProductByRfidTag(tagId) {
+  if (!tagId || typeof tagId !== 'string') return null
+  try {
+    const stmt = db.prepare('SELECT * FROM products WHERE rfid_tag_id = ?')
+    return stmt.get(tagId.trim())
+  } catch (e) {
+    return null
+  }
+}
+
 function upsertProduct(product) {
   const stmt = db.prepare(`
-    INSERT INTO products (id, sku, name, description, category, costPrice, sellingPrice, stock, lowStockThreshold, barcode, image, vendorId, syncedAt, localUpdatedAt, needsSync)
-    VALUES (@id, @sku, @name, @description, @category, @costPrice, @sellingPrice, @stock, @lowStockThreshold, @barcode, @image, @vendorId, @syncedAt, @localUpdatedAt, @needsSync)
+    INSERT INTO products (id, sku, name, description, category, costPrice, sellingPrice, stock, lowStockThreshold, barcode, image, vendorId, syncedAt, localUpdatedAt, needsSync, rfid_tag_id)
+    VALUES (@id, @sku, @name, @description, @category, @costPrice, @sellingPrice, @stock, @lowStockThreshold, @barcode, @image, @vendorId, @syncedAt, @localUpdatedAt, @needsSync, @rfid_tag_id)
     ON CONFLICT(id) DO UPDATE SET
       sku = @sku,
       name = @name,
@@ -124,13 +151,15 @@ function upsertProduct(product) {
       image = @image,
       syncedAt = @syncedAt,
       localUpdatedAt = @localUpdatedAt,
-      needsSync = @needsSync
+      needsSync = @needsSync,
+      rfid_tag_id = @rfid_tag_id
   `)
   return stmt.run({
     ...product,
     syncedAt: product.syncedAt || Date.now(),
     localUpdatedAt: Date.now(),
-    needsSync: product.needsSync || 0
+    needsSync: product.needsSync || 0,
+    rfid_tag_id: product.rfid_tag_id != null ? product.rfid_tag_id : null
   })
 }
 
@@ -271,6 +300,7 @@ module.exports = {
   isInitialized,
   getProducts,
   getProductByBarcode,
+  getProductByRfidTag,
   upsertProduct,
   syncProducts,
   saveSale,

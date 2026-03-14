@@ -105,6 +105,11 @@ import { LoadingScreen } from "../../components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData } from "../../utils/electronUtils"
 import { ErrorBoundary } from "../../components/ErrorBoundary"
+import {
+  getTabsForShopType,
+  isSettingsSectionVisible,
+  type ShopType,
+} from "../../config/shopTypes"
 
 // Types
 import type {
@@ -238,6 +243,25 @@ export default function VendorDashboard() {
 
   // In Electron use electron store user; otherwise NextAuth user
   const effectiveUser = isElectronRuntime ? electronUser : user
+
+  // Shop type: from Electron store (setup) or default 'other' for web
+  const [shopType, setShopType] = useState<ShopType | "other">("other")
+  useEffect(() => {
+    const auth = (typeof window !== "undefined" && window.electronAPI?.auth) as { getShopType?: () => Promise<string> } | undefined
+    if (!auth?.getShopType) return
+    auth.getShopType().then((type: string) => {
+      if (type && ["restaurant", "retail", "grocery", "other"].includes(type)) {
+        setShopType(type as ShopType)
+      }
+    }).catch(() => {})
+  }, [isElectronRuntime])
+
+  const allowedTabIds = getTabsForShopType(shopType)
+  useEffect(() => {
+    if (allowedTabIds.length > 0 && !allowedTabIds.includes(activeTab)) {
+      setActiveTab(allowedTabIds[0])
+    }
+  }, [allowedTabIds, activeTab])
 
   // Check Electron auth on mount and load offline data
   useEffect(() => {
@@ -1049,6 +1073,105 @@ export default function VendorDashboard() {
   })
   setBarcodeScannerOpenRef.current = setIsBarcodeScannerOpen
 
+  // RFID keyboard wedge: reader sends "RFID:" + tag ID + Enter. Look up product by RFID or barcode and add to cart.
+  useEffect(() => {
+    if (!isElectronRuntime || typeof window === "undefined") return
+    const api = (window as any).electronAPI
+    if (!api?.rfid?.onRfidScanned) return
+
+    const handleRfidScanned = async (tagId: string) => {
+      if (!tagId?.trim()) return
+      const offline = api.offline
+      let product: any = null
+      if (offline?.getProductByRfidTag) {
+        product = await offline.getProductByRfidTag(tagId.trim())
+      }
+      if (!product && offline?.getProductByBarcode) {
+        product = await offline.getProductByBarcode(tagId.trim())
+      }
+      if (!product) {
+        const fromList = products.find(
+          (p) => p.barcode === tagId.trim() || (p as any).rfidTagId === tagId.trim()
+        )
+        if (fromList) product = fromList
+      }
+      if (product) {
+        addToCart({
+          id: product.id,
+          name: product.name,
+          sellingPrice: product.sellingPrice ?? product.price ?? 0,
+          stock: product.stock ?? 0,
+          barcode: product.barcode,
+          sku: product.sku,
+          category: product.category,
+          image: product.image,
+        } as any)
+        playSuccessSound()
+        toast({
+          title: translate("Produit ajouté (RFID)", "تمت الإضافة (RFID)"),
+          description: product.name,
+        })
+      } else {
+        setPosSearch(tagId.trim())
+        toast({
+          title: translate("RFID non lié", "الوسم غير مرتبط"),
+          description: translate(
+            "Aucun produit pour ce tag. Vous pouvez rechercher par code.",
+            "لا يوجد منتج لهذا الوسم. يمكنك البحث بالرمز."
+          ),
+          variant: "destructive",
+        })
+      }
+    }
+
+    api.rfid.onRfidScanned(handleRfidScanned)
+  }, [isElectronRuntime, addToCart, setPosSearch, products, toast, translate])
+
+  // Hardware barcode scanner (keyboard wedge): add to cart or set search
+  useEffect(() => {
+    if (!isElectronRuntime || typeof window === "undefined") return
+    const api = (window as any).electronAPI
+    if (!api?.scanner?.onBarcodeScanned) return
+
+    const handleBarcodeScanned = async (barcode: string) => {
+      if (!barcode?.trim()) return
+      const offline = api.offline
+      let product: any = null
+      if (offline?.getProductByBarcode) {
+        product = await offline.getProductByBarcode(barcode.trim())
+      }
+      if (!product) {
+        product = products.find((p) => p.barcode === barcode.trim())
+      }
+      if (product) {
+        addToCart({
+          id: product.id,
+          name: product.name,
+          sellingPrice: product.sellingPrice ?? product.price ?? 0,
+          stock: product.stock ?? 0,
+          barcode: product.barcode,
+          sku: product.sku,
+          category: product.category,
+          image: product.image,
+        } as any)
+        playSuccessSound()
+        toast({
+          title: translate("Produit ajouté", "تمت الإضافة"),
+          description: product.name,
+        })
+      } else {
+        if (productFormScanRef.current) {
+          setProductForm((prev: any) => ({ ...prev, barcode: barcode.trim() }))
+          productFormScanRef.current = false
+          setBarcodeScannerOpenRef.current(false)
+        } else {
+          setPosSearch(barcode.trim())
+        }
+      }
+    }
+
+    api.scanner.onBarcodeScanned(handleBarcodeScanned)
+  }, [isElectronRuntime, addToCart, setPosSearch, products, toast, translate])
 
 // File upload handler - using utility function
 const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -1474,6 +1597,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
         translate={translate}
+        allowedTabIds={allowedTabIds}
       />
 
       {/* Main Content */}
@@ -1782,14 +1906,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onElectronStaffFormChange={setStaffForm}
               onAddElectronStaff={handleAddStaffAccount}
               onRemoveElectronStaff={handleRemoveStaffAccount}
-              onOpenElectronPinReset={(account) => {
+              onOpenElectronPinReset={(account: unknown) => {
                 setStaffPinResetTarget(account)
                 setStaffPinResetOpen(true)
               }}
               electronPinResetOpen={staffPinResetOpen}
               onElectronPinResetOpenChange={setStaffPinResetOpen}
               electronPinResetTarget={staffPinResetTarget}
-              onConfirmElectronPinReset={(id) => id && handleResetStaffPin(id)}
+              onConfirmElectronPinReset={(id: string | null) => id && handleResetStaffPin(id)}
             />
           </TabsContent>
 
@@ -2095,7 +2219,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
           {/* Staff add is in Staff & Permissions tab (sidebar) */}
 
-          {/* Schedule & Capacity */}
+          {/* Schedule & Capacity — only for restaurant / grocery / other */}
+          {isSettingsSectionVisible(shopType, "schedule") && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -2220,8 +2345,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </div>
             </CardContent>
           </Card>
+          )}
 
-          {/* Prep Time */}
+          {/* Prep Time — only for restaurant / grocery / other */}
+          {isSettingsSectionVisible(shopType, "prepTime") && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -2242,6 +2369,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </p>
             </CardContent>
           </Card>
+          )}
 
           {/* Payouts & Disputes (stub) */}
           <Card>

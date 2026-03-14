@@ -8,6 +8,7 @@ import { Button } from "@/root/components/ui/button"
 import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import Link from "next/link"
+import { SHOP_TYPES, SHOP_TYPE_LABELS } from "../../config/shopTypes"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ function LoginForm() {
   const [usePinLogin, setUsePinLogin] = useState(false)
   const [pin, setPin] = useState("")
   const [staffCode, setStaffCode] = useState("")
-  const [setupStep, setSetupStep] = useState<"passkey" | "owner" | "login">("login")
+  const [setupStep, setSetupStep] = useState<"passkey" | "shoptype" | "owner" | "login">("login")
   const [isElectron, setIsElectron] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -92,12 +93,29 @@ function LoginForm() {
     try {
       const result = await (window as any).electronAPI?.auth?.verifyPasskey?.(passkey)
       if (result?.success) {
-        setSetupStep("owner")
+        setSetupStep("shoptype")
       } else {
         setError(result?.error || "Passkey invalide")
       }
     } catch (err: any) {
       setError(err?.message || "Erreur lors de la vérification du passkey")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleShopTypeSelect = async (shopType: string) => {
+    setError("")
+    setLoading(true)
+    try {
+      const result = await (window as any).electronAPI?.auth?.setShopType?.(shopType)
+      if (result?.success) {
+        setSetupStep("owner")
+      } else {
+        setError(result?.error || "Erreur lors du choix du type")
+      }
+    } catch (err: any) {
+      setError(err?.message || "Erreur")
     } finally {
       setLoading(false)
     }
@@ -314,6 +332,32 @@ function LoginForm() {
                 {loading ? "Vérification..." : "Vérifier"}
               </Button>
             </form>
+          ) : isElectron && setupStep === "shoptype" ? (
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Quel type de commerce avez-vous ?
+              </p>
+              <p className="text-xs text-gray-500">
+                Les options affichées dans l&apos;app seront adaptées à votre activité.
+              </p>
+              <div className="grid grid-cols-1 gap-2">
+                {SHOP_TYPES.map((id) => {
+                  const labels = SHOP_TYPE_LABELS[id]
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      disabled={loading}
+                      onClick={() => handleShopTypeSelect(id)}
+                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
+                    >
+                      <span className="font-medium text-gray-800">{labels.fr}</span>
+                      <span className="text-sm text-gray-500">{labels.ar}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           ) : isElectron && setupStep === "owner" ? (
             <form onSubmit={handleOwnerSetup} className="space-y-4">
               <div>

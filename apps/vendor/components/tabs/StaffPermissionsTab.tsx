@@ -21,8 +21,41 @@ import {
 } from "../../utils/permissionsUtils"
 import { useToast } from "@/root/hooks/use-toast"
 
+interface ElectronStaffAccount {
+  id?: string
+  name: string
+  phone?: string
+  email?: string
+  role: string
+  staffCode?: string
+  pinHash?: string
+  pinSalt?: string
+}
+
+interface ElectronStaffForm {
+  name: string
+  phone: string
+  email: string
+  role: string
+  password: string
+  confirmPassword: string
+  pin: string
+  staffCode: string
+}
+
 interface StaffPermissionsTabProps {
   translate: (fr: string, ar: string) => string
+  isElectronRuntime?: boolean
+  electronStaffAccounts?: ElectronStaffAccount[]
+  electronStaffForm?: ElectronStaffForm
+  onElectronStaffFormChange?: (form: ElectronStaffForm) => void
+  onAddElectronStaff?: () => void
+  onRemoveElectronStaff?: (id: string) => void
+  onOpenElectronPinReset?: (account: ElectronStaffAccount) => void
+  electronPinResetOpen?: boolean
+  onElectronPinResetOpenChange?: (open: boolean) => void
+  electronPinResetTarget?: ElectronStaffAccount | null
+  onConfirmElectronPinReset?: (id: string | null) => void
 }
 
 const PERMISSION_GROUPS: Record<string, { label: string; permissions: Permission[] }> = {

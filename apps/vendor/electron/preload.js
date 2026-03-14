@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getToken: () => ipcRenderer.invoke('auth-get-token'),
     getUser: () => ipcRenderer.invoke('auth-get-user'),
     getSetup: () => ipcRenderer.invoke('auth-get-setup'),
+    getShopType: () => ipcRenderer.invoke('auth-get-shop-type'),
+    setShopType: (shopType) => ipcRenderer.invoke('auth-set-shop-type', shopType),
     verifyPasskey: (passkey) => ipcRenderer.invoke('auth-verify-passkey', passkey),
     setupOwner: (payload) => {
       if (!payload || typeof payload !== 'object') throw new TypeError('payload must be an object')
@@ -35,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   offline: {
     getProducts: (vendorId) => ipcRenderer.invoke('offline-get-products', vendorId),
     getProductByBarcode: (barcode) => ipcRenderer.invoke('offline-get-product-by-barcode', barcode),
+    getProductByRfidTag: (tagId) => ipcRenderer.invoke('offline-get-product-by-rfid', tagId),
     saveSale: (sale) => ipcRenderer.invoke('offline-save-sale', sale),
     getCustomers: (vendorId) => ipcRenderer.invoke('offline-get-customers', vendorId),
     getStats: () => ipcRenderer.invoke('offline-get-stats'),
@@ -53,6 +56,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onBarcodeScanned: (callback) => ipcRenderer.on('barcode-scanned', (event, barcode) => callback(barcode)),
     listPorts: () => ipcRenderer.invoke('scanner-list-ports'),
     connectSerial: (portPath, baudRate) => ipcRenderer.invoke('scanner-connect-serial', portPath, baudRate),
+  },
+
+  // RFID (keyboard wedge: reader sends "RFID:" + tag ID + Enter)
+  rfid: {
+    onRfidScanned: (callback) => ipcRenderer.on('rfid-scanned', (event, tagId) => callback(tagId)),
   },
   
   // Auto-updater

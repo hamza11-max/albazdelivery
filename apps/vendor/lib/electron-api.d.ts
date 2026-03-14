@@ -6,6 +6,11 @@ interface ElectronAuthAPI {
   login: (credentials: { email: string; password: string }) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<{ success: boolean; error?: string }>
   checkAuth: () => Promise<{ isAuthenticated: boolean; user: any | null }>
+  getSetup: () => Promise<{ setupComplete: boolean; ownerProfile?: any; shopType?: string }>
+  getShopType: () => Promise<string>
+  setShopType: (shopType: string) => Promise<{ success: boolean; shopType?: string; error?: string }>
+  verifyPasskey: (passkey: string) => Promise<{ success: boolean; error?: string }>
+  setupOwner: (payload: { name: string; phone: string; email: string; password: string }) => Promise<{ success: boolean; error?: string; alreadyComplete?: boolean }>
 }
 
 interface ElectronStoreAPI {
@@ -67,6 +72,7 @@ interface OfflineStats {
 interface ElectronOfflineAPI {
   getProducts: (vendorId?: string) => Promise<OfflineProduct[]>
   getProductByBarcode: (barcode: string) => Promise<OfflineProduct | null>
+  getProductByRfidTag: (tagId: string) => Promise<OfflineProduct | null>
   saveSale: (sale: OfflineSale) => Promise<any>
   getCustomers: (vendorId?: string) => Promise<OfflineCustomer[]>
   getStats: () => Promise<OfflineStats>
@@ -125,6 +131,16 @@ interface ElectronShortcutsAPI {
   removeAll: () => void
 }
 
+interface ElectronRfidAPI {
+  onRfidScanned: (callback: (tagId: string) => void) => void
+}
+
+interface ElectronScannerAPI {
+  onBarcodeScanned: (callback: (barcode: string) => void) => void
+  listPorts: () => Promise<Array<{ path: string; manufacturer?: string }>>
+  connectSerial: (portPath: string, baudRate?: number) => Promise<{ success: boolean }>
+}
+
 interface ElectronAPI {
   getVersion: () => Promise<string>
   getName: () => Promise<string>
@@ -135,6 +151,8 @@ interface ElectronAPI {
   offline: ElectronOfflineAPI
   print: ElectronPrintAPI
   shortcuts: ElectronShortcutsAPI
+  rfid?: ElectronRfidAPI
+  scanner?: ElectronScannerAPI
 }
 
 declare global {
