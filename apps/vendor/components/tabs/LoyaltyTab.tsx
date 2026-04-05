@@ -328,6 +328,12 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
             <DialogTitle>
               {editingTier ? translate("Modifier le niveau", "تعديل المستوى") : translate("Nouveau niveau", "مستوى جديد")}
             </DialogTitle>
+            <DialogDescription>
+              {translate(
+                "Configurez les seuils de points et les remises pour chaque niveau de fidélité.",
+                "قم بإعداد حدود النقاط ونسب الخصم لكل مستوى ولاء."
+              )}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -383,6 +389,12 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
             <DialogTitle>
               {editingRule ? translate("Modifier la règle", "تعديل القاعدة") : translate("Nouvelle règle", "قاعدة جديدة")}
             </DialogTitle>
+            <DialogDescription>
+              {translate(
+                "Définissez comment les points sont attribués et activez ou désactivez les règles.",
+                "حدد كيفية احتساب النقاط وقم بتفعيل أو إيقاف القواعد."
+              )}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">

@@ -2,7 +2,29 @@
 
 import type { Sale, InventoryProduct, SaleItem } from "@/root/lib/types"
 import type { SalesData, OrdersData, ProductsData, CustomersData, SuppliersData, CategoriesData, TopProductData } from "../app/vendor/types"
-import { handleError } from "./errorHandling"
+import { handleError, safeLocalStorageGet } from "./errorHandling"
+import { getMergedLocalSalesHistory, isElectronOfflineInventoryVendorId } from "./electronUtils"
+
+/** Merge API sales with local/offline history (`electron-sales` + `offline-sales-queue`). */
+function mergeApiSalesWithLocalHistory(apiSales: Sale[]): Sale[] {
+  if (typeof window === "undefined") return apiSales
+  const localMerged = getMergedLocalSalesHistory()
+  if (localMerged.length === 0) return apiSales
+
+  const byId = new Map<string, Sale>()
+  for (const s of apiSales) {
+    byId.set(String(s.id), s)
+  }
+  for (const s of localMerged) {
+    const id = String(s.id)
+    if (!byId.has(id)) {
+      byId.set(id, s)
+    }
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
+}
 
 interface HandleDataLoadParams {
   vendorContextId?: string
@@ -52,40 +74,52 @@ export async function handleDataLoad({
   translate,
 }: HandleDataLoadParams) {
   try {
-    const [
-      salesRes,
-      ordersRes,
-      productsRes,
-      customersRes,
-      suppliersRes,
-      categoriesRes
-    ] = await Promise.all([
-      fetchSales(vendorContextId),
-      fetchOrders(vendorContextId),
-      fetchProducts(vendorContextId),
-      fetchCustomers(vendorContextId),
-      fetchSuppliers(vendorContextId),
-      fetchCategories(vendorContextId)
-    ])
+    const vid = vendorContextId ?? ''
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.isElectron
+    const useLocalProducts = isElectron && isElectronOfflineInventoryVendorId(vid)
 
-    // Transform responses into proper data types
-    const salesData = { sales: salesRes } as SalesData
-    const ordersData = { orders: ordersRes } as OrdersData
-    const productsData = { products: productsRes } as ProductsData
-    const customersData = { customers: customersRes } as CustomersData
-    const suppliersData = { suppliers: suppliersRes } as SuppliersData
-    const categoriesData = { categories: categoriesRes } as CategoriesData
+    const productsPromise = useLocalProducts
+      ? Promise.resolve(JSON.parse(typeof localStorage !== 'undefined' ? (localStorage.getItem('electron-inventory') || '[]') : '[]') as InventoryProduct[])
+      : fetchProducts(vendorContextId)
+
+    const safeFetch = (p: Promise<any>) => p.catch(() => null)
+    const [salesRes, ordersRes, productsRes, customersRes, suppliersRes, categoriesRes] = useLocalProducts
+      ? await Promise.all([
+          safeFetch(fetchSales(vendorContextId)),
+          safeFetch(fetchOrders(vendorContextId)),
+          productsPromise,
+          safeFetch(fetchCustomers(vendorContextId)),
+          safeFetch(fetchSuppliers(vendorContextId)),
+          safeFetch(fetchCategories(vendorContextId)),
+        ])
+      : await Promise.all([
+          fetchSales(vendorContextId),
+          fetchOrders(vendorContextId),
+          productsPromise,
+          fetchCustomers(vendorContextId),
+          fetchSuppliers(vendorContextId),
+          fetchCategories(vendorContextId),
+        ])
+
+    // Transform responses into proper data types (null from offline mode → empty arrays)
+    const rawSales = Array.isArray(salesRes) ? salesRes : []
+    const salesData = {
+      sales: mergeApiSalesWithLocalHistory(rawSales as Sale[]),
+    } as SalesData
+    const ordersData = { orders: Array.isArray(ordersRes) ? ordersRes : [] } as OrdersData
+    const productsData = { products: Array.isArray(productsRes) ? productsRes : [] } as ProductsData
+    const customersData = { customers: Array.isArray(customersRes) ? customersRes : [] } as CustomersData
+    const suppliersData = { suppliers: Array.isArray(suppliersRes) ? suppliersRes : [] } as SuppliersData
+    const categoriesData = { categories: Array.isArray(categoriesRes) ? categoriesRes : [] } as CategoriesData
 
     // Update state with fetched data
-    if (salesData.sales) setSales(salesData.sales)
-    if (ordersData.orders) setOrders(ordersData.orders)
-    if (productsData.products) {
-      setProducts(productsData.products)
-      const lowStock = productsData.products.filter(
-        (p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)
-      )
-      setLowStockProducts(lowStock)
-    }
+    setSales(salesData.sales)
+    setOrders(ordersData.orders)
+    setProducts(productsData.products)
+    const lowStock = productsData.products.filter(
+      (p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)
+    )
+    setLowStockProducts(lowStock)
     if (customersData.customers) setCustomers(customersData.customers)
     if (suppliersData.suppliers) setSuppliers(suppliersData.suppliers)
     if (categoriesData.categories) setCategories(categoriesData.categories)

@@ -39,28 +39,30 @@ function logEnvironmentCheck() {
   }
 }
 
-// NextAuth API route handlers
+// NextAuth API route handlers - return JSON on error so client doesn't get HTML
 const GET = async (req: NextRequest) => {
-  // Log environment check once on first request
   logEnvironmentCheck()
-  
   try {
     return await handlers.GET(req)
   } catch (error) {
     console.error('[Vendor Auth] Error processing GET request:', error)
-    throw error
+    return Response.json(
+      { error: 'AuthError', message: error instanceof Error ? error.message : 'Authentication failed' },
+      { status: 500 }
+    )
   }
 }
 
 const POST = async (req: NextRequest) => {
-  // Log environment check once on first request
   logEnvironmentCheck()
-  
   try {
     return await handlers.POST(req)
   } catch (error) {
     console.error('[Vendor Auth] Error processing POST request:', error)
-    throw error
+    return Response.json(
+      { error: 'AuthError', message: error instanceof Error ? error.message : 'Authentication failed' },
+      { status: 500 }
+    )
   }
 }
 

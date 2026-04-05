@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { Button } from "@albaz/ui"
-import { LogOut, Sun, Moon, Globe } from "lucide-react"
+import { LogOut, Sun, Moon, Globe, KeyRound } from "lucide-react"
 import { signOut } from "next-auth/react"
 
 interface AdminHeaderProps {
@@ -26,6 +27,12 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" asChild>
+              <Link href="/admin/passkeys" title="Passkeys générées">
+                <KeyRound className="w-4 h-4 mr-1.5" />
+                Passkeys
+              </Link>
+            </Button>
             <Button
               variant="ghost"
               size="icon"

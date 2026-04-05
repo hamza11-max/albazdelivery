@@ -10,9 +10,10 @@ interface ClientsLoyaltyTabProps {
   customers: Customer[]
   translate: (fr: string, ar: string) => string
   setShowCustomerDialog: (show: boolean) => void
+  onViewCustomerOrders?: (customerId: string) => void
 }
 
-export function ClientsLoyaltyTab({ customers, translate, setShowCustomerDialog }: ClientsLoyaltyTabProps) {
+export function ClientsLoyaltyTab({ customers, translate, setShowCustomerDialog, onViewCustomerOrders }: ClientsLoyaltyTabProps) {
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <h2 className="text-2xl font-bold">{translate("Clients & Fidélité", "العملاء والولاء")}</h2>
@@ -28,7 +29,12 @@ export function ClientsLoyaltyTab({ customers, translate, setShowCustomerDialog 
           </TabsTrigger>
         </TabsList>
         <TabsContent value="clients" className="space-y-4 mt-4">
-          <CustomersTab customers={customers} translate={translate} setShowCustomerDialog={setShowCustomerDialog} />
+          <CustomersTab
+            customers={customers}
+            translate={translate}
+            setShowCustomerDialog={setShowCustomerDialog}
+            onViewCustomerOrders={onViewCustomerOrders}
+          />
         </TabsContent>
         <TabsContent value="loyalty" className="space-y-4 mt-4">
           <LoyaltyTab translate={translate} />

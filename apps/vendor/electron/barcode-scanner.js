@@ -19,8 +19,9 @@ const RFID_PREFIX = 'RFID:'
  * This module detects that pattern. If the buffer starts with "RFID:", we
  * emit rfid-scanned(tagId); otherwise we emit barcode-scanned(barcode).
  */
-function initBarcodeScanner(mainWindow) {
+function initBarcodeScanner(mainWindow, options = {}) {
   if (!mainWindow) return
+  const onRfidScanned = options.onRfidScanned || null
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return
@@ -35,6 +36,7 @@ function initBarcodeScanner(mainWindow) {
 
       if (raw.startsWith(RFID_PREFIX)) {
         const tagId = raw.slice(RFID_PREFIX.length).trim()
+        if (typeof onRfidScanned === 'function') onRfidScanned(tagId)
         mainWindow.webContents.send('rfid-scanned', tagId)
         console.log('[RFID] Scanned:', tagId)
       } else {

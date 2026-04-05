@@ -13,6 +13,7 @@ try {
 let syncInterval = null
 let isOnline = true
 let baseUrl = 'http://localhost:3001'
+let authBlocked = false
 
 function setBaseUrl(url) {
   baseUrl = url
@@ -32,6 +33,9 @@ async function syncToServer() {
   if (!offlineDb || !offlineDb.isInitialized?.()) {
     return { success: false, reason: 'database not available' }
   }
+  if (authBlocked) {
+    return { success: false, reason: 'unauthenticated' }
+  }
 
   try {
     // Sync pending sales
@@ -49,6 +53,10 @@ async function syncToServer() {
         if (response.ok) {
           offlineDb.markSaleSynced(sale.id)
           syncedSales++
+          authBlocked = false
+        } else if (response.status === 401 || response.status === 403) {
+          authBlocked = true
+          return { success: false, reason: 'unauthenticated' }
         } else {
           console.error(`[Sync Service] Failed to sync sale ${sale.id}:`, await response.text())
         }
@@ -91,6 +99,10 @@ async function syncToServer() {
         if (response && response.ok) {
           offlineDb.removeSyncItem(item.id)
           processedItems++
+          authBlocked = false
+        } else if (response && (response.status === 401 || response.status === 403)) {
+          authBlocked = true
+          return { success: false, reason: 'unauthenticated' }
         } else {
           offlineDb.updateSyncItemError(item.id, response ? await response.text() : 'Unknown error')
         }

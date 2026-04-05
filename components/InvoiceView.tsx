@@ -3,6 +3,8 @@
 import { useEffect } from "react"
 import { Printer, X, Download } from "lucide-react"
 import { Button } from "@/root/components/ui/button"
+import { useToast } from "@/root/hooks/use-toast"
+import { printInvoiceHtml } from "@/root/lib/invoice-print"
 import type { Sale } from "@/root/lib/types"
 
 interface InvoiceViewProps {
@@ -33,6 +35,48 @@ export function InvoiceView({
   customerInfo,
   onClose,
 }: InvoiceViewProps) {
+  const { toast } = useToast()
+
+  useEffect(() => {
+    const style = document.createElement("style")
+    const cssRules = [
+      "@media print {",
+      "  @page {",
+      "    size: A4;",
+      "    margin: 1cm;",
+      "  }",
+      "  body {",
+      "    margin: 0;",
+      "    padding: 0;",
+      "  }",
+      "  body * { visibility: hidden; }",
+      "  #invoice-content, #invoice-content * { visibility: visible; }",
+      "  #invoice-content {",
+      "    position: absolute;",
+      "    left: 0;",
+      "    top: 0;",
+      "    width: 100%;",
+      "    max-width: 210mm;",
+      "    margin: 0;",
+      "    padding: 15mm;",
+      "    box-shadow: none;",
+      "    background: white;",
+      "    page-break-after: avoid;",
+      "  }",
+      "  .print-hidden { display: none !important; }",
+      "  table { page-break-inside: avoid; }",
+      "  tr { page-break-inside: avoid; }",
+      "}",
+    ]
+    style.textContent = cssRules.join("\n")
+    document.head.appendChild(style)
+    return () => {
+      if (document.head.contains(style)) {
+        document.head.removeChild(style)
+      }
+    }
+  }, [])
+
   if (!showInvoice || !sale) return null
 
   const userWithExtras = user as any
@@ -75,89 +119,48 @@ export function InvoiceView({
 
   const handleDownloadPDF = async () => {
     try {
-      const element = document.getElementById('invoice-content')
+      const element = document.getElementById("invoice-content")
       if (!element) return
 
-      const slashRegex = new RegExp('/', 'g')
-      const dateStr = formattedDate.replace(slashRegex, '-')
-      const filename = 'Facture_' + invoiceNumber + '_' + dateStr + '.pdf'
+      const slashRegex = new RegExp("/", "g")
+      const dateStr = formattedDate.replace(slashRegex, "-")
+      const filename = "Facture_" + invoiceNumber + "_" + dateStr + ".pdf"
 
-      // Check if we're in Electron and use printToPDF API
-      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI
-      
-      if (isElectron && (window as any).electronAPI?.printToPDF) {
-        try {
-          // Use Electron's printToPDF API
-          const pdfData = await (window as any).electronAPI.printToPDF({
-            margins: {
-              marginType: 'custom',
-              top: 0.4,
-              bottom: 0.4,
-              left: 0.4,
-              right: 0.4
-            },
-            pageSize: 'A4',
-            printBackground: true
-          })
-          
-          // Create blob and download
-          const blob = new Blob([pdfData], { type: 'application/pdf' })
-          const url = URL.createObjectURL(blob)
-          const link = document.createElement('a')
-          link.href = url
-          link.download = filename
-          document.body.appendChild(link)
-          link.click()
-          document.body.removeChild(link)
-          URL.revokeObjectURL(url)
-          return
-        } catch (electronError) {
-          console.warn('Electron PDF generation failed, falling back to print:', electronError)
-        }
-      }
+      const pdfMod = await import("@/root/lib/invoice-pdf-download")
 
-      // Fallback: Use browser print dialog with PDF option
-      // Open print dialog - user can select "Save as PDF"
-      const printWindow = window.open("", "_blank")
-      if (!printWindow) {
-        // If popup blocked, use current window
-        handlePrint()
+      try {
+        await pdfMod.downloadInvoiceAsPdf(element as HTMLElement, filename)
         return
+      } catch (clientErr) {
+        console.warn("[InvoiceView] Client PDF failed:", clientErr)
       }
 
-      const htmlContent = element.innerHTML
-      const title = 'Facture - ' + invoiceNumber
-      
-      printWindow.document.write('<!DOCTYPE html>')
-      printWindow.document.write('<html>')
-      printWindow.document.write('<head>')
-      printWindow.document.write('<title>' + title + '</title>')
-      printWindow.document.write('<style>')
-      printWindow.document.write('@page { size: A4; margin: 1cm; }')
-      printWindow.document.write('body { margin: 0; padding: 0; font-family: Arial, sans-serif; font-size: 12px; }')
-      printWindow.document.write('.print-hidden { display: none !important; }')
-      printWindow.document.write('#invoice-content { max-width: 100%; margin: 0; padding: 20px; }')
-      printWindow.document.write('table { width: 100%; border-collapse: collapse; }')
-      printWindow.document.write('th, td { padding: 8px; text-align: left; }')
-      printWindow.document.write('</style>')
-      printWindow.document.write('</head>')
-      printWindow.document.write('<body>')
-      printWindow.document.write(htmlContent)
-      printWindow.document.write('</body>')
-      printWindow.document.write('</html>')
-      printWindow.document.close()
-      
-      // Show instruction message
-      setTimeout(() => {
-        printWindow.focus()
-        printWindow.print()
-        // Note: User needs to select "Save as PDF" in the print dialog
-      }, 250)
-      
+      try {
+        const ok = await pdfMod.downloadInvoicePdfViaElectron(
+          element as HTMLElement,
+          filename,
+          "Facture - " + invoiceNumber
+        )
+        if (ok) return
+      } catch (electronPdfErr) {
+        console.warn("[InvoiceView] Electron Chromium PDF failed:", electronPdfErr)
+      }
+
+      toast({
+        title: translate("PDF", "PDF"),
+        description: translate(
+          "Impossible de générer le fichier. Utilisez « Imprimer A4 » et choisissez « Enregistrer au format PDF ».",
+          "تعذر إنشاء الملف. استخدم « طباعة A4 » ثم « حفظ كـ PDF »."
+        ),
+        variant: "destructive",
+      })
     } catch (error) {
-      console.error('Error generating PDF:', error)
-      // Final fallback: use print function
-      handlePrint()
+      console.error("Error generating PDF:", error)
+      toast({
+        title: translate("Erreur", "خطأ"),
+        description: translate("Échec du téléchargement PDF.", "فشل تنزيل PDF."),
+        variant: "destructive",
+      })
     }
   }
 
@@ -165,102 +168,10 @@ export function InvoiceView({
     const printContent = document.getElementById("invoice-content")
     if (!printContent) return
 
-    // Clone the content for printing
-    const printWindow = window.open("", "_blank")
-    if (!printWindow) {
-      // If popup blocked, use current window
-      const originalContent = document.body.innerHTML
-      document.body.innerHTML = printContent.innerHTML
-      window.print()
-      document.body.innerHTML = originalContent
-      window.location.reload()
-      return
-    }
-
     const htmlContent = printContent.innerHTML
-    const title = 'Facture - ' + invoiceNumber
-    
-    // Write complete HTML with proper A4 styling
-    printWindow.document.open()
-    printWindow.document.write('<!DOCTYPE html>')
-    printWindow.document.write('<html>')
-    printWindow.document.write('<head>')
-    printWindow.document.write('<meta charset="UTF-8">')
-    printWindow.document.write('<title>' + title + '</title>')
-    printWindow.document.write('<style>')
-    printWindow.document.write('* { margin: 0; padding: 0; box-sizing: border-box; }')
-    printWindow.document.write('@page { size: A4; margin: 1cm; }')
-    printWindow.document.write('body { margin: 0; padding: 0; font-family: Arial, sans-serif; font-size: 11px; background: white; }')
-    printWindow.document.write('.print-hidden { display: none !important; }')
-    printWindow.document.write('#invoice-content { width: 100%; max-width: 210mm; margin: 0 auto; padding: 15mm; background: white; }')
-    printWindow.document.write('table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }')
-    printWindow.document.write('th, td { padding: 6px; text-align: left; }')
-    printWindow.document.write('tr { page-break-inside: avoid; }')
-    printWindow.document.write('</style>')
-    printWindow.document.write('</head>')
-    printWindow.document.write('<body>')
-    printWindow.document.write(htmlContent)
-    printWindow.document.write('</body>')
-    printWindow.document.write('</html>')
-    printWindow.document.close()
-    
-    // Wait for content to load, then open print dialog
-    printWindow.onload = () => {
-      setTimeout(() => {
-        printWindow.focus()
-        printWindow.print() // Opens system print dialog with printer selection
-      }, 100)
-    }
-    
-    // Fallback if onload doesn't fire
-    setTimeout(() => {
-      if (!printWindow.closed) {
-        printWindow.focus()
-        printWindow.print()
-      }
-    }, 500)
+    const title = "Facture - " + invoiceNumber
+    printInvoiceHtml(htmlContent, title)
   }
-
-  useEffect(() => {
-    // Add print styles for A4 format
-    const style = document.createElement('style')
-    const cssRules = [
-      '@media print {',
-      '  @page {',
-      '    size: A4;',
-      '    margin: 1cm;',
-      '  }',
-      '  body {',
-      '    margin: 0;',
-      '    padding: 0;',
-      '  }',
-      '  body * { visibility: hidden; }',
-      '  #invoice-content, #invoice-content * { visibility: visible; }',
-      '  #invoice-content {',
-      '    position: absolute;',
-      '    left: 0;',
-      '    top: 0;',
-      '    width: 100%;',
-      '    max-width: 210mm;',
-      '    margin: 0;',
-      '    padding: 15mm;',
-      '    box-shadow: none;',
-      '    background: white;',
-      '    page-break-after: avoid;',
-      '  }',
-      '  .print-hidden { display: none !important; }',
-      '  table { page-break-inside: avoid; }',
-      '  tr { page-break-inside: avoid; }',
-      '}'
-    ]
-    style.textContent = cssRules.join('\n')
-    document.head.appendChild(style)
-    return () => {
-      if (document.head.contains(style)) {
-        document.head.removeChild(style)
-      }
-    }
-  }, [])
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto print:hidden">
@@ -396,8 +307,8 @@ export function InvoiceView({
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="mt-8 flex gap-3 print:hidden">
+          {/* Actions — excluded from PDF capture */}
+          <div className="mt-8 flex gap-3 print:hidden" data-invoice-pdf-exclude="true">
             <Button
               onClick={onClose}
               variant="outline"

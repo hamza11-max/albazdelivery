@@ -8,12 +8,18 @@ interface SessionProviderProps {
 }
 
 export function SessionProvider({ children }: SessionProviderProps) {
+  const isElectronRuntime =
+    typeof window !== "undefined" && Boolean(window.electronAPI?.isElectron)
+
+  if (isElectronRuntime) {
+    // Electron uses IPC auth flow; avoid NextAuth client polling entirely.
+    return <>{children}</>
+  }
+
   return (
     <NextAuthSessionProvider
-      // Increase refetch interval to reduce unnecessary requests
-      refetchInterval={5 * 60} // 5 minutes
-      // Refetch on window focus to keep session fresh
-      refetchOnWindowFocus={true}
+      refetchInterval={5 * 60}
+      refetchOnWindowFocus
     >
       {children}
     </NextAuthSessionProvider>

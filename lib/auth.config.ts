@@ -1,11 +1,11 @@
 import type { NextAuthConfig } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
-import { loginSchema, algerianPhoneRegex } from './validations/auth'
 import { prisma } from './prisma'
 import { verifyPassword } from './password'
 
 export type UserRole = 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN'
+const algerianPhoneRegex = /^0[567]\d{8}$/
 
 declare module 'next-auth' {
   interface User {
@@ -84,15 +84,12 @@ export const authConfig = {
       : []),
     Credentials({
       async authorize(credentials: any) {
-        // Validate credentials
-        const validatedFields = loginSchema.safeParse(credentials)
-
-        if (!validatedFields.success) {
+        const identifier = String(credentials?.identifier ?? '').trim()
+        const password = String(credentials?.password ?? '')
+        if (!identifier || !password) {
           return null
         }
-
-        const { identifier, password } = validatedFields.data
-        const trimmedIdentifier = identifier.trim()
+        const trimmedIdentifier = identifier
         const isPhoneLogin = algerianPhoneRegex.test(trimmedIdentifier)
         const normalizedIdentifier = isPhoneLogin ? trimmedIdentifier : trimmedIdentifier.toLowerCase()
 

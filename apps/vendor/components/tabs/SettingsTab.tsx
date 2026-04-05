@@ -1,11 +1,12 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/root/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/card"
 import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import { Textarea } from "@/root/components/ui/textarea"
-import { Store, Receipt, Clock } from "lucide-react"
+import { Store, Receipt, Clock, Activity } from "lucide-react"
 import { DayHoursInput } from "../DayHoursInput"
 
 interface SettingsTabProps {
@@ -23,6 +24,36 @@ export function SettingsTab({
   setIsDarkMode,
   setLanguage,
 }: SettingsTabProps) {
+  const [health, setHealth] = useState<any | null>(null)
+  const [healthError, setHealthError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadHealth() {
+      try {
+        if (typeof window === "undefined" || !(window as any).electronAPI?.getHealth) return
+        const result = await (window as any).electronAPI.getHealth()
+        if (!cancelled) {
+          setHealth(result)
+          setHealthError(null)
+        }
+      } catch (e: any) {
+        if (!cancelled) {
+          setHealthError(e?.message || "Unknown error")
+        }
+      }
+    }
+    loadHealth()
+    const id = setInterval(loadHealth, 30000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
+  }, [])
+
+  const moduleLabel = (ok: boolean | undefined) =>
+    ok ? translate("OK", "جيد") : translate("Indisponible", "غير متوفر")
+
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
@@ -186,6 +217,71 @@ export function SettingsTab({
               {translate("Désactivé", "معطل")}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* System status (Electron modules) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            {translate("Statut du système", "حالة النظام")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {healthError && (
+            <p className="text-red-500">
+              {translate("Impossible de charger l'état du système", "تعذر تحميل حالة النظام")}: {healthError}
+            </p>
+          )}
+          {!health && !healthError && (
+            <p className="text-muted-foreground">
+              {translate("Chargement de l'état du système…", "جارٍ تحميل حالة النظام…")}
+            </p>
+          )}
+          {health && (
+            <>
+              <p className="text-muted-foreground">
+                {translate("Environnement", "بيئة التشغيل")}:{" "}
+                {health.env?.isDev
+                  ? translate("Développement", "بيئة تطوير")
+                  : translate("Production", "بيئة إنتاج")}{" "}
+                · {health.env?.platform} · v{health.env?.appVersion}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <span>{translate("Base de données hors ligne", "قاعدة البيانات بدون اتصال")}</span>
+                  <span className={health.modules?.offlineDb ? "text-emerald-500" : "text-red-500"}>
+                    {moduleLabel(health.modules?.offlineDb)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <span>{translate("Service de synchronisation", "خدمة المزامنة")}</span>
+                  <span className={health.modules?.syncService ? "text-emerald-500" : "text-amber-500"}>
+                    {moduleLabel(health.modules?.syncService)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <span>{translate("Lecteur codes-barres", "قارئ الباركود")}</span>
+                  <span className={health.modules?.barcodeScanner ? "text-emerald-500" : "text-amber-500"}>
+                    {moduleLabel(health.modules?.barcodeScanner)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <span>{translate("Mises à jour automatiques", "التحديثات التلقائية")}</span>
+                  <span className={health.modules?.autoUpdater ? "text-emerald-500" : "text-amber-500"}>
+                    {moduleLabel(health.modules?.autoUpdater)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md border px-3 py-2">
+                  <span>{translate("RFID", "RFID")}</span>
+                  <span className={health.modules?.rfidStore ? "text-emerald-500" : "text-amber-500"}>
+                    {moduleLabel(health.modules?.rfidStore)}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

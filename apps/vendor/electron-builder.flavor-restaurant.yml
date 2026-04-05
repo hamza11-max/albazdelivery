@@ -1,0 +1,9 @@
+# Vertical: restaurant / café — merge over electron-builder.yml
+extends: ./electron-builder.yml
+appId: com.albaz.vendor.restaurant
+productName: AlBaz Vendor Restaurant
+win:
+  executableName: AlBazVendorRestaurant
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  shortcutName: AlBaz Vendor Restaurant

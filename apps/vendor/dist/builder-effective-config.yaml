@@ -33,6 +33,8 @@ win:
       to: .next/standalone
     - from: .next/static
       to: .next/static
+    - from: vendor-config.json.example
+      to: vendor-config.json
   signAndEditExecutable: false
   target:
     - target: nsis

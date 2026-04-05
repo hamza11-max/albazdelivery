@@ -287,21 +287,21 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-transparent dark:border-gray-700">
         {/* Logo Section */}
-        <div className="bg-black p-8 text-center flex flex-col items-center justify-center">
+        <div className="bg-black dark:bg-gray-900 p-8 text-center flex flex-col items-center justify-center">
           <img src="/logo.png" alt="AlBaz" className="h-16 w-auto object-contain mb-2" />
           <p className="text-gray-300 text-sm">Vendor Dashboard</p>
         </div>
 
         {/* Form Section */}
         <div className="p-8">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Connexion</h2>
-          <p className="text-gray-600 mb-6">Connectez-vous à votre compte vendeur</p>
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Connexion</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">Connectez-vous à votre compte vendeur</p>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
               {error}
             </div>
           )}

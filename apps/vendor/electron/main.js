@@ -20,9 +20,40 @@ const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged
 const STARTUP_LOG_NAME = 'vendor-startup.log'
 function getStartupLogDir() {
   if (app.isPackaged && process.platform === 'win32') {
-    return path.join(process.env.APPDATA || process.env.LOCALAPPDATA || '', 'AlBaz Vendor')
+    const productFolder = typeof app.getName === 'function' ? app.getName() : 'AlBaz Vendor'
+    return path.join(process.env.APPDATA || process.env.LOCALAPPDATA || '', productFolder)
   }
   return null
+}
+
+const VALID_SHOP_TYPES = ['restaurant', 'retail', 'grocery', 'other']
+
+function readBundledFlavorFile() {
+  const candidates = []
+  if (app.isPackaged) {
+    candidates.push(path.join(path.dirname(app.getPath('exe')), 'bundled-flavor.json'))
+    candidates.push(path.join(process.resourcesPath, 'bundled-flavor.json'))
+  }
+  candidates.push(path.join(__dirname, '..', 'bundled-flavor.json'))
+  for (const p of candidates) {
+    try {
+      if (fs.existsSync(p)) {
+        const data = JSON.parse(fs.readFileSync(p, 'utf8'))
+        return data && typeof data === 'object' ? data : null
+      }
+    } catch (_) { /* ignore */ }
+  }
+  return null
+}
+
+/** First launch: seed shop_type from installer vertical (bundled-flavor.json) if user has not set one yet. */
+function applyBundledShopFlavorIfUnset() {
+  const store = getAuthStore()
+  if (store.get('shop_type')) return
+  const data = readBundledFlavorFile()
+  const st = data && data.shopType != null ? String(data.shopType) : ''
+  if (!st || !VALID_SHOP_TYPES.includes(st)) return
+  store.set('shop_type', st)
 }
 function writeEarlyLog(msg) {
   const dir = getStartupLogDir()
@@ -99,6 +130,13 @@ try {
   autoUpdater = require('./auto-updater')
 } catch (e) {
   console.warn('Auto updater not available:', e.message)
+}
+
+let rfidStore = null
+try {
+  rfidStore = require('./rfid-store')
+} catch (e) {
+  console.warn('RFID store not available:', e.message)
 }
 
 let mainWindow = null
@@ -238,14 +276,14 @@ function handlePostServerReady() {
 let tray = null
 let isQuitting = false
 
-// Configure CSP to avoid Electron warnings. Packaged app loads from localhost:3001 so we need
-// 'unsafe-inline' / 'unsafe-eval' for Next.js hydration; use same permissive policy for localhost.
+// Configure CSP. In dev, Next.js HMR/hydration requires 'unsafe-eval'/'unsafe-inline' — Electron
+// will show a security warning; it does not appear in the packaged build (strict policy is used).
 function configureCSP() {
   const localhostPolicy = [
     "default-src 'self' http://localhost:3001 ws://localhost:3001",
     "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:3001",
     "style-src 'self' 'unsafe-inline' http://localhost:3001",
-    "img-src 'self' data: blob: http://localhost:3001",
+    "img-src 'self' data: blob: http://localhost:3001 https://barcode.tec-it.com",
     "connect-src 'self' http://localhost:3001 ws://localhost:3001 https://*",
     "font-src 'self' data: http://localhost:3001",
     "object-src 'none'",
@@ -536,6 +574,9 @@ function startNextStandaloneServer() {
     PORT: '3001',
     HOSTNAME: 'localhost',
     NODE_ENV: process.env.NODE_ENV || 'production',
+    // Ensure auth vars for offline mode (session endpoint won't 500 when secret is set)
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3001',
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'electron-offline-secret-' + (process.env.ALBAZ_ELECTRON_PASSKEY || 'default'),
   }
   if (isPackaged && process.platform === 'win32') {
     const exeDir = path.dirname(app.getPath('exe'))
@@ -654,6 +695,7 @@ function startNextStandaloneServer() {
 function checkAuthenticationAndLoad() {
   if (app.isPackaged) writeEarlyLog('checkAuth starting')
   ensureDevicePasskey()
+  applyBundledShopFlavorIfUnset()
   if (app.isPackaged) writeEarlyLog('checkAuth passkey ok')
   const store = getAuthStore()
   const authState = store.get('vendor_auth_state')
@@ -1056,8 +1098,13 @@ ipcMain.handle('auth-set-passkey', async (event, passkey) => {
 
 // Register keyboard shortcuts
 function registerShortcuts() {
-  // Kiosk mode (fullscreen) - F11
+  // Kiosk mode (fullscreen) - F11 and Ctrl+Shift+K
   globalShortcut.register('F11', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(!mainWindow.isFullScreen())
+    }
+  })
+  globalShortcut.register('CommandOrControl+Shift+K', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.setFullScreen(!mainWindow.isFullScreen())
     }
@@ -1187,7 +1234,8 @@ app.whenReady().then(() => {
   try {
     if (barcodeScanner?.registerBarcodeIPC) barcodeScanner.registerBarcodeIPC()
     if (autoUpdater?.registerUpdaterIPC) autoUpdater.registerUpdaterIPC()
-    if (app.isPackaged) writeEarlyLog('barcode/updater IPC ok')
+    if (rfidStore?.registerRfidIPC) rfidStore.registerRfidIPC()
+    if (app.isPackaged) writeEarlyLog('barcode/updater/rfid IPC ok')
   } catch (e) {
     console.warn('Barcode/updater IPC failed:', e.message)
     if (app.isPackaged) writeEarlyLog('barcode/updater IPC failed: ' + (e && e.message))
@@ -1220,10 +1268,20 @@ app.whenReady().then(() => {
     return
   }
 
-  // Initialize barcode scanner after window is ready
+  // Initialize RFID store window ref and default reader; wire RFID scans into store
+  if (rfidStore) {
+    rfidStore.setMainWindow(mainWindow)
+    const readers = rfidStore.getReaders()
+    if (readers.length === 0) {
+      rfidStore.addReader({ name: 'Keyboard wedge', type: 'keyboard' })
+    }
+  }
+
+  // Initialize barcode scanner after window is ready (RFID scans go to rfid-store for dashboard)
   mainWindow.once('ready-to-show', () => {
     if (barcodeScanner?.initBarcodeScanner) {
-      barcodeScanner.initBarcodeScanner(mainWindow)
+      const onRfidScanned = rfidStore?.pushReadEvent ? (tagId) => rfidStore.pushReadEvent(tagId) : null
+      barcodeScanner.initBarcodeScanner(mainWindow, { onRfidScanned })
     }
     if (autoUpdater?.initAutoUpdater) {
       autoUpdater.initAutoUpdater(mainWindow)
@@ -1269,13 +1327,32 @@ app.on('before-quit', () => {
   }
 })
 
-// IPC handlers for app updates
+// IPC handlers for app updates and health
 ipcMain.handle('app-version', () => {
   return app.getVersion()
 })
 
 ipcMain.handle('app-name', () => {
   return app.getName()
+})
+
+ipcMain.handle('app-health', () => {
+  return {
+    ok: true,
+    modules: {
+      offlineDb: !!offlineDb,
+      syncService: !!syncService,
+      barcodeScanner: !!barcodeScanner,
+      autoUpdater: !!autoUpdater,
+      rfidStore: !!rfidStore,
+    },
+    // Expose minimal environment info useful for support; avoid secrets.
+    env: {
+      isDev,
+      platform: process.platform,
+      appVersion: app.getVersion(),
+    },
+  }
 })
 
 // IPC handlers for store operations (used by preload)
@@ -1387,6 +1464,124 @@ ipcMain.handle('get-printers', async () => {
   return await mainWindow.webContents.getPrintersAsync()
 })
 
+// Invoice PDF: render HTML in a hidden window and return PDF bytes (no print dialog).
+const INVOICE_HTML_PDF_STYLES = `* { margin: 0; padding: 0; box-sizing: border-box; }
+  @page { size: A4; margin: 1cm; }
+  body { margin: 0; padding: 0; font-family: Arial, sans-serif; font-size: 11px; background: white; }
+  .print-hidden { display: none !important; }
+  #invoice-content { width: 100%; max-width: 210mm; margin: 0 auto; padding: 15mm; background: white; }
+  table { width: 100%; border-collapse: collapse; page-break-inside: avoid; }
+  th, td { padding: 6px; text-align: left; }
+  tr { page-break-inside: avoid; }`
+
+ipcMain.handle('invoice-html-to-pdf', async (_event, options) => {
+  let pdfWindow = null
+  try {
+    const fragment = String(options?.html || '')
+    if (!fragment.trim()) {
+      return { ok: false, error: 'Missing HTML content' }
+    }
+    const rawTitle = options?.title != null ? String(options.title) : 'Facture'
+    const safeTitle = rawTitle.replace(/</g, '').replace(/>/g, '')
+    const doc =
+      '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' +
+      safeTitle +
+      '</title><style>' +
+      INVOICE_HTML_PDF_STYLES +
+      '</style></head><body><div id="invoice-content">' +
+      fragment +
+      '</div></body></html>'
+
+    pdfWindow = new BrowserWindow({
+      width: 900,
+      height: 1200,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    })
+
+    await pdfWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(doc))
+    await new Promise((resolve) => setTimeout(resolve, 450))
+
+    const pdfBuffer = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      margins: { marginType: 'default' },
+    })
+    return { ok: true, data: new Uint8Array(pdfBuffer) }
+  } catch (error) {
+    console.error('[PDF] invoice-html-to-pdf error:', error)
+    return { ok: false, error: error.message || String(error) }
+  } finally {
+    if (pdfWindow && !pdfWindow.isDestroyed()) {
+      pdfWindow.close()
+    }
+  }
+})
+
+ipcMain.handle('print-html', async (event, options) => {
+  let printWindow = null
+  try {
+    const html = String(options?.html || '')
+    if (!html) {
+      return { success: false, error: 'Missing HTML content' }
+    }
+
+    const deviceName = typeof options?.deviceName === 'string' ? options.deviceName : ''
+    const silent = options?.silent !== false
+    const widthMicrons = Number(options?.widthMicrons || 50000)
+    const heightMicrons = Number(options?.heightMicrons || 30000)
+
+    printWindow = new BrowserWindow({
+      width: 600,
+      height: 400,
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    })
+
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 200)
+    })
+
+    const ok = await new Promise((resolve) => {
+      printWindow.webContents.print(
+        {
+          silent,
+          printBackground: true,
+          deviceName: deviceName || undefined,
+          margins: { marginType: 'none' },
+          pageSize: { width: widthMicrons, height: heightMicrons },
+        },
+        (success, failureReason) => {
+          if (!success) {
+            console.error('[Print] print-html failed:', failureReason)
+          }
+          resolve(success)
+        }
+      )
+    })
+
+    if (!ok) {
+      return { success: false, error: 'Print job failed' }
+    }
+    return { success: true }
+  } catch (error) {
+    console.error('[Print] print-html error:', error)
+    return { success: false, error: error.message }
+  } finally {
+    if (printWindow && !printWindow.isDestroyed()) {
+      printWindow.close()
+    }
+  }
+})
+
 // Generate receipt HTML for thermal printing
 function generateReceiptHtml(data) {
   const { 
@@ -1469,4 +1664,134 @@ function generateReceiptHtml(data) {
     </html>
   `
 }
+
+// Generate product labels HTML (grid of small labels for A4 or thermal)
+// widthMm/heightMm: label dimensions in mm (≈3.78px/mm at 96dpi)
+function generateProductLabelsHtml(products, fields, labelType, widthMm, heightMm, shopName) {
+  const escape = (s) => (s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+  const defaultFields = Array.isArray(fields) && fields.length > 0 ? fields : ['name', 'price', 'sku']
+  const isRfid = labelType === 'rfid'
+  const showShopName = defaultFields.includes('shopname') && shopName
+  const wMm = Number(widthMm) > 0 ? Number(widthMm) : 60
+  const hMm = Number(heightMm) > 0 ? Number(heightMm) : 40
+  const labelHtml = products.map((p, idx) => {
+    const price = p.sellingPrice != null ? p.sellingPrice : p.price
+    const lines = []
+    // Order: name → sku → barcode (center) → price → category → rfid
+    if (defaultFields.includes('name')) lines.push(`<div class="label-line label-name">${escape(p.name)}</div>`)
+    if (defaultFields.includes('sku') && (p.sku || p.SKU)) lines.push(`<div class="label-line label-sku"><strong>SKU:</strong> ${escape(p.sku || p.SKU)}</div>`)
+    if (defaultFields.includes('barcode') && (p.barcode || p.Barcode)) lines.push(`<div class="label-line label-barcode"><img src="https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(escape(p.barcode || p.Barcode))}&code=Code128&dpi=96&qunit=Mm&bheight=8" alt="" /></div>`)
+    if (defaultFields.includes('price')) lines.push(`<div class="label-line label-price">${escape(price != null ? Number(price).toFixed(2) : '')} DZD</div>`)
+    if (defaultFields.includes('category') && (p.category || p.Category)) lines.push(`<div class="label-line"><strong>Cat:</strong> ${escape(p.category || p.Category)}</div>`)
+    if (defaultFields.includes('rfid') && (p.rfidTagId || p.rfid_tag_id)) lines.push(`<div class="label-line label-rfid">RFID: ${escape(p.rfidTagId || p.rfid_tag_id)}</div>`)
+    if (isRfid && (p.rfidTagId || p.rfid_tag_id)) lines.push(`<div class="label-line label-rfid-big">${escape(p.rfidTagId || p.rfid_tag_id)}</div>`)
+    const shopNameSidebar = showShopName
+      ? `<div class="label-shopname">${escape(shopName)}</div>`
+      : ''
+    const innerContent = showShopName
+      ? `${shopNameSidebar}<div class="label-content">${lines.join('')}</div>`
+      : `<div class="label-content">${lines.join('')}</div>`
+    const pageBreak = idx < products.length - 1 ? ' page-break' : ''
+    return `<div class="product-label${showShopName ? ' with-shopname' : ''}${pageBreak}">${innerContent}</div>`
+  }).join('')
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        @page {
+          size: ${wMm}mm ${hMm}mm;
+          margin: 0;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; width: ${wMm}mm; height: ${hMm}mm; font-family: 'Segoe UI', sans-serif; font-size: 2.5mm; }
+        .product-label {
+          width: ${wMm}mm;
+          height: ${hMm}mm;
+          display: flex;
+          flex-direction: row;
+          align-items: stretch;
+          overflow: hidden;
+        }
+        .product-label.page-break { page-break-after: always; }
+        .label-shopname {
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          font-size: 2.5mm;
+          font-weight: bold;
+          white-space: nowrap;
+          text-align: center;
+          padding: 1mm 0.8mm;
+          border-right: 0.3mm solid #999;
+          background: #f0f0f0;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .label-content {
+          flex: 1;
+          padding: 1mm 1.5mm;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          overflow: hidden;
+          min-width: 0;
+        }
+        .label-line { margin: 0.2mm 0; line-height: 1.2; }
+        .label-name { font-weight: bold; font-size: 2.8mm; }
+        .label-sku { font-size: 2.2mm; }
+        .label-price { font-size: 3.2mm; font-weight: bold; }
+        .label-barcode { display: flex; justify-content: center; align-items: center; flex: 1; margin: 0.5mm 0; }
+        .label-barcode img { display: block; width: 100%; height: 8mm; object-fit: contain; }
+        .label-rfid, .label-rfid-big { font-family: monospace; font-size: 2mm; }
+      </style>
+    </head>
+    <body>
+      ${labelHtml}
+    </body>
+    </html>
+  `
+}
+
+ipcMain.handle('print-product-labels', async (event, { products, fields, labelType, widthMm, heightMm, shopName }) => {
+  try {
+    if (!Array.isArray(products) || products.length === 0) {
+      return { success: false, error: 'No products to print' }
+    }
+    const printWindow = new BrowserWindow({
+      width: 900,
+      height: 700,
+      show: false,
+      webPreferences: { nodeIntegration: false, contextIsolation: true }
+    })
+    const wMm = Number(widthMm) > 0 ? Number(widthMm) : 60
+    const hMm = Number(heightMm) > 0 ? Number(heightMm) : 40
+    const html = generateProductLabelsHtml(products, fields || ['name', 'price', 'sku'], labelType || 'normal', wMm, hMm, shopName || '')
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    const printResult = await new Promise((resolve, reject) => {
+      printWindow.webContents.print(
+        {
+          silent: false,
+          printBackground: true,
+          pageSize: { width: Math.round(wMm * 1000), height: Math.round(hMm * 1000) },
+          margins: { marginType: 'none' },
+        },
+        (success, failureReason) => {
+          if (!success) {
+            reject(new Error(failureReason || 'Print failed'))
+            return
+          }
+          resolve({ success: true })
+        },
+      )
+    })
+    printWindow.close()
+    return printResult
+  } catch (error) {
+    console.error('[Print] Product labels error:', error)
+    return { success: false, error: error.message }
+  }
+})
 

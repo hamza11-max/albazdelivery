@@ -1,6 +1,13 @@
-import { PrismaClient } from '@prisma/client'
+import 'dotenv/config'
 
-const prisma = new PrismaClient()
+import { createPrismaPgClient } from '../lib/prisma-pg'
+
+if (!process.env.DATABASE_URL?.trim()) {
+  console.error('DATABASE_URL is required')
+  process.exit(1)
+}
+
+const { prisma } = createPrismaPgClient(process.env.DATABASE_URL.trim())
 
 async function migrateExistingUsers() {
   console.log('Starting migration of existing users to Starter plan...')

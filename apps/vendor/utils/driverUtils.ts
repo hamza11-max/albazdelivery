@@ -19,6 +19,15 @@ export async function fetchDrivers({
   setLoadingDrivers(true)
   try {
     const response = await safeFetch("/api/vendors/drivers")
+
+    // In dev / offline environments this endpoint may not exist.
+    // Treat 404 as "no drivers" without logging noisy errors.
+    if (response.status === 404) {
+      setConnectedDrivers([])
+      setPendingDriverRequests([])
+      return
+    }
+
     const data = await parseAPIResponse(response)
     if (data.success) {
       setConnectedDrivers(data.data?.connectedDrivers || [])

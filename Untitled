@@ -1,0 +1,1 @@
+DATABASE_URL=postgresql://postgres:albaz96hamza@db.lftmnkziovagctibmwff.supabase.co:6543/postgres?pgbouncer=true&sslmode=require

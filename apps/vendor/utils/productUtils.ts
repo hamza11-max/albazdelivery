@@ -3,6 +3,7 @@
 import type { InventoryProduct, ProductForm } from "../app/vendor/types"
 import { fetchInventory, fetchDashboardData, fetchProducts } from "../app/vendor/refresh-data"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
+import { isElectronOfflineInventoryVendorId } from "./electronUtils"
 
 interface SaveProductParams {
   productForm: ProductForm
@@ -32,21 +33,27 @@ export async function saveProduct({
   translate,
 }: SaveProductParams) {
   try {
+    const vid = activeVendorId || 'electron-vendor'
     const productData = {
       ...productForm,
-      id: editingProduct?.id || `local-${Date.now()}`,
-      costPrice: Number.parseFloat(productForm.costPrice) || 0,
-      sellingPrice: Number.parseFloat(productForm.sellingPrice) || 0,
-      price: Number.parseFloat(productForm.sellingPrice) || 0,
+      id: editingProduct?.id ?? `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      costPrice: Math.max(0.01, Number.parseFloat(String(productForm.costPrice)) || 0.01),
+      sellingPrice: Math.max(0.01, Number.parseFloat(String(productForm.sellingPrice)) || 0.01),
+      price: Number.parseFloat(String(productForm.sellingPrice)) || 0,
       stock: productForm.stock,
       lowStockThreshold: productForm.lowStockThreshold,
-      vendorId: activeVendorId || 'local-vendor',
+      vendorId: vid,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
+    if (editingProduct) {
+      (productData as any).id = editingProduct.id
+    }
 
-    // For Electron: save to localStorage directly
-    if (isElectronRuntime) {
+    // Electron offline vendors (electron-*, local-*): persist to localStorage so data survives app restart.
+    const useElectronLocalInventory = isElectronRuntime && isElectronOfflineInventoryVendorId(activeVendorId)
+
+    if (useElectronLocalInventory) {
       const storedProducts = safeLocalStorageGet<InventoryProduct[]>('electron-inventory', [])
       
       if (editingProduct) {
@@ -54,56 +61,40 @@ export async function saveProduct({
         if (index >= 0) {
           storedProducts[index] = { ...storedProducts[index], ...productData }
         } else {
-          throw new ValidationError(
-            translate("Produit introuvable", "المنتج غير موجود"),
-            'productId'
-          )
+          // If the product was imported via XLSX/API and not yet mirrored locally,
+          // create a new local copy instead of failing silently.
+          storedProducts.push(productData as any)
         }
       } else {
-        storedProducts.push(productData)
+        storedProducts.push(productData as any)
       }
       
       if (!safeLocalStorageSet('electron-inventory', storedProducts)) {
         throw new Error('Failed to save product to localStorage')
       }
       
-      // Update state directly
       setProducts(storedProducts)
       setLowStockProducts(storedProducts.filter((p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)))
-      
-      // Reset form
       setProductForm({
-        sku: "",
-        name: "",
-        category: "",
-        description: "",
-        supplierId: "",
-        costPrice: "",
-        sellingPrice: "",
-        price: "",
-        stock: 0,
-        lowStockThreshold: 0,
-        barcode: "",
-        image: ""
+        sku: "", name: "", category: "", description: "", supplierId: "",
+        costPrice: "", sellingPrice: "", price: "", stock: 0, lowStockThreshold: 0, barcode: "", image: ""
       })
       setEditingProduct(null)
       setShowProductDialog(false)
-      
       toast({
-        title: editingProduct
-          ? translate("Produit mis à jour", "تم تحديث المنتج")
-          : translate("Produit ajouté", "تمت إضافة المنتج"),
+        title: editingProduct ? translate("Produit mis à jour", "تم تحديث المنتج") : translate("Produit ajouté", "تمت إضافة المنتج"),
         description: translate("Sauvegardé localement", "تم الحفظ محلياً"),
       })
       return
     }
 
-    // Web version: use API
+    // Web or Electron with local vendor: use API
     const method = editingProduct ? "PUT" : "POST"
-    const inventoryUrl = `/api/erp/inventory${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`
+    const inventoryUrl = `/api/erp/inventory${vid ? `?vendorId=${vid}` : ""}`
+    const payload = method === 'PUT' ? productData : (() => { const { id: _id, ...rest } = productData as any; return rest; })()
     const response = await safeFetch(inventoryUrl, {
       method,
-      body: JSON.stringify(productData),
+      body: JSON.stringify(payload),
     })
     const data = await parseAPIResponse(response)
     if (data.success) {
@@ -126,9 +117,9 @@ export async function saveProduct({
       setShowProductDialog(false)
       
       // Refresh data
-      await fetchInventory(activeVendorId)
-      await fetchDashboardData(activeVendorId)
-      const updatedProducts = await fetchProducts(activeVendorId)
+      await fetchInventory(vid)
+      await fetchDashboardData(vid)
+      const updatedProducts = await fetchProducts(vid)
       if (updatedProducts) {
         setProducts(updatedProducts)
         setLowStockProducts(updatedProducts.filter((p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)))
@@ -163,7 +154,7 @@ export async function saveProduct({
 }
 
 interface DeleteProductParams {
-  id: number
+  id: number | string
   activeVendorId?: string
   isElectronRuntime: boolean
   setProducts: (products: InventoryProduct[]) => void
@@ -186,7 +177,9 @@ export async function deleteProduct({
   translate,
 }: DeleteProductParams) {
   try {
-    if (isElectronRuntime) {
+    const vid = activeVendorId ?? ''
+    const useElectronLocalInventory = isElectronRuntime && isElectronOfflineInventoryVendorId(activeVendorId)
+    if (useElectronLocalInventory) {
       const storedProducts = safeLocalStorageGet<InventoryProduct[]>('electron-inventory', [])
       const filtered = storedProducts.filter((p: any) => p.id !== id)
       if (!safeLocalStorageSet('electron-inventory', filtered)) {
@@ -201,12 +194,19 @@ export async function deleteProduct({
       return
     }
 
-    const response = await safeFetch(`/api/erp/inventory/${id}${activeVendorId ? `?vendorId=${activeVendorId}` : ""}`, {
+    const params = new URLSearchParams()
+    params.set('id', String(id))
+    if (activeVendorId) params.set('vendorId', activeVendorId)
+    const response = await safeFetch(`/api/erp/inventory?${params.toString()}`, {
       method: "DELETE",
     })
     const data = await parseAPIResponse(response)
     if (data.success) {
-      await fetchInventory(activeVendorId)
+      const { products: nextProducts } = await fetchInventory(activeVendorId)
+      if (Array.isArray(nextProducts)) {
+        setProducts(nextProducts)
+        setLowStockProducts(nextProducts.filter((p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)))
+      }
       await fetchDashboardData(activeVendorId)
       toast({
         title: translate("Produit supprimé", "تم حذف المنتج"),

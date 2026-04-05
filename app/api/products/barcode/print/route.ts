@@ -1,8 +1,17 @@
 import { NextRequest } from 'next/server'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { errorResponse, UnauthorizedError } from '@/lib/errors'
 import { auth } from '@/lib/auth'
+import { createOfflineCode128DataUri } from '@/lib/barcode'
 
-// Generate and return barcode image/PDF for printing
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+// Generate printable HTML for a product barcode label (client opens print dialog)
 export async function GET(request: NextRequest) {
   try {
     const session = await auth()
@@ -11,16 +20,17 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const barcode = searchParams.get('barcode')
-    const name = searchParams.get('name') || 'Product'
+    const barcode = searchParams.get('barcode')?.trim()
+    const name = (searchParams.get('name') || 'Product').trim() || 'Product'
 
-    if (!barcode || barcode.length < 8) {
+    if (!barcode) {
       return errorResponse(new Error('Invalid barcode'), 400)
     }
 
-    // Generate barcode image URL (using online service)
-    // For production, you might want to use a library like jsbarcode or generate server-side
-    const barcodeImageUrl = `https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(barcode)}&code=EAN13&dpi=300&dataseparator=`
+    const safeName = escapeHtml(name)
+    const safeBarcode = escapeHtml(barcode)
+
+    const barcodeImageUrl = createOfflineCode128DataUri(barcode)
 
     // For PDF generation, we'll return the image URL
     // In production, you might want to generate a PDF server-side using a library like pdfkit
@@ -28,7 +38,7 @@ export async function GET(request: NextRequest) {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Barcode - ${name}</title>
+          <title>Barcode - ${safeName}</title>
           <style>
             @media print {
               @page {
@@ -71,9 +81,9 @@ export async function GET(request: NextRequest) {
         </head>
         <body>
           <div class="barcode-container">
-            <div class="product-name">${name}</div>
-            <img src="${barcodeImageUrl}" alt="Barcode ${barcode}" class="barcode-image" />
-            <div class="barcode-number">${barcode}</div>
+            <div class="product-name">${safeName}</div>
+            <img src="${barcodeImageUrl}" alt="Barcode ${safeBarcode}" class="barcode-image" />
+            <div class="barcode-number">${safeBarcode}</div>
           </div>
         </body>
       </html>

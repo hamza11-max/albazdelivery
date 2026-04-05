@@ -37,11 +37,17 @@ win:
     - from: build/node
       to: node
   # Copy .next/standalone and .next/static next to exe so the app finds server (avoids asar/gitignore issues)
+  # Copy vendor-config template next to exe - rename to vendor-config.json and set DATABASE_URL for cloud sync
   extraFiles:
     - from: .next/standalone
       to: .next/standalone
     - from: .next/static
       to: .next/static
+    - from: vendor-config.json.example
+      to: vendor-config.json
+    # Written by scripts/write-bundled-flavor.js before pack (shop type preset per installer vertical)
+    - from: bundled-flavor.json
+      to: bundled-flavor.json
   # Skip code-signing tool download (avoids 7z symlink errors on Windows without admin/Developer Mode)
   signAndEditExecutable: false
   target:

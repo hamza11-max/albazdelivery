@@ -3,7 +3,18 @@
 import type { Sale } from "@/root/lib/types"
 import type { CartItem } from "../app/vendor/types"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
+import { getMergedLocalSalesHistory } from "./electronUtils"
 import { addLoyaltyPoints, calculatePointsEarned, getLoyaltyRules } from "./loyaltyUtils"
+
+function isLikelyUnreachableOrOffline(error: unknown): boolean {
+  if (typeof navigator !== "undefined" && !navigator.onLine) return true
+  if (error instanceof TypeError && /fetch|Failed to fetch|Load failed|network/i.test(String((error as Error).message))) {
+    return true
+  }
+  const msg = error instanceof Error ? error.message : String(error)
+  if (/ECONNREFUSED|ETIMEDOUT|ENOTFOUND|NetworkError|Failed to fetch/i.test(msg)) return true
+  return false
+}
 
 interface CompleteSaleParams {
   paymentMethod: "cash" | "card"
@@ -29,7 +40,7 @@ interface CompleteSaleParams {
   setPosOrderNumber: (orderNumber: string) => void
   fetchDashboardData: (vendorId?: string) => Promise<any>
   fetchInventory: (vendorId?: string) => Promise<any>
-  fetchSales: (vendorId?: string) => Promise<any>
+  fetchSales: (vendorId?: string, options?: { skipCache?: boolean }) => Promise<any>
   toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void
   translate: (fr: string, ar: string) => string
   isArabic?: boolean
@@ -113,7 +124,7 @@ export async function completeSale({
       createdAt: new Date(),
     }
     
-    // Try offline SQLite via Electron; fallback to localStorage
+    // Try offline SQLite via Electron; always keep a localStorage mirror for UI/history
     try {
       if (electronAPI?.offline?.saveSale) {
         await electronAPI.offline.saveSale({
@@ -126,31 +137,39 @@ export async function completeSale({
         if (stats?.pendingSales != null && setOfflineQueueCount) {
           setOfflineQueueCount(stats.pendingSales)
         }
+
+        // Also persist in localStorage so dashboard, reports and history work in pure offline mode
+        storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
+        storedSales.push(localSale)
+        if (!safeLocalStorageSet('electron-sales', storedSales)) {
+          throw new Error('Failed to save sale to localStorage')
+        }
+        setSales(getMergedLocalSalesHistory())
       } else {
         storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
         storedSales.push(localSale)
         if (!safeLocalStorageSet('electron-sales', storedSales)) {
           throw new Error('Failed to save sale to localStorage')
         }
-        setSales(storedSales)
+        setSales(getMergedLocalSalesHistory())
       }
     } catch (error) {
       console.warn('[Electron] Failed to persist sale offline, falling back to memory/localStorage', error)
       storedSales = safeLocalStorageGet<Sale[]>('electron-sales', [])
       storedSales.push(localSale)
       safeLocalStorageSet('electron-sales', storedSales)
-      setSales(storedSales)
+      setSales(getMergedLocalSalesHistory())
     }
     
-    // Update dashboard stats
+    // Update dashboard stats (include any web-offline rows in queue)
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000)
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    
-    setTodaySales(storedSales.filter((s: any) => new Date(s.createdAt) >= todayStart).reduce((sum: number, s: any) => sum + (s.total || 0), 0))
-    setWeekSales(storedSales.filter((s: any) => new Date(s.createdAt) >= weekStart).reduce((sum: number, s: any) => sum + (s.total || 0), 0))
-    setMonthSales(storedSales.filter((s: any) => new Date(s.createdAt) >= monthStart).reduce((sum: number, s: any) => sum + (s.total || 0), 0))
+    const mergedForStats = getMergedLocalSalesHistory()
+    setTodaySales(mergedForStats.filter((s: Sale) => new Date(s.createdAt) >= todayStart).reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
+    setWeekSales(mergedForStats.filter((s: Sale) => new Date(s.createdAt) >= weekStart).reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
+    setMonthSales(mergedForStats.filter((s: Sale) => new Date(s.createdAt) >= monthStart).reduce((sum: number, s: Sale) => sum + (s.total || 0), 0))
     
     // Update stock locally
     const storedProducts = safeLocalStorageGet<any[]>('electron-inventory', [])
@@ -321,7 +340,7 @@ export async function completeSale({
       setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
       fetchDashboardData(activeVendorId)
       fetchInventory(activeVendorId)
-      fetchSales(activeVendorId)
+      fetchSales(activeVendorId, { skipCache: true })
       toast({
         title: translate("Vente complétée", "تمت العملية"),
         description: isArabic
@@ -339,33 +358,165 @@ export async function completeSale({
       return false
     }
   } catch (error) {
-    // Queue sale locally when offline/API fails
+    // Build API payload for queue (try block may have thrown before `payload` existed)
+    let queuePayload: any = null
     try {
-      const queued = safeLocalStorageGet<any[]>('offline-sales-queue', [])
-      queued.push({
-        id: `offline-${Date.now()}`,
-        payload,
-        createdAt: new Date().toISOString(),
-        status: 'pending',
+      const items = posCart.map((item) => {
+        const productId = item.productId
+          ? typeof item.productId === "string"
+            ? item.productId
+            : String(item.productId)
+          : undefined
+        return {
+          productId: productId && productId.length > 0 ? productId : undefined,
+          productName: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount || 0,
+        }
       })
-      if (safeLocalStorageSet('offline-sales-queue', queued) && setOfflineQueueCount) {
-        setOfflineQueueCount(queued.length)
+      queuePayload = {
+        items,
+        subtotal,
+        discount: posDiscount || 0,
+        total: totalForAPI,
+        paymentMethod: paymentMethod.toUpperCase() as "CASH" | "CARD",
       }
-    } catch (queueError) {
-      console.warn('[POS] Unable to queue offline sale', queueError)
+      if (posCustomerId) {
+        queuePayload.customerId =
+          typeof posCustomerId === "string" ? posCustomerId : String(posCustomerId)
+      }
+      if (isAdmin && activeVendorId) {
+        queuePayload.vendorId =
+          typeof activeVendorId === "string" ? activeVendorId : String(activeVendorId)
+      }
+    } catch {
+      handleError(error, {
+        showToast: true,
+        logError: true,
+        translate,
+        toast,
+        fallbackMessage: {
+          fr: "Une erreur est survenue lors de la vente",
+          ar: "حدث خطأ أثناء عملية البيع",
+        },
+      })
+      return false
     }
 
-    handleError(error, {
-      showToast: true,
-      logError: true,
-      translate,
-      toast,
-      fallbackMessage: {
-        fr: "Une erreur est survenue lors de la vente",
-        ar: "حدث خطأ أثناء عملية البيع"
+    if (!isLikelyUnreachableOrOffline(error)) {
+      handleError(error, {
+        showToast: true,
+        logError: true,
+        translate,
+        toast,
+        fallbackMessage: {
+          fr: "Une erreur est survenue lors de la vente",
+          ar: "حدث خطأ أثناء عملية البيع",
+        },
+      })
+      return false
+    }
+
+    const entryId = `offline-${Date.now()}`
+    try {
+      const queued = safeLocalStorageGet<any[]>("offline-sales-queue", [])
+      queued.push({
+        id: entryId,
+        payload: queuePayload,
+        createdAt: new Date().toISOString(),
+        status: "pending",
+      })
+      if (!safeLocalStorageSet("offline-sales-queue", queued)) {
+        throw new Error("Failed to write offline-sales-queue")
       }
-    })
-    return false
+      if (setOfflineQueueCount) {
+        setOfflineQueueCount(queued.length)
+      }
+
+      const localSale: Sale = {
+        id: entryId,
+        items: posCart.map((item) => ({
+          productId:
+            typeof item.productId === "number"
+              ? item.productId
+              : Number.parseInt(String(item.productId), 10) || (item.productId as unknown as number),
+          productName: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          discount: item.discount || 0,
+        })),
+        subtotal,
+        discount: posDiscount || 0,
+        total: totalWithTax,
+        paymentMethod,
+        createdAt: new Date(),
+      }
+      const storedSales = safeLocalStorageGet<Sale[]>("electron-sales", [])
+      storedSales.push(localSale)
+      if (!safeLocalStorageSet("electron-sales", storedSales)) {
+        throw new Error("Failed to write electron-sales")
+      }
+      setSales(getMergedLocalSalesHistory())
+
+      const now = new Date()
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const allLocal = getMergedLocalSalesHistory()
+      setTodaySales(
+        allLocal.filter((s: Sale) => new Date(s.createdAt) >= todayStart).reduce((sum, s) => sum + (s.total || 0), 0)
+      )
+      setWeekSales(
+        allLocal.filter((s: Sale) => new Date(s.createdAt) >= weekStart).reduce((sum, s) => sum + (s.total || 0), 0)
+      )
+      setMonthSales(
+        allLocal.filter((s: Sale) => new Date(s.createdAt) >= monthStart).reduce((sum, s) => sum + (s.total || 0), 0)
+      )
+
+      const storedProducts = safeLocalStorageGet<any[]>("electron-inventory", [])
+      if (storedProducts.length > 0) {
+        posCart.forEach((cartItem) => {
+          const product = storedProducts.find((p: any) => String(p.id) === String(cartItem.productId))
+          if (product) {
+            product.stock = Math.max(0, product.stock - cartItem.quantity)
+          }
+        })
+        safeLocalStorageSet("electron-inventory", storedProducts)
+        setProducts(storedProducts)
+        setLowStockProducts(storedProducts.filter((p: any) => p.stock <= (p.lowStockThreshold ?? 10)))
+      }
+
+      setLastSale(localSale)
+      setCompletedSale(localSale)
+      setShowSaleSuccessDialog(true)
+      clearCart()
+      setPosTax(0)
+      setPosCustomerId(null)
+      setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
+
+      toast({
+        title: translate("Hors ligne", "غير متصل"),
+        description: translate(
+          "Vente enregistrée. Elle apparaît dans l'historique et sera synchronisée à la reconnexion.",
+          "تم حفظ البيع. يظهر في السجل وسيتم المزامنة عند عودة الاتصال."
+        ),
+      })
+      return true
+    } catch (queueError) {
+      console.warn("[POS] Unable to complete offline sale", queueError)
+      handleError(error, {
+        showToast: true,
+        logError: true,
+        translate,
+        toast,
+        fallbackMessage: {
+          fr: "Une erreur est survenue lors de la vente",
+          ar: "حدث خطأ أثناء عملية البيع",
+        },
+      })
+      return false
+    }
   }
 }
 

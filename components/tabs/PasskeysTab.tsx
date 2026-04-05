@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/root/components/ui/card"
 import { Button } from "@/root/components/ui/button"
 import { Input } from "@/root/components/ui/input"
@@ -43,9 +43,11 @@ interface PasskeysTabProps {
   translate?: (fr: string, ar: string) => string
   vendors?: VendorBasic[]
   onRefresh?: () => void
+  /** Max rows to load from GET /api/admin/subscription-passkeys (capped server-side). */
+  listLimit?: number
 }
 
-export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }: PasskeysTabProps) {
+export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh, listLimit = 50 }: PasskeysTabProps) {
   const { toast } = useToast()
   const [passkeys, setPasskeys] = useState<PasskeyRecord[]>([])
   const [loadingList, setLoadingList] = useState(false)
@@ -61,10 +63,10 @@ export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }:
   const [copied, setCopied] = useState(false)
   const [showPasskeyDialog, setShowPasskeyDialog] = useState(false)
 
-  const loadPasskeys = async () => {
+  const loadPasskeys = useCallback(async () => {
     try {
       setLoadingList(true)
-      const res = await fetch("/api/admin/subscription-passkeys?limit=50", { credentials: "include" })
+      const res = await fetch(`/api/admin/subscription-passkeys?limit=${listLimit}`, { credentials: "include" })
       const data = await res.json()
       if (!res.ok || !data.success) {
         const errMsg = data?.error?.message ?? (typeof data?.error === "string" ? data.error : null) ?? "Failed to load passkeys"
@@ -80,11 +82,11 @@ export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }:
     } finally {
       setLoadingList(false)
     }
-  }
+  }, [listLimit, toast, translate])
 
   useEffect(() => {
     loadPasskeys()
-  }, [])
+  }, [loadPasskeys])
 
   useEffect(() => {
     if (vendors.length === 0) return
@@ -477,6 +479,12 @@ export function PasskeysTab({ translate = (fr) => fr, vendors = [], onRefresh }:
               )}
             </p>
           </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            {translate(
+              "Pour des raisons de sécurité, le code en clair n'est affiché qu'au moment de la génération ; cette liste montre l'état des enregistrements (abonnement, vendeur, dates, utilisée/expirée).",
+              "لأسباب أمنية، يُعرض الرمز الصريح فقط عند الإنشاء؛ تعرض القائمة حالة السجلات (الاشتراك، البائع، التواريخ، مستخدمة/منتهية)."
+            )}
+          </p>
 
           <div className="border rounded-xl overflow-hidden">
             <Table>

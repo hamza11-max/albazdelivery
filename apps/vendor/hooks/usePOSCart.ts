@@ -62,11 +62,11 @@ export function usePOSCart() {
     ])
   }, [])
 
-  const removeFromCart = useCallback((id: number) => {
+  const removeFromCart = useCallback((id: number | string) => {
     setPosCart(posCart.filter((item) => item.id !== id))
   }, [posCart])
 
-  const updateCartQuantity = useCallback((productId: number, delta: number) => {
+  const updateCartQuantity = useCallback((productId: number | string, delta: number) => {
     setPosCart(
       posCart
         .map((item) =>

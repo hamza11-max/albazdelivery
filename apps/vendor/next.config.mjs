@@ -24,7 +24,14 @@ const config = {
   },
   // Enable source maps for debugging
   productionBrowserSourceMaps: true,
-  transpilePackages: ['@albaz/shared', '@albaz/ui', '@albaz/auth'],
+  transpilePackages: [
+    '@albaz/shared',
+    '@albaz/ui',
+    '@albaz/auth',
+    // Hoisted to repo root; vendor app must resolve them for ../../lib imports
+    'html2canvas',
+    'jspdf',
+  ],
   // Allow camera access from this origin (needed for barcode scanner)
   async headers() {
     return [
@@ -65,6 +72,16 @@ const config = {
 
     config.resolve.fullySpecified = false
     config.resolve.symlinks = false
+
+    // Workspace packages live under root node_modules; vendor has no local html2canvas/jspdf
+    const extraNodeModules = [
+      path.join(rootDir, 'node_modules'),
+      path.resolve(__dirname, 'node_modules'),
+    ]
+    config.resolve.modules = [
+      ...extraNodeModules,
+      ...(Array.isArray(config.resolve.modules) ? config.resolve.modules : ['node_modules']),
+    ]
 
     return config
   },

@@ -3,9 +3,16 @@
  * Tests if the API endpoints are accessible and working
  */
 
-import { PrismaClient } from '@prisma/client'
+import 'dotenv/config'
 
-const prisma = new PrismaClient()
+import { createPrismaPgClient } from '../lib/prisma-pg'
+
+if (!process.env.DATABASE_URL?.trim()) {
+  console.error('DATABASE_URL is required')
+  process.exit(1)
+}
+
+const { prisma } = createPrismaPgClient(process.env.DATABASE_URL.trim())
 
 interface ConnectionTest {
   name: string
@@ -88,7 +95,7 @@ async function testDatabaseConnection(): Promise<ConnectionTest> {
     test.status = 'fail'
     test.message = `Database error: ${error.message}`
   } finally {
-    await prisma.$disconnect()
+    await prisma.$disconnect().catch(() => {})
   }
 
   return test

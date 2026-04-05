@@ -8,6 +8,7 @@ module.exports = {
   compiler: {
     styledComponents: true
   },
+  transpilePackages: ['html2canvas', 'jspdf'],
   webpack: (config, { isServer }) => {
     const path = require('path');
     
@@ -38,12 +39,13 @@ module.exports = {
       '@albaz/shared/utils': path.resolve(__dirname, 'packages/shared/src/utils/index.ts'),
     };
     
-    // Ensure modules can be resolved from project root
+    // Prefer repo-root node_modules (hoisted deps for lib/*.ts importing html2canvas, etc.)
+    const rootNodeModules = path.join(rootPath, 'node_modules');
     if (!config.resolve.modules) {
       config.resolve.modules = ['node_modules'];
     }
-    if (!config.resolve.modules.includes(rootPath)) {
-      config.resolve.modules = [rootPath, ...config.resolve.modules];
+    if (!config.resolve.modules.includes(rootNodeModules)) {
+      config.resolve.modules = [rootNodeModules, ...config.resolve.modules];
     }
     
     // Optimize module resolution

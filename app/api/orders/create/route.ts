@@ -3,9 +3,9 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
-import { emitOrderCreated, emitNotificationSent } from '@/root/lib/events'
 import { createOrderSchema } from '@/root/lib/validations/order'
 import { OrderStatus } from '@/lib/constants'
+import { createOrderInternal } from '@/root/lib/orders/create-order-internal'
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,14 +48,15 @@ export async function POST(request: NextRequest) {
     const {
       storeId,
       items,
-      subtotal,
       deliveryFee,
-      total,
       paymentMethod,
       deliveryAddress,
       city,
       customerPhone,
     } = validatedData
+
+    // Normalize payment method once, using the validated value.
+    const normalizedPaymentMethod = (paymentMethod?.toUpperCase() || 'CASH') as import('@/generated/prisma/client').PaymentMethod
 
     // Get store and vendor info (or fallback in dev)
     const store = await prisma.store.findUnique({
@@ -87,90 +88,22 @@ export async function POST(request: NextRequest) {
       return successResponse({ order: mockOrder }, 201)
     }
 
-    // Normalize payment method and create order with items
-    // Avoid relying on a named `PaymentMethod` export from @prisma/client here
-    // (editor may not resolve generated client types). Use an inline assertion.
-    const normalizedPaymentMethod = (paymentMethod?.toUpperCase() || 'CASH') as import('@prisma/client').PaymentMethod
-
-    const order = await prisma.order.create({
-      data: {
-        customerId: session.user.id,
-        vendorId: store.vendorId,
-        subtotal,
-        deliveryFee,
-        total,
-        status: OrderStatus.PENDING,
-        paymentMethod: normalizedPaymentMethod,
-        deliveryAddress,
-        city,
-        customerPhone,
-        items: {
-          create: items.map((item: any) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.price,
-            paymentMethod: normalizedPaymentMethod,
-          })),
-        },
-      },
-      include: {
-        items: { include: { product: true } },
-        customer: { select: { id: true, name: true, phone: true } },
-        store: { select: { id: true, name: true, address: true } },
-      },
+    const order = await createOrderInternal({
+      customerId: session.user.id,
+      storeId,
+      items: items.map((item: { productId: string; quantity: number; price: number }) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      deliveryFee,
+      paymentMethod: normalizedPaymentMethod,
+      deliveryAddress,
+      city,
+      customerPhone,
+      orderSource: 'APP',
+      recomputePricing: false,
     })
-
-    // Emit order created event
-    emitOrderCreated(order)
-
-    // Create vendor notification
-    const vendorNotification = await prisma.notification.create({
-      data: {
-        recipientId: store.vendorId,
-        recipientRole: 'VENDOR',
-        type: 'ORDER_STATUS',
-        title: 'New Order Received',
-        message: `New order #${order.id} from customer`,
-        relatedOrderId: order.id,
-        actionUrl: `/vendor?orderId=${order.id}`,
-      },
-    })
-    emitNotificationSent(vendorNotification)
-
-    // Create payment record if not cash
-    if (normalizedPaymentMethod !== 'CASH') {
-      await prisma.payment.create({
-        data: {
-          orderId: order.id,
-          customerId: session.user.id,
-          amount: total,
-          method: normalizedPaymentMethod,
-          status: 'PENDING',
-        },
-      })
-    }
-
-    // Award loyalty points
-    const pointsToAward = Math.floor(total * 0.05)
-    if (pointsToAward > 0) {
-      await prisma.loyaltyAccount.update({
-        where: { customerId: session.user.id },
-        data: {
-          points: { increment: pointsToAward },
-          totalPointsEarned: { increment: pointsToAward },
-        },
-      })
-
-      await prisma.loyaltyTransaction.create({
-        data: {
-          loyaltyAccountId: session.user.id,
-          type: 'EARN',
-          points: pointsToAward,
-          description: `Points earned from order ${order.id}`,
-          relatedOrderId: order.id,
-        },
-      })
-    }
 
     return successResponse({ order }, 201)
   } catch (error) {

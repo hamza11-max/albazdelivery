@@ -2,13 +2,12 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  //directUrl = env("DIRECT_URL", env("DATABASE_URL"))
+  provider = "postgresql"
 }
 
 // ========================================
@@ -87,6 +86,8 @@ model PromoCode {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  /// null = all channels; JSON array e.g. ["WHATSAPP"] to restrict
+  allowedSources Json?
   
   @@index([code])
   @@index([isActive])
@@ -187,6 +188,7 @@ model Order {
   storeId         String?
   driverId        String?
   status          OrderStatus @default(PENDING)
+  orderSource     OrderSource @default(APP)
   total           Float
   subtotal        Float
   deliveryFee     Float
@@ -231,6 +233,14 @@ model Order {
   @@index([status])
   @@index([createdAt])
   @@index([city])
+  @@index([orderSource])
+}
+
+/// Dedupe WhatsApp Cloud API message deliveries (idempotency)
+model WhatsAppWebhookEvent {
+  id         String   @id @default(cuid())
+  messageId  String   @unique
+  createdAt  DateTime @default(now())
 }
 
 model OrderItem {
@@ -245,6 +255,11 @@ model OrderItem {
   
   @@index([orderId])
   @@index([productId])
+}
+
+enum OrderSource {
+  APP
+  WHATSAPP
 }
 
 enum OrderStatus {

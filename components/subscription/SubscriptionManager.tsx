@@ -5,13 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/roo
 import { Button } from "@/root/components/ui/button"
 import { Badge } from "@/root/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { Check, X, Crown, Zap, Building, Rocket, Lock } from "lucide-react"
+import { Check, Crown, Zap, Building, Rocket } from "lucide-react"
 import { useSubscription } from "@/hooks/useSubscription"
-import { PLAN_FEATURES } from "@/root/lib/stripe"
+import { PLAN_DISPLAY_PRICING } from "@/root/lib/stripe"
 
 interface PlanInfo {
   name: string
-  price: string
   icon: typeof Zap
   features: string[]
 }
@@ -19,56 +18,47 @@ interface PlanInfo {
 const PLANS: Record<string, PlanInfo> = {
   STARTER: {
     name: "Starter",
-    price: "$0",
     icon: Zap,
     features: [
       "Up to 50 products",
-      "Basic POS",
-      "Basic inventory",
-      "30 days sales history",
+      "POS & basic inventory",
+      "WhatsApp Flows ordering (linked store)",
+      "≈1 month sales history in app",
       "Email support",
+      "No cloud sync",
     ],
   },
   PROFESSIONAL: {
     name: "Professional",
-    price: "$29",
     icon: Crown,
     features: [
       "Unlimited products",
-      "Advanced inventory",
-      "Full sales history",
       "Cloud sync",
-      "Up to 3 users",
-      "Advanced reporting",
+      "Up to 3 staff users · 1 location",
+      "WhatsApp Flows ordering (linked store)",
+      "12 months history",
       "Email & phone support",
     ],
   },
   BUSINESS: {
     name: "Business",
-    price: "$79",
     icon: Building,
     features: [
       "Everything in Professional",
-      "Multi-location",
-      "Unlimited users",
+      "Unlimited users & locations",
       "API access",
       "Priority support",
-      "Advanced analytics",
-      "Custom integrations",
+      "All-time history & reporting",
     ],
   },
   ENTERPRISE: {
-    name: "Enterprise (Vendor +)",
-    price: "$199",
+    name: "Enterprise",
     icon: Rocket,
     features: [
       "Everything in Business",
-      "RFID Integration",
-      "Real-time tracking",
-      "Loss prevention",
-      "Dedicated support",
-      "Custom development",
-      "SLA guarantees",
+      "RFID / loss-prevention tooling (Vendor+)",
+      "Dedicated success & custom integrations",
+      "SLA options",
     ],
   },
 }
@@ -81,6 +71,12 @@ function getPlanOrder(plan: string): number {
     ENTERPRISE: 3,
   }
   return order[plan] || 0
+}
+
+function formatDzdAmount(raw: string): string {
+  const n = parseInt(raw.replace(/\s/g, ""), 10)
+  if (Number.isNaN(n)) return raw
+  return new Intl.NumberFormat("fr-DZ", { maximumFractionDigits: 0 }).format(n)
 }
 
 export function SubscriptionManager() {
@@ -102,12 +98,10 @@ export function SubscriptionManager() {
 
       if (data.success) {
         if (data.data.clientSecret) {
-          // Handle payment with Stripe
           toast({
             title: "Payment required",
             description: "Please complete your payment to upgrade",
           })
-          // TODO: Integrate Stripe Elements for payment
         } else {
           toast({
             title: "Subscription updated",
@@ -166,7 +160,6 @@ export function SubscriptionManager() {
 
   return (
     <div className="space-y-6">
-      {/* Current Subscription */}
       {subscription && (
         <Card>
           <CardHeader>
@@ -197,12 +190,18 @@ export function SubscriptionManager() {
         </Card>
       )}
 
-      {/* Available Plans */}
+      <p className="text-sm text-muted-foreground">
+        Prix affichés en <strong>DZD</strong> (référence marché Algérie). Le prélèvement carte suit la devise
+        configurée dans Stripe (souvent USD) selon vos tarifs.
+      </p>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {Object.entries(PLANS).map(([key, plan]) => {
           const Icon = plan.icon
           const isCurrent = currentPlan === key
           const isUpgrade = getPlanOrder(key) > getPlanOrder(currentPlan)
+          const pricing = PLAN_DISPLAY_PRICING[key] ?? { dzd: "—" }
+          const dzdDisplay = formatDzdAmount(pricing.dzd)
 
           return (
             <Card key={key} className={isCurrent ? "border-primary border-2" : ""}>
@@ -211,9 +210,15 @@ export function SubscriptionManager() {
                   <Icon className="w-5 h-5" />
                   <CardTitle>{plan.name}</CardTitle>
                 </div>
-                <div className="text-3xl font-bold">
-                  {plan.price}
-                  <span className="text-sm font-normal text-muted-foreground">/month</span>
+                <div>
+                  <div className="text-3xl font-bold tabular-nums">
+                    {dzdDisplay}
+                    <span className="text-base font-semibold text-muted-foreground ms-1.5">DZD</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-1">/ mois</div>
+                  {pricing.usdHint ? (
+                    <p className="text-xs text-muted-foreground mt-2 leading-snug">{pricing.usdHint}</p>
+                  ) : null}
                 </div>
               </CardHeader>
               <CardContent>
@@ -241,4 +246,3 @@ export function SubscriptionManager() {
     </div>
   )
 }
-

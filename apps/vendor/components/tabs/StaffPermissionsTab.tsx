@@ -340,29 +340,22 @@ export function StaffPermissionsTab({
         </Dialog>
       )}
 
-      {/* Staff list + Add (web / general) */}
+      {/* Staff list (all staff appear; can edit & delete; adding is done via Staff dialog) */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              {translate("Gestion du personnel", "إدارة الموظفين")}
-            </CardTitle>
-            <Button onClick={handleAddStaff} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              {translate("Ajouter", "إضافة")}
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            {translate("Gestion du personnel", "إدارة الموظفين")}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {staff.length === 0 ? (
             <div className="text-center py-8">
               <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
               <p className="text-muted-foreground mb-4">{translate("Aucun membre du personnel", "لا يوجد موظفين")}</p>
-              <Button onClick={handleAddStaff} variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                {translate("Ajouter du personnel", "إضافة موظف")}
-              </Button>
+              <p className="text-xs text-muted-foreground">
+                {translate("Ajoutez des membres via la boîte de dialogue du personnel.", "أضف الموظفين من خلال مربع حوار الموظفين.")}
+              </p>
             </div>
           ) : (
             <Table>
@@ -385,8 +378,12 @@ export function StaffPermissionsTab({
                         <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member as PermStaffMember)}>
                           <Shield className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleEditStaff(member)}><Edit className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => member.id && handleDeleteStaff(member.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditStaff(member)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => member.id && handleDeleteStaff(member.id)}>
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

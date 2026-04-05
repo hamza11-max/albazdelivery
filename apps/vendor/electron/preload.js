@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getName: () => ipcRenderer.invoke('app-name'),
   platform: process.platform,
   isElectron: true,
+  getHealth: () => ipcRenderer.invoke('app-health'),
   
   // Auth-related IPC
   auth: {
@@ -49,7 +50,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   print: {
     receipt: (receiptData) => ipcRenderer.invoke('print-receipt', receiptData),
     getPrinters: () => ipcRenderer.invoke('get-printers'),
+    printProductLabels: (options) => ipcRenderer.invoke('print-product-labels', options),
+    printHtml: (options) => ipcRenderer.invoke('print-html', options),
   },
+
+  /** Invoice PDF bytes via Chromium printToPDF (no OS print dialog). */
+  invoiceHtmlToPdf: (options) => ipcRenderer.invoke('invoice-html-to-pdf', options),
   
   // Barcode scanner
   scanner: {
@@ -58,9 +64,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     connectSerial: (portPath, baudRate) => ipcRenderer.invoke('scanner-connect-serial', portPath, baudRate),
   },
 
-  // RFID (keyboard wedge: reader sends "RFID:" + tag ID + Enter)
+  // RFID (keyboard wedge + dashboard store)
   rfid: {
     onRfidScanned: (callback) => ipcRenderer.on('rfid-scanned', (event, tagId) => callback(tagId)),
+    onEventsBatch: (callback) => ipcRenderer.on('rfid-events-batch', (event, events) => callback(events)),
+    getRecentEvents: (limit) => ipcRenderer.invoke('rfid-get-recent-events', limit),
+    getAlerts: (opts) => ipcRenderer.invoke('rfid-get-alerts', opts),
+    ackAlert: (alertId) => ipcRenderer.invoke('rfid-ack-alert', alertId),
+    getReaders: () => ipcRenderer.invoke('rfid-get-readers'),
+    addReader: (data) => ipcRenderer.invoke('rfid-add-reader', data),
+    deleteReader: (id) => ipcRenderer.invoke('rfid-delete-reader', id),
+    getEventsByTag: (tagId, limit) => ipcRenderer.invoke('rfid-get-events-by-tag', tagId, limit),
+    addUnknownTagAlert: (tagId, readerId) => ipcRenderer.invoke('rfid-add-unknown-tag-alert', tagId, readerId),
+    listPorts: () => ipcRenderer.invoke('scanner-list-ports'),
+    connectSerial: (portPath, baudRate) => ipcRenderer.invoke('scanner-connect-serial', portPath, baudRate),
   },
   
   // Auto-updater
@@ -68,7 +85,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     check: () => ipcRenderer.invoke('updater-check'),
     download: () => ipcRenderer.invoke('updater-download'),
     install: () => ipcRenderer.invoke('updater-install'),
-    onStatus: (callback) => ipcRenderer.on('update-status', (event, status) => callback(status)),
+    onStatus: (callback) => {
+      const handler = (_event, status) => callback(status)
+      ipcRenderer.on('update-status', handler)
+      return () => ipcRenderer.removeListener('update-status', handler)
+    },
   },
   
   // Keyboard shortcut listeners

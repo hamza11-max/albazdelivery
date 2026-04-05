@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
     const createData: any = {
       type: type as any,
       participantIds: participantIds,
-      participantRoles: participants.map(p => p.role) as import('@prisma/client').ChatParticipantRole[],
+      participantRoles: participants.map(p => p.role) as import('@/generated/prisma/client').ChatParticipantRole[],
     }
     if (relatedOrderId) createData.orderId = relatedOrderId
 

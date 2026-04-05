@@ -1,0 +1,9 @@
+# Vertical: grocery / supermarket — merge over electron-builder.yml
+extends: ./electron-builder.yml
+appId: com.albaz.vendor.grocery
+productName: AlBaz Vendor Grocery
+win:
+  executableName: AlBazVendorGrocery
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  shortcutName: AlBaz Vendor Grocery

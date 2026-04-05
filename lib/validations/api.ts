@@ -211,7 +211,7 @@ export const createInventoryProductSchema = z.object({
   barcode: z.string().optional(),
   image: imageFieldSchema.optional(),
   supplierId: z.string().optional(),
-  vendorId: z.string().cuid('Invalid vendor ID').optional(),
+  vendorId: z.string().min(1).optional(),
 })
 
 export const updateInventoryProductSchema = z.object({

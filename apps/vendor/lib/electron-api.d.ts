@@ -111,6 +111,20 @@ interface PrinterInfo {
 interface ElectronPrintAPI {
   receipt: (receiptData: ReceiptData) => Promise<{ success: boolean; error?: string }>
   getPrinters: () => Promise<PrinterInfo[]>
+  printProductLabels: (options: {
+    products: Array<Record<string, unknown>>
+    fields?: string[]
+    labelType?: string
+    widthMm?: number
+    heightMm?: number
+  }) => Promise<{ success: boolean; error?: string }>
+  printHtml: (options: {
+    html: string
+    deviceName?: string
+    silent?: boolean
+    widthMicrons?: number
+    heightMicrons?: number
+  }) => Promise<{ success: boolean; error?: string }>
 }
 
 type ShortcutCallback = () => void
@@ -131,8 +145,50 @@ interface ElectronShortcutsAPI {
   removeAll: () => void
 }
 
+export interface RfidReadEvent {
+  id: string
+  tagId: string
+  readerId: string
+  gateId: string | null
+  zoneId: string | null
+  timestamp: string
+  direction: string
+}
+
+export interface RfidReader {
+  id: string
+  name: string
+  type: 'keyboard' | 'serial' | 'gate'
+  serialPath: string | null
+  baudRate: number
+  zoneId: string | null
+  lastSeenAt: string | null
+  status: 'online' | 'offline' | 'error'
+}
+
+export interface RfidAlert {
+  id: string
+  type: 'unknown_tag' | 'duplicate_read' | 'zone_mismatch' | 'reader_offline' | 'low_read_rate'
+  tagId: string
+  readerId: string
+  payload: Record<string, unknown>
+  createdAt: string
+  acknowledged: boolean
+}
+
 interface ElectronRfidAPI {
   onRfidScanned: (callback: (tagId: string) => void) => void
+  onEventsBatch: (callback: (events: RfidReadEvent[]) => void) => void
+  getRecentEvents: (limit?: number) => Promise<RfidReadEvent[]>
+  getAlerts: (opts?: { acknowledged?: boolean }) => Promise<RfidAlert[]>
+  ackAlert: (alertId: string) => Promise<boolean>
+  getReaders: () => Promise<RfidReader[]>
+  addReader: (data: { name?: string; type?: string; serialPath?: string | null; baudRate?: number; zoneId?: string | null }) => Promise<RfidReader>
+  deleteReader: (id: string) => Promise<boolean>
+  getEventsByTag: (tagId: string, limit?: number) => Promise<RfidReadEvent[]>
+  addUnknownTagAlert: (tagId: string, readerId?: string) => Promise<void>
+  listPorts: () => Promise<Array<{ path: string; manufacturer?: string; serialNumber?: string; vendorId?: string; productId?: string }>>
+  connectSerial: (portPath: string, baudRate?: number) => Promise<{ success: boolean }>
 }
 
 interface ElectronScannerAPI {
@@ -141,11 +197,31 @@ interface ElectronScannerAPI {
   connectSerial: (portPath: string, baudRate?: number) => Promise<{ success: boolean }>
 }
 
+export interface AppUpdateStatusPayload {
+  status: 'checking' | 'available' | 'not-available' | 'error' | 'downloading' | 'downloaded'
+  version?: string
+  releaseDate?: string
+  message?: string
+  percent?: number
+  transferred?: number
+  total?: number
+  bytesPerSecond?: number
+}
+
+interface ElectronUpdaterAPI {
+  check: () => Promise<{ available?: boolean; info?: { version?: string }; message?: string; error?: string }>
+  download: () => Promise<{ success?: boolean; error?: string }>
+  install: () => Promise<void>
+  onStatus: (callback: (payload: AppUpdateStatusPayload) => void) => () => void
+}
+
 interface ElectronAPI {
   getVersion: () => Promise<string>
   getName: () => Promise<string>
+  getHealth: () => Promise<{ ok?: boolean; modules?: { autoUpdater?: boolean }; env?: { isDev?: boolean; appVersion?: string } }>
   platform: NodeJS.Platform
   isElectron: boolean
+  updater?: ElectronUpdaterAPI
   auth: ElectronAuthAPI
   store: ElectronStoreAPI
   offline: ElectronOfflineAPI

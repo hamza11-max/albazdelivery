@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { PLAN_FEATURES, type PlanFeatures } from "./stripe"
+import { PLAN_FEATURES, subscriptionStatusGrantsPlanFeatures, type PlanFeatures } from "./stripe"
 
 export async function checkFeatureAccess(
   userId: string,
@@ -9,7 +9,7 @@ export async function checkFeatureAccess(
     where: { userId },
   })
 
-  if (!subscription || subscription.status !== "ACTIVE") {
+  if (!subscription || !subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)) {
     return false
   }
 
@@ -17,7 +17,8 @@ export async function checkFeatureAccess(
   if (!planFeatures) return false
 
   const value = planFeatures[feature]
-  return value === true || value === -1
+  if (typeof value === "boolean") return value
+  return value === -1
 }
 
 export async function checkUsageLimit(
@@ -30,7 +31,7 @@ export async function checkUsageLimit(
     include: { usage: true },
   })
 
-  if (!subscription || subscription.status !== "ACTIVE") {
+  if (!subscription || !subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)) {
     return false
   }
 
@@ -52,7 +53,7 @@ export async function getFeatureLimit(
     where: { userId },
   })
 
-  if (!subscription || subscription.status !== "ACTIVE") {
+  if (!subscription || !subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)) {
     return 0
   }
 

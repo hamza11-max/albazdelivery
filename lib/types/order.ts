@@ -19,6 +19,8 @@ export interface OrderItem {
   productName: string
 }
 
+export type OrderSourceChannel = 'APP' | 'WHATSAPP'
+
 export interface Order {
   id: string
   customerId: string
@@ -33,6 +35,8 @@ export interface Order {
   deliveryAddress: string
   city: string
   customerPhone: string
+  /** Set when order is created via WhatsApp Flows webhook */
+  orderSource?: OrderSourceChannel
   driverId?: string
   createdAt: Date
   updatedAt: Date

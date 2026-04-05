@@ -29,7 +29,7 @@ export default function VendorLayout({
         <SessionProvider>
           <ThemeInitializer />
           <ErrorBoundary>
-            <div className="min-h-screen bg-slate-50">
+            <div className="min-h-screen bg-background text-foreground">
               {/* Sidebar is handled inside the vendor page component */}
               {children}
             </div>

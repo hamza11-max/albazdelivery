@@ -1,12 +1,14 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/root/components/ui/button"
 import { Card, CardContent } from "@/root/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
 import { Badge } from "@/root/components/ui/badge"
-import { Edit, Upload, Send, Trash2, Plus, RotateCcw, Package } from "lucide-react"
+import { Edit, Upload, Send, Trash2, Plus, RotateCcw, Package, Printer } from "lucide-react"
 import type { InventoryProduct } from "@/root/lib/types"
 import { InventoryAlertsTab } from "./InventoryAlertsTab"
+import { InventoryLabelPrintDialog } from "@/root/components/dialogs/InventoryLabelPrintDialog"
 
 interface InventoryTabProps {
   products: InventoryProduct[]
@@ -45,6 +47,8 @@ export function InventoryTab({
   handlePostProductToDelivery,
   handleDeleteProduct,
 }: InventoryTabProps) {
+  const [showLabelPrintDialog, setShowLabelPrintDialog] = useState(false)
+
   return (
     <div className="space-y-4 sm:space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -160,12 +164,26 @@ export function InventoryTab({
               </span>
             </Button>
           </label>
+          <Button variant="outline" onClick={() => setShowLabelPrintDialog(true)}>
+            <Printer className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
+            {translate("Étiquettes", "ملصقات")}
+          </Button>
           <Button onClick={() => setShowProductDialog(true)}>
             <Plus className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
             {translate("Ajouter un produit", "إضافة منتج")}
           </Button>
         </div>
       </div>
+
+      <InventoryLabelPrintDialog
+        open={showLabelPrintDialog}
+        onOpenChange={setShowLabelPrintDialog}
+        products={products}
+        translate={translate}
+        toast={toast}
+        isElectronRuntime={isElectronRuntime}
+        isArabic={isArabic}
+      />
 
       <Card>
         <CardContent className="p-6">

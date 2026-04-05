@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
-import { OrderStatus } from '@prisma/client'
+import { OrderStatus } from '@/generated/prisma/client'
 import { createReviewSchema } from '@/lib/validations/api'
 import { z } from 'zod'
 

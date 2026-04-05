@@ -4,7 +4,14 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 
-// GET - Fetch all customers who have ordered from this vendor
+function maxDate(a: Date | null | undefined, b: Date | null | undefined): Date | null {
+  const ta = a?.getTime() ?? 0
+  const tb = b?.getTime() ?? 0
+  if (!ta && !tb) return null
+  return ta >= tb! ? a! : b!
+}
+
+// GET - Fetch all customers who have ordered from this vendor (POS sales + delivery / WhatsApp orders)
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
@@ -37,50 +44,115 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(pageParam || '1'))
     const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
-    // Aggregate sales by customer
-    const aggregates = await prisma.sale.groupBy({
-      by: ['customerId'],
-      where: { vendorId, NOT: { customerId: null } },
-      _sum: { total: true },
-      _max: { createdAt: true },
-      _count: { id: true },
+    const [saleAggregates, orderAggregates, waAggregates] = await Promise.all([
+      prisma.sale.groupBy({
+        by: ['customerId'],
+        where: { vendorId, NOT: { customerId: null } },
+        _sum: { total: true },
+        _max: { createdAt: true },
+        _count: { id: true },
+      }),
+      prisma.order.groupBy({
+        by: ['customerId'],
+        where: { vendorId },
+        _sum: { total: true },
+        _max: { createdAt: true },
+        _count: { id: true },
+      }),
+      prisma.order.groupBy({
+        by: ['customerId'],
+        where: { vendorId, orderSource: 'WHATSAPP' },
+        _count: { id: true },
+      }),
+    ])
+
+    type Merged = {
+      customerId: string
+      saleTotal: number
+      saleCount: number
+      saleLast: Date | null
+      orderTotal: number
+      deliveryOrderCount: number
+      orderLast: Date | null
+      whatsappOrderCount: number
+    }
+
+    const empty = (id: string): Merged => ({
+      customerId: id,
+      saleTotal: 0,
+      saleCount: 0,
+      saleLast: null,
+      orderTotal: 0,
+      deliveryOrderCount: 0,
+      orderLast: null,
+      whatsappOrderCount: 0,
     })
 
-    // Sort aggregates
-    if (sortParam === 'lastPurchaseDate') {
-      aggregates.sort((a: any, b: any) => {
-        const dateA = a._max.createdAt?.getTime() || 0
-        const dateB = b._max.createdAt?.getTime() || 0
-        return dateB - dateA // Most recent first
-      })
-    } else {
-      // Default: sort by total purchases
-      aggregates.sort((a: any, b: any) => {
-        const totalA = a._sum.total || 0
-        const totalB = b._sum.total || 0
-        return totalB - totalA // Highest first
+    const merged = new Map<string, Merged>()
+
+    for (const a of saleAggregates) {
+      const id = a.customerId!
+      merged.set(id, {
+        ...empty(id),
+        saleTotal: a._sum.total ?? 0,
+        saleCount: a._count.id,
+        saleLast: a._max.createdAt,
       })
     }
 
-    // Apply pagination
-    const paginatedAggregates = aggregates.slice((page - 1) * limit, page * limit)
-    const customerIds = paginatedAggregates.map((a: any) => a.customerId!).filter(Boolean)
+    for (const a of orderAggregates) {
+      const id = a.customerId
+      const cur = merged.get(id) ?? empty(id)
+      cur.orderTotal = a._sum.total ?? 0
+      cur.deliveryOrderCount = a._count.id
+      cur.orderLast = a._max.createdAt
+      merged.set(id, cur)
+    }
+
+    for (const a of waAggregates) {
+      const id = a.customerId!
+      const cur = merged.get(id) ?? empty(id)
+      cur.whatsappOrderCount = a._count.id
+      merged.set(id, cur)
+    }
+
+    const rows = Array.from(merged.values())
+
+    if (sortParam === 'lastPurchaseDate') {
+      rows.sort((a, b) => {
+        const da = Math.max(a.saleLast?.getTime() ?? 0, a.orderLast?.getTime() ?? 0)
+        const db = Math.max(b.saleLast?.getTime() ?? 0, b.orderLast?.getTime() ?? 0)
+        return db - da
+      })
+    } else {
+      rows.sort((a, b) => {
+        const ta = a.saleTotal + a.orderTotal
+        const tb = b.saleTotal + b.orderTotal
+        return tb - ta
+      })
+    }
+
+    const paginatedRows = rows.slice((page - 1) * limit, page * limit)
+    const customerIds = paginatedRows.map((r) => r.customerId).filter(Boolean)
 
     const users = await prisma.user.findMany({
       where: { id: { in: customerIds } },
       select: { id: true, name: true, email: true, phone: true },
     })
 
-    const customers = paginatedAggregates.map((a: any) => {
-      const u = users.find((x: any) => x.id === a.customerId)
+    const customers = paginatedRows.map((row) => {
+      const u = users.find((x) => x.id === row.customerId)
       return {
-        id: u?.id || a.customerId!,
+        id: u?.id || row.customerId,
         name: u?.name || 'Client',
         email: u?.email || undefined,
         phone: u?.phone || '',
-        totalPurchases: a._sum.total || 0,
-        orderCount: a._count.id || 0,
-        lastPurchaseDate: a._max.createdAt || null,
+        totalPurchases: row.saleTotal,
+        orderCount: row.saleCount,
+        deliveryTotal: row.orderTotal,
+        deliveryOrderCount: row.deliveryOrderCount,
+        whatsappOrderCount: row.whatsappOrderCount,
+        lastPurchaseDate: maxDate(row.saleLast, row.orderLast),
       }
     })
 
@@ -89,8 +161,8 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        total: aggregates.length,
-        pages: Math.ceil(aggregates.length / limit),
+        total: rows.length,
+        pages: Math.ceil(rows.length / limit),
       },
     })
   } catch (error) {

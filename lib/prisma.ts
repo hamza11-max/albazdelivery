@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '../generated/prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -67,9 +68,15 @@ if (!process.env.DATABASE_URL || String(process.env.DATABASE_URL).trim() === '')
   console.warn('[prisma] DATABASE_URL not set — exporting dev fallback Prisma proxy')
   prismaExport = createDevPrismaFallback()
 } else {
-  prismaClient = globalForPrisma.prisma ?? new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  })
+  const connectionString = String(process.env.DATABASE_URL).trim()
+
+  prismaClient =
+    globalForPrisma.prisma ??
+    new PrismaClient({
+      // Keep adapter constructor loose to avoid pg type-version mismatch noise.
+      adapter: new PrismaPg({ connectionString } as any),
+      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    })
 
   if (process.env.NODE_ENV !== 'production') {
     globalForPrisma.prisma = prismaClient

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, FormEvent } from "react"
 import type { ChangeEvent } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams, usePathname, Suspense } from "next/navigation"
 import { playSuccessSound } from "@/root/lib/notifications"
 import { 
   AlertTriangle,
@@ -41,13 +41,15 @@ import {
   Send,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Tag,
+  Cable
 } from "lucide-react"
 
 // UI Components
 import { Button } from "@/root/components/ui/button"
 import { useToast } from "@/root/hooks/use-toast"
-import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/root/components/ui/card"
 import { Badge } from "@/root/components/ui/badge"
 import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
@@ -75,6 +77,7 @@ import { SyncSaveTab } from "../../components/tabs/SyncSaveTab"
 import { EmailTab } from "../../components/tabs/EmailTab"
 import { StaffPermissionsTab } from "../../components/tabs/StaffPermissionsTab"
 import { ClientsLoyaltyTab } from "../../components/tabs/ClientsLoyaltyTab"
+import { RfidDashboardTab } from "../../components/tabs/RfidDashboardTab"
 import { BarcodeScannerDialog } from "../../components/dialogs/BarcodeScannerDialog"
 import { SaleSuccessDialog } from "../../components/dialogs/SaleSuccessDialog"
 import { ReceiptDialog } from "../../components/dialogs/ReceiptDialog"
@@ -103,13 +106,15 @@ import { usePOSHandlers } from "../../hooks/usePOSHandlers"
 import { AdminVendorSelector } from "../../components/AdminVendorSelector"
 import { LoadingScreen } from "../../components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
-import { loadElectronOfflineData } from "../../utils/electronUtils"
+import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisionalSale } from "../../utils/electronUtils"
+import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { ErrorBoundary } from "../../components/ErrorBoundary"
 import {
   getTabsForShopType,
   isSettingsSectionVisible,
   type ShopType,
 } from "../../config/shopTypes"
+import { setStoredTheme } from "@/root/lib/theme"
 
 // Types
 import type {
@@ -143,10 +148,14 @@ import type {
   CategoriesData
 } from "./types"
 
-export default function VendorDashboard() {
+function VendorDashboardContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
+  const [ordersCustomerFilter, setOrdersCustomerFilter] = useState<string | null>(null)
+  const [highlightOrderId, setHighlightOrderId] = useState<string | null>(null)
   
   // All vendor state - using custom hook
   const {
@@ -241,8 +250,73 @@ export default function VendorDashboard() {
     setIsAcceptingOrders,
   } = useVendorState()
 
+  const vendorTabIds = useMemo(
+    () =>
+      new Set([
+        "dashboard",
+        "pos",
+        "inventory",
+        "orders",
+        "drivers",
+        "sales",
+        "reports",
+        "coupons",
+        "sync-save",
+        "email",
+        "staff-permissions",
+        "clients-loyalty",
+        "suppliers",
+        "ai",
+        "settings",
+        "rfid",
+      ]),
+    [],
+  )
+
+  const queryString = searchParams.toString()
+  useEffect(() => {
+    const params = new URLSearchParams(queryString)
+    const tab = params.get("tab")
+    const orderId = params.get("orderId")
+    const customerId = params.get("customerId")
+    if (tab && vendorTabIds.has(tab)) setActiveTab(tab)
+    if (orderId) {
+      setActiveTab("orders")
+      setHighlightOrderId(orderId)
+    }
+    if (customerId) {
+      setActiveTab("orders")
+      setOrdersCustomerFilter(customerId)
+    }
+  }, [queryString, setActiveTab, vendorTabIds])
+
+  const clearOrdersCustomerFilter = useCallback(() => {
+    setOrdersCustomerFilter(null)
+    const p = new URLSearchParams(searchParams.toString())
+    p.delete("customerId")
+    const qs = p.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
+
+  const onViewCustomerOrders = useCallback(
+    (customerId: string) => {
+      setOrdersCustomerFilter(customerId)
+      setActiveTab("orders")
+      const p = new URLSearchParams(searchParams.toString())
+      p.set("tab", "orders")
+      p.set("customerId", customerId)
+      p.delete("orderId")
+      router.replace(`${pathname}?${p.toString()}`, { scroll: false })
+    },
+    [pathname, router, searchParams, setActiveTab],
+  )
+
   // In Electron use electron store user; otherwise NextAuth user
   const effectiveUser = isElectronRuntime ? electronUser : user
+  const isLocalOfflineVendor =
+    isElectronRuntime &&
+    typeof effectiveUser?.id === "string" &&
+    (effectiveUser.id.startsWith("local-") || effectiveUser.id.startsWith("electron-"))
 
   // Shop type: from Electron store (setup) or default 'other' for web
   const [shopType, setShopType] = useState<ShopType | "other">("other")
@@ -312,6 +386,10 @@ export default function VendorDashboard() {
     const stored = parseInt(localStorage.getItem('vendor-prep-minutes') || '20', 10)
     return Number.isNaN(stored) ? 20 : stored
   })
+  const [autoPrintWhatsappOnConfirm, setAutoPrintWhatsappOnConfirm] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("vendor-auto-print-whatsapp-confirm") === "true"
+  })
   const [payouts] = useState(() => [
     { id: 'PAYOUT-001', period: 'Cette semaine', gross: 125000, fees: 2500, net: 122500, status: 'pending', eta: 'Vendredi' },
     { id: 'PAYOUT-000', period: 'Semaine dernière', gross: 98000, fees: 2000, net: 96000, status: 'settled', eta: 'Déjà payé' },
@@ -364,6 +442,109 @@ export default function VendorDashboard() {
       return []
     }
   })
+  const LABEL_FIELD_OPTIONS = useMemo(() => [
+    { id: "sku", labelFr: "SKU", labelAr: "الرمز" },
+    { id: "name", labelFr: "Nom", labelAr: "الاسم" },
+    { id: "price", labelFr: "Prix", labelAr: "السعر" },
+    { id: "barcode", labelFr: "Code-barres", labelAr: "الباركود" },
+    { id: "category", labelFr: "Catégorie", labelAr: "الفئة" },
+    { id: "rfid", labelFr: "RFID", labelAr: "RFID" },
+    { id: "shopname", labelFr: "Nom du magasin", labelAr: "اسم المتجر" },
+  ], [])
+  const [labelFields, setLabelFields] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return ['name', 'price', 'sku']
+    try {
+      const stored = JSON.parse(localStorage.getItem('vendor-label-fields') || '["name","price","sku"]')
+      return Array.isArray(stored) ? stored : ['name', 'price', 'sku']
+    } catch {
+      return ['name', 'price', 'sku']
+    }
+  })
+  const [labelType, setLabelType] = useState<'rfid' | 'normal'>(() => {
+    if (typeof window === 'undefined') return 'normal'
+    return (localStorage.getItem('vendor-label-type') || 'normal') as 'rfid' | 'normal'
+  })
+  const [labelWidthMm, setLabelWidthMm] = useState<number>(() => {
+    if (typeof window === 'undefined') return 60
+    const v = parseInt(localStorage.getItem('vendor-label-width-mm') || '60', 10)
+    return Number.isFinite(v) && v >= 20 && v <= 200 ? v : 60
+  })
+  const [labelHeightMm, setLabelHeightMm] = useState<number>(() => {
+    if (typeof window === 'undefined') return 40
+    const v = parseInt(localStorage.getItem('vendor-label-height-mm') || '40', 10)
+    return Number.isFinite(v) && v >= 15 && v <= 150 ? v : 40
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('vendor-label-fields', JSON.stringify(labelFields))
+      localStorage.setItem('vendor-label-type', labelType)
+      localStorage.setItem('vendor-label-width-mm', String(labelWidthMm))
+      localStorage.setItem('vendor-label-height-mm', String(labelHeightMm))
+    } catch {
+      // ignore
+    }
+  }, [labelFields, labelType, labelWidthMm, labelHeightMm])
+
+  // Serial port (Electron): scanner / RFID serial device
+  type SerialPortInfo = { path: string; manufacturer?: string; serialNumber?: string; vendorId?: string; productId?: string }
+  const [serialPortsList, setSerialPortsList] = useState<SerialPortInfo[]>([])
+  const [loadingSerialPorts, setLoadingSerialPorts] = useState(false)
+  const [selectedSerialPort, setSelectedSerialPort] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem('vendor-serial-port') || ''
+  })
+  const [serialBaudRate, setSerialBaudRate] = useState<number>(() => {
+    if (typeof window === 'undefined') return 9600
+    const v = parseInt(localStorage.getItem('vendor-serial-baud') || '9600', 10)
+    return [9600, 19200, 38400, 115200].includes(v) ? v : 9600
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('vendor-serial-port', selectedSerialPort)
+      localStorage.setItem('vendor-serial-baud', String(serialBaudRate))
+    } catch {
+      // ignore
+    }
+  }, [selectedSerialPort, serialBaudRate])
+  const refreshSerialPorts = useCallback(async () => {
+    if (!isElectronRuntime || !(window as any).electronAPI?.scanner?.listPorts) return
+    setLoadingSerialPorts(true)
+    try {
+      const ports = await (window as any).electronAPI.scanner.listPorts()
+      setSerialPortsList(Array.isArray(ports) ? ports : [])
+    } catch {
+      setSerialPortsList([])
+    } finally {
+      setLoadingSerialPorts(false)
+    }
+  }, [isElectronRuntime])
+  useEffect(() => {
+    if (isElectronRuntime && activeTab === 'settings') refreshSerialPorts()
+  }, [isElectronRuntime, activeTab, refreshSerialPorts])
+  const handleSerialPortChange = useCallback(async (portPath: string) => {
+    setSelectedSerialPort(portPath)
+    if (!portPath) return
+    const api = (window as any).electronAPI
+    if (!api?.scanner?.connectSerial) return
+    try {
+      const res = await api.scanner.connectSerial(portPath, serialBaudRate)
+      if (res?.success) toast({ title: translate("Port série", "المنفذ التسلسلي"), description: translate("Connecté", "متصل") })
+      else toast({ title: translate("Erreur", "خطأ"), description: translate("Échec de la connexion au port", "فشل الاتصال بالمنفذ"), variant: "destructive" })
+    } catch (e: any) {
+      toast({ title: translate("Erreur", "خطأ"), description: e?.message || translate("Échec de la connexion", "فشل الاتصال"), variant: "destructive" })
+    }
+  }, [serialBaudRate, toast, translate])
+  const handleSerialBaudChange = useCallback((baud: number) => {
+    setSerialBaudRate(baud)
+    if (!selectedSerialPort) return
+    const api = (window as any).electronAPI
+    if (!api?.scanner?.connectSerial) return
+    api.scanner.connectSerial(selectedSerialPort, baud).then((res: any) => {
+      if (res?.success) toast({ title: translate("Vitesse mise à jour", "تم تحديث السرعة"), description: `${baud} baud` })
+      else toast({ title: translate("Erreur", "خطأ"), variant: "destructive" })
+    }).catch(() => toast({ title: translate("Erreur", "خطأ"), variant: "destructive" }))
+  }, [selectedSerialPort, toast, translate])
+  const BAUD_OPTIONS = [9600, 19200, 38400, 115200]
   const [staffRole, setStaffRole] = useState<"owner" | "manager" | "cashier">(() => {
     if (typeof window === "undefined") return "owner"
     const stored = localStorage.getItem("vendor-staff-role")
@@ -596,19 +777,29 @@ export default function VendorDashboard() {
 
   const loadShopInfo = useCallback(async () => {
     try {
-      const res = await fetch("/api/vendor/profile", { method: "GET" })
+      const targetVendorId = isAdmin ? activeVendorId : effectiveUser?.id
+      if (!targetVendorId) return
+      if (isLocalOfflineVendor) return
+      const res = await fetch(`/api/stores?vendorId=${targetVendorId}&includeInactive=true&limit=1`, { method: "GET" })
       if (!res.ok) return
       const data = await res.json()
-      if (data?.success && data.profile) {
-        setShopInfo((prev: any) => ({ ...prev, ...data.profile }))
+      const stores = data?.data?.stores || data?.stores || []
+      const store = stores[0]
+      if (store) {
+        const profile = {
+          name: store.name || shopInfo.name,
+          address: store.address || shopInfo.address,
+          phone: store?.vendor?.phone || shopInfo.phone,
+        }
+        setShopInfo((prev: any) => ({ ...prev, ...profile }))
         if (typeof window !== "undefined") {
-          localStorage.setItem("vendor-shop-info", JSON.stringify({ ...shopInfo, ...data.profile }))
+          localStorage.setItem("vendor-shop-info", JSON.stringify({ ...shopInfo, ...profile }))
         }
       }
     } catch (error) {
       console.warn("[Vendor] Failed to load shop profile", error)
     }
-  }, [shopInfo])
+  }, [shopInfo, isAdmin, activeVendorId, effectiveUser?.id, isLocalOfflineVendor])
 
   useEffect(() => {
     try {
@@ -671,6 +862,17 @@ export default function VendorDashboard() {
       console.warn('[Vendor] Failed to persist prep time', error)
     }
   }, [prepTimeMinutes])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "vendor-auto-print-whatsapp-confirm",
+        autoPrintWhatsappOnConfirm ? "true" : "false",
+      )
+    } catch (e) {
+      console.warn("[Vendor] Failed to persist WhatsApp auto-print preference", e)
+    }
+  }, [autoPrintWhatsappOnConfirm])
 
   const handleToggleAcceptingOrders = useCallback(async () => {
     if (!storeId) {
@@ -818,6 +1020,7 @@ export default function VendorDashboard() {
     if (typeof window === "undefined") return
 
     try {
+      if (isLocalOfflineVendor) return
       // Electron runtime: delegate to offline sync service when available
       if (isElectronRuntime && (window as any)?.electronAPI?.offline?.syncNow) {
         const stats = await (window as any).electronAPI.offline.syncNow()
@@ -827,7 +1030,7 @@ export default function VendorDashboard() {
         if (stats?.syncedSales > 0) {
           fetchDashboardData(activeVendorId)
           fetchInventory(activeVendorId)
-          fetchSales(activeVendorId)
+          fetchSales(activeVendorId, { skipCache: true })
           toast({
             title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"),
             description: translate(
@@ -864,6 +1067,7 @@ export default function VendorDashboard() {
 
           if (res.ok && data?.success) {
             syncedCount += 1
+            removeLocalProvisionalSale(entry.id)
           } else {
             remaining.push(entry)
           }
@@ -878,7 +1082,7 @@ export default function VendorDashboard() {
       if (syncedCount > 0) {
         fetchDashboardData(activeVendorId)
         fetchInventory(activeVendorId)
-        fetchSales(activeVendorId)
+        fetchSales(activeVendorId, { skipCache: true })
         toast({
           title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"),
           description: translate(
@@ -890,7 +1094,7 @@ export default function VendorDashboard() {
     } catch (error) {
       console.warn("[POS] Failed to sync offline queue automatically", error)
     }
-  }, [activeVendorId, fetchDashboardData, fetchInventory, fetchSales, isElectronRuntime, offlineQueueCount, toast, translate])
+  }, [activeVendorId, fetchDashboardData, fetchInventory, fetchSales, isElectronRuntime, isLocalOfflineVendor, offlineQueueCount, toast, translate])
 
   useEffect(() => {
     syncOfflineSales()
@@ -910,18 +1114,48 @@ export default function VendorDashboard() {
 
   useEffect(() => {
     const onRefresh = () => {
+      if (isLocalOfflineVendor) return
       fetchDashboardData(activeVendorId)
       fetchInventory(activeVendorId)
-      fetchSales(activeVendorId)
+      fetchSales(activeVendorId, { skipCache: true })
     }
     window.addEventListener("vendor-refresh-data", onRefresh)
     return () => window.removeEventListener("vendor-refresh-data", onRefresh)
-  }, [activeVendorId, fetchDashboardData, fetchInventory, fetchSales])
+  }, [activeVendorId, fetchDashboardData, fetchInventory, fetchSales, isLocalOfflineVendor])
 
-  // Load vendor store info to control intake/pause
+  // Offline / Electron: Historique reads from merged localStorage; refresh when opening the tab.
+  useEffect(() => {
+    if (activeTab !== "sales") return
+    const useLocalHistory =
+      isElectronRuntime ||
+      isLocalOfflineVendor ||
+      (typeof navigator !== "undefined" && !navigator.onLine)
+    if (!useLocalHistory) return
+    setSales(getMergedLocalSalesHistory())
+  }, [activeTab, isElectronRuntime, isLocalOfflineVendor, setSales])
+
+  // Electron quick-search shortcut (F3 / Ctrl+F): open POS and focus search.
+  useEffect(() => {
+    if (!isElectronRuntime || typeof window === "undefined") return
+    const shortcuts = (window as any)?.electronAPI?.shortcuts
+    if (!shortcuts?.onSearch) return
+
+    shortcuts.onSearch(() => {
+      setActiveTab("pos")
+      setTimeout(() => {
+        const input = document.getElementById("pos-search-input") as HTMLInputElement | null
+        input?.focus()
+        input?.select()
+      }, 80)
+    })
+  }, [isElectronRuntime, setActiveTab])
+
+  // Load vendor store info to control intake/pause (skip in Electron offline mode — no web session)
   useEffect(() => {
     const targetVendorId = isAdmin ? activeVendorId : effectiveUser?.id
     if (!targetVendorId) return
+    const vid = String(targetVendorId)
+    if (isElectronRuntime && (vid.startsWith('local-') || vid.startsWith('electron-'))) return
 
     const controller = new AbortController()
     const loadStore = async () => {
@@ -929,6 +1163,7 @@ export default function VendorDashboard() {
         const res = await fetch(`/api/stores?vendorId=${targetVendorId}&includeInactive=true&limit=1`, {
           signal: controller.signal,
         })
+        if (!res.ok) return
         const data = await res.json()
         const stores = data?.data?.stores || data?.stores || []
         if (stores.length > 0) {
@@ -936,13 +1171,13 @@ export default function VendorDashboard() {
           setIsAcceptingOrders(stores[0].isActive !== false)
         }
       } catch (error) {
-        console.warn('[Vendor] Failed to load store info', error)
+        // ignore (e.g. 401 in Electron, network errors)
       }
     }
 
     loadStore()
     return () => controller.abort()
-  }, [effectiveUser?.id, activeVendorId, isAdmin, setStoreId, setIsAcceptingOrders])
+  }, [effectiveUser?.id, activeVendorId, isAdmin, isElectronRuntime, setStoreId, setIsAcceptingOrders])
 
   // Initial offline queue count
   useEffect(() => {
@@ -1208,6 +1443,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   // Data loading function - using utility function
   const handleDataLoad = useCallback(
     async (vendorContextId?: string) => {
+      if (isLocalOfflineVendor) return
       await handleDataLoadUtil({
         vendorContextId,
         fetchSales,
@@ -1232,7 +1468,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         translate,
       })
     },
-    [fetchSales, fetchOrders, fetchProducts, fetchCustomers, fetchSuppliers, fetchCategories, setSales, setOrders, setProducts, setLowStockProducts, setCustomers, setSuppliers, setCategories, setTodaySales, setWeekSales, setMonthSales, setTopProducts, setLoadingState, toast, translate]
+    [fetchSales, fetchOrders, fetchProducts, fetchCustomers, fetchSuppliers, fetchCategories, setSales, setOrders, setProducts, setLowStockProducts, setCustomers, setSuppliers, setCategories, setTodaySales, setWeekSales, setMonthSales, setTopProducts, setLoadingState, toast, translate, isLocalOfflineVendor]
   )
 
   // Fetch Drivers and AI Insights - handled by useDataLoading hook
@@ -1265,10 +1501,18 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   }
 
   // Update Order Status - using utility function
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+  const handleUpdateOrderStatus = async (order: Order, status: string) => {
     await updateOrderStatus({
-      orderId,
+      orderId: order.id,
       status,
+      orderSnapshot: order,
+      autoPrintWhatsappOnAccept: autoPrintWhatsappOnConfirm,
+      printContext: {
+        shopInfo,
+        effectiveUser,
+        isElectronRuntime,
+        translate,
+      },
       fetchOrders,
       activeVendorId,
       toast,
@@ -1300,7 +1544,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   }
 
   // Delete Product - using utility function
-  const handleDeleteProduct = async (id: number) => {
+  const handleDeleteProduct = async (id: number | string) => {
     if (!confirm(translate("Êtes-vous sûr de vouloir supprimer ce produit?", "هل أنت متأكد من حذف هذا المنتج؟"))) return
     await deleteProduct({
       id,
@@ -1519,17 +1763,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         const storeAPI = (window as any).electronAPI.store
         await storeAPI.set("vendor-shop-info", shopInfo)
       }
-      await fetch("/api/vendor/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(shopInfo),
-      }).then(async (res) => {
-        if (!res.ok) return
-        const data = await res.json()
-        if (data?.profile) {
-          setShopInfo((prev: any) => ({ ...prev, ...data.profile }))
-        }
-      })
       toast({
         title: translate("Informations enregistrées", "تم حفظ المعلومات"),
         description: translate("Les données de boutique sont prêtes pour reçus et affichage.", "بيانات المتجر جاهزة للإيصالات والعرض."),
@@ -1649,7 +1882,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               cartTax={cartTax}
               cartTotal={cartTotal}
               manualTotal={manualTotal}
-              isBarcodeDetectorSupported={isBarcodeDetectorSupported}
               isArabic={isArabic}
               translate={translate}
               onSearchChange={setPosSearch}
@@ -1692,6 +1924,22 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               fetchProducts={fetchProducts}
               handlePostProductToDelivery={handlePostProductToDelivery}
               handleDeleteProduct={handleDeleteProduct}
+              onPrintLabels={isElectronRuntime && (window as any).electronAPI?.print?.printProductLabels
+                ? async (items: InventoryProduct[]) => {
+                    if (items.length === 0) {
+                      toast({ title: translate("Aucun produit", "لا منتجات"), description: translate("Sélectionnez des produits à imprimer", "اختر منتجات للطباعة"), variant: "destructive" })
+                      return
+                    }
+                    try {
+                      const res = await (window as any).electronAPI.print.printProductLabels({ products: items, fields: labelFields, labelType, widthMm: labelWidthMm, heightMm: labelHeightMm, shopName: shopInfo?.name || '' })
+                      if (res?.success) toast({ title: translate("Impression lancée", "تم بدء الطباعة"), description: translate("Les étiquettes ont été envoyées à l'imprimante.", "تم إرسال الملصقات إلى الطابعة.") })
+                      else toast({ title: translate("Erreur", "خطأ"), description: res?.error || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
+                    } catch (e: any) {
+                      toast({ title: translate("Erreur", "خطأ"), description: e?.message || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
+                    }
+                  }
+                : undefined
+              }
             />
           </TabsContent>
 
@@ -1703,6 +1951,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               translate={translate}
               handleUpdateOrderStatus={handleUpdateOrderStatus}
               prepTimeMinutes={prepTimeMinutes}
+              filterCustomerId={ordersCustomerFilter}
+              highlightOrderId={highlightOrderId}
+              onClearCustomerFilter={clearOrdersCustomerFilter}
             />
           </TabsContent>
 
@@ -1715,6 +1966,15 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               connectedDrivers={connectedDrivers}
               translate={translate}
               respondToDriverRequest={respondToDriverRequest}
+            />
+          </TabsContent>
+
+          {/* RFID Tab */}
+          <TabsContent value="rfid" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <RfidDashboardTab
+              translate={translate}
+              isElectronRuntime={isElectronRuntime}
+              onLinkProduct={(tagId) => setActiveTab("inventory")}
             />
           </TabsContent>
 
@@ -1923,6 +2183,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               customers={customers}
               translate={translate}
               setShowCustomerDialog={setShowCustomerDialog}
+              onViewCustomerOrders={onViewCustomerOrders}
             />
           </TabsContent>
 
@@ -2133,6 +2394,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </div>
               </CardContent>
             </Card>
+
+            {isElectronRuntime && <AppUpdateCard translate={translate} toast={toast} />}
 
           {featureFlags.orderPause && (
             <Card>
@@ -2504,7 +2767,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                   </div>
                   <Button
                     variant={isDarkMode ? "default" : "outline"}
-                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    onClick={() => {
+                      const next = !isDarkMode
+                      setIsDarkMode(next)
+                      setStoredTheme(next ? "dark" : "light")
+                    }}
                   >
                     {isDarkMode ? translate("Activé", "مفعل") : translate("Désactivé", "معطل")}
                   </Button>
@@ -2552,19 +2819,169 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     defaultValue=""
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">{translate("Impression automatique", "الطباعة التلقائية")}</p>
+                    <p className="font-medium">{translate("Commandes WhatsApp", "طلبات واتساب")}</p>
                     <p className="text-sm text-muted-foreground">
-                      {translate("Imprimer automatiquement après chaque vente", "طباعة تلقائية بعد كل عملية بيع")}
+                      {translate(
+                        "Imprimer le reçu automatiquement lorsque vous confirmez (acceptez) une commande provenant de WhatsApp.",
+                        "طباعة الإيصال تلقائياً عند تأكيد (قبول) طلب قادم من واتساب.",
+                      )}
                     </p>
                   </div>
-                  <Button variant="outline">
-                    {translate("Désactivé", "معطل")}
+                  <Button
+                    type="button"
+                    variant={autoPrintWhatsappOnConfirm ? "default" : "outline"}
+                    onClick={() => setAutoPrintWhatsappOnConfirm(!autoPrintWhatsappOnConfirm)}
+                    className={autoPrintWhatsappOnConfirm ? "bg-albaz-green-gradient hover:opacity-90 text-white shrink-0" : "shrink-0"}
+                  >
+                    {autoPrintWhatsappOnConfirm ? translate("Activé", "مفعّل") : translate("Désactivé", "معطّل")}
                   </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Product labels / Étiquettes produit */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Tag className="w-5 h-5" />
+                  {translate("Étiquettes produit", "ملصقات المنتج")}
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  {translate("Choisissez les champs à afficher sur l'étiquette et le type (RFID ou normal).", "اختر الحقول المعروضة على الملصق والنوع (RFID أو عادي).")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">{translate("Champs sur l'étiquette", "الحقول على الملصق")}</Label>
+                  <div className="flex flex-wrap gap-3">
+                    {LABEL_FIELD_OPTIONS.map((opt) => (
+                      <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={labelFields.includes(opt.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setLabelFields((prev) => [...prev, opt.id])
+                            else setLabelFields((prev) => prev.filter((f) => f !== opt.id))
+                          }}
+                          className="rounded border-input"
+                        />
+                        <span>{translate(opt.labelFr, opt.labelAr)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <Label className="mb-2 block">{translate("Type d'étiquette", "نوع الملصق")}</Label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="labelType"
+                        checked={labelType === 'normal'}
+                        onChange={() => setLabelType('normal')}
+                        className="border-input"
+                      />
+                      <span>{translate("Normal (code-barres)", "عادي (باركود)")}</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="labelType"
+                        checked={labelType === 'rfid'}
+                        onChange={() => setLabelType('rfid')}
+                        className="border-input"
+                      />
+                      <span>RFID</span>
+                    </label>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-sm">{translate("Largeur (mm)", "العرض (مم)")}</Label>
+                    <Input
+                      type="number"
+                      min={20}
+                      max={200}
+                      value={labelWidthMm}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10)
+                        if (Number.isFinite(v) && v >= 20 && v <= 200) setLabelWidthMm(v)
+                      }}
+                      className="w-24"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm">{translate("Hauteur (mm)", "الارتفاع (مم)")}</Label>
+                    <Input
+                      type="number"
+                      min={15}
+                      max={150}
+                      value={labelHeightMm}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10)
+                        if (Number.isFinite(v) && v >= 15 && v <= 150) setLabelHeightMm(v)
+                      }}
+                      className="w-24"
+                    />
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {translate("Utilisez l'icône étiquette dans l'onglet Inventaire (Actions) pour imprimer une étiquette par produit.", "استخدم أيقونة الملصق في تبويب المخزون (الإجراءات) لطباعة ملصق لكل منتج.")}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Serial port (Electron only) */}
+            {isElectronRuntime && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Cable className="w-5 h-5" />
+                    {translate("Port série", "المنفذ التسلسلي")}
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    {translate("Choisissez le port série du lecteur code-barres ou RFID (connexion directe).", "اختر المنفذ التسلسلي لقارئ الباركود أو RFID (اتصال مباشر).")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm">{translate("Port", "المنفذ")}</Label>
+                      <select
+                        value={selectedSerialPort}
+                        onChange={(e) => handleSerialPortChange(e.target.value)}
+                        disabled={loadingSerialPorts}
+                        className="flex h-9 w-[220px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="">{translate("Aucun", "لا شيء")}</option>
+                        {serialPortsList.map((p) => (
+                          <option key={p.path} value={p.path}>
+                            {p.path}{p.manufacturer ? ` (${p.manufacturer})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={refreshSerialPorts} disabled={loadingSerialPorts}>
+                      {loadingSerialPorts ? translate("Chargement…", "جاري التحميل…") : translate("Rafraîchir", "تحديث")}
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-sm">{translate("Vitesse (baud)", "السرعة (باود)")}</Label>
+                    <select
+                      value={serialBaudRate}
+                      onChange={(e) => handleSerialBaudChange(Number(e.target.value))}
+                      className="flex h-9 w-[140px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {BAUD_OPTIONS.map((b) => (
+                        <option key={b} value={b}>{b}</option>
+                      ))}
+                    </select>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
         </div>
@@ -2697,5 +3114,13 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
       />
       </div>
     </ErrorBoundary>
+  )
+}
+
+export default function VendorDashboard() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <VendorDashboardContent />
+    </Suspense>
   )
 }

@@ -7,7 +7,9 @@ The AL-baz admin application is a **Next.js-based administrative control panel**
 **Current Status:** ✅ Production-ready with advanced features  
 **Tech Stack:** Next.js 15.5.6, React 18.3.1, TypeScript, Tailwind CSS  
 **Port:** 3003 (separate from main app)  
-**Last Updated:** 2024 (Recently Enhanced)
+**Last Updated:** 2026-03-17
+
+> **2026 Update Note:** The admin app has gained additional capabilities after the previous analysis, including analytics dashboards, CSV export, CSRF protection, subscription management, and subscription passkeys. This document has been updated to reflect those additions.
 
 ---
 
@@ -45,7 +47,7 @@ The AL-baz admin application is a **Next.js-based administrative control panel**
 apps/admin/
 ├── app/
 │   ├── admin/
-│   │   ├── page.tsx          # Main admin panel component (~280 lines, refactored)
+│   │   ├── page.tsx          # Main admin panel component (~516 lines)
 │   │   └── loading.tsx        # Loading state component
 │   ├── api/
 │   │   └── admin/
@@ -56,7 +58,12 @@ apps/admin/
 │   │       ├── orders/        # Order management endpoints
 │   │       ├── registration-requests/  # Registration approval
 │   │       ├── ads/           # Advertisement management (full CRUD)
-│   │       └── audit-logs/    # Audit log viewing
+│   │       ├── audit-logs/    # Audit log viewing
+│   │       ├── analytics/     # Analytics and reporting data
+│   │       ├── export/        # CSV/JSON exports
+│   │       ├── subscriptions/ # Vendor subscription management
+│   │       └── subscription-passkeys/ # Subscription passkey lifecycle
+│   ├── api/csrf-token/route.ts # CSRF token endpoint
 │   ├── layout.tsx            # Root layout with theme support
 │   └── globals.css           # Global styles
 ├── components/
@@ -66,6 +73,7 @@ apps/admin/
 │   ├── UserListViewWithBulk.tsx  # User list with bulk operations
 │   ├── ApprovalsView.tsx    # Registration approvals
 │   ├── AuditLogView.tsx     # Audit log viewer
+│   ├── AnalyticsDashboard.tsx # Recharts analytics dashboard
 │   ├── AdsManagementView.tsx # Ads management
 │   ├── EditUserDialog.tsx   # Edit user dialog
 │   └── DeleteUserDialog.tsx # Delete confirmation dialog
@@ -73,6 +81,8 @@ apps/admin/
 │   └── useAdminData.ts      # Data fetching hook
 ├── lib/
 │   ├── audit.ts             # Audit logging utility
+│   ├── csrf.ts              # Server-side CSRF helpers
+│   ├── csrf-client.ts       # Client-side CSRF fetch wrapper
 │   └── utils.ts             # Utility functions
 ├── package.json
 ├── next.config.mjs           # Next.js configuration
@@ -81,7 +91,7 @@ apps/admin/
 
 ### Main Entry Point
 
-**`app/admin/page.tsx`** - Single Page Application with tab-based navigation:
+**`app/admin/page.tsx`** - Single Page Application with tab-based navigation (~516 lines):
 - Manages global state (users, orders, registration requests)
 - Handles authentication and authorization
 - Implements tab-based UI for different admin functions
@@ -95,6 +105,8 @@ apps/admin/
 - `vendors` - Vendor management (with bulk operations)
 - `ads` - Advertisement management
 - `audit` - Audit log viewer
+- `command-center` - Operational SLA/cash risk monitoring
+- `passkeys` - Subscription passkeys management UI
 
 ---
 
@@ -347,6 +359,63 @@ apps/admin/
 - Component: `AdsManagementView.tsx`
 - Audit logging for all ad operations
 
+### 13. Analytics Dashboard ✅
+
+**Purpose:** Visual reporting for platform performance over selectable periods
+
+**Features:**
+- Time-range filtering (7/30/90/365 days)
+- Grouping by day/week/month
+- Revenue/orders KPI cards
+- Recharts visualizations:
+  - Orders + revenue trends
+  - Orders by status
+  - User growth
+  - Top vendors by revenue
+
+**Implementation:**
+- UI: `components/AnalyticsDashboard.tsx`
+- API: `GET /api/admin/analytics`
+- Dependency: `recharts`
+
+### 14. Export Functionality ✅
+
+**Purpose:** Export operational datasets for reporting and offline analysis
+
+**Features:**
+- CSV export for users, orders, and audit logs
+- JSON export API support
+- Date-filtered export ranges
+- Export actions available from analytics and audit log views
+
+**Implementation:**
+- API: `POST /api/admin/export`
+- Supported types: `users`, `orders`, `audit-logs`
+- Formats: `csv`, `json`
+
+### 15. CSRF Protection ✅
+
+**Purpose:** Harden mutation routes against cross-site request forgery
+
+**Features:**
+- Token issuance endpoint (`/api/csrf-token`)
+- Cookie + header token verification flow
+- Client helper (`fetchWithCsrf`) for mutation requests
+- Validation for POST/PUT/PATCH/DELETE routes
+
+### 16. Subscription & Passkey Management ✅
+
+**Purpose:** Admin lifecycle control for vendor subscriptions
+
+**Features:**
+- Create and list subscriptions
+- Patch subscription plan/status/period
+- Generate and list subscription passkeys
+- Optional passkey expiry windows
+
+**Implementation:**
+- APIs: `/api/admin/subscriptions`, `/api/admin/subscriptions/[id]`, `/api/admin/subscription-passkeys`
+
 ---
 
 ## Component Structure
@@ -483,6 +552,29 @@ POST   /api/admin/users/bulk               # Bulk user operations (suspend, dele
 GET    /api/admin/audit-logs               # List audit logs (with advanced filtering)
 ```
 
+#### Analytics & Exports
+
+```
+GET    /api/admin/analytics                # Analytics dataset (time-range + grouping)
+POST   /api/admin/export                   # Export users/orders/audit logs (CSV/JSON)
+```
+
+#### Subscriptions & Passkeys
+
+```
+GET    /api/admin/subscriptions            # List subscriptions + stats
+POST   /api/admin/subscriptions            # Create vendor subscription
+PATCH  /api/admin/subscriptions/[id]       # Update plan/status/period
+GET    /api/admin/subscription-passkeys    # List generated passkeys
+POST   /api/admin/subscription-passkeys    # Generate passkey
+```
+
+#### Security Utilities
+
+```
+GET    /api/csrf-token                     # Get CSRF token for client mutation requests
+```
+
 ### API Features
 
 **Security:**
@@ -549,7 +641,7 @@ if (session.user.role !== 'ADMIN') {
 - ✅ Input validation
 - ✅ Password hashing (bcrypt)
 - ✅ Audit logging (fully implemented)
-- ⚠️ No CSRF protection (needs implementation)
+- ✅ CSRF protection (token endpoint + client/server validation flow)
 
 ---
 
@@ -648,48 +740,20 @@ if (session.user.role !== 'ADMIN') {
 
 ### 2. **Remaining Missing Features**
 
-#### Export Functionality
-- Cannot export user lists
-- Cannot export order reports
-- No CSV/PDF export options
-- Export button exists in audit log view but not implemented
-
-#### Analytics & Reporting
-- Basic dashboard only
-- No charts or graphs
-- No trend analysis
-- No custom date range reports
-
 #### Notification System
-- No notifications for new registration requests
-- No alerts for critical events
-- No email notifications
+- No real-time notifications for new registration requests
+- No critical-alert routing (email/SMS/push)
+- No notification preferences center
 
-#### User Activity Tracking
-- Cannot view user login history
-- No activity logs per user
-- No session management UI
+#### User Activity & Session Oversight
+- No dedicated per-user login history screen
+- No active session management UI for forced sign-out
+- No device-level session visibility for admins
 
-#### Export Functionality
-- Cannot export user lists
-- Cannot export order reports
-- No CSV/PDF export options
-
-#### Analytics & Reporting
-- Basic dashboard only
-- No charts or graphs
-- No trend analysis
-- No custom date range reports
-
-#### Notification System
-- No notifications for new registration requests
-- No alerts for critical events
-- No email notifications
-
-#### User Activity Tracking
-- Cannot view user login history
-- No activity logs
-- No session management
+#### Advanced Reporting
+- No scheduled export delivery
+- No PDF export templates
+- No saved report presets per admin user
 
 ### 3. **UI/UX Issues**
 
@@ -1061,7 +1125,7 @@ const virtualizer = useVirtualizer({
 
 | Feature | Admin App | Customer App |
 |---------|-----------|--------------|
-| **Size** | 727 lines (main component) | Larger, more complex |
+| **Size** | ~516 lines (main component) | Larger, more complex |
 | **Purpose** | Management & oversight | Ordering & tracking |
 | **Real-time** | No SSE implementation | SSE for order tracking |
 | **Complexity** | Moderate | High |
@@ -1071,7 +1135,7 @@ const virtualizer = useVirtualizer({
 
 | Feature | Admin App | Vendor App |
 |---------|-----------|------------|
-| **Size** | 727 lines | Much larger (ERP system) |
+| **Size** | ~516 lines | Much larger (ERP system) |
 | **Purpose** | Platform management | Business operations |
 | **Features** | User/order oversight | POS, inventory, CRM, analytics |
 | **Complexity** | Moderate | Very high |
@@ -1081,7 +1145,7 @@ const virtualizer = useVirtualizer({
 
 | Feature | Admin App | Driver App |
 |---------|-----------|------------|
-| **Size** | 727 lines | Similar size |
+| **Size** | ~516 lines | Similar size |
 | **Purpose** | Management | Delivery operations |
 | **Real-time** | No | Yes (location tracking) |
 | **Features** | User management | Delivery management |
@@ -1207,34 +1271,46 @@ apps/admin/
 | DELETE | `/api/admin/ads/[id]` | Delete ad | ✅ |
 | POST | `/api/admin/users/bulk` | Bulk user operations | ✅ |
 | GET | `/api/admin/audit-logs` | List audit logs | ✅ |
+| GET | `/api/admin/analytics` | Analytics data | ✅ |
+| POST | `/api/admin/export` | Export datasets | ✅ |
+| GET | `/api/admin/subscriptions` | List subscriptions + stats | ✅ |
+| POST | `/api/admin/subscriptions` | Create subscription | ✅ |
+| PATCH | `/api/admin/subscriptions/[id]` | Update subscription | ✅ |
+| GET | `/api/admin/subscription-passkeys` | List passkeys | ✅ |
+| POST | `/api/admin/subscription-passkeys` | Generate passkey | ✅ |
+| GET | `/api/csrf-token` | CSRF token issuance | ✅ |
 
 ---
 
-**Document Version:** 2.0  
-**Last Updated:** 2024 (Recently Enhanced)  
+**Document Version:** 2.1  
+**Last Updated:** 2026-03-17  
 **Author:** AI Analysis  
-**Status:** Updated Analysis - Reflects Recent Improvements
+**Status:** Updated Analysis - Reflects Current Admin Capabilities
 
 ---
 
-## Recent Enhancements (2024)
+## Recent Enhancements (2026 Snapshot)
 
 ### ✅ Completed Features
 
 1. **Edit/Delete Functionality** - Fully implemented with dialogs and API integration
 2. **Search Functionality** - Real-time filtering across all user views
-3. **Component Refactoring** - Split 727-line component into 10+ smaller components
+3. **Component Refactoring** - Improved modular structure while preserving a centralized coordinator page
 4. **Audit Logging** - Complete audit trail for all admin actions
 5. **Bulk Operations** - Multi-select and bulk actions for users
 6. **Advanced Filtering** - Role, status, date range filters across views
 7. **Ads Management** - Complete CRUD system for advertisements
 8. **Header Fix** - Fixed transparency and icon visibility issues
+9. **Analytics Dashboard** - Added chart-based reporting with date grouping
+10. **Data Export** - Added CSV/JSON exports for users, orders, and audit logs
+11. **CSRF Protection** - Added token endpoint and mutation request protection
+12. **Subscriptions & Passkeys** - Added admin subscription lifecycle and passkey tooling
 
 ### 📊 Current Statistics
 
-- **Main Component Size:** ~280 lines (down from 727)
+- **Main Component Size:** ~516 lines (expanded with new tabs/features)
 - **Component Count:** 10+ reusable components
-- **API Endpoints:** 15+ fully functional endpoints
-- **Features:** 12 major feature sets implemented
+- **API Endpoints:** 20+ fully functional endpoints
+- **Features:** 16 major feature sets implemented
 - **Code Quality:** Significantly improved with refactoring
 

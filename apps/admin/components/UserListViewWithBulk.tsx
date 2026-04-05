@@ -17,6 +17,8 @@ interface UserListViewWithBulkProps {
   onDelete: (user: UserType) => void
   onBulkAction: (action: string, userIds: string[]) => Promise<void>
   onAdd?: () => void
+  /** Show text labels next to edit/delete (clearer for vendor management). */
+  showActionLabels?: boolean
 }
 
 export function UserListViewWithBulk({
@@ -29,6 +31,7 @@ export function UserListViewWithBulk({
   onDelete,
   onBulkAction,
   onAdd,
+  showActionLabels = false,
 }: UserListViewWithBulkProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
@@ -230,17 +233,23 @@ export function UserListViewWithBulk({
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="icon" onClick={() => onEdit(user)}>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size={showActionLabels ? "sm" : "icon"}
+                        onClick={() => onEdit(user)}
+                      >
                         <Edit className="w-4 h-4" />
+                        {showActionLabels ? <span className="ml-1">Modifier</span> : null}
                       </Button>
                       <Button
                         variant="outline"
-                        size="icon"
+                        size={showActionLabels ? "sm" : "icon"}
                         className="text-red-600 hover:text-red-700 bg-transparent"
                         onClick={() => onDelete(user)}
                       >
                         <Trash2 className="w-4 h-4" />
+                        {showActionLabels ? <span className="ml-1">Supprimer</span> : null}
                       </Button>
                     </div>
                   </div>

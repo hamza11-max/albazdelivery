@@ -1,10 +1,20 @@
 "use client"
 
 import { handleError, safeFetch, parseAPIResponse, APIError } from "./errorHandling"
+import { printDeliveryOrderReceipt, type ShopInfoForReceipt } from "@/root/lib/vendor/print-delivery-order-receipt"
 
 interface UpdateOrderStatusParams {
   orderId: string
   status: string
+  /** Snapshot of the order before the status change (for WhatsApp auto-print on accept). */
+  orderSnapshot?: any
+  autoPrintWhatsappOnAccept?: boolean
+  printContext?: {
+    shopInfo: ShopInfoForReceipt
+    effectiveUser: any
+    isElectronRuntime: boolean
+    translate: (fr: string, ar: string) => string
+  }
   fetchOrders: (vendorId?: string) => Promise<any>
   activeVendorId?: string
   toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void
@@ -15,6 +25,9 @@ interface UpdateOrderStatusParams {
 export async function updateOrderStatus({
   orderId,
   status,
+  orderSnapshot,
+  autoPrintWhatsappOnAccept,
+  printContext,
   fetchOrders,
   activeVendorId,
   toast,
@@ -29,6 +42,25 @@ export async function updateOrderStatus({
     const data = await parseAPIResponse(response)
     if (data.success) {
       await fetchOrders(activeVendorId)
+
+      if (
+        status === "ACCEPTED" &&
+        autoPrintWhatsappOnAccept &&
+        orderSnapshot?.orderSource === "WHATSAPP" &&
+        printContext
+      ) {
+        try {
+          await printDeliveryOrderReceipt({
+            order: orderSnapshot,
+            shopInfo: printContext.shopInfo,
+            effectiveUser: printContext.effectiveUser,
+            isElectronRuntime: printContext.isElectronRuntime,
+            translate: printContext.translate,
+          })
+        } catch (e) {
+          console.warn("[updateOrderStatus] WhatsApp auto-print failed", e)
+        }
+      }
       
       const statusMessages: Record<string, { fr: string; ar: string }> = {
         ACCEPTED: { fr: "Commande acceptée", ar: "تم قبول الطلب" },

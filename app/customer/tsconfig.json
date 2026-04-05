@@ -5,6 +5,7 @@
     "paths": {
       "@/*": ["./*"],
       "@/root/*": ["../../*"],
+      "@/generated/*": ["../../generated/*"],
       "@albaz/shared": ["../../packages/shared/src"],
       "@albaz/ui": ["../../packages/ui/src"],
       "@albaz/auth": ["../../packages/auth/src"]

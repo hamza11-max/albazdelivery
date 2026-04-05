@@ -24,13 +24,26 @@ export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
+    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
+    const isDev = process.env.NODE_ENV === 'development'
+    const isLocalVendorId = typeof vendorIdParam === 'string' && (vendorIdParam.startsWith('local-') || vendorIdParam.startsWith('electron-'))
+
+    // When using local/electron vendor (no DB user), return fallback so import + POS see same data.
+    // Allow in both dev and production so Electron packaged app works offline without auth.
+    if (isLocalVendorId) {
+      const all = Array.from(fallbackProducts.values())
+      const products = vendorIdParam ? all.filter((p: any) => p.vendorId === vendorIdParam) : all
+      return successResponse({ products, fallback: true })
+    }
+
     // Check if database is available
     const dbAvailable = await isDatabaseAvailable()
     
     if (!dbAvailable) {
       // Return fallback data
       console.log('[API/inventory] Database unavailable, using fallback storage')
-      const products = Array.from(fallbackProducts.values())
+      const all = Array.from(fallbackProducts.values())
+      const products = vendorIdParam ? all.filter((p: any) => p.vendorId === vendorIdParam) : all
       return successResponse({ products, fallback: true })
     }
 
@@ -49,9 +62,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const lowStock = searchParams.get('lowStock')
     const category = searchParams.get('category')
-    const vendorIdParam = searchParams.get('vendorId')
 
-    let targetVendorId = isAdmin ? vendorIdParam : null // session.user.id
+    let targetVendorId = isAdmin ? vendorIdParam : session?.user?.id ?? null
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !targetVendorId) {
@@ -159,27 +171,32 @@ export async function POST(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    // Dev mode: bypass auth for Electron
+    const body = await request.json()
+    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
+    const bodyVendorId = body?.vendorId ?? vendorIdParam
+    const isLocalVendorId = typeof bodyVendorId === 'string' && (bodyVendorId.startsWith('local-') || bodyVendorId.startsWith('electron-'))
+
+    // Bypass auth for Electron/local vendor (offline mode) - same as GET
     const isDev = process.env.NODE_ENV === 'development'
     let session = null
-    try {
-      session = await auth()
-    } catch (e) {
-      // Auth might fail in Electron
+    if (!isLocalVendorId) {
+      try {
+        session = await auth()
+      } catch (e) {
+        // Auth might fail in Electron
+      }
     }
-    
-    if (!isDev && !session?.user) {
+
+    if (!isLocalVendorId && !isDev && !session?.user) {
       throw new UnauthorizedError()
     }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    const isAdmin = session?.user?.role === 'ADMIN'
+    const isVendor = session?.user?.role === 'VENDOR'
 
-    if (!isDev && !isAdmin && !isVendor) {
+    if (!isLocalVendorId && !isDev && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can create products')
     }
-
-    const body = await request.json()
     
     // Check if database is available
     const dbAvailable = await isDatabaseAvailable()
@@ -199,7 +216,6 @@ export async function POST(request: NextRequest) {
       return successResponse({ product, fallback: true })
     }
 
-    const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
     const validatedData = createInventoryProductSchema.parse(body)
     const {
       vendorId: overrideVendorId,
@@ -215,10 +231,35 @@ export async function POST(request: NextRequest) {
       image,
     } = validatedData
 
-    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+    // In dev with no session (e.g. Electron), use vendorId from body or query
+    const vendorId = (isAdmin ? overrideVendorId ?? vendorIdParam : session?.user?.id) ?? overrideVendorId ?? vendorIdParam ?? body.vendorId
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId is required to create a product'), 400)
+    }
+
+    // When vendorId is a local/Electron id (no DB user), use in-memory fallback so Excel import works
+    const isLocalVendorIdForCreate = typeof vendorId === 'string' && (vendorId.startsWith('local-') || vendorId.startsWith('electron-'))
+    if (isLocalVendorIdForCreate) {
+      const id = `fallback-${fallbackIdCounter++}`
+      const product = {
+        id,
+        vendorId,
+        sku,
+        name,
+        category: category ?? '',
+        supplierId: supplierId ?? null,
+        costPrice,
+        sellingPrice,
+        stock: Math.floor(stock),
+        lowStockThreshold: Math.floor(lowStockThreshold),
+        barcode: barcode || null,
+        image: image && image.length > 0 ? image : null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      fallbackProducts.set(id, product)
+      return successResponse({ product, fallback: true }, 201)
     }
 
     // Verify supplier belongs to vendor if provided
@@ -293,28 +334,54 @@ export async function PUT(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const isDev = process.env.NODE_ENV === 'development'
-    let session = null
-    try {
-      session = await auth()
-    } catch (e) {}
-    
-    if (!isDev && !session?.user) {
-      throw new UnauthorizedError()
-    }
-
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
-
-    if (!isDev && !isAdmin && !isVendor) {
-      throw new ForbiddenError('Only vendors or admins can update products')
-    }
-
     const body = await request.json()
     const { id, ...updateData } = body
 
     if (!id) {
       return errorResponse(new Error('Product ID is required'), 400)
+    }
+
+    const isFallbackId = typeof id === 'string' && id.startsWith('fallback-')
+    const isDev = process.env.NODE_ENV === 'development'
+
+    let session = null
+    if (!isFallbackId) {
+      try {
+        session = await auth()
+      } catch (e) {}
+    }
+
+    if (!isFallbackId && !isDev && !session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session?.user?.role === 'ADMIN'
+    const isVendor = session?.user?.role === 'VENDOR'
+
+    if (!isFallbackId && !isDev && !isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can update products')
+    }
+
+    // Handle fallback product ids (from Excel import / Electron) - allow in dev and production
+    if (isFallbackId) {
+      const existing = fallbackProducts.get(id)
+      if (!existing) {
+        return errorResponse(new Error('Product not found'), 404)
+      }
+      const validatedData = updateInventoryProductSchema.parse(updateData)
+      const updated = {
+        ...existing,
+        name: validatedData.name ?? existing.name,
+        category: validatedData.category ?? existing.category,
+        costPrice: validatedData.costPrice ?? existing.costPrice,
+        sellingPrice: validatedData.sellingPrice ?? existing.sellingPrice,
+        stock: validatedData.stock !== undefined ? Math.floor(validatedData.stock) : existing.stock,
+        lowStockThreshold: validatedData.lowStockThreshold !== undefined ? Math.floor(validatedData.lowStockThreshold) : existing.lowStockThreshold,
+        barcode: validatedData.barcode !== undefined ? validatedData.barcode : existing.barcode,
+        updatedAt: new Date().toISOString(),
+      }
+      fallbackProducts.set(id, updated)
+      return successResponse({ product: updated })
     }
 
     // Validate update data
@@ -329,7 +396,7 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
+    if (isVendor && session?.user && existing.vendorId !== session.user.id) {
       throw new ForbiddenError('You can only update your own products')
     }
 
@@ -398,28 +465,41 @@ export async function DELETE(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const isDev = process.env.NODE_ENV === 'development'
-    let session = null
-    try {
-      session = await auth()
-    } catch (e) {}
-    
-    if (!isDev && !session?.user) {
-      throw new UnauthorizedError()
-    }
-
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
-
-    if (!isDev && !isAdmin && !isVendor) {
-      throw new ForbiddenError('Only vendors or admins can delete products')
-    }
-
-    // Get id from query parameters
     const id = request.nextUrl.searchParams.get('id')
 
     if (!id) {
       return errorResponse(new Error('Product ID is required'), 400)
+    }
+
+    const isFallbackId = id.startsWith('fallback-')
+    const isDev = process.env.NODE_ENV === 'development'
+
+    let session = null
+    if (!isFallbackId) {
+      try {
+        session = await auth()
+      } catch (e) {}
+    }
+
+    if (!isFallbackId && !isDev && !session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    const isAdmin = session?.user?.role === 'ADMIN'
+    const isVendor = session?.user?.role === 'VENDOR'
+
+    if (!isFallbackId && !isDev && !isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can delete products')
+    }
+
+    // Handle fallback product ids (from Excel import / Electron)
+    if (isFallbackId) {
+      const existing = fallbackProducts.get(id)
+      if (!existing) {
+        return errorResponse(new Error('Product not found'), 404)
+      }
+      fallbackProducts.delete(id)
+      return successResponse({ message: 'Product deleted successfully' })
     }
 
     // Validate ID format
@@ -438,7 +518,7 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
+    if (isVendor && session?.user && existing.vendorId !== session.user.id) {
       throw new ForbiddenError('You can only delete your own products')
     }
 

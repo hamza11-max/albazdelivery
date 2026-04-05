@@ -24,8 +24,8 @@ export type { Category }
 export type { ApiResponse } from '@/root/lib/types'
 
 export interface CartItem {
-  id: number
-  productId: number
+  id: number | string
+  productId: number | string
   productName: string
   quantity: number
   price: number

@@ -1,0 +1,33 @@
+{
+  "_readme": "Sketch for Meta Flow Builder — validate fields against Flow JSON reference. Endpoint: POST /api/webhooks/whatsapp/flow. Webhook payload on complete must match lib/whatsapp/flow-order-payload.ts (items with productId + quantity, deliveryAddress/delivery_address, city).",
+  "version": "7.2",
+  "data_api_version": "4.0",
+  "routing_model": {},
+  "screens": [
+    {
+      "id": "MENU",
+      "title": "Menu",
+      "terminal": false,
+      "success": false,
+      "data": {
+        "product_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "CHECKOUT",
+      "title": "Delivery",
+      "terminal": true,
+      "success": true,
+      "data": {}
+    }
+  ]
+}

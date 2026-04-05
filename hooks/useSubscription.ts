@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { PLAN_FEATURES, type PlanFeatures } from "@/root/lib/stripe"
+import { PLAN_FEATURES, subscriptionStatusGrantsPlanFeatures, type PlanFeatures } from "@/root/lib/stripe"
 
 interface Subscription {
   id: string
@@ -14,6 +14,11 @@ interface Subscription {
     currentUsage: number
     limit: number
   }>
+}
+
+function subscriptionGrantsPlanFeatures(subscription: Subscription | null): boolean {
+  if (!subscription) return false
+  return subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)
 }
 
 export function useSubscription() {
@@ -44,26 +49,25 @@ export function useSubscription() {
   }
 
   const hasFeature = (feature: keyof PlanFeatures): boolean => {
-    if (!subscription || subscription.status !== "ACTIVE") {
-      return false
-    }
+    if (!subscriptionGrantsPlanFeatures(subscription)) return false
 
-    const planFeatures = PLAN_FEATURES[subscription.plan as keyof typeof PLAN_FEATURES]
+    const planFeatures = PLAN_FEATURES[subscription!.plan as keyof typeof PLAN_FEATURES]
     if (!planFeatures) return false
 
     const value = planFeatures[feature]
-    return value === true || value === -1
+    if (typeof value === "boolean") return value
+    return value === -1
   }
 
   const getLimit = (feature: keyof PlanFeatures): number => {
-    if (!subscription || subscription.status !== "ACTIVE") {
-      return 0
-    }
+    if (!subscriptionGrantsPlanFeatures(subscription)) return 0
 
-    const planFeatures = PLAN_FEATURES[subscription.plan as keyof typeof PLAN_FEATURES]
+    const planFeatures = PLAN_FEATURES[subscription!.plan as keyof typeof PLAN_FEATURES]
     if (!planFeatures) return 0
 
-    return (planFeatures[feature] as number) || 0
+    const value = planFeatures[feature]
+    if (typeof value === "number") return value
+    return 0
   }
 
   const checkLimit = (feature: keyof PlanFeatures, currentUsage: number): boolean => {

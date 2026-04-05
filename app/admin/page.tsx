@@ -28,6 +28,7 @@ import {
   UserCheck,
   UserX,
   Globe,
+  KeyRound,
 } from "lucide-react"
 import type { Order, User as UserType, RegistrationRequest } from "@/lib/types"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -367,6 +368,16 @@ export default function AdminPanel() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-white hover:bg-white/20"
+              onClick={() => router.push("/admin/passkeys")}
+              title="Passkeys"
+            >
+              <KeyRound className="w-4 h-4 mr-1" />
+              Passkeys
+            </Button>
             <Button
               variant="ghost"
               size="icon"

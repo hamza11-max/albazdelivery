@@ -82,8 +82,8 @@ try {
   console.warn('⚠️  Could not load .env.local:', error)
 }
 
-// Now import PrismaClient after environment is loaded
-import { PrismaClient } from '@prisma/client'
+// Now import DB helpers after environment is loaded
+import { createPrismaPgClient } from '../lib/prisma-pg'
 import { hashPassword } from '../lib/password'
 
 // Verify DATABASE_URL before creating PrismaClient
@@ -111,13 +111,7 @@ if (process.env.DIRECT_URL) {
   console.log('📊 Using DATABASE_URL')
 }
 
-// Explicitly pass DATABASE_URL to PrismaClient to ensure it uses the correct one
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: databaseUrl,
-    },
-  },
+const { prisma } = createPrismaPgClient(databaseUrl, {
   log: ['error', 'warn'],
 })
 

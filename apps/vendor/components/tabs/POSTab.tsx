@@ -12,12 +12,11 @@ interface POSTabProps {
   discount: number
   translate: (fr: string, ar: string) => string
   isArabic: boolean
-  isBarcodeDetectorSupported: boolean
   onSearchChange: (search: string) => void
   onBarcodeScan: () => void
   onAddToCart: (product: InventoryProduct) => void
-  onRemoveFromCart: (productId: number) => void
-  onUpdateQuantity: (productId: number, delta: number) => void
+  onRemoveFromCart: (productId: number | string) => void
+  onUpdateQuantity: (productId: number | string, delta: number) => void
   onDiscountChange: (discount: number) => void
   onCompleteSale: (paymentMethod: "cash" | "card") => void
 }
@@ -29,7 +28,6 @@ export function POSTab({
   discount,
   translate,
   isArabic,
-  isBarcodeDetectorSupported,
   onSearchChange,
   onBarcodeScan,
   onAddToCart,
@@ -76,7 +74,6 @@ export function POSTab({
               variant="outline"
               className="shrink-0"
               onClick={onBarcodeScan}
-              disabled={!isBarcodeDetectorSupported}
             >
               <ScanLine className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
               {translate("Scanner", "مسح")}

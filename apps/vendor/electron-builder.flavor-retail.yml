@@ -1,0 +1,9 @@
+# Vertical: retail / clothes, etc. — merge over electron-builder.yml
+extends: ./electron-builder.yml
+appId: com.albaz.vendor.retail
+productName: AlBaz Vendor Retail
+win:
+  executableName: AlBazVendorRetail
+  artifactName: ${productName}-${version}-${arch}.${ext}
+nsis:
+  shortcutName: AlBaz Vendor Retail

@@ -3,6 +3,7 @@
 import { useState, useRef, useMemo, useCallback } from "react"
 import type { InventoryProduct, Sale, Customer, Supplier, Order } from "@/root/lib/types"
 import type { Category, TopProductData, SalesForecast, InventoryRecommendation, BundleRecommendation, ProductForm, CustomerForm, SupplierForm } from "../app/vendor/types"
+import { getStoredTheme } from "@/root/lib/theme"
 
 export function useVendorState() {
   // Electron auth state
@@ -11,13 +12,7 @@ export function useVendorState() {
   const isElectronRuntime = typeof window !== 'undefined' && !!window.electronAPI?.isElectron
 
   // UI States
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('vendor-dark-mode')
-      return saved === 'true'
-    }
-    return false
-  })
+  const [isDarkMode, setIsDarkMode] = useState(() => (typeof window !== 'undefined' && getStoredTheme() === 'dark'))
   const [activeTab, setActiveTab] = useState("dashboard")
   const [language, setLanguage] = useState("fr")
   const [showProductDialog, setShowProductDialog] = useState(false)
@@ -107,9 +102,9 @@ export function useVendorState() {
   )
   const activeVendorId = useMemo(
     () => {
-      // For Electron, use the electronUser's vendorId
-      if (isElectronRuntime && electronUser?.vendorId) {
-        return electronUser.vendorId
+      // For Electron: use electronUser's vendorId, or default so import/POS use same fallback store
+      if (isElectronRuntime) {
+        return electronUser?.vendorId ?? 'electron-vendor'
       }
       return isAdmin ? selectedVendorId ?? undefined : undefined
     },

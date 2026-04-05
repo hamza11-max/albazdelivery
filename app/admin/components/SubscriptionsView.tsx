@@ -24,10 +24,15 @@ import {
   Store,
   Plus,
   CalendarPlus,
+  Edit,
+  Trash2,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { PasskeysTab } from "@/components/tabs/PasskeysTab"
 import type { User as UserType } from "@/lib/types"
+import { EditUserDialog } from "./EditUserDialog"
+import { DeleteUserDialog } from "./DeleteUserDialog"
+import { fetchWithCsrf } from "@/app/admin/lib/csrf-client"
 
 interface Subscription {
   id: string
@@ -76,6 +81,94 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
   const { toast: toastProp, vendors = [], searchQuery = "", setSearchQuery = () => {}, setShowVendorDialog = () => {}, fetchUsers = () => {} } = props
   const { toast } = useToast()
   const t = toastProp ?? toast
+
+  const [selectedVendor, setSelectedVendor] = useState<UserType | null>(null)
+  const [showVendorEditDialog, setShowVendorEditDialog] = useState(false)
+  const [showVendorDeleteDialog, setShowVendorDeleteDialog] = useState(false)
+  const [isSavingVendor, setIsSavingVendor] = useState(false)
+  const [isDeletingVendor, setIsDeletingVendor] = useState(false)
+  const [vendorEditForm, setVendorEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "VENDOR" as "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN",
+    status: "APPROVED" as "PENDING" | "APPROVED" | "REJECTED",
+    address: "",
+    city: "",
+  })
+
+  const openVendorEdit = (vendor: UserType) => {
+    setSelectedVendor(vendor)
+    const v = vendor as UserType & { status?: string; address?: string; city?: string }
+    setVendorEditForm({
+      name: vendor.name || "",
+      email: vendor.email || "",
+      phone: vendor.phone || "",
+      role: (String(vendor.role || "VENDOR").toUpperCase() as "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN") || "VENDOR",
+      status: (String(v.status || "APPROVED").toUpperCase() as "PENDING" | "APPROVED" | "REJECTED") || "APPROVED",
+      address: v.address || "",
+      city: v.city || "",
+    })
+    setShowVendorEditDialog(true)
+  }
+
+  const handleSaveVendor = async () => {
+    if (!selectedVendor) return
+    setIsSavingVendor(true)
+    try {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedVendor.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vendorEditForm),
+      })
+      const data = await response.json()
+      if (data.success) {
+        t({ title: "Succès", description: "Le vendeur a été mis à jour" })
+        setShowVendorEditDialog(false)
+        setSelectedVendor(null)
+        fetchUsers()
+        fetchSubscriptions()
+      } else {
+        t({
+          title: "Erreur",
+          description: data.error?.message || data.error || "Mise à jour impossible",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      t({ title: "Erreur", description: "Impossible de mettre à jour le vendeur", variant: "destructive" })
+    } finally {
+      setIsSavingVendor(false)
+    }
+  }
+
+  const handleDeleteVendor = async () => {
+    if (!selectedVendor) return
+    setIsDeletingVendor(true)
+    try {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedVendor.id}`, {
+        method: "DELETE",
+      })
+      const data = await response.json()
+      if (data.success) {
+        t({ title: "Succès", description: "Le vendeur a été supprimé" })
+        setShowVendorDeleteDialog(false)
+        setSelectedVendor(null)
+        fetchUsers()
+        fetchSubscriptions()
+      } else {
+        t({
+          title: "Erreur",
+          description: data.error?.message || data.error || "Suppression impossible",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      t({ title: "Erreur", description: "Impossible de supprimer le vendeur", variant: "destructive" })
+    } finally {
+      setIsDeletingVendor(false)
+    }
+  }
 
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [stats, setStats] = useState<SubscriptionStats>({
@@ -239,9 +332,9 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
         {vendors.filter((v) => !searchQuery || v.name?.toLowerCase().includes(searchQuery.toLowerCase()) || v.email?.toLowerCase().includes(searchQuery.toLowerCase()) || v.phone?.includes(searchQuery)).map((vendor) => (
           <Card key={vendor.id}>
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Store className="w-6 h-6 text-primary" />
                   </div>
                   <div>
@@ -249,6 +342,24 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
                     <p className="text-sm text-muted-foreground">{vendor.email}</p>
                     <p className="text-sm text-muted-foreground">{vendor.phone}</p>
                   </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={() => openVendorEdit(vendor)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Modifier
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => {
+                      setSelectedVendor(vendor)
+                      setShowVendorDeleteDialog(true)
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -461,9 +572,27 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
         </TabsContent>
 
         <TabsContent value="passkeys">
-          <PasskeysTab translate={translate} vendors={vendors} onRefresh={fetchSubscriptions} />
+          <PasskeysTab translate={translate} vendors={vendors} onRefresh={() => { fetchSubscriptions(); fetchUsers() }} />
         </TabsContent>
       </Tabs>
+
+      <EditUserDialog
+        open={showVendorEditDialog}
+        onOpenChange={setShowVendorEditDialog}
+        user={selectedVendor}
+        form={vendorEditForm}
+        onFormChange={setVendorEditForm}
+        onSave={handleSaveVendor}
+        isSaving={isSavingVendor}
+      />
+
+      <DeleteUserDialog
+        open={showVendorDeleteDialog}
+        onOpenChange={setShowVendorDeleteDialog}
+        user={selectedVendor}
+        onConfirm={handleDeleteVendor}
+        isDeleting={isDeletingVendor}
+      />
     </div>
   )
 }

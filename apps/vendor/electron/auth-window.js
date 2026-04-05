@@ -13,11 +13,11 @@ function createAuthWindow() {
   }
   allowClose = false
   authWindow = new BrowserWindow({
-    width: 400,
-    height: 600,
-    resizable: false,
+    // Open authentication in fullscreen so it fully covers the screen
+    fullscreen: true,
+    resizable: true,
     show: false,
-    frame: true,
+    frame: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -28,6 +28,13 @@ function createAuthWindow() {
   })
 
   authWindow.once('ready-to-show', () => {
+    // Ensure the window is actually fullscreen on all platforms
+    try {
+      authWindow.maximize()
+      authWindow.setFullScreen(true)
+    } catch (e) {
+      // ignore if not supported
+    }
     authWindow.show()
   })
 

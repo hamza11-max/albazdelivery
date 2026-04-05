@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useFetchWithCache, type LoadingState } from "@/root/hooks/use-fetch-with-cache"
+import { clearCachedData } from "@/root/lib/api-cache"
 import type {
   Sale,
   Customer,
@@ -46,9 +47,15 @@ export function useDashboardData() {
 
   const buildCacheKey = useCallback((key: string, vendorId?: string) => (vendorId ? `${key}:${vendorId}` : key), [])
 
-  const fetchSales = useCallback(async (vendorId?: string): Promise<Sale[]> => {
+  const fetchSales = useCallback(async (
+    vendorId?: string,
+    options?: { skipCache?: boolean }
+  ): Promise<Sale[]> => {
     const url = buildUrl('/api/erp/sales', vendorId)
     const cacheKey = buildCacheKey('sales', vendorId)
+    if (options?.skipCache) {
+      clearCachedData(cacheKey)
+    }
     const data = await fetchData<SalesData>('sales', url, cacheKey, (data) => {
       const sales = Array.isArray(data.sales) ? data.sales : []
       return {

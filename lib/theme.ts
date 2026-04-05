@@ -10,12 +10,16 @@ const LANG_STORAGE_KEY = 'albaz-language'
 export function getStoredTheme(): Theme {
   if (typeof window === 'undefined') return 'system'
   const stored = localStorage.getItem(THEME_STORAGE_KEY)
-  return (stored as Theme) || 'system'
+  if (stored) return stored as Theme
+  // Vendor app fallback so dark mode applies on login too
+  const vendorDark = localStorage.getItem('vendor-dark-mode')
+  return vendorDark === 'true' ? 'dark' : 'system'
 }
 
 export function setStoredTheme(theme: Theme): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(THEME_STORAGE_KEY, theme)
+  localStorage.setItem('vendor-dark-mode', theme === 'dark' ? 'true' : 'false')
   applyTheme(theme)
 }
 

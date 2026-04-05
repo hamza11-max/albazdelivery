@@ -10,6 +10,8 @@ import type { ChangeEvent } from "react"
 import { useState } from "react"
 import { BarcodeScannerDialog } from "./BarcodeScannerDialog"
 import { useProductBarcodeScanner } from "@/hooks/useProductBarcodeScanner"
+import { useToast } from "@/hooks/use-toast"
+import { createOfflineCode128DataUri } from "@/root/lib/barcode"
 
 interface ProductDialogProps {
   open: boolean
@@ -32,8 +34,10 @@ export function ProductDialog({
   onFileUpload,
   translate = (fr: string) => fr,
 }: ProductDialogProps) {
+  const { toast } = useToast()
   const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false)
   const [isFetchingProduct, setIsFetchingProduct] = useState(false)
+  const [isPrintingBarcode, setIsPrintingBarcode] = useState(false)
 
   // Fetch product details from external API when barcode is scanned
   const fetchProductFromBarcode = async (barcode: string) => {
@@ -90,6 +94,120 @@ export function ProductDialog({
   // Start barcode scanner
   const startBarcodeScanner = async () => {
     setIsBarcodeScannerOpen(true)
+  }
+
+  const printBarcodeLabel = (html: string) => {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+    const url = URL.createObjectURL(blob)
+    const iframe = document.createElement("iframe")
+    iframe.setAttribute("aria-hidden", "true")
+    iframe.style.cssText =
+      "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden"
+    const cleanup = () => {
+      URL.revokeObjectURL(url)
+      iframe.remove()
+    }
+    const runPrint = () => {
+      try {
+        iframe.contentWindow?.focus()
+        iframe.contentWindow?.print()
+      } finally {
+        setTimeout(cleanup, 60_000)
+      }
+    }
+    iframe.onload = () => {
+      const doc = iframe.contentDocument
+      const img = doc?.querySelector("img")
+      if (img && !img.complete) {
+        img.addEventListener("load", runPrint, { once: true })
+        img.addEventListener("error", runPrint, { once: true })
+        return
+      }
+      runPrint()
+    }
+    document.body.appendChild(iframe)
+    iframe.src = url
+  }
+
+  const printBarcodeWithElectron = async (html: string) => {
+    const selected = await window.electronAPI?.print?.getPrinters?.()
+    const preferred = selected?.find((p) => p.name?.toLowerCase().includes("xp410") || p.displayName?.toLowerCase().includes("xp410"))
+    const result = await window.electronAPI?.print?.printHtml?.({
+      html,
+      silent: true,
+      deviceName: preferred?.name,
+      widthMicrons: 50000,
+      heightMicrons: 30000,
+    })
+    return result
+  }
+
+  const buildBarcodeLabelHtml = (barcode: string, productName: string) => {
+    const safeName = (productName || "Product")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+    const safeBarcode = barcode
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+    const barcodeImageUrl = createOfflineCode128DataUri(barcode)
+
+    return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Barcode - ${safeName}</title>
+    <style>
+      @media print {
+        @page {
+          size: 50mm 30mm;
+          margin: 2mm;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+        }
+      }
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        padding: 5mm;
+      }
+      .barcode-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .product-name {
+        font-size: 10pt;
+        font-weight: bold;
+        margin-bottom: 2mm;
+        word-wrap: break-word;
+        max-width: 46mm;
+      }
+      .barcode-image {
+        max-width: 100%;
+        height: auto;
+      }
+      .barcode-number {
+        font-size: 8pt;
+        margin-top: 2mm;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="barcode-container">
+      <div class="product-name">${safeName}</div>
+      <img src="${barcodeImageUrl}" alt="Barcode ${safeBarcode}" class="barcode-image" />
+      <div class="barcode-number">${safeBarcode}</div>
+    </div>
+  </body>
+</html>`
   }
 
   return (
@@ -254,23 +372,39 @@ export function ProductDialog({
               <Button
                 type="button"
                 variant="outline"
+                disabled={isPrintingBarcode}
                 onClick={async () => {
-                  // Print barcode
                   try {
-                    const response = await fetch(`/api/products/barcode/print?barcode=${encodeURIComponent(productForm.barcode)}&name=${encodeURIComponent(productForm.name || 'Product')}`)
-                    if (response.ok) {
-                      const blob = await response.blob()
-                      const url = window.URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = `barcode-${productForm.barcode}.pdf`
-                      document.body.appendChild(a)
-                      a.click()
-                      document.body.removeChild(a)
-                      window.URL.revokeObjectURL(url)
+                    setIsPrintingBarcode(true)
+                    const html = buildBarcodeLabelHtml(
+                      productForm.barcode,
+                      productForm.name || "Product"
+                    )
+                    if (window.electronAPI?.isElectron && window.electronAPI?.print?.printHtml) {
+                      const result = await printBarcodeWithElectron(html)
+                      if (!result?.success) {
+                        toast({
+                          variant: "destructive",
+                          title: translate("Échec de l'impression", "فشلت الطباعة"),
+                          description: result?.error || translate("Impossible d'imprimer le code-barres.", "تعذّرت طباعة الرمز الشريطي."),
+                        })
+                        return
+                      }
+                    } else {
+                      printBarcodeLabel(html)
                     }
                   } catch (error) {
-                    console.error('Error printing barcode:', error)
+                    console.error("Error printing barcode:", error)
+                    toast({
+                      variant: "destructive",
+                      title: translate("Erreur", "خطأ"),
+                      description: translate(
+                        "Une erreur s'est produite lors de l'impression.",
+                        "حدث خطأ أثناء الطباعة."
+                      ),
+                    })
+                  } finally {
+                    setIsPrintingBarcode(false)
                   }
                 }}
               >

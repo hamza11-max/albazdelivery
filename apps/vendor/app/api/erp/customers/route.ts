@@ -4,7 +4,14 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 
-// GET - Fetch all customers who have ordered from this vendor
+function maxDate(a: Date | null | undefined, b: Date | null | undefined): Date | null {
+  const ta = a?.getTime() ?? 0
+  const tb = b?.getTime() ?? 0
+  if (!ta && !tb) return null
+  return ta >= tb! ? a! : b!
+}
+
+// GET - Fetch all customers who have ordered from this vendor (POS sales + delivery / WhatsApp orders)
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
@@ -41,12 +48,10 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {
         console.warn('[API/customers] Error fetching first vendor:', e)
-        // Continue without vendorId - will return empty results below
       }
     }
 
     if (!vendorId) {
-      // Return empty results instead of error for dev/missing DB scenarios
       return successResponse({
         customers: [],
         pagination: {
@@ -58,46 +63,109 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Validate and parse pagination
     const page = Math.max(1, parseInt(pageParam || '1'))
     const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
-    // Aggregate sales by customer
-    let aggregates: any[] = []
-    try {
-      aggregates = await (prisma.sale.groupBy as any)({
-        by: ['customerId'],
-        where: { vendorId, NOT: { customerId: null } },
-        _sum: { total: true },
-        _max: { createdAt: true },
-        _count: { id: true },
-      })
-    } catch (e) {
-      console.warn('[API/customers] Error aggregating sales:', e)
-      aggregates = []
+    type Merged = {
+      customerId: string
+      saleTotal: number
+      saleCount: number
+      saleLast: Date | null
+      orderTotal: number
+      deliveryOrderCount: number
+      orderLast: Date | null
+      whatsappOrderCount: number
     }
 
-    // Sort aggregates
+    const empty = (id: string): Merged => ({
+      customerId: id,
+      saleTotal: 0,
+      saleCount: 0,
+      saleLast: null,
+      orderTotal: 0,
+      deliveryOrderCount: 0,
+      orderLast: null,
+      whatsappOrderCount: 0,
+    })
+
+    let saleAggregates: Awaited<ReturnType<typeof prisma.sale.groupBy>> = []
+    let orderAggregates: Awaited<ReturnType<typeof prisma.order.groupBy>> = []
+    let waAggregates: Awaited<ReturnType<typeof prisma.order.groupBy>> = []
+
+    try {
+      ;[saleAggregates, orderAggregates, waAggregates] = await Promise.all([
+        prisma.sale.groupBy({
+          by: ['customerId'],
+          where: { vendorId, NOT: { customerId: null } },
+          _sum: { total: true },
+          _max: { createdAt: true },
+          _count: { id: true },
+        }),
+        prisma.order.groupBy({
+          by: ['customerId'],
+          where: { vendorId },
+          _sum: { total: true },
+          _max: { createdAt: true },
+          _count: { id: true },
+        }),
+        prisma.order.groupBy({
+          by: ['customerId'],
+          where: { vendorId, orderSource: 'WHATSAPP' },
+          _count: { id: true },
+        }),
+      ])
+    } catch (e) {
+      console.warn('[API/customers] Error aggregating customers:', e)
+    }
+
+    const merged = new Map<string, Merged>()
+
+    for (const a of saleAggregates) {
+      const id = a.customerId!
+      merged.set(id, {
+        ...empty(id),
+        saleTotal: a._sum.total ?? 0,
+        saleCount: a._count.id,
+        saleLast: a._max.createdAt,
+      })
+    }
+
+    for (const a of orderAggregates) {
+      const id = a.customerId
+      const cur = merged.get(id) ?? empty(id)
+      cur.orderTotal = a._sum.total ?? 0
+      cur.deliveryOrderCount = a._count.id
+      cur.orderLast = a._max.createdAt
+      merged.set(id, cur)
+    }
+
+    for (const a of waAggregates) {
+      const id = a.customerId!
+      const cur = merged.get(id) ?? empty(id)
+      cur.whatsappOrderCount = a._count.id
+      merged.set(id, cur)
+    }
+
+    const rows = Array.from(merged.values())
+
     if (sortParam === 'lastPurchaseDate') {
-      aggregates.sort((a: any, b: any) => {
-        const dateA = a._max.createdAt?.getTime() || 0
-        const dateB = b._max.createdAt?.getTime() || 0
-        return dateB - dateA // Most recent first
+      rows.sort((a, b) => {
+        const da = Math.max(a.saleLast?.getTime() ?? 0, a.orderLast?.getTime() ?? 0)
+        const db = Math.max(b.saleLast?.getTime() ?? 0, b.orderLast?.getTime() ?? 0)
+        return db - da
       })
     } else {
-      // Default: sort by total purchases
-      aggregates.sort((a: any, b: any) => {
-        const totalA = a._sum.total || 0
-        const totalB = b._sum.total || 0
-        return totalB - totalA // Highest first
+      rows.sort((a, b) => {
+        const ta = a.saleTotal + a.orderTotal
+        const tb = b.saleTotal + b.orderTotal
+        return tb - ta
       })
     }
 
-    // Apply pagination
-    const paginatedAggregates = aggregates.slice((page - 1) * limit, page * limit)
-    const customerIds = paginatedAggregates.map((a: any) => a.customerId!).filter(Boolean)
+    const paginatedRows = rows.slice((page - 1) * limit, page * limit)
+    const customerIds = paginatedRows.map((r) => r.customerId).filter(Boolean)
 
-    let users: any[] = []
+    let users: Array<{ id: string; name: string | null; email: string | null; phone: string | null }> = []
     try {
       users = await prisma.user.findMany({
         where: { id: { in: customerIds } },
@@ -105,19 +173,21 @@ export async function GET(request: NextRequest) {
       })
     } catch (e) {
       console.warn('[API/customers] Error fetching user data:', e)
-      users = []
     }
 
-    const customers = paginatedAggregates.map((a: any) => {
-      const matchedUser = users.find((x: any) => x.id === a.customerId)
+    const customers = paginatedRows.map((row) => {
+      const matchedUser = users.find((x) => x.id === row.customerId)
       return {
-        id: matchedUser?.id || a.customerId!,
+        id: matchedUser?.id || row.customerId,
         name: matchedUser?.name || 'Client',
         email: matchedUser?.email || undefined,
         phone: matchedUser?.phone || '',
-        totalPurchases: a._sum.total || 0,
-        orderCount: a._count.id || 0,
-        lastPurchaseDate: a._max.createdAt || null,
+        totalPurchases: row.saleTotal,
+        orderCount: row.saleCount,
+        deliveryTotal: row.orderTotal,
+        deliveryOrderCount: row.deliveryOrderCount,
+        whatsappOrderCount: row.whatsappOrderCount,
+        lastPurchaseDate: maxDate(row.saleLast, row.orderLast),
       }
     })
 
@@ -126,8 +196,8 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        total: aggregates.length,
-        pages: Math.ceil(aggregates.length / limit),
+        total: rows.length,
+        pages: Math.ceil(rows.length / limit),
       },
     })
   } catch (error) {
@@ -146,7 +216,6 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError('Only vendors can create customers')
     }
 
-    // For now, return a message that customers are created through registration
     return successResponse({
       message: 'Customers are created through user registration',
     })

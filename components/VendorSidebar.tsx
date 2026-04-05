@@ -21,6 +21,7 @@ import {
   Mail,
   Shield,
   Gift,
+  Radio,
 } from "lucide-react"
 import { cn } from "../lib/utils"
 
@@ -140,6 +141,12 @@ export default function VendorSidebar({
       icon: BarChart3,
       labelFr: "Analyse IA",
       labelAr: "تحليلات الذكاء الاصطناعي",
+    },
+    {
+      id: "rfid",
+      icon: Radio,
+      labelFr: "RFID",
+      labelAr: "RFID",
     },
     {
       id: "settings",

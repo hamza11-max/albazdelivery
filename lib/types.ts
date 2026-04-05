@@ -111,6 +111,7 @@ export interface Order {
   deliveryAddress: string
   city: string
   customerPhone: string
+  orderSource?: 'APP' | 'WHATSAPP'
   driverId?: string
   createdAt: Date
   updatedAt: Date
@@ -167,6 +168,12 @@ export interface Customer {
   totalPurchases: number
   lastPurchaseDate?: Date
   createdAt: Date
+  /** POS sale transactions (from `Sale` rows) */
+  orderCount?: number
+  /** Delivery / app order totals (from `Order` rows) */
+  deliveryTotal?: number
+  deliveryOrderCount?: number
+  whatsappOrderCount?: number
 }
 
 export interface Supplier {

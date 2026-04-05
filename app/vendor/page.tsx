@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback, FormEvent } from "react"
 import type { ChangeEvent } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams, usePathname, Suspense } from "next/navigation"
 import { playSuccessSound } from "@/root/lib/notifications"
 import { 
   AlertTriangle,
@@ -50,7 +50,8 @@ import {
   Gift,
   Bell,
   Database,
-  Cloud
+  Cloud,
+  MessageCircle
 } from "lucide-react"
 
 // UI Components
@@ -118,6 +119,7 @@ import { AdminVendorSelector } from "../../components/AdminVendorSelector"
 import { LoadingScreen } from "../../components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData } from "@/utils/electronUtils"
+import { encodeFlowToken } from "@/root/lib/whatsapp/flow-token"
 import { ErrorBoundary } from "../../components/ErrorBoundary"
 import { useIsMobile } from "@/hooks/use-mobile"
 
@@ -153,14 +155,18 @@ import type {
   CategoriesData
 } from "./types"
 
-export default function VendorDashboard() {
+function VendorDashboardContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
   const isMobile = useIsMobile()
   
   // Mobile view state - 'home' shows homepage, other values show specific tabs
   const [mobileView, setMobileView] = useState<'home' | string>('home')
+  const [ordersCustomerFilter, setOrdersCustomerFilter] = useState<string | null>(null)
+  const [highlightOrderId, setHighlightOrderId] = useState<string | null>(null)
   
   // Dashboard Data and Loading States - must be early to avoid initialization order issues
   const {
@@ -264,16 +270,88 @@ export default function VendorDashboard() {
     activeVendorId,
   } = useVendorState()
 
+  const vendorTabIds = useMemo(
+    () =>
+      new Set([
+        "dashboard",
+        "pos",
+        "inventory",
+        "orders",
+        "drivers",
+        "sales",
+        "reports",
+        "coupons",
+        "sync-save",
+        "email",
+        "staff-permissions",
+        "clients-loyalty",
+        "suppliers",
+        "ai",
+        "settings",
+      ]),
+    [],
+  )
+
+  const queryString = searchParams.toString()
+  useEffect(() => {
+    const params = new URLSearchParams(queryString)
+    const tab = params.get("tab")
+    const orderId = params.get("orderId")
+    const customerId = params.get("customerId")
+    if (tab && vendorTabIds.has(tab)) setActiveTab(tab)
+    if (orderId) {
+      setActiveTab("orders")
+      setHighlightOrderId(orderId)
+    }
+    if (customerId) {
+      setActiveTab("orders")
+      setOrdersCustomerFilter(customerId)
+    }
+  }, [queryString, setActiveTab, vendorTabIds])
+
+  const clearOrdersCustomerFilter = useCallback(() => {
+    setOrdersCustomerFilter(null)
+    const p = new URLSearchParams(searchParams.toString())
+    p.delete("customerId")
+    const qs = p.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
+
+  const onViewCustomerOrders = useCallback(
+    (customerId: string) => {
+      setOrdersCustomerFilter(customerId)
+      setActiveTab("orders")
+      if (isMobile) setMobileView("orders")
+      const p = new URLSearchParams(searchParams.toString())
+      p.set("tab", "orders")
+      p.set("customerId", customerId)
+      p.delete("orderId")
+      router.replace(`${pathname}?${p.toString()}`, { scroll: false })
+    },
+    [isMobile, pathname, router, searchParams, setActiveTab, setMobileView],
+  )
+
   // In Electron use electron store user; otherwise NextAuth user
   const effectiveUser = isElectronRuntime ? electronUser : user
 
   const [storeId, setStoreId] = useState<string | null>(null)
+  const [waPhoneNumberId, setWaPhoneNumberId] = useState("")
+  const [waWabaId, setWaWabaId] = useState("")
+  const [waOnboardingStatus, setWaOnboardingStatus] = useState("")
+  const [waTokenInput, setWaTokenInput] = useState("")
+  const [waHasToken, setWaHasToken] = useState(false)
+  const [waWhatsAppLoading, setWaWhatsAppLoading] = useState(false)
+  const [waWhatsAppSaving, setWaWhatsAppSaving] = useState(false)
   const [isAcceptingOrders, setIsAcceptingOrders] = useState(true)
   const [isUpdatingStoreStatus, setIsUpdatingStoreStatus] = useState(false)
   const [prepTimeMinutes, setPrepTimeMinutes] = useState(() => {
     if (typeof window === 'undefined') return 20
     const stored = parseInt(localStorage.getItem('vendor-prep-minutes') || '20', 10)
     return Number.isNaN(stored) ? 20 : stored
+  })
+  const [autoPrintWhatsappOnConfirm, setAutoPrintWhatsappOnConfirm] = useState(() => {
+    if (typeof window === "undefined") return false
+    return localStorage.getItem("vendor-auto-print-whatsapp-confirm") === "true"
   })
   const [payouts] = useState(() => [
     { id: 'PAYOUT-001', period: 'Cette semaine', gross: 125000, fees: 2500, net: 122500, status: 'pending', eta: 'Vendredi' },
@@ -381,6 +459,31 @@ export default function VendorDashboard() {
     return () => controller.abort()
   }, [effectiveUser?.id, activeVendorId, isAdmin])
 
+  useEffect(() => {
+    if (!storeId) return
+    const controller = new AbortController()
+    const loadWa = async () => {
+      setWaWhatsAppLoading(true)
+      try {
+        const res = await fetch(`/api/stores/${storeId}/whatsapp`, { signal: controller.signal })
+        const json = await res.json()
+        const w = json?.data?.whatsapp
+        if (w && res.ok) {
+          setWaPhoneNumberId(w.whatsappPhoneNumberId ?? "")
+          setWaWabaId(w.whatsappBusinessAccountId ?? "")
+          setWaOnboardingStatus(w.whatsappOnboardingStatus ?? "")
+          setWaHasToken(Boolean(w.hasAccessToken))
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setWaWhatsAppLoading(false)
+      }
+    }
+    loadWa()
+    return () => controller.abort()
+  }, [storeId])
+
   // Persist prep time
   useEffect(() => {
     try {
@@ -389,6 +492,17 @@ export default function VendorDashboard() {
       console.warn('[Vendor] Failed to persist prep time', error)
     }
   }, [prepTimeMinutes])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "vendor-auto-print-whatsapp-confirm",
+        autoPrintWhatsappOnConfirm ? "true" : "false",
+      )
+    } catch (e) {
+      console.warn("[Vendor] Failed to persist WhatsApp auto-print preference", e)
+    }
+  }, [autoPrintWhatsappOnConfirm])
 
   const refreshOfflineQueueCount = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -513,6 +627,63 @@ export default function VendorDashboard() {
       setIsUpdatingStoreStatus(false)
     }
   }, [storeId, isAcceptingOrders, toast, translate])
+
+  const handleSaveWhatsAppSettings = useCallback(async () => {
+    if (!storeId) {
+      toast({
+        title: translate("Boutique introuvable", "المتجر غير متاح"),
+        description: translate("Associez d'abord un magasin", "اربط متجراً أولاً"),
+        variant: "destructive",
+      })
+      return
+    }
+    setWaWhatsAppSaving(true)
+    try {
+      const body: Record<string, unknown> = {
+        whatsappPhoneNumberId: waPhoneNumberId.trim() || null,
+        whatsappBusinessAccountId: waWabaId.trim() || null,
+        whatsappOnboardingStatus: waOnboardingStatus.trim() || null,
+      }
+      if (waTokenInput.trim()) {
+        body.whatsappAccessToken = waTokenInput.trim()
+      }
+      const res = await fetch(`/api/stores/${storeId}/whatsapp`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.error?.message || data?.message || "Failed")
+      }
+      setWaTokenInput("")
+      setWaHasToken(Boolean(data?.data?.whatsapp?.hasAccessToken))
+      toast({
+        title: translate("WhatsApp enregistré", "تم حفظ واتساب"),
+        description: translate(
+          "Webhook utilisera ce numéro Meta (phone_number_id)",
+          "سيستخدم الربط معرف phone_number_id من ميتا",
+        ),
+      })
+    } catch (e) {
+      console.error(e)
+      toast({
+        title: translate("Échec", "فشل"),
+        description: translate("Vérifiez les champs et réessayez", "تحقق من الحقول وأعد المحاولة"),
+        variant: "destructive",
+      })
+    } finally {
+      setWaWhatsAppSaving(false)
+    }
+  }, [
+    storeId,
+    waPhoneNumberId,
+    waWabaId,
+    waOnboardingStatus,
+    waTokenInput,
+    toast,
+    translate,
+  ])
 
   const handleSubmitDispute = useCallback(async (e: FormEvent) => {
     e.preventDefault()
@@ -711,10 +882,18 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   }
 
   // Update Order Status - using utility function
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+  const handleUpdateOrderStatus = async (order: Order, status: string) => {
     await updateOrderStatus({
-      orderId,
+      orderId: order.id,
       status,
+      orderSnapshot: order,
+      autoPrintWhatsappOnAccept: autoPrintWhatsappOnConfirm,
+      printContext: {
+        shopInfo,
+        effectiveUser,
+        isElectronRuntime,
+        translate,
+      },
       fetchOrders,
       activeVendorId,
       toast,
@@ -1140,6 +1319,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               translate={translate}
               handleUpdateOrderStatus={handleUpdateOrderStatus}
               prepTimeMinutes={prepTimeMinutes}
+              filterCustomerId={ordersCustomerFilter}
+              highlightOrderId={highlightOrderId}
+              onClearCustomerFilter={clearOrdersCustomerFilter}
             />
           </TabsContent>
 
@@ -1344,6 +1526,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               customers={customers}
               translate={translate}
               setShowCustomerDialog={setShowCustomerDialog}
+              onViewCustomerOrders={onViewCustomerOrders}
             />
           </TabsContent>
 
@@ -1507,6 +1690,93 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 <Button className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600">
                   {translate("Enregistrer les informations", "حفظ المعلومات")}
                 </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageCircle className="w-5 h-5" />
+                  {translate("Commandes WhatsApp (Flows)", "طلبات واتساب (Flows)")}
+                </CardTitle>
+                <CardDescription>
+                  {translate(
+                    "Liez le phone_number_id Meta de votre commerce à ce magasin. Les clients commandent dans WhatsApp sans quitter l'application.",
+                    "اربط معرف phone_number_id من ميتا بهذا المتجر. يطلب الزبائن داخل واتساب دون مغادرة التطبيق.",
+                  )}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!storeId ? (
+                  <p className="text-sm text-muted-foreground">
+                    {translate("Chargement du magasin...", "جاري تحميل المتجر...")}
+                  </p>
+                ) : waWhatsAppLoading ? (
+                  <p className="text-sm text-muted-foreground">{translate("Chargement...", "جاري التحميل...")}</p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>phone_number_id (Meta)</Label>
+                        <Input
+                          value={waPhoneNumberId}
+                          onChange={(e) => setWaPhoneNumberId(e.target.value)}
+                          placeholder="e.g. 123456789012345"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>WABA ID (optionnel)</Label>
+                        <Input
+                          value={waWabaId}
+                          onChange={(e) => setWaWabaId(e.target.value)}
+                          placeholder="WhatsApp Business Account ID"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>{translate("Statut onboarding", "حالة الربط")}</Label>
+                        <Input
+                          value={waOnboardingStatus}
+                          onChange={(e) => setWaOnboardingStatus(e.target.value)}
+                          placeholder="CONNECTED"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>
+                          {translate("Jeton d'accès (Cloud API)", "رمز الوصول Cloud API")}
+                          {waHasToken ? (
+                            <span className="text-muted-foreground text-xs ml-2">({translate("déjà enregistré", "محفوظ")})</span>
+                          ) : null}
+                        </Label>
+                        <Input
+                          type="password"
+                          autoComplete="off"
+                          value={waTokenInput}
+                          onChange={(e) => setWaTokenInput(e.target.value)}
+                          placeholder={translate("Coller le token (non affiché après)", "الصق الرمز")}
+                        />
+                      </div>
+                    </div>
+                    <div className="rounded-md border bg-muted/40 p-3 text-xs font-mono break-all space-y-1">
+                      <p className="font-sans font-medium text-sm">
+                        {translate("flow_token (à envoyer avec le Flow)", "flow_token عند إرسال الـ Flow")}
+                      </p>
+                      <p>{storeId ? encodeFlowToken({ storeId }) : "—"}</p>
+                      <p className="font-sans text-muted-foreground mt-2 text-xs">
+                        Webhook: /api/webhooks/whatsapp · Flow data: /api/webhooks/whatsapp/flow
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={handleSaveWhatsAppSettings}
+                      disabled={waWhatsAppSaving}
+                      className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600"
+                    >
+                      {waWhatsAppSaving
+                        ? translate("Enregistrement...", "جاري الحفظ...")
+                        : translate("Enregistrer WhatsApp", "حفظ واتساب")}
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -1749,15 +2019,23 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     defaultValue=""
                   />
                 </div>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">{translate("Impression automatique", "الطباعة التلقائية")}</p>
+                    <p className="font-medium">{translate("Commandes WhatsApp", "طلبات واتساب")}</p>
                     <p className="text-sm text-muted-foreground">
-                      {translate("Imprimer automatiquement après chaque vente", "طباعة تلقائية بعد كل عملية بيع")}
+                      {translate(
+                        "Imprimer le reçu automatiquement lorsque vous confirmez (acceptez) une commande provenant de WhatsApp.",
+                        "طباعة الإيصال تلقائياً عند تأكيد (قبول) طلب قادم من واتساب.",
+                      )}
                     </p>
                   </div>
-                  <Button variant="outline">
-                    {translate("Désactivé", "معطل")}
+                  <Button
+                    type="button"
+                    variant={autoPrintWhatsappOnConfirm ? "default" : "outline"}
+                    onClick={() => setAutoPrintWhatsappOnConfirm(!autoPrintWhatsappOnConfirm)}
+                    className={autoPrintWhatsappOnConfirm ? "bg-albaz-green-gradient hover:opacity-90 text-white shrink-0" : "shrink-0"}
+                  >
+                    {autoPrintWhatsappOnConfirm ? translate("Activé", "مفعّل") : translate("Désactivé", "معطّل")}
                   </Button>
                 </div>
               </CardContent>
@@ -1912,5 +2190,13 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
       />
       </div>
     </ErrorBoundary>
+  )
+}
+
+export default function VendorDashboard() {
+  return (
+    <Suspense fallback={<LoadingScreen />}>
+      <VendorDashboardContent />
+    </Suspense>
   )
 }

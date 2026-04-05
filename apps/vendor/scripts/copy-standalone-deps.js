@@ -11,8 +11,9 @@ const appNodeModules = path.join(root, 'node_modules')
 const workspaceNodeModules = path.join(root, '..', '..', 'node_modules')
 const standaloneRoot = path.join(root, '.next', 'standalone')
 
-// Packages that Next standalone may not include correctly (server needs them)
-const STANDALONE_DEPS = ['styled-jsx', '@prisma/client', '@next/env']
+// Packages that Next standalone may not include correctly (server needs them).
+// Include React explicitly because some Next standalone traces miss it on target machines.
+const STANDALONE_DEPS = ['react', 'react-dom', 'styled-jsx', '@prisma/client', '@next/env']
 
 if (!fs.existsSync(standaloneRoot)) {
   console.warn('[copy-standalone-deps] .next/standalone not found, skipping')

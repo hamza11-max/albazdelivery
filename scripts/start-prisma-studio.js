@@ -69,7 +69,7 @@ try {
 
 // Start Prisma Studio
 console.log('🚀 Starting Prisma Studio...')
-const studio = spawn('npx', ['prisma', 'studio'], {
+const studio = spawn('npx', ['prisma', 'studio', '--config', './prisma.config.ts'], {
   stdio: 'inherit',
   shell: true,
   env: process.env,

@@ -30,6 +30,15 @@ export function setCachedData<T>(key: string, data: T): void {
   }
 }
 
+/** Drop cached entry so the next fetch hits the network (e.g. after creating a sale). */
+export function clearCachedData(key: string): void {
+  try {
+    localStorage.removeItem(`cache_${key}`)
+  } catch (error) {
+    console.error("[Cache] Error clearing cache:", error)
+  }
+}
+
 export async function fetchWithCache(url: string, key: string) {
   try {
     // Try to get cached data first

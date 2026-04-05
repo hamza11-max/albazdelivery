@@ -476,6 +476,7 @@ export default function AdminPanel() {
                 setShowDeleteDialog(true)
               }}
               onBulkAction={handleBulkAction}
+              showActionLabels
             />
           </TabsContent>
 
@@ -488,7 +489,7 @@ export default function AdminPanel() {
           </TabsContent>
 
           <TabsContent value="passkeys">
-            <PasskeysTab />
+            <PasskeysTab vendors={vendors} onRefresh={fetchUsers} />
           </TabsContent>
         </Tabs>
       </main>
