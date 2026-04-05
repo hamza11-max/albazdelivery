@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getCsrfToken, setCsrfTokenCookie } from '../../../lib/csrf'
 import { successResponse } from '@/root/lib/errors'
 
@@ -7,20 +7,15 @@ import { successResponse } from '@/root/lib/errors'
  * This endpoint provides the CSRF token that clients need to include
  * in X-CSRF-Token header for mutation requests
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get or generate CSRF token
     const token = await getCsrfToken()
-    
-    // Create response
-    const response = NextResponse.json(
-      successResponse({
-        token,
-        headerName: 'X-CSRF-Token',
-      })
-    )
 
-    // Set CSRF token cookie
+    const response = successResponse({
+      token,
+      headerName: 'X-CSRF-Token',
+    })
     setCsrfTokenCookie(response, token)
 
     return response
