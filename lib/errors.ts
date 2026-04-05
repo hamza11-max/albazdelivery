@@ -214,7 +214,7 @@ export function errorResponse(
     }
 
     // Database connection / schema errors (e.g. migrations not run, table missing)
-    if (['P1001', 'P1002', 'P1012', 'P2021'].includes(prismaError.code)) {
+    if (['P1001', 'P1002', 'P1012', 'P2021', 'P2022'].includes(prismaError.code)) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,

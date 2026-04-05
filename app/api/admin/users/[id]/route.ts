@@ -14,7 +14,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -66,7 +66,7 @@ export async function PUT(
   }
 
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -103,8 +103,8 @@ export async function PUT(
       throw new NotFoundError('User')
     }
 
-    // Don't allow modifying super admins
-    if (user.role === 'ADMIN' && session.user.id !== user.id) {
+    const targetRole = String(user.role ?? '').toUpperCase()
+    if (targetRole === 'ADMIN' && session.user.id !== user.id) {
       throw new ForbiddenError('Cannot modify other admin accounts')
     }
 
@@ -174,7 +174,7 @@ export async function DELETE(
   }
 
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -197,8 +197,8 @@ export async function DELETE(
       throw new NotFoundError('User')
     }
 
-    // Don't allow deleting admins or self
-    if (user.role === 'ADMIN') {
+    const targetRole = String(user.role ?? '').toUpperCase()
+    if (targetRole === 'ADMIN') {
       throw new ForbiddenError('Cannot delete admin accounts')
     }
 

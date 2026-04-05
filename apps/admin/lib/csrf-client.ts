@@ -1,26 +1,20 @@
 /**
  * Client-side CSRF token utilities for Admin App
  * Fetches CSRF token and includes it in request headers
+ *
+ * Tokens are NOT cached: the value must match the httpOnly cookie on each
+ * mutation. A singleton cache caused 403 (CSRF_TOKEN_INVALID) after the cookie
+ * was rotated or the first fetch failed.
  */
 
 const CSRF_TOKEN_HEADER = 'X-CSRF-Token'
 const CSRF_TOKEN_ENDPOINT = '/api/csrf-token'
 
-let csrfTokenCache: string | null = null
-
-/**
- * Fetch CSRF token from server
- */
 export async function fetchCsrfToken(): Promise<string | null> {
   try {
-    // Use cached token if available
-    if (csrfTokenCache) {
-      return csrfTokenCache
-    }
-
     const response = await fetch(CSRF_TOKEN_ENDPOINT, {
       method: 'GET',
-      credentials: 'include', // Important: include cookies
+      credentials: 'include',
     })
 
     if (!response.ok) {
@@ -30,8 +24,7 @@ export async function fetchCsrfToken(): Promise<string | null> {
 
     const data = await response.json()
     if (data.success && data.data?.token) {
-      csrfTokenCache = data.data.token
-      return csrfTokenCache
+      return data.data.token as string
     }
 
     return null
@@ -41,19 +34,10 @@ export async function fetchCsrfToken(): Promise<string | null> {
   }
 }
 
-/**
- * Clear CSRF token cache (useful after errors)
- */
-export function clearCsrfTokenCache(): void {
-  csrfTokenCache = null
-}
+/** @deprecated No-op; cache was removed. */
+export function clearCsrfTokenCache(): void {}
 
-/**
- * Add CSRF token to request headers
- */
-export async function addCsrfTokenToHeaders(
-  headers: HeadersInit = {}
-): Promise<HeadersInit> {
+export async function addCsrfTokenToHeaders(headers: HeadersInit = {}): Promise<HeadersInit> {
   const token = await fetchCsrfToken()
   const headersObj = new Headers(headers)
 
@@ -64,14 +48,7 @@ export async function addCsrfTokenToHeaders(
   return headersObj
 }
 
-/**
- * Fetch with CSRF token automatically included
- * Only adds CSRF token for mutation requests (POST, PUT, PATCH, DELETE)
- */
-export async function fetchWithCsrf(
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> {
+export async function fetchWithCsrf(url: string, options: RequestInit = {}): Promise<Response> {
   const method = options.method?.toUpperCase() || 'GET'
   const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
 
@@ -81,10 +58,33 @@ export async function fetchWithCsrf(
     headers = await addCsrfTokenToHeaders(options.headers)
   }
 
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers,
-    credentials: 'include', // Important: include cookies for CSRF
+    credentials: 'include',
+  })
+
+  if (!isMutation || response.status !== 403) {
+    return response
+  }
+
+  let payload: { error?: { code?: string }; success?: boolean } = {}
+  try {
+    payload = await response.clone().json()
+  } catch {
+    return response
+  }
+
+  const isCsrf = payload?.error?.code === 'CSRF_TOKEN_INVALID'
+
+  if (!isCsrf) {
+    return response
+  }
+
+  const headers2 = await addCsrfTokenToHeaders(options.headers as HeadersInit)
+  return fetch(url, {
+    ...options,
+    headers: headers2,
+    credentials: 'include',
   })
 }
-
