@@ -13,7 +13,7 @@ export function useAdminData() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch("/api/orders", {
+      const response = await fetch("/api/admin/orders", {
         credentials: 'include',
       })
       const data = await response.json()

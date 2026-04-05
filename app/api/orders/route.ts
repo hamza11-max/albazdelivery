@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { createOrderSchema } from '@/root/lib/validations/order'
@@ -10,14 +10,15 @@ import { OrderStatus } from '@/lib/constants'
 // GET /api/orders - Get all orders or filter by customer
 export async function GET(request: NextRequest) {
   try {
-    // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Get authenticated user
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
+
+    const sessionRole = String(session.user.role ?? '').toUpperCase()
 
     const searchParams = request.nextUrl.searchParams
     const customerId = searchParams.get('customerId')
@@ -36,19 +37,19 @@ export async function GET(request: NextRequest) {
     // Build query based on user role
     const where: any = {}
 
-    if (session.user.role === 'CUSTOMER') {
+    if (sessionRole === 'CUSTOMER') {
       // Customers can only see their own orders
       where.customerId = session.user.id
-    } else if (session.user.role === 'VENDOR') {
+    } else if (sessionRole === 'VENDOR') {
       // Vendors can only see orders for their stores
       where.vendorId = session.user.id
-    } else if (session.user.role === 'DRIVER') {
+    } else if (sessionRole === 'DRIVER') {
       // Drivers can see assigned orders or available orders
       where.OR = [
         { driverId: session.user.id },
         { status: OrderStatus.READY, driverId: null },
       ]
-    } else if (session.user.role === 'ADMIN') {
+    } else if (sessionRole === 'ADMIN') {
       // Admins can filter by customerId, vendorId, or driverId if provided
       if (customerId) {
         where.customerId = customerId
@@ -59,6 +60,8 @@ export async function GET(request: NextRequest) {
       if (driverId) {
         where.driverId = driverId
       }
+    } else {
+      throw new ForbiddenError('You do not have access to order listings')
     }
 
     // Add status filter if provided
@@ -85,7 +88,13 @@ export async function GET(request: NextRequest) {
         include: {
           items: {
             include: {
-              product: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  price: true,
+                },
+              },
             },
           },
           customer: {
@@ -141,8 +150,7 @@ export async function GET(request: NextRequest) {
 // POST /api/orders - Create a new order
 export async function POST(request: NextRequest) {
   try {
-    // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Get authenticated user
     const session = await auth()

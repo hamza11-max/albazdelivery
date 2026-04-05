@@ -166,7 +166,7 @@ export default function AdminPanel() {
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch("/api/orders")
+      const response = await fetch("/api/admin/orders", { credentials: "include" })
       const data = await response.json()
       
       console.log("[Admin] Fetched orders data:", data)

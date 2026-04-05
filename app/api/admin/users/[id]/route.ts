@@ -21,7 +21,7 @@ export async function GET(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
@@ -73,7 +73,7 @@ export async function PUT(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -181,7 +181,7 @@ export async function DELETE(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can perform this action')
     }
 

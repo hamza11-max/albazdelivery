@@ -134,6 +134,23 @@ export const authConfig = {
         token.id = user.id
         token.role = user.role as UserRole
         token.status = user.status as 'PENDING' | 'APPROVED' | 'REJECTED'
+        return token
+      }
+      // Some sessions (e.g. OAuth edge cases) can miss role on the JWT; rehydrate from DB
+      const uid = token?.id as string | undefined
+      if (uid && (token.role == null || token.status == null)) {
+        try {
+          const row = await prisma.user.findUnique({
+            where: { id: uid },
+            select: { role: true, status: true },
+          })
+          if (row) {
+            token.role = row.role as UserRole
+            token.status = row.status as 'PENDING' | 'APPROVED' | 'REJECTED'
+          }
+        } catch {
+          /* ignore — do not break session refresh if DB is unavailable */
+        }
       }
       return token
     },

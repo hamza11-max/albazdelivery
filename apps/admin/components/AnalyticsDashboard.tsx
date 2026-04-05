@@ -289,7 +289,7 @@ export function AnalyticsDashboard() {
                 <XAxis dataKey="date" />
                 <YAxis yAxisId="left" />
                 <YAxis yAxisId="right" orientation="right" />
-                <ChartTooltip />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
                 <Line yAxisId="left" type="monotone" dataKey="commandes" stroke="#8884d8" name="Commandes" />
                 <Line yAxisId="right" type="monotone" dataKey="revenu" stroke="#82ca9d" name="Revenu (DZD)" />
@@ -320,7 +320,7 @@ export function AnalyticsDashboard() {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <ChartTooltip />
+                <ChartTooltip content={<ChartTooltipContent />} />
               </PieChart>
             </ChartContainer>
           </CardContent>
@@ -337,7 +337,7 @@ export function AnalyticsDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
-                <ChartTooltip />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
                 <Line type="monotone" dataKey="total" stroke="#8884d8" name="Total" />
                 <Line type="monotone" dataKey="clients" stroke="#82ca9d" name="Clients" />
@@ -359,7 +359,7 @@ export function AnalyticsDashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <ChartTooltip />
+                <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="revenue" fill="#8884d8" name="Revenu (DZD)" />
               </BarChart>
             </ChartContainer>

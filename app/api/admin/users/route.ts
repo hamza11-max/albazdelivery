@@ -8,8 +8,7 @@ import { hashPassword } from '@/lib/password'
 // GET /api/admin/users - Get all users (admin only)
 export async function GET(request: NextRequest) {
   try {
-    // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()
@@ -17,8 +16,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
