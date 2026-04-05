@@ -5,5 +5,5 @@
 
 export * from './csrf'
 export * from './headers'
-export * from './audit-log'
+export * from '@/root/lib/security/audit-log'
 

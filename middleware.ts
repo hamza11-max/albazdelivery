@@ -11,9 +11,9 @@ import {
   applySecurityHeaders,
 } from '@/lib/security/headers'
 import {
-  auditSecurityEvent,
+  auditSecurityEventConsole,
   getClientInfo,
-} from '@/lib/security/audit-log'
+} from '@/lib/security/audit-client-info'
 
 /**
  * Global middleware with:
@@ -67,7 +67,7 @@ export default async function middleware(request: NextRequest) {
     if (csrfResponse) {
       // Log CSRF violation
       const clientInfo = getClientInfo(request)
-      await auditSecurityEvent(
+      auditSecurityEventConsole(
         'CSRF_TOKEN_INVALID',
         undefined,
         undefined,

@@ -1,23 +1,15 @@
-import { NextRequest } from 'next/server'
+import 'server-only'
+
+import type { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
+import { getClientInfo, type AuditLogEntry } from './audit-client-info'
 
 /**
  * Audit Logging
  * Logs important actions for security and compliance
  */
 
-export interface AuditLogEntry {
-  userId?: string
-  userRole?: string
-  action: string
-  resource: string
-  resourceId?: string
-  ipAddress?: string
-  userAgent?: string
-  details?: Record<string, any>
-  status: 'SUCCESS' | 'FAILURE'
-  errorMessage?: string
-}
+export type { AuditLogEntry }
 
 /**
  * Create audit log entry
@@ -57,27 +49,7 @@ export async function createAuditLog(entry: AuditLogEntry): Promise<void> {
   }
 }
 
-/**
- * Get client information from request
- */
-export function getClientInfo(request: NextRequest): {
-  ipAddress: string
-  userAgent: string
-} {
-  // Get IP address from various headers
-  const forwarded = request.headers.get('x-forwarded-for')
-  const realIp = request.headers.get('x-real-ip')
-  const cfConnectingIp = request.headers.get('cf-connecting-ip')
-
-  const ipAddress =
-    cfConnectingIp ||
-    realIp ||
-    (forwarded ? forwarded.split(',')[0].trim() : 'unknown')
-
-  const userAgent = request.headers.get('user-agent') || 'unknown'
-
-  return { ipAddress, userAgent }
-}
+export { getClientInfo }
 
 /**
  * Audit log helper for authentication events
