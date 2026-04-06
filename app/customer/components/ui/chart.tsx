@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import * as RechartsPrimitive from 'recharts'
+import { Legend, ResponsiveContainer, Tooltip } from 'recharts'
 
 import { cn } from '../../lib/utils'
 
@@ -36,9 +36,7 @@ function useChart() {
 
 interface ChartContainerProps extends React.ComponentProps<'div'> {
   config: ChartConfig
-  children: React.ComponentProps<
-    typeof RechartsPrimitive.ResponsiveContainer
-  >['children']
+  children: React.ComponentProps<typeof ResponsiveContainer>['children']
 }
 
 function ChartContainer({
@@ -63,9 +61,7 @@ function ChartContainer({
         {...props}
       >
         <ChartStyle id={chartId} config={config} />
-        <RechartsPrimitive.ResponsiveContainer>
-          {children}
-        </RechartsPrimitive.ResponsiveContainer>
+        <ResponsiveContainer>{children}</ResponsiveContainer>
       </div>
     </ChartContext.Provider>
   )
@@ -110,7 +106,7 @@ ${colorConfig
   )
 }
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+const ChartTooltip = Tooltip
 
 interface ChartPayload {
   payload?: Record<string, any>
@@ -218,8 +214,10 @@ function ChartTooltipContent({
                 formatter(item.value, item.name, item, index, item.payload)
               ) : (
                 <>
-                  {itemConfig?.icon ? (
-                    <itemConfig.icon />
+                  {typeof itemConfig?.icon === 'function' ? (
+                    React.createElement(itemConfig.icon, {
+                      className: 'h-2.5 w-2.5 text-muted-foreground shrink-0',
+                    })
                   ) : (
                     !hideIndicator && (
                       <div
@@ -268,7 +266,7 @@ function ChartTooltipContent({
   )
 }
 
-const ChartLegend = RechartsPrimitive.Legend
+const ChartLegend = Legend
 
 interface LegendContentProps extends React.ComponentProps<'div'> {
   hideIcon?: boolean
@@ -309,8 +307,10 @@ function ChartLegendContent({
               '[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3'
             }
           >
-            {itemConfig?.icon && !hideIcon ? (
-              <itemConfig.icon />
+            {typeof itemConfig?.icon === 'function' && !hideIcon ? (
+              React.createElement(itemConfig.icon, {
+                className: 'h-3 w-3 text-muted-foreground',
+              })
             ) : (
               <div
                 className="h-2 w-2 shrink-0 rounded-[2px]"

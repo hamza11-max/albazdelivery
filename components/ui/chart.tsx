@@ -214,8 +214,10 @@ function ChartTooltipContent({
                 formatter(item.value, item.name, item, index, item.payload)
               ) : (
                 <>
-                  {itemConfig?.icon ? (
-                    <itemConfig.icon />
+                  {typeof itemConfig?.icon === 'function' ? (
+                    React.createElement(itemConfig.icon, {
+                      className: 'h-2.5 w-2.5 text-muted-foreground shrink-0',
+                    })
                   ) : (
                     !hideIndicator && (
                       <div
@@ -305,7 +307,7 @@ function ChartLegendContent({
               '[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3'
             }
           >
-            {itemConfig?.icon && !hideIcon ? (
+            {typeof itemConfig?.icon === 'function' && !hideIcon ? (
               React.createElement(itemConfig.icon, {
                 className: 'h-3 w-3 text-muted-foreground',
               })
