@@ -6,6 +6,7 @@ import { auth } from '@/root/lib/auth'
 import { hashPassword } from '@/root/lib/password'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../admin/lib/audit'
 import { csrfProtection } from '../../../../admin/lib/csrf'
+import { deleteUserRelatedData } from '@/root/lib/admin/cascade-delete-user'
 import { z } from 'zod'
 
 // GET /api/admin/users/[id] - Get specific user details
@@ -206,25 +207,8 @@ export async function DELETE(
       throw new ForbiddenError('Cannot delete your own account')
     }
 
-    // Delete user and related data
-    await prisma.$transaction(async (tx: any) => {
-      // Delete related records first
-      if (user.role === 'VENDOR') {
-        await tx.store.deleteMany({ where: { vendorId: id } })
-        await tx.product.deleteMany({ where: { vendorId: id } })
-      }
-      
-      if (user.role === 'DRIVER') {
-        await tx.driverLocation.deleteMany({ where: { driverId: id } })
-        await tx.driverPerformance.deleteMany({ where: { driverId: id } })
-      }
-
-      if (user.role === 'CUSTOMER') {
-        await tx.loyaltyAccount.deleteMany({ where: { customerId: id } })
-        await tx.wallet.deleteMany({ where: { customerId: id } })
-      }
-
-      // Delete user
+    await prisma.$transaction(async (tx) => {
+      await deleteUserRelatedData(tx, id)
       await tx.user.delete({ where: { id } })
     })
 

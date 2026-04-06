@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../../lib/audit'
+import { deleteUserRelatedData } from '@/root/lib/admin/cascade-delete-user'
 import { z } from 'zod'
 
 const bulkActionSchema = z.object({
@@ -21,14 +22,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can perform bulk actions')
     }
 
@@ -103,29 +104,14 @@ export async function POST(request: NextRequest) {
       }, request)
     } else if (action === 'delete') {
       // Delete users and related data in transaction
-      result = await prisma.$transaction(async (tx: any) => {
+      result = await prisma.$transaction(async (tx) => {
         let deletedCount = 0
 
         for (const userId of userIds) {
-          const user = await tx.user.findUnique({ where: { id: userId } })
-          if (!user || user.role === 'ADMIN') continue
+          const u = await tx.user.findUnique({ where: { id: userId } })
+          if (!u || u.role === 'ADMIN') continue
 
-          // Delete related records
-          if (user.role === 'VENDOR') {
-            await tx.store.deleteMany({ where: { vendorId: userId } })
-            await tx.product.deleteMany({ where: { vendorId: userId } })
-          }
-
-          if (user.role === 'DRIVER') {
-            await tx.driverLocation.deleteMany({ where: { driverId: userId } })
-            await tx.driverPerformance.deleteMany({ where: { driverId: userId } })
-          }
-
-          if (user.role === 'CUSTOMER') {
-            await tx.loyaltyAccount.deleteMany({ where: { customerId: userId } })
-            await tx.wallet.deleteMany({ where: { customerId: userId } })
-          }
-
+          await deleteUserRelatedData(tx, userId)
           await tx.user.delete({ where: { id: userId } })
           deletedCount++
         }
