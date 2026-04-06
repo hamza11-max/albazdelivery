@@ -23,11 +23,33 @@ async function deleteOrdersLinkedToUser(
     orConditions.push({ storeId: { in: storeIds } })
   }
 
-  const orders = await tx.order.findMany({
+  const ordersFromDirect = await tx.order.findMany({
     where: { OR: orConditions },
     select: { id: true },
   })
-  const orderIds = orders.map((o) => o.id)
+
+  // Orders whose line items reference catalog products from this vendor's stores
+  // (vendorId/storeId on Order can be missing or inconsistent in legacy data).
+  const ordersFromVendorCatalog =
+    storeIds.length > 0
+      ? await tx.order.findMany({
+          where: {
+            items: {
+              some: {
+                product: { storeId: { in: storeIds } },
+              },
+            },
+          },
+          select: { id: true },
+        })
+      : []
+
+  const orderIds = [
+    ...new Set([
+      ...ordersFromDirect.map((o) => o.id),
+      ...ordersFromVendorCatalog.map((o) => o.id),
+    ]),
+  ]
   if (orderIds.length === 0) return
 
   await tx.vendorResponse.deleteMany({
