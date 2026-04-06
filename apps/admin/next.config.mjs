@@ -18,7 +18,7 @@ const config = {
   compiler: {
     styledComponents: true
   },
-  transpilePackages: ['@albaz/shared', '@albaz/ui', '@albaz/auth'],
+  transpilePackages: ['@albaz/shared', '@albaz/ui', '@albaz/auth', 'recharts'],
   webpack: (config, { isServer }) => {
     // Allow imports from root directories
     config.resolve.alias = {

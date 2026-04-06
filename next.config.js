@@ -8,7 +8,7 @@ module.exports = {
   compiler: {
     styledComponents: true
   },
-  transpilePackages: ['html2canvas', 'jspdf'],
+  transpilePackages: ['html2canvas', 'jspdf', 'recharts'],
   webpack: (config, { isServer }) => {
     const path = require('path');
     

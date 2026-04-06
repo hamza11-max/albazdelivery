@@ -297,20 +297,20 @@ export default function POSDashboard() {
             { id: 'inventory', Icon: Package, label: 'Inventory' },
             { id: 'customers', Icon: Users, label: 'Customers' },
             { id: 'quick', Icon: Zap, label: 'Quick' },
-          ].map((it) => (
+          ].map(({ id, Icon, label }) => (
             <button
-              key={it.id}
+              key={id}
               onClick={() => {
-                setActiveTab(it.id)
-                setTouchedLabel((p) => (p === it.id ? null : it.id))
+                setActiveTab(id)
+                setTouchedLabel((p) => (p === id ? null : id))
               }}
               className={`relative flex flex-col items-center justify-center gap-1 text-sm text-slate-700 ${
-                activeTab === it.id ? 'text-amber-600' : 'text-slate-500'
+                activeTab === id ? 'text-amber-600' : 'text-slate-500'
               }`}
             >
-              <it.Icon size={20} />
-              <span className={`text-xs transition-opacity ${touchedLabel === it.id ? 'opacity-100' : 'opacity-0'}`}>
-                {it.label}
+              <Icon size={20} />
+              <span className={`text-xs transition-opacity ${touchedLabel === id ? 'opacity-100' : 'opacity-0'}`}>
+                {label}
               </span>
             </button>
           ))}
