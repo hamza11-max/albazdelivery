@@ -4,3 +4,5 @@
 *.dll filter=lfs diff=lfs merge=lfs -text
 *.pak filter=lfs diff=lfs merge=lfs -text
 *.asar filter=lfs diff=lfs merge=lfs -text
+apps/vendor/dist/**/*.exe filter=lfs diff=lfs merge=lfs -text
+apps/vendor/dist/**/*.node filter=lfs diff=lfs merge=lfs -text
