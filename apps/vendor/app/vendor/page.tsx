@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback, FormEvent } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback, FormEvent, Suspense } from "react"
 import type { ChangeEvent } from "react"
-import { useRouter, useSearchParams, usePathname, Suspense } from "next/navigation"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { playSuccessSound } from "@/root/lib/notifications"
 import { 
   AlertTriangle,
@@ -70,7 +70,6 @@ import { DriversTab } from "../../components/tabs/DriversTab"
 import { SalesTab } from "../../components/tabs/SalesTab"
 import { SuppliersTab } from "../../components/tabs/SuppliersTab"
 import { AITab } from "../../components/tabs/AITab"
-import { SettingsTab } from "../../components/tabs/SettingsTab"
 import { ReportsTab } from "../../components/tabs/ReportsTab"
 import { CouponsTab } from "../../components/tabs/CouponsTab"
 import { SyncSaveTab } from "../../components/tabs/SyncSaveTab"
@@ -96,6 +95,11 @@ import { saveCustomer } from "../../utils/customerUtils"
 import { saveSupplier } from "../../utils/supplierUtils"
 import { updateOrderStatus } from "../../utils/orderUtils"
 import { completeSale as completeSaleUtil } from "../../utils/saleUtils"
+import {
+  getVendorPrinterDevice,
+  VENDOR_PRINTER_LABEL_KEY,
+  VENDOR_PRINTER_POS_KEY,
+} from "../../utils/printerSettings"
 import { resetProductForm, resetCustomerForm } from "../../utils/formUtils"
 import { handleFileUpload as handleFileUploadUtil } from "../../utils/fileUtils"
 import { handleDataLoad as handleDataLoadUtil } from "../../utils/dataUtils"
@@ -104,10 +108,11 @@ import { fetchAIInsights as fetchAIInsightsUtil } from "../../utils/aiUtils"
 import { useDataLoading } from "../../hooks/useDataLoading"
 import { usePOSHandlers } from "../../hooks/usePOSHandlers"
 import { AdminVendorSelector } from "../../components/AdminVendorSelector"
-import { LoadingScreen } from "../../components/LoadingScreen"
+import { LoadingScreen } from "@/root/components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisionalSale } from "../../utils/electronUtils"
 import { AppUpdateCard } from "../../components/AppUpdateCard"
+import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
 import { ErrorBoundary } from "../../components/ErrorBoundary"
 import {
   getTabsForShopType,
@@ -1931,7 +1936,15 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                       return
                     }
                     try {
-                      const res = await (window as any).electronAPI.print.printProductLabels({ products: items, fields: labelFields, labelType, widthMm: labelWidthMm, heightMm: labelHeightMm, shopName: shopInfo?.name || '' })
+                      const res = await (window as any).electronAPI.print.printProductLabels({
+                        products: items,
+                        fields: labelFields,
+                        labelType,
+                        widthMm: labelWidthMm,
+                        heightMm: labelHeightMm,
+                        shopName: shopInfo?.name || '',
+                        deviceName: getVendorPrinterDevice(VENDOR_PRINTER_LABEL_KEY) || undefined,
+                      })
                       if (res?.success) toast({ title: translate("Impression lancée", "تم بدء الطباعة"), description: translate("Les étiquettes ont été envoyées à l'imprimante.", "تم إرسال الملصقات إلى الطابعة.") })
                       else toast({ title: translate("Erreur", "خطأ"), description: res?.error || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
                     } catch (e: any) {
@@ -2292,10 +2305,39 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             </Card>
           </TabsContent>
 
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          {/* Settings Tab — nested sub-tabs */}
+          <TabsContent value="settings" className="space-y-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
             <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
 
+            <Tabs defaultValue="shop" className="w-full gap-4">
+              <TabsList className="mb-1 grid h-auto w-full max-w-full min-h-9 grid-cols-2 gap-1 p-1 sm:flex sm:flex-wrap sm:justify-start">
+                <TabsTrigger value="shop" className="gap-1.5 px-2 sm:flex-none">
+                  <Store className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Boutique", "المتجر")}</span>
+                </TabsTrigger>
+                <TabsTrigger value="team" className="gap-1.5 px-2 sm:flex-none">
+                  <Users className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Équipe & commandes", "الفريق والطلبات")}</span>
+                </TabsTrigger>
+                <TabsTrigger value="hours" className="gap-1.5 px-2 sm:flex-none">
+                  <Clock className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Horaires & préparation", "المواعيد والتحضير")}</span>
+                </TabsTrigger>
+                <TabsTrigger value="finance" className="gap-1.5 px-2 sm:flex-none">
+                  <Wallet className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Paiements", "المدفوعات")}</span>
+                </TabsTrigger>
+                <TabsTrigger value="display" className="gap-1.5 px-2 sm:flex-none">
+                  <Receipt className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Affichage & reçus", "العرض والإيصالات")}</span>
+                </TabsTrigger>
+                <TabsTrigger value="devices" className="gap-1.5 px-2 sm:flex-none">
+                  <Printer className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Matériel", "الأجهزة")}</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="shop" className="mt-4 space-y-6 outline-none">
             {/* Shop Information */}
             <Card>
               <CardHeader>
@@ -2394,9 +2436,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </div>
               </CardContent>
             </Card>
+              </TabsContent>
 
-            {isElectronRuntime && <AppUpdateCard translate={translate} toast={toast} />}
-
+              <TabsContent value="team" className="mt-4 space-y-6 outline-none">
           {featureFlags.orderPause && (
             <Card>
               <CardHeader>
@@ -2481,6 +2523,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </Card>
 
           {/* Staff add is in Staff & Permissions tab (sidebar) */}
+              </TabsContent>
+
+              <TabsContent value="hours" className="mt-4 space-y-6 outline-none">
 
           {/* Schedule & Capacity — only for restaurant / grocery / other */}
           {isSettingsSectionVisible(shopType, "schedule") && (
@@ -2633,6 +2678,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             </CardContent>
           </Card>
           )}
+              </TabsContent>
+
+              <TabsContent value="finance" className="mt-4 space-y-6 outline-none">
 
           {/* Payouts & Disputes (stub) */}
           <Card>
@@ -2748,6 +2796,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </div>
             </CardContent>
           </Card>
+              </TabsContent>
+
+              <TabsContent value="display" className="mt-4 space-y-6 outline-none">
 
             {/* Appearance Settings */}
             <Card>
@@ -2932,6 +2983,20 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </p>
               </CardContent>
             </Card>
+              </TabsContent>
+
+              <TabsContent value="devices" className="mt-4 space-y-6 outline-none">
+            {!isElectronRuntime && (
+              <p className="text-sm text-muted-foreground rounded-md border border-dashed px-3 py-4">
+                {translate(
+                  "Imprimantes, mise à jour de l'app et port série sont disponibles dans l'application bureau (Electron).",
+                  "الطابعات وتحديث التطبيق والمنفذ التسلسلي متوفرة في تطبيق سطح المكتب.",
+                )}
+              </p>
+            )}
+            <VendorPrinterSettingsCard translate={translate} isElectronRuntime={isElectronRuntime} />
+
+            {isElectronRuntime && <AppUpdateCard translate={translate} toast={toast} />}
 
             {/* Serial port (Electron only) */}
             {isElectronRuntime && (
@@ -2982,6 +3047,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </CardContent>
               </Card>
             )}
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         </Tabs>
         </div>
@@ -3039,6 +3106,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 shopEmail: shopInfo.email || effectiveUser?.email || '',
                 shopCity: '',
                 logo: shopInfo.logo,
+                deviceName: getVendorPrinterDevice(VENDOR_PRINTER_POS_KEY) || undefined,
               }
               await electronAPI.print.receipt(receiptData)
             } catch (error) {

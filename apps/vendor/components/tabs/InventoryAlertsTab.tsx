@@ -37,11 +37,20 @@ const ALERT_TYPE_LABELS: Record<AlertType, { fr: string; ar: string }> = {
   high_demand: { fr: "Demande élevée", ar: "طلب مرتفع" },
 }
 
-const CHANNEL_LABELS: Record<AlertChannel, { fr: string; ar: string; icon: any }> = {
+const CHANNEL_LABELS: Record<AlertChannel, { fr: string; ar: string; icon: typeof Mail }> = {
   email: { fr: "Email", ar: "البريد الإلكتروني", icon: Mail },
   sms: { fr: "SMS", ar: "رسالة نصية", icon: MessageSquare },
   "in-app": { fr: "Dans l'app", ar: "في التطبيق", icon: Bell },
   push: { fr: "Notification push", ar: "إشعار فوري", icon: Smartphone },
+}
+
+function getChannelEntry(channel: string) {
+  return CHANNEL_LABELS[channel as AlertChannel]
+}
+
+function ChannelIcon({ channel, className }: { channel: string; className?: string }) {
+  const Icon = getChannelEntry(channel)?.icon ?? Bell
+  return <Icon className={className} />
 }
 
 export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
@@ -167,7 +176,12 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                       <TableCell className="font-medium">{rule.name}</TableCell>
                       <TableCell>
                         <Badge variant="secondary">
-                          {translate(ALERT_TYPE_LABELS[rule.type].fr, ALERT_TYPE_LABELS[rule.type].ar)}
+                          {(() => {
+                            const labels = ALERT_TYPE_LABELS[rule.type]
+                            return labels
+                              ? translate(labels.fr, labels.ar)
+                              : String(rule.type)
+                          })()}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -176,11 +190,18 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                       <TableCell>
                         <div className="flex gap-1">
                           {rule.channels.map((channel) => {
-                            const ChannelIcon = CHANNEL_LABELS[channel].icon
+                            const entry = getChannelEntry(channel)
+                            if (!entry) {
+                              return (
+                                <Badge key={channel} variant="outline" className="text-xs">
+                                  {channel}
+                                </Badge>
+                              )
+                            }
                             return (
                               <Badge key={channel} variant="outline" className="text-xs">
-                                <ChannelIcon className="w-3 h-3 mr-1" />
-                                {translate(CHANNEL_LABELS[channel].fr, CHANNEL_LABELS[channel].ar)}
+                                <ChannelIcon channel={channel} className="w-3 h-3 mr-1" />
+                                {translate(entry.fr, entry.ar)}
                               </Badge>
                             )
                           })}
@@ -252,18 +273,20 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                         <TableCell className="font-medium">{alert.productName}</TableCell>
                         <TableCell>
                           <Badge variant="secondary">
-                            {translate(ALERT_TYPE_LABELS[alert.type].fr, ALERT_TYPE_LABELS[alert.type].ar)}
+                            {(() => {
+                              const labels = ALERT_TYPE_LABELS[alert.type]
+                              return labels
+                                ? translate(labels.fr, labels.ar)
+                                : String(alert.type)
+                            })()}
                           </Badge>
                         </TableCell>
                         <TableCell className="max-w-xs truncate">{alert.message}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            {alert.channels.map((channel) => {
-                              const ChannelIcon = CHANNEL_LABELS[channel].icon
-                              return (
-                                <ChannelIcon key={channel} className="w-4 h-4" />
-                              )
-                            })}
+                            {alert.channels.map((channel) => (
+                              <ChannelIcon key={channel} channel={channel} className="w-4 h-4" />
+                            ))}
                           </div>
                         </TableCell>
                         <TableCell>{new Date(alert.sentAt).toLocaleString()}</TableCell>
@@ -351,7 +374,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
               <Label>{translate("Canaux de notification", "قنوات الإشعارات")}</Label>
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(CHANNEL_LABELS).map(([key, labels]) => {
-                  const ChannelIcon = labels.icon
+                  const Icon = labels.icon
                   const isSelected = (ruleForm.channels || []).includes(key as AlertChannel)
                   return (
                     <div key={key} className="flex items-center space-x-2">
@@ -361,7 +384,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                         onCheckedChange={() => handleToggleChannel(key as AlertChannel)}
                       />
                       <Label htmlFor={key} className="flex items-center gap-2 cursor-pointer">
-                        <ChannelIcon className="w-4 h-4" />
+                        <Icon className="w-4 h-4" />
                         {translate(labels.fr, labels.ar)}
                       </Label>
                     </div>

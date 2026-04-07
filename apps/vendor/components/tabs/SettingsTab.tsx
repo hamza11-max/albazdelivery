@@ -8,6 +8,7 @@ import { Label } from "@/root/components/ui/label"
 import { Textarea } from "@/root/components/ui/textarea"
 import { Store, Receipt, Clock, Activity } from "lucide-react"
 import { DayHoursInput } from "../DayHoursInput"
+import { VendorPrinterSettingsCard } from "../VendorPrinterSettingsCard"
 
 interface SettingsTabProps {
   isDarkMode: boolean
@@ -15,6 +16,8 @@ interface SettingsTabProps {
   translate: (fr: string, ar: string) => string
   setIsDarkMode: (dark: boolean) => void
   setLanguage: (lang: string) => void
+  /** Desktop Electron shell — shows printer selection */
+  isElectronRuntime?: boolean
 }
 
 export function SettingsTab({
@@ -23,6 +26,7 @@ export function SettingsTab({
   translate,
   setIsDarkMode,
   setLanguage,
+  isElectronRuntime = false,
 }: SettingsTabProps) {
   const [health, setHealth] = useState<any | null>(null)
   const [healthError, setHealthError] = useState<string | null>(null)
@@ -158,6 +162,8 @@ export function SettingsTab({
           </div>
         </CardContent>
       </Card>
+
+      <VendorPrinterSettingsCard translate={translate} isElectronRuntime={isElectronRuntime} />
 
       {/* Horaires & Capacité */}
       <Card>

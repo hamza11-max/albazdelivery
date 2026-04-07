@@ -1,5 +1,5 @@
 "use client"
 
-// Re-export the shared LoadingScreen component
-export { LoadingScreen } from "@/root/components/LoadingScreen"
+// Re-export via relative path so Suspense fallbacks always resolve (avoids alias edge cases in the vendor bundle).
+export { LoadingScreen } from "../../../components/LoadingScreen"
 

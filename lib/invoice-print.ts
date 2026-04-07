@@ -17,6 +17,8 @@ function escapeHtmlTitle(title: string): string {
   return title.replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
+const VENDOR_PRINTER_INVOICE_KEY = "vendor-printer-invoice"
+
 export function printInvoiceHtml(htmlContent: string, title: string): void {
   if (typeof document === "undefined" || typeof window === "undefined") return
 
@@ -29,6 +31,27 @@ export function printInvoiceHtml(htmlContent: string, title: string): void {
     "</style></head><body>" +
     htmlContent +
     "</body></html>"
+
+  const electronApi = (window as unknown as { electronAPI?: { print?: { printHtml?: (opts: unknown) => Promise<{ success?: boolean; error?: string }> } } })
+    .electronAPI
+  if (electronApi?.print?.printHtml) {
+    const deviceName = (typeof localStorage !== "undefined" ? localStorage.getItem(VENDOR_PRINTER_INVOICE_KEY) : "")?.trim() || ""
+    void electronApi.print
+      .printHtml({
+        html: fullDoc,
+        deviceName: deviceName || undefined,
+        silent: !!deviceName,
+        widthMicrons: 210000,
+        heightMicrons: 297000,
+      })
+      .then((res) => {
+        if (res && res.success === false && res.error) {
+          console.warn("[invoice-print] Electron printHtml:", res.error)
+        }
+      })
+      .catch((e) => console.warn("[invoice-print] Electron printHtml failed", e))
+    return
+  }
 
   const printWindow = window.open("", "_blank", "noopener,noreferrer")
   if (printWindow) {

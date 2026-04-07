@@ -37,8 +37,6 @@ const config = {
       moduleIds: isServer ? 'deterministic' : 'named',
       // Disable module concatenation to prevent hoisting issues
       concatenateModules: false,
-      // Disable side effects optimization for client
-      sideEffects: false,
       splitChunks: {
         ...config.optimization.splitChunks,
         chunks: 'all',

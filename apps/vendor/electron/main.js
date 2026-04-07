@@ -8,7 +8,8 @@
  * - App updates
  * Core POS and offline operation do not depend on an external server.
  */
-const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, session } = require('electron')
+const { app, BrowserWindow, ipcMain, globalShortcut, Tray, Menu, nativeImage, session, dialog } = require('electron')
+const { getVendorWindowIconPath } = require('./app-icon')
 const path = require('path')
 const fs = require('fs')
 const http = require('http')
@@ -329,13 +330,14 @@ function showErrorInWindow(win, title, message, options) {
 }
 
 function createWindow() {
+  const windowIcon = getVendorWindowIconPath()
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1200,
     minHeight: 700,
-    icon: path.join(__dirname, '../assets/logo.ico'),
+    ...(windowIcon ? { icon: windowIcon } : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -1141,7 +1143,9 @@ function registerShortcuts() {
 
 // Create system tray
 function createTray() {
+  const resolved = getVendorWindowIconPath()
   const iconPaths = [
+    ...(resolved ? [resolved] : []),
     path.join(__dirname, '../assets/logo.ico'),
     path.join(__dirname, '../assets/logo.png'),
   ]
@@ -1200,6 +1204,13 @@ function createTray() {
 // App event handlers
 app.whenReady().then(() => {
   if (app.isPackaged) writeEarlyLog('whenReady - starting')
+  if (process.platform === 'win32') {
+    try {
+      app.setAppUserModelId('com.albaz.vendor')
+    } catch (_) {
+      /* ignore */
+    }
+  }
   try {
     configureCSP()
     if (app.isPackaged) writeEarlyLog('configureCSP ok')
@@ -1376,6 +1387,33 @@ ipcMain.handle('store-delete', (event, key) => {
   return true
 })
 
+ipcMain.handle('save-backup-to-file', async (event, payload) => {
+  try {
+    const content = payload && typeof payload.content === 'string' ? payload.content : ''
+    if (!content) {
+      return { ok: false, error: 'Empty backup' }
+    }
+    const defaultFilename =
+      payload && typeof payload.defaultFilename === 'string' && payload.defaultFilename.trim()
+        ? payload.defaultFilename.trim()
+        : `vendor-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
+    const parent = BrowserWindow.getFocusedWindow() || mainWindow
+    const { canceled, filePath } = await dialog.showSaveDialog(parent || undefined, {
+      title: 'Save backup',
+      defaultPath: defaultFilename,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (canceled || !filePath) {
+      return { ok: false, canceled: true }
+    }
+    fs.writeFileSync(filePath, content, 'utf8')
+    return { ok: true, filePath }
+  } catch (error) {
+    console.error('[Backup] save-backup-to-file:', error)
+    return { ok: false, error: error.message || String(error) }
+  }
+})
+
 // Offline database IPC handlers
 ipcMain.handle('offline-get-products', (event, vendorId) => {
   if (!offlineDb) return []
@@ -1436,18 +1474,20 @@ ipcMain.handle('print-receipt', async (event, receiptData) => {
     const receiptHtml = generateReceiptHtml(receiptData)
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(receiptHtml)}`)
     
-    // Print silently to default printer
+    const requested =
+      receiptData && typeof receiptData.deviceName === 'string' ? receiptData.deviceName.trim() : ''
     const printers = await printWindow.webContents.getPrintersAsync()
     const thermalPrinter = printers.find(p => 
       p.name.toLowerCase().includes('thermal') || 
       p.name.toLowerCase().includes('receipt') ||
       p.name.toLowerCase().includes('pos')
     )
-    
+    const deviceName = requested || thermalPrinter?.name || ''
+
     await printWindow.webContents.print({
       silent: true,
       printBackground: true,
-      deviceName: thermalPrinter?.name || '',
+      deviceName: deviceName || undefined,
       margins: { marginType: 'none' }
     })
     
@@ -1755,7 +1795,7 @@ function generateProductLabelsHtml(products, fields, labelType, widthMm, heightM
   `
 }
 
-ipcMain.handle('print-product-labels', async (event, { products, fields, labelType, widthMm, heightMm, shopName }) => {
+ipcMain.handle('print-product-labels', async (event, { products, fields, labelType, widthMm, heightMm, shopName, deviceName }) => {
   try {
     if (!Array.isArray(products) || products.length === 0) {
       return { success: false, error: 'No products to print' }
@@ -1770,11 +1810,13 @@ ipcMain.handle('print-product-labels', async (event, { products, fields, labelTy
     const hMm = Number(heightMm) > 0 ? Number(heightMm) : 40
     const html = generateProductLabelsHtml(products, fields || ['name', 'price', 'sku'], labelType || 'normal', wMm, hMm, shopName || '')
     await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    const labelDevice = typeof deviceName === 'string' ? deviceName.trim() : ''
     const printResult = await new Promise((resolve, reject) => {
       printWindow.webContents.print(
         {
-          silent: false,
+          silent: !!labelDevice,
           printBackground: true,
+          deviceName: labelDevice || undefined,
           pageSize: { width: Math.round(wMm * 1000), height: Math.round(hMm * 1000) },
           margins: { marginType: 'none' },
         },

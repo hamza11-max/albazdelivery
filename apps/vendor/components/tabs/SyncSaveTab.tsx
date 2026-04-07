@@ -19,6 +19,7 @@ import {
   Upload,
   Database,
   Inbox,
+  Save,
 } from "lucide-react"
 import { getCloudSyncManager, type SyncStatus } from "../../utils/cloudSyncUtils"
 import { createBackup, restoreBackup, downloadBackup, uploadBackup, getBackupInfo, saveBackupHistory } from "../../utils/backupUtils"
@@ -42,6 +43,7 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
   const [offlinePendingCount, setOfflinePendingCount] = useState(0)
   const [isSyncingOffline, setIsSyncingOffline] = useState(false)
   const isElectron = typeof window !== "undefined" && !!(window as any).electronAPI?.isElectron
+  const [isSavingBackupToDisk, setIsSavingBackupToDisk] = useState(false)
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -165,6 +167,45 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
       toast({ title: translate("Erreur", "خطأ"), description: translate("Échec de la création de la sauvegarde", "فشل إنشاء النسخة الاحتياطية"), variant: "destructive" })
     } finally {
       setIsCreatingBackup(false)
+    }
+  }
+
+  const handleSaveBackupToDiskOrUsb = async () => {
+    if (typeof window === "undefined") return
+    const api = (window as any).electronAPI
+    if (!api?.saveBackupToFile) {
+      toast({
+        title: translate("Non disponible", "غير متاح"),
+        description: translate("Enregistrement sur disque/USB uniquement dans l'application bureau (Electron).", "حفظ على القرص/USB متوفر في تطبيق سطح المكتب فقط."),
+        variant: "destructive",
+      })
+      return
+    }
+    setIsSavingBackupToDisk(true)
+    try {
+      const backupData = createBackup()
+      const content = JSON.stringify(backupData, null, 2)
+      const defaultFilename = `vendor-backup-${new Date().toISOString().split("T")[0]}.json`
+      const res = await api.saveBackupToFile(content, defaultFilename)
+      if (res?.canceled) return
+      if (res?.ok && res.filePath) {
+        saveBackupHistory(backupData)
+        setBackupInfo(getBackupInfo())
+        toast({
+          title: translate("Sauvegarde enregistrée", "تم حفظ النسخة الاحتياطية"),
+          description: res.filePath,
+        })
+      } else {
+        toast({
+          title: translate("Erreur", "خطأ"),
+          description: res?.error || translate("Échec de l'enregistrement", "فشل الحفظ"),
+          variant: "destructive",
+        })
+      }
+    } catch {
+      toast({ title: translate("Erreur", "خطأ"), variant: "destructive" })
+    } finally {
+      setIsSavingBackupToDisk(false)
     }
   }
 
@@ -297,6 +338,17 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
             <Button onClick={handleCreateBackup} disabled={isCreatingBackup}>
               <Download className="w-4 h-4 mr-2" />
               {isCreatingBackup ? translate("Création...", "جاري الإنشاء...") : translate("Créer une sauvegarde", "إنشاء نسخة احتياطية")}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleSaveBackupToDiskOrUsb}
+              disabled={isSavingBackupToDisk}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isSavingBackupToDisk
+                ? translate("Enregistrement...", "جاري الحفظ...")
+                : translate("Enregistrer sur disque / USB", "حفظ على القرص أو USB")}
             </Button>
             <div className="flex items-center gap-2">
               <Input type="file" accept=".json,application/json" onChange={handleFileSelect} className="cursor-pointer w-auto max-w-[200px]" />

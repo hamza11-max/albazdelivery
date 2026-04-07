@@ -35,6 +35,8 @@ win:
       to: .next/static
     - from: vendor-config.json.example
       to: vendor-config.json
+    - from: bundled-flavor.json
+      to: bundled-flavor.json
   signAndEditExecutable: false
   target:
     - target: nsis
@@ -70,4 +72,4 @@ publish:
   provider: github
   owner: hamza11-max
   repo: albazdelivery
-electronVersion: 39.2.3
+electronVersion: 39.8.6

@@ -1,5 +1,6 @@
 const { BrowserWindow } = require('electron')
 const path = require('path')
+const { getVendorWindowIconPath } = require('./app-icon')
 
 let authWindow = null
 let allowClose = false
@@ -12,12 +13,14 @@ function createAuthWindow() {
     return authWindow
   }
   allowClose = false
+  const authIcon = getVendorWindowIconPath()
   authWindow = new BrowserWindow({
     // Open authentication in fullscreen so it fully covers the screen
     fullscreen: true,
     resizable: true,
     show: false,
     frame: false,
+    ...(authIcon ? { icon: authIcon } : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

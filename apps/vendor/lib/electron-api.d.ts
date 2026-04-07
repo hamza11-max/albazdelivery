@@ -98,6 +98,8 @@ interface ReceiptData {
   shopPhone?: string
   shopEmail?: string
   shopCity?: string
+  /** Windows printer name from Sync & backup settings; optional */
+  deviceName?: string
 }
 
 interface PrinterInfo {
@@ -117,6 +119,8 @@ interface ElectronPrintAPI {
     labelType?: string
     widthMm?: number
     heightMm?: number
+    shopName?: string
+    deviceName?: string
   }) => Promise<{ success: boolean; error?: string }>
   printHtml: (options: {
     html: string
@@ -229,6 +233,8 @@ interface ElectronAPI {
   shortcuts: ElectronShortcutsAPI
   rfid?: ElectronRfidAPI
   scanner?: ElectronScannerAPI
+  invoiceHtmlToPdf?: (options: { html?: string; title?: string }) => Promise<{ ok?: boolean; error?: string; data?: Uint8Array }>
+  saveBackupToFile?: (content: string, defaultFilename?: string) => Promise<{ ok: boolean; canceled?: boolean; filePath?: string; error?: string }>
 }
 
 declare global {

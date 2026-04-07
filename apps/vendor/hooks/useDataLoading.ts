@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { fetchAIInsights } from "../utils/aiUtils"
 import { fetchDrivers as fetchDriversUtil } from "../utils/driverUtils"
+import { isElectronOfflineInventoryVendorId } from "../utils/electronUtils"
 
 interface UseDataLoadingParams {
   // Auth & User
@@ -155,16 +156,21 @@ export function useDataLoading({
     }
   }, [activeTab, activeVendorId, setConnectedDrivers, setPendingDriverRequests, setLoadingDrivers])
 
-  // Fetch AI Insights when activeTab changes
+  // Fetch AI Insights when activeTab changes (skipped for offline desktop vendor — no cloud session / DB vendor row)
   useEffect(() => {
-    if (activeTab === "ai" && activeVendorId) {
-      fetchAIInsights({
-        activeVendorId,
-        setSalesForecast,
-        setInventoryRecommendations,
-        setProductBundles,
-      })
+    if (activeTab !== "ai" || !activeVendorId) return
+    if (isElectronOfflineInventoryVendorId(activeVendorId)) {
+      setSalesForecast(null)
+      setInventoryRecommendations([])
+      setProductBundles([])
+      return
     }
+    fetchAIInsights({
+      activeVendorId,
+      setSalesForecast,
+      setInventoryRecommendations,
+      setProductBundles,
+    })
   }, [activeTab, activeVendorId, setSalesForecast, setInventoryRecommendations, setProductBundles])
 
   // Dark mode persistence

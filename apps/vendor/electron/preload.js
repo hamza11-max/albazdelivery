@@ -56,6 +56,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /** Invoice PDF bytes via Chromium printToPDF (no OS print dialog). */
   invoiceHtmlToPdf: (options) => ipcRenderer.invoke('invoice-html-to-pdf', options),
+
+  /** Save backup JSON to a path (folder/USB) via system dialog — desktop only. */
+  saveBackupToFile: (content, defaultFilename) =>
+    ipcRenderer.invoke('save-backup-to-file', { content, defaultFilename }),
   
   // Barcode scanner
   scanner: {

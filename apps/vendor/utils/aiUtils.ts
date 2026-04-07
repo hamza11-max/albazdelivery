@@ -1,6 +1,7 @@
 "use client"
 
-import { handleError, safeFetch, parseAPIResponse, NetworkError } from "./errorHandling"
+import { handleError, safeFetch, parseAPIResponse, APIError } from "./errorHandling"
+import { isElectronOfflineInventoryVendorId } from "./electronUtils"
 
 interface FetchAIInsightsParams {
   activeVendorId?: string
@@ -15,6 +16,12 @@ export async function fetchAIInsights({
   setInventoryRecommendations,
   setProductBundles,
 }: FetchAIInsightsParams) {
+  if (isElectronOfflineInventoryVendorId(activeVendorId)) {
+    setSalesForecast(null)
+    setInventoryRecommendations([])
+    setProductBundles([])
+    return
+  }
   try {
     const response = await safeFetch(`/api/erp/ai-insights${activeVendorId ? `?vendorId=${activeVendorId}` : ''}`)
     const data = await parseAPIResponse(response)
@@ -30,9 +37,10 @@ export async function fetchAIInsights({
       setProductBundles([])
     }
   } catch (error) {
+    const quiet401 = error instanceof APIError && error.statusCode === 401
     handleError(error, {
-      showToast: false, // Don't show toast for background data fetching
-      logError: true,
+      showToast: false,
+      logError: !quiet401,
     })
     // Set empty values on error
     setSalesForecast(null)
