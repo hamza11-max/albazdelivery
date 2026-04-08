@@ -215,15 +215,28 @@ export function errorResponse(
 
     // Database connection / schema errors (e.g. migrations not run, table missing)
     if (['P1001', 'P1002', 'P1012', 'P2021', 'P2022'].includes(prismaError.code)) {
+      const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+      // In development, return empty success response so the UI still renders
+      if (isDev) {
+        console.warn('[API] Database unreachable in dev — returning empty data:', (prismaError as Error).message)
+        return NextResponse.json<ApiResponse>(
+          {
+            success: true,
+            data: null,
+            meta: {
+              timestamp: new Date().toISOString(),
+              requestId: crypto.randomUUID(),
+            },
+          },
+          { status: 200 }
+        )
+      }
       return NextResponse.json<ApiResponse>(
         {
           success: false,
           error: {
             code: 'SERVICE_UNAVAILABLE',
-            message:
-              process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
-                ? (prismaError as Error).message
-                : 'Database configuration error. Ensure migrations are run and the database is reachable.',
+            message: 'Database configuration error. Ensure migrations are run and the database is reachable.',
           },
           meta: {
             timestamp: new Date().toISOString(),
