@@ -323,6 +323,15 @@ function VendorDashboardContent() {
     typeof effectiveUser?.id === "string" &&
     (effectiveUser.id.startsWith("local-") || effectiveUser.id.startsWith("electron-"))
 
+  // Redirect unauthenticated web users to /login
+  useEffect(() => {
+    if (isElectronRuntime) return
+    if (isLoading || status === "loading") return
+    if (!isAuthenticated || !user) {
+      router.replace('/login')
+    }
+  }, [isElectronRuntime, isLoading, status, isAuthenticated, user, router])
+
   // Shop type: from Electron store (setup) or default 'other' for web
   const [shopType, setShopType] = useState<ShopType | "other">("other")
   useEffect(() => {
