@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef, useCallback, FormEvent } from "react"
+import { useState, useEffect, useMemo, useRef, useCallback, FormEvent, Suspense } from "react"
 import type { ChangeEvent } from "react"
-import { useRouter, useSearchParams, usePathname, Suspense } from "next/navigation"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { playSuccessSound } from "@/root/lib/notifications"
 import { 
   AlertTriangle,
