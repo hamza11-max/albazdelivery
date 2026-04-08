@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma"
-import { PLAN_FEATURES, subscriptionStatusGrantsPlanFeatures, type PlanFeatures } from "./stripe"
+import { PLAN_FEATURES, subscriptionStatusGrantsPlanFeatures, type PlanFeatures } from "./subscription-plans"
 
 export async function checkFeatureAccess(
   userId: string,

@@ -7,7 +7,7 @@ import { Badge } from "@/root/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Check, Crown, Zap, Building, Rocket } from "lucide-react"
 import { useSubscription } from "@/hooks/useSubscription"
-import { PLAN_DISPLAY_PRICING } from "@/root/lib/stripe"
+import { PLAN_DISPLAY_PRICING } from "@/root/lib/subscription-plans"
 
 interface PlanInfo {
   name: string
