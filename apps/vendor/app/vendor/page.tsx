@@ -1887,6 +1887,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               cartTax={cartTax}
               cartTotal={cartTotal}
               manualTotal={manualTotal}
+              isBarcodeDetectorSupported={isBarcodeDetectorSupported}
               isArabic={isArabic}
               translate={translate}
               onSearchChange={setPosSearch}

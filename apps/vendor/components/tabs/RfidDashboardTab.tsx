@@ -15,6 +15,7 @@ import type { RfidReadEvent, RfidReader } from "../../lib/electron-api"
 interface RfidDashboardTabProps {
   translate: (fr: string, ar: string) => string
   isElectronRuntime: boolean
+  onLinkProduct?: (tagId: string) => void
 }
 
 export function RfidDashboardTab({ translate, isElectronRuntime, onLinkProduct }: RfidDashboardTabProps) {
