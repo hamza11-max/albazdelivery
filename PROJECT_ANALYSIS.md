@@ -1,7 +1,7 @@
 # AL-baz Delivery Project Analysis
 
-**Date**: February 11, 2026  
-**Status**: Architecture analysis and improvement recommendations
+**Date**: April 10, 2026  
+**Status**: Architecture analysis with implemented desktop update pipeline
 
 ---
 
@@ -73,6 +73,47 @@ flowchart TB
 - **Database**: Single PostgreSQL via Prisma; one schema at `prisma/schema.prisma`
 - **Auth**: NextAuth.js v5; shared config in `lib/auth.config.ts`; `packages/auth` re-exports from root
 - **Shared resources**: lib/, components/, hooks/ at root; packages: ui, shared, auth
+
+---
+
+## Recently Implemented (Desktop Production Readiness)
+
+The Electron vendor desktop app now has a production-focused update and release baseline:
+
+1. **Production updater flow**
+   - `electron-updater` runs only when packaged (`app.isPackaged`)
+   - Explicit event handling for `update-available`, `update-not-available`, `error`, `download-progress`, `update-downloaded`
+   - User-controlled install flow (download first, install only after explicit action)
+
+2. **User-facing updater UX**
+   - Modal update UX in vendor renderer with states:
+     - `idle`
+     - `updateAvailable`
+     - `downloading`
+     - `downloaded`
+   - Remind-later support with local 6-hour deferral
+   - Progress events wired for future richer progress UI
+
+3. **Secure IPC surface for updates**
+   - Preload now exposes constrained updater methods/listeners
+   - Main/IPC/updater modules separated for cleaner ownership (`electron/ipc`, `electron/updater`)
+
+4. **Release automation**
+   - Windows GitHub Actions build workflow added at `.github/workflows/build.yml`
+   - Publishes desktop artifacts with `electron-builder --win --publish always`
+   - Uses `GH_TOKEN` from GitHub Secrets (no hardcoded tokens)
+
+5. **Build artifact hygiene**
+   - Build artifacts and binaries ignored (`dist`, `build`, `*.exe`)
+   - Tracked vendor desktop build outputs removed from git history moving forward
+
+6. **Update channels**
+   - Stable/Beta channel baseline added (`latest` / `beta`)
+   - Channel selection persisted and exposed via updater settings API
+
+7. **SaaS-ready API boundary baseline**
+   - Desktop API calls can now use env-driven API base URL (`NEXT_PUBLIC_API_BASE_URL`)
+   - Initial architecture note added in `docs/DESKTOP_SAAS_ARCHITECTURE.md`
 
 ---
 
@@ -153,7 +194,7 @@ For AL-baz Delivery, **keep a single database**.
 ### Lower priority
 
 7. **Mobile apps** (`mobile-apps/customer-app`, `driver-app`, `vendor-app`): clarify if they hit the same API or have separate backends; document architecture
-8. **Vendor Electron**: document offline/sync strategy (better-sqlite3 usage)
+8. **Vendor Electron**: extend docs for offline/sync strategy (better-sqlite3 usage) and update-channel rollout policy
 9. **Redis**: document when Redis is required vs optional; add graceful degradation if absent
 
 ---
