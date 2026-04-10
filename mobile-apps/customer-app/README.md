@@ -45,6 +45,14 @@ Edit `config/api.ts`:
 - **Development**: Set `API_BASE_URL` to your local IP (e.g. `http://192.168.1.100:3000`) when testing on a physical device.
 - **Production**: Uses `https://albazdelivery.vercel.app` by default.
 
+## Custom Domains
+
+If your backend uses vendor/store custom domains, see the shared guide:
+
+- `docs/CUSTOM_DOMAINS_README.md`
+
+The customer app can continue using a single API base URL, but storefront host resolution and domain verification are handled by backend domain endpoints documented there.
+
 ## Auth Note
 
 The backend uses NextAuth (cookie-based sessions). The mobile app calls `/api/auth/login` and stores the user. For `/api/orders` and other protected routes to work, the backend must accept Bearer token auth or you need to add a mobile-specific auth endpoint that returns a JWT.

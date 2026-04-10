@@ -7,6 +7,12 @@ import { emitOrderUpdated } from '@/lib/events'
 import { orderQuerySchema } from '@/lib/validations/api'
 import { z } from 'zod'
 
+function isPrismaServiceUnavailableError(error: unknown): error is { code: string } {
+  if (!error || typeof error !== 'object') return false
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' && ['P1001', 'P1002', 'P1012', 'P2021', 'P2022'].includes(code)
+}
+
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
@@ -131,6 +137,18 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[API] Error fetching vendor orders:', error)
+    // Keep the dashboard usable when production schema is temporarily out-of-sync.
+    if (isPrismaServiceUnavailableError(error)) {
+      return successResponse({
+        orders: [],
+        pagination: {
+          page: 1,
+          limit: 50,
+          total: 0,
+          pages: 0,
+        },
+      })
+    }
     return errorResponse(error)
   }
 }

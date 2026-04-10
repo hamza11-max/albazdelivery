@@ -14,6 +14,7 @@ import {
   auditSecurityEventConsole,
   getClientInfo,
 } from '@/lib/security/audit-client-info'
+import { extractSubdomain, normalizeHost } from '@/lib/domains/utils'
 
 /**
  * Global middleware with:
@@ -24,6 +25,18 @@ import {
  */
 export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const requestHeaders = new Headers(request.headers)
+  const normalizedHost = normalizeHost(request.headers.get('host'))
+  const baseDomain = normalizeHost(process.env.BASE_DOMAIN || '') || 'albazdelivery.com'
+
+  if (normalizedHost) {
+    requestHeaders.set('x-tenant-host', normalizedHost)
+
+    const tenantSubdomain = extractSubdomain(normalizedHost, baseDomain)
+    if (tenantSubdomain) {
+      requestHeaders.set('x-tenant-subdomain', tenantSubdomain)
+    }
+  }
 
   // ---------------------------------------------------------
   // 0. Handle CORS preflight
@@ -39,7 +52,11 @@ export default async function middleware(request: NextRequest) {
     pathname.startsWith('/api/auth/') || // NextAuth handles its own CSRF
     pathname.match(/\.(ico|png|jpg|jpeg|gif|svg|webp|css|js)$/)
   ) {
-    const response = NextResponse.next()
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
     return applySecurityHeaders(response)
   }
 
@@ -85,7 +102,11 @@ export default async function middleware(request: NextRequest) {
   // ---------------------------------------------------------
   // 3. Create main response
   // ---------------------------------------------------------
-  const response = NextResponse.next()
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  })
 
   // ---------------------------------------------------------
   // 4. Set CSRF token if absent (for frontend to use)

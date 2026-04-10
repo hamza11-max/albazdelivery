@@ -11,6 +11,12 @@ function maxDate(a: Date | null | undefined, b: Date | null | undefined): Date |
   return ta >= tb! ? a! : b!
 }
 
+function isPrismaServiceUnavailableError(error: unknown): error is { code: string } {
+  if (!error || typeof error !== 'object') return false
+  const code = (error as { code?: unknown }).code
+  return typeof code === 'string' && ['P1001', 'P1002', 'P1012', 'P2021', 'P2022'].includes(code)
+}
+
 // GET - Fetch all customers who have ordered from this vendor (POS sales + delivery / WhatsApp orders)
 export async function GET(request: NextRequest) {
   try {
@@ -167,6 +173,18 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[API] Customers GET error:', error)
+    // Keep the dashboard usable when production schema is temporarily out-of-sync.
+    if (isPrismaServiceUnavailableError(error)) {
+      return successResponse({
+        customers: [],
+        pagination: {
+          page: 1,
+          limit: 50,
+          total: 0,
+          pages: 0,
+        },
+      })
+    }
     return errorResponse(error)
   }
 }

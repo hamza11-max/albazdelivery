@@ -141,6 +141,41 @@ npm run db:push
 npm run db:studio
 ```
 
+### Migration Notes (Prisma 7)
+
+- `npm run db:migrate:dev` uses a **shadow database** and may fail if your provider cannot create/drop one.
+- If needed, set `SHADOW_DATABASE_URL` (different DB from `DATABASE_URL`) in `.env.local`.
+- For deployment/CI, prefer:
+
+```bash
+npm run db:migrate
+```
+
+If `migrate deploy` is blocked by a previously failed migration (`P3009` / `P3018`), recover with:
+
+```bash
+# mark broken migration state appropriately
+npx prisma migrate resolve --rolled-back <migration_name>
+# or
+npx prisma migrate resolve --applied <migration_name>
+
+# then apply pending migrations
+npm run db:migrate
+```
+
+## 🌐 Custom Domains
+
+Vendor/store custom domains are supported with subscription-based limits and DNS verification.
+
+- Vendor-level domains (`User` with role `VENDOR`)
+- Store-level override domains (`Store`)
+- Verification flow with TXT/CNAME checks
+- Plan-aware enforcement (`STARTER`/`PROFESSIONAL`/`BUSINESS`/`ENTERPRISE`)
+
+See:
+
+- [Custom Domains Guide](./docs/CUSTOM_DOMAINS_README.md)
+
 ## 🧪 Testing
 
 Tests are located in the root `__tests__` directory and can be run from any app:
@@ -205,6 +240,7 @@ See [MONOREPO_NEXT_STEPS.md](./MONOREPO_NEXT_STEPS.md) for detailed deployment i
 - [Architecture Proposal](./ARCHITECTURE_PROPOSAL.md) - System architecture
 - [API Documentation](./API_DOCUMENTATION.md) - API endpoints
 - [Deployment Checklist](./DEPLOYMENT_CHECKLIST.md) - Deployment guide
+- [Custom Domains Guide](./docs/CUSTOM_DOMAINS_README.md) - Vendor/store domain setup, DNS verify, plan limits
 
 ## 🤝 Contributing
 
