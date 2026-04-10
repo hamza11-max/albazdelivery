@@ -114,15 +114,31 @@ export function InventoryTab({
                   })
 
                   let imported = 0
+                  let skipped = 0
+                  const errors: string[] = []
                   for (const row of jsonData as any[]) {
+                    const sku = String(row.sku || row.SKU || `SKU-${Date.now()}`).trim()
+                    const name = String(row.name || row.Name || row.nom || row.Nom || '').trim()
+                    const category = String(row.category || row.Category || row.categorie || '').trim() || 'General'
+                    const costPrice = Number.parseFloat(String(row.costPrice || row.cost || row.prix_cout || 0))
+                    const sellingPrice = Number.parseFloat(String(row.sellingPrice || row.price || row.prix || row.prix_vente || 0))
+                    const stock = Number.parseInt(String(row.stock || row.Stock || row.quantity || 0), 10)
+                    const lowStockThreshold = Number.parseInt(String(row.lowStockThreshold || row.threshold || 10), 10)
+
+                    if (!name || !Number.isFinite(costPrice) || !Number.isFinite(sellingPrice) || !Number.isFinite(stock) || !Number.isFinite(lowStockThreshold)) {
+                      skipped++
+                      errors.push(`Row "${name || sku}" is invalid`)
+                      continue
+                    }
+
                     const productData = {
-                      sku: row.sku || row.SKU || `SKU-${Date.now()}`,
-                      name: row.name || row.Name || row.nom || row.Nom || 'Unknown',
-                      category: row.category || row.Category || row.categorie || '',
-                      costPrice: parseFloat(row.costPrice || row.cost || row.prix_cout || 0),
-                      sellingPrice: parseFloat(row.sellingPrice || row.price || row.prix || row.prix_vente || 0),
-                      stock: parseInt(row.stock || row.Stock || row.quantity || 0),
-                      lowStockThreshold: parseInt(row.lowStockThreshold || row.threshold || 10),
+                      sku,
+                      name,
+                      category,
+                      costPrice,
+                      sellingPrice,
+                      stock,
+                      lowStockThreshold,
                       barcode: row.barcode || row.Barcode || '',
                       vendorId: activeVendorId,
                     }
@@ -133,7 +149,14 @@ export function InventoryTab({
                       body: JSON.stringify(productData),
                     })
                     
-                    if (response.ok) imported++
+                    if (response.ok) {
+                      imported++
+                    } else {
+                      skipped++
+                      const errJson = await response.json().catch(() => null)
+                      const errMessage = errJson?.error?.message || `HTTP ${response.status}`
+                      errors.push(`${name || sku}: ${errMessage}`)
+                    }
                   }
                   
                   const updatedProducts = await fetchProducts(activeVendorId)
@@ -144,8 +167,14 @@ export function InventoryTab({
                   
                   toast({
                     title: translate("Import réussi", "تم الاستيراد"),
-                    description: translate(`${imported} produits importés`, `تم استيراد ${imported} منتج`),
+                    description: translate(
+                      `${imported} produits importés${skipped ? `, ${skipped} ignorés` : ''}`,
+                      `تم استيراد ${imported} منتج${skipped ? `، وتجاهل ${skipped}` : ''}`
+                    ),
                   })
+                  if (errors.length > 0) {
+                    console.warn('[Inventory Import] Skipped rows:', errors.slice(0, 10))
+                  }
                 } catch (error) {
                   console.error('Import error:', error)
                   toast({

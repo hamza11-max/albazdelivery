@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 // GET /api/health - Health check endpoint (no database required)
 export async function GET() {
+  let databaseStatus = process.env.DATABASE_URL ? 'configured' : 'not_configured'
+
+  if (process.env.DATABASE_URL) {
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      databaseStatus = 'reachable'
+    } catch (error) {
+      databaseStatus = 'unreachable'
+      console.error('[Health] Database ping failed:', error)
+    }
+  }
+
   return NextResponse.json({
     success: true,
     message: 'AL-baz API is running! 🚀',
@@ -22,6 +35,6 @@ export async function GET() {
       notifications: '✅ Ready',
       admin: '✅ Ready',
     },
-    database: process.env.DATABASE_URL ? '✅ Configured' : '❌ Not configured',
+    database: databaseStatus,
   })
 }

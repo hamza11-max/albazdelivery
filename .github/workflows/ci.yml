@@ -32,22 +32,22 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: '20'
-        cache: 'pnpm'
+        cache: 'npm'
 
     - name: Install dependencies
-      run: pnpm install
+      run: npm ci
 
     - name: Generate Prisma Client
-      run: pnpm prisma generate
+      run: npx prisma generate --schema=./prisma/schema.prisma
 
     - name: Run type checking
-      run: pnpm type-check
+      run: npm run type-check
 
     - name: Run linting
-      run: pnpm lint
+      run: npm run lint
 
     - name: Run tests
-      run: pnpm test:ci
+      run: npm run test:ci
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         NEXTAUTH_SECRET: test_secret
