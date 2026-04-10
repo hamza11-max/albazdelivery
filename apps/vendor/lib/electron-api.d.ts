@@ -216,7 +216,24 @@ interface ElectronUpdaterAPI {
   check: () => Promise<{ available?: boolean; info?: { version?: string }; message?: string; error?: string }>
   download: () => Promise<{ success?: boolean; error?: string }>
   install: () => Promise<void>
+  startDownload: () => void
+  installUpdate: () => void
+  remindLater: () => void
+  getChannel: () => Promise<{ channel: 'latest' | 'beta' }>
+  setChannel: (channel: 'latest' | 'beta') => Promise<{ success?: boolean; channel?: 'latest' | 'beta'; error?: string }>
   onStatus: (callback: (payload: AppUpdateStatusPayload) => void) => () => void
+  onUpdateAvailable: (callback: (payload: { version?: string; releaseDate?: string }) => void) => () => void
+  onProgress: (callback: (payload: { percent?: number; transferred?: number; total?: number; bytesPerSecond?: number }) => void) => () => void
+  onDownloaded: (callback: (payload: { version?: string; releaseDate?: string }) => void) => () => void
+}
+
+interface RendererUpdaterAPI {
+  onUpdateAvailable: (callback: (payload: { version?: string; releaseDate?: string }) => void) => () => void
+  onProgress: (callback: (payload: { percent?: number; transferred?: number; total?: number; bytesPerSecond?: number }) => void) => () => void
+  onDownloaded: (callback: (payload: { version?: string; releaseDate?: string }) => void) => () => void
+  startDownload: () => void
+  installUpdate: () => void
+  remindLater: () => void
 }
 
 interface ElectronAPI {
@@ -240,6 +257,7 @@ interface ElectronAPI {
 declare global {
   interface Window {
     electronAPI?: ElectronAPI
+    updater?: RendererUpdaterAPI
   }
 }
 
@@ -254,6 +272,7 @@ export type {
   OfflineSale,
   OfflineCustomer,
   OfflineStats,
+  AppUpdateStatusPayload,
   ReceiptData,
   PrinterInfo
 }

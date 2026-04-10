@@ -1,127 +1,177 @@
 /**
  * Auto-Updater Module for Electron Vendor App
- * Uses electron-updater for automatic updates
+ * Production-only updater with explicit renderer-controlled UX flow.
  */
 
-const { ipcMain } = require('electron')
+const { app } = require('electron')
+const Store = require('electron-store').default || require('electron-store')
+const { registerUpdaterIPCHandlers } = require('./ipc/updater-ipc')
+const { UPDATE_CHANNELS, UPDATE_CHANNEL_STORE_KEY, UPDATE_EVENTS } = require('./updater/constants')
 
 let autoUpdater = null
 let mainWindow = null
+let updaterReady = false
 
-function initAutoUpdater(win) {
-  mainWindow = win
-  
-  try {
-    // electron-updater is optional - only works in production builds
-    const { autoUpdater: updater } = require('electron-updater')
-    autoUpdater = updater
-    
-    // Configure auto-updater
-    autoUpdater.autoDownload = false
-    autoUpdater.autoInstallOnAppQuit = true
-    
-    // Event handlers
-    autoUpdater.on('checking-for-update', () => {
-      sendStatusToWindow('checking')
-    })
-    
-    autoUpdater.on('update-available', (info) => {
-      sendStatusToWindow('available', info)
-    })
-    
-    autoUpdater.on('update-not-available', (info) => {
-      sendStatusToWindow('not-available', info)
-    })
-    
-    autoUpdater.on('error', (err) => {
-      sendStatusToWindow('error', { message: err.message })
-    })
-    
-    autoUpdater.on('download-progress', (progressObj) => {
-      sendStatusToWindow('downloading', {
-        percent: progressObj.percent,
-        transferred: progressObj.transferred,
-        total: progressObj.total,
-        bytesPerSecond: progressObj.bytesPerSecond
-      })
-    })
-    
-    autoUpdater.on('update-downloaded', (info) => {
-      sendStatusToWindow('downloaded', info)
-    })
-    
-    console.log('[Auto-Updater] Initialized')
-    
-    // Check for updates on startup (after 10 seconds)
-    setTimeout(() => {
-      checkForUpdates()
-    }, 10000)
-    
-  } catch (error) {
-    console.log('[Auto-Updater] Not available in development mode')
-  }
+const updateStore = new Store({ name: 'vendor-updater' })
+
+function getStoredChannel() {
+  const raw = updateStore.get(UPDATE_CHANNEL_STORE_KEY)
+  return raw === UPDATE_CHANNELS.BETA ? UPDATE_CHANNELS.BETA : UPDATE_CHANNELS.STABLE
+}
+
+function getActiveChannel() {
+  if (autoUpdater && autoUpdater.channel) return autoUpdater.channel
+  return getStoredChannel()
+}
+
+function sendToRenderer(channel, payload = {}) {
+  if (!mainWindow || mainWindow.isDestroyed()) return
+  mainWindow.webContents.send(channel, payload)
 }
 
 function sendStatusToWindow(status, data = {}) {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-status', { status, ...data })
+  sendToRenderer(UPDATE_EVENTS.STATUS, { status, ...data })
+}
+
+function wireAutoUpdaterEvents() {
+  autoUpdater.on('update-available', (info) => {
+    console.log('[Auto-Updater] update-available', info?.version || '')
+    sendStatusToWindow('available', info)
+    sendToRenderer(UPDATE_EVENTS.AVAILABLE, info || {})
+  })
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[Auto-Updater] update-not-available')
+    sendStatusToWindow('not-available', info)
+  })
+
+  autoUpdater.on('error', (err) => {
+    const message = err?.message || String(err)
+    console.error('[Auto-Updater] error', message)
+    sendStatusToWindow('error', { message })
+  })
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    const payload = {
+      percent: progressObj.percent,
+      transferred: progressObj.transferred,
+      total: progressObj.total,
+      bytesPerSecond: progressObj.bytesPerSecond,
+    }
+    console.log('[Auto-Updater] download-progress', `${Math.round(progressObj.percent || 0)}%`)
+    sendStatusToWindow('downloading', payload)
+    sendToRenderer(UPDATE_EVENTS.PROGRESS, payload)
+  })
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[Auto-Updater] update-downloaded', info?.version || '')
+    sendStatusToWindow('downloaded', info)
+    sendToRenderer(UPDATE_EVENTS.DOWNLOADED, info || {})
+  })
+}
+
+function isUpdaterUsable() {
+  return Boolean(autoUpdater && updaterReady && app.isPackaged)
+}
+
+function normalizeChannel(channel) {
+  return channel === UPDATE_CHANNELS.BETA ? UPDATE_CHANNELS.BETA : UPDATE_CHANNELS.STABLE
+}
+
+function setUpdateChannel(channel) {
+  const nextChannel = normalizeChannel(channel)
+  updateStore.set(UPDATE_CHANNEL_STORE_KEY, nextChannel)
+  if (autoUpdater) {
+    autoUpdater.channel = nextChannel
+  }
+  console.log('[Auto-Updater] channel set to', nextChannel)
+  return { success: true, channel: nextChannel }
+}
+
+async function checkForUpdates() {
+  if (!isUpdaterUsable()) {
+    return { available: false, message: 'Auto-updater not available in development' }
+  }
+
+  try {
+    console.log('[Auto-Updater] checking for updates...')
+    sendStatusToWindow('checking')
+    const result = await autoUpdater.checkForUpdates()
+    return { available: Boolean(result?.updateInfo), info: result?.updateInfo }
+  } catch (error) {
+    const message = error?.message || String(error)
+    console.error('[Auto-Updater] check failed', message)
+    return { available: false, error: message }
   }
 }
 
-function checkForUpdates() {
-  if (autoUpdater) {
-    autoUpdater.checkForUpdates()
-  }
-}
-
-function downloadUpdate() {
-  if (autoUpdater) {
-    autoUpdater.downloadUpdate()
+async function startDownload() {
+  if (!isUpdaterUsable()) return { success: false, error: 'Auto-updater unavailable' }
+  try {
+    await autoUpdater.downloadUpdate()
+    return { success: true }
+  } catch (error) {
+    const message = error?.message || String(error)
+    console.error('[Auto-Updater] download failed', message)
+    return { success: false, error: message }
   }
 }
 
 function installUpdate() {
-  if (autoUpdater) {
-    autoUpdater.quitAndInstall()
+  if (!isUpdaterUsable()) return
+  console.log('[Auto-Updater] quitAndInstall requested by user')
+  autoUpdater.quitAndInstall()
+}
+
+function remindLater() {
+  console.log('[Auto-Updater] user selected remind later')
+}
+
+function initAutoUpdater(win) {
+  mainWindow = win
+
+  if (!app.isPackaged) {
+    console.log('[Auto-Updater] skipped: development mode')
+    return
+  }
+
+  try {
+    const { autoUpdater: updater } = require('electron-updater')
+    autoUpdater = updater
+    autoUpdater.autoDownload = false
+    autoUpdater.autoInstallOnAppQuit = false
+    autoUpdater.channel = getStoredChannel()
+    wireAutoUpdaterEvents()
+    updaterReady = true
+    console.log('[Auto-Updater] initialized on channel', autoUpdater.channel)
+
+    setTimeout(() => {
+      checkForUpdates()
+    }, 10000)
+  } catch (error) {
+    updaterReady = false
+    console.log('[Auto-Updater] unavailable:', error?.message || String(error))
   }
 }
 
-// IPC handlers
 function registerUpdaterIPC() {
-  ipcMain.handle('updater-check', async () => {
-    if (!autoUpdater) {
-      return { available: false, message: 'Auto-updater not available in development' }
-    }
-    try {
-      const result = await autoUpdater.checkForUpdates()
-      return { available: !!result?.updateInfo, info: result?.updateInfo }
-    } catch (error) {
-      return { available: false, error: error.message }
-    }
-  })
-  
-  ipcMain.handle('updater-download', async () => {
-    if (!autoUpdater) return { success: false }
-    try {
-      await autoUpdater.downloadUpdate()
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: error.message }
-    }
-  })
-  
-  ipcMain.handle('updater-install', () => {
-    if (autoUpdater) {
-      autoUpdater.quitAndInstall()
-    }
+  registerUpdaterIPCHandlers({
+    checkForUpdates,
+    startDownload,
+    installUpdate,
+    remindLater,
+    getChannel: () => ({ channel: getActiveChannel() }),
+    setChannel: (channel) => setUpdateChannel(channel),
   })
 }
 
 module.exports = {
   initAutoUpdater,
   checkForUpdates,
-  downloadUpdate,
+  downloadUpdate: startDownload,
   installUpdate,
-  registerUpdaterIPC
+  registerUpdaterIPC,
+  getUpdateChannel: getActiveChannel,
+  setUpdateChannel,
 }
 

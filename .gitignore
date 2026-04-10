@@ -12,6 +12,10 @@
 
 # production
 /build
+build/
+dist/
+**/dist/
+*.exe
 
 # debug
 npm-debug.log*

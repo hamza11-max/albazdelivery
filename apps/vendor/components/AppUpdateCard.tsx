@@ -23,6 +23,8 @@ type Phase =
   | "error"
   | "no-updater"
 
+type UpdateChannel = "latest" | "beta"
+
 interface AppUpdateCardProps {
   translate: (fr: string, ar: string) => string
   toast: ToastFn
@@ -34,6 +36,7 @@ export function AppUpdateCard({ translate, toast }: AppUpdateCardProps) {
   const [remoteVersion, setRemoteVersion] = useState<string | null>(null)
   const [downloadPercent, setDownloadPercent] = useState<number>(0)
   const [statusMessage, setStatusMessage] = useState<string>("")
+  const [channel, setChannel] = useState<UpdateChannel>("latest")
 
   useEffect(() => {
     let cancelled = false
@@ -50,6 +53,21 @@ export function AppUpdateCard({ translate, toast }: AppUpdateCardProps) {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  useEffect(() => {
+    const updater = typeof window !== "undefined" ? window.electronAPI?.updater : undefined
+    if (!updater?.getChannel) return
+    ;(async () => {
+      try {
+        const result = await updater.getChannel()
+        if (result?.channel === "beta" || result?.channel === "latest") {
+          setChannel(result.channel)
+        }
+      } catch {
+        // Keep default stable channel.
+      }
+    })()
   }, [])
 
   useEffect(() => {
@@ -178,6 +196,33 @@ export function AppUpdateCard({ translate, toast }: AppUpdateCardProps) {
     window.electronAPI?.updater?.install?.()
   }, [])
 
+  const handleChannelChange = useCallback(
+    async (nextChannel: UpdateChannel) => {
+      const updater = window.electronAPI?.updater
+      if (!updater?.setChannel) return
+      try {
+        const result = await updater.setChannel(nextChannel)
+        if (result?.success) {
+          setChannel(nextChannel)
+          toast({
+            title: translate("Canal de mise à jour modifié", "تم تغيير قناة التحديث"),
+            description:
+              nextChannel === "beta"
+                ? translate("Canal Bêta activé.", "تم تفعيل القناة التجريبية.")
+                : translate("Canal Stable activé.", "تم تفعيل القناة المستقرة."),
+          })
+        }
+      } catch (e) {
+        toast({
+          title: translate("Impossible de changer le canal", "تعذر تغيير القناة"),
+          description: e instanceof Error ? e.message : String(e),
+          variant: "destructive",
+        })
+      }
+    },
+    [toast, translate]
+  )
+
   return (
     <Card>
       <CardHeader>
@@ -198,6 +243,26 @@ export function AppUpdateCard({ translate, toast }: AppUpdateCardProps) {
           {": "}
           {installedVersion}
         </p>
+
+        <div className="space-y-1">
+          <p className="text-sm font-medium">{translate("Canal de mise à jour", "قناة التحديث")}</p>
+          <div className="flex gap-2">
+            <Button
+              variant={channel === "latest" ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleChannelChange("latest")}
+            >
+              {translate("Stable", "مستقر")}
+            </Button>
+            <Button
+              variant={channel === "beta" ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleChannelChange("beta")}
+            >
+              Beta
+            </Button>
+          </div>
+        </div>
 
         {phase === "no-updater" && (
           <p className="text-sm text-amber-600 dark:text-amber-500">

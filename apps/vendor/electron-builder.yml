@@ -89,4 +89,5 @@ publish:
   provider: github
   owner: hamza11-max
   repo: albazdelivery
+  channel: latest
 

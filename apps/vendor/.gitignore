@@ -1,2 +1,5 @@
 # Generated before electron-pack (scripts/write-bundled-flavor.js)
 bundled-flavor.json
+dist/
+build/
+*.exe

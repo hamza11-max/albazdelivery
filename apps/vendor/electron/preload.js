@@ -89,11 +89,31 @@ contextBridge.exposeInMainWorld('electronAPI', {
     check: () => ipcRenderer.invoke('updater-check'),
     download: () => ipcRenderer.invoke('updater-download'),
     install: () => ipcRenderer.invoke('updater-install'),
+    getChannel: () => ipcRenderer.invoke('updater-get-channel'),
+    setChannel: (channel) => ipcRenderer.invoke('updater-set-channel', channel),
     onStatus: (callback) => {
       const handler = (_event, status) => callback(status)
       ipcRenderer.on('update-status', handler)
       return () => ipcRenderer.removeListener('update-status', handler)
     },
+    onUpdateAvailable: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('update-available', handler)
+      return () => ipcRenderer.removeListener('update-available', handler)
+    },
+    onProgress: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('update-progress', handler)
+      return () => ipcRenderer.removeListener('update-progress', handler)
+    },
+    onDownloaded: (callback) => {
+      const handler = (_event, payload) => callback(payload)
+      ipcRenderer.on('update-downloaded', handler)
+      return () => ipcRenderer.removeListener('update-downloaded', handler)
+    },
+    startDownload: () => ipcRenderer.send('start-update'),
+    installUpdate: () => ipcRenderer.send('install-update'),
+    remindLater: () => ipcRenderer.send('remind-later'),
   },
   
   // Keyboard shortcut listeners
@@ -121,4 +141,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
       channels.forEach(channel => ipcRenderer.removeAllListeners(channel))
     }
   }
+})
+
+// Dedicated updater bridge for minimal and explicit renderer integration.
+contextBridge.exposeInMainWorld('updater', {
+  onUpdateAvailable: (cb) => {
+    const handler = (_event, payload) => cb(payload)
+    ipcRenderer.on('update-available', handler)
+    return () => ipcRenderer.removeListener('update-available', handler)
+  },
+  onProgress: (cb) => {
+    const handler = (_event, payload) => cb(payload)
+    ipcRenderer.on('update-progress', handler)
+    return () => ipcRenderer.removeListener('update-progress', handler)
+  },
+  onDownloaded: (cb) => {
+    const handler = (_event, payload) => cb(payload)
+    ipcRenderer.on('update-downloaded', handler)
+    return () => ipcRenderer.removeListener('update-downloaded', handler)
+  },
+  startDownload: () => ipcRenderer.send('start-update'),
+  installUpdate: () => ipcRenderer.send('install-update'),
+  remindLater: () => ipcRenderer.send('remind-later'),
 })

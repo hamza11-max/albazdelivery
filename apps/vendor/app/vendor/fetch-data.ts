@@ -18,6 +18,7 @@ import type {
   OrdersData,
   CategoriesData
 } from "./types"
+import { withApiBaseUrl } from "@/lib/config/api-base-url"
 
 export function useDashboardData() {
   const [loadingState, setLoadingStateInternal] = useState<LoadingState>({
@@ -40,9 +41,10 @@ export function useDashboardData() {
   const { fetchData, fetchWithCache } = useFetchWithCache()
 
   const buildUrl = useCallback((basePath: string, vendorId?: string) => {
-    if (!vendorId) return basePath
-    const separator = basePath.includes('?') ? '&' : '?'
-    return `${basePath}${separator}vendorId=${vendorId}`
+    const endpoint = withApiBaseUrl(basePath)
+    if (!vendorId) return endpoint
+    const separator = endpoint.includes('?') ? '&' : '?'
+    return `${endpoint}${separator}vendorId=${vendorId}`
   }, [])
 
   const buildCacheKey = useCallback((key: string, vendorId?: string) => (vendorId ? `${key}:${vendorId}` : key), [])
