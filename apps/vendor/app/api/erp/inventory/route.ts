@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { createInventoryProductSchema, updateInventoryProductSchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
       return successResponse({ products, fallback: true })
     }
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }
@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     let session = null
     if (!isLocalVendorId) {
       try {
-        session = await auth()
+        session = await getSessionFromRequest(request)
       } catch (e) {
         // Auth might fail in Electron
       }
@@ -347,7 +347,7 @@ export async function PUT(request: NextRequest) {
     let session = null
     if (!isFallbackId) {
       try {
-        session = await auth()
+        session = await getSessionFromRequest(request)
       } catch (e) {}
     }
 
@@ -477,7 +477,7 @@ export async function DELETE(request: NextRequest) {
     let session = null
     if (!isFallbackId) {
       try {
-        session = await auth()
+        session = await getSessionFromRequest(request)
       } catch (e) {}
     }
 

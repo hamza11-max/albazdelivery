@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import {
   handleSubscriptionsGet,
   handleSubscriptionsPost,
-} from '@/lib/api-subscriptions'
+} from '@/root/lib/api-subscriptions'
 
 export async function GET(request: NextRequest) {
   return handleSubscriptionsGet(request)

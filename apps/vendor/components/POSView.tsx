@@ -90,6 +90,11 @@ export function POSView({
   const [customItemName, setCustomItemName] = useState("")
   const [customItemPrice, setCustomItemPrice] = useState("")
   const [customItemKeypadValue, setCustomItemKeypadValue] = useState("")
+  const categoryOptions = categories.length
+    ? categories
+    : Array.from(
+        new Set(products.map((p) => p.category).filter((name): name is string => Boolean(name && name.trim())))
+      ).map((name, idx) => ({ id: `derived-${idx}`, name }))
 
   const handleCustomItemKeypadKey = (key: string) => {
     let newValue: string
@@ -113,7 +118,7 @@ export function POSView({
     }
   }
   return (
-    <div className={`flex flex-col lg:flex-row min-h-[calc(100vh-120px)] w-full bg-albaz-bg-gradient dark:bg-albaz-bg-gradient-dark gap-4 lg:gap-6 items-start ${isArabic ? 'lg:flex-row-reverse' : ''}`}>
+    <div className={`flex flex-col lg:flex-row min-h-[calc(100vh-120px)] w-full bg-transparent gap-4 lg:gap-6 items-start ${isArabic ? 'lg:flex-row-reverse' : ''}`}>
       {/* Products Area - Left Side (2/3 width) */}
       <div className="flex-1 flex flex-col overflow-hidden w-full lg:w-2/3">
         {/* Product Area */}
@@ -134,13 +139,13 @@ export function POSView({
             {/* Search and Barcode */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4">
               <div className="relative flex-1">
-                <Search className={`absolute ${isArabic ? "right-3" : "left-3"} top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5`} />
+                <Search className={`absolute ${isArabic ? "right-3" : "left-3"} top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5`} />
                 <Input
                   id="pos-search-input"
                   placeholder={translate("Rechercher un produit...", "ابحث عن منتج...")}
                   value={posSearch}
                   onChange={(e) => onSearchChange(e.target.value)}
-                  className={`${isArabic ? "pr-10 text-right" : "pl-10"} bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 h-12`}
+                  className={`${isArabic ? "pr-10 text-right" : "pl-10"} bg-card border-border h-12`}
                 />
               </div>
               <Button
@@ -161,12 +166,12 @@ export function POSView({
                   className={`px-6 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all ${
                     posSelectedCategory === "all"
                       ? "bg-albaz-orange-gradient text-white albaz-glow-orange shadow-albaz-orange"
-                      : "bg-white dark:bg-gray-800 text-albaz-green-700 dark:text-albaz-green-300 border border-gray-200 dark:border-gray-700 hover:border-albaz-orange-400"
+                      : "bg-card text-albaz-green-700 dark:text-albaz-green-300 border border-border hover:border-albaz-orange-400"
                   }`}
                 >
                   {translate("Tous", "الكل")} ({products.length})
                 </button>
-                {categories.map((cat) => {
+                {categoryOptions.map((cat) => {
                   const count = products.filter((p) => p.category === cat.name).length
                   return (
                     <button
@@ -175,7 +180,7 @@ export function POSView({
                       className={`px-6 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all ${
                         posSelectedCategory === cat.name
                           ? "bg-albaz-orange-gradient text-white albaz-glow-orange shadow-albaz-orange"
-                          : "bg-white dark:bg-gray-800 text-albaz-green-700 dark:text-albaz-green-300 border border-gray-200 dark:border-gray-700 hover:border-albaz-orange-400"
+                          : "bg-card text-albaz-green-700 dark:text-albaz-green-300 border border-border hover:border-albaz-orange-400"
                       }`}
                     >
                       {cat.name} ({count})
@@ -203,11 +208,11 @@ export function POSView({
                   .map((product) => (
                     <Card
                       key={product.id}
-                      className="cursor-pointer hover:shadow-xl transition-all duration-300 border-gray-200 dark:border-gray-700 hover:border-albaz-orange-400 group"
+                      className="cursor-pointer hover:shadow-xl transition-all duration-300 border-border hover:border-albaz-orange-400 group"
                       onClick={() => onAddToCart(product)}
                     >
                       <CardContent className="p-4">
-                        <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
+                        <div className="aspect-square bg-gradient-to-br from-muted to-muted/70 rounded-lg mb-3 flex items-center justify-center overflow-hidden relative">
                           {product.image ? (
                             <img
                               src={product.image}
@@ -218,7 +223,7 @@ export function POSView({
                               }}
                             />
                           ) : (
-                            <Package className="w-12 h-12 text-gray-400" />
+                            <Package className="w-12 h-12 text-muted-foreground" />
                           )}
                           <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <div className="w-8 h-8 rounded-full bg-albaz-orange-gradient flex items-center justify-center text-white albaz-glow-orange">
@@ -226,17 +231,23 @@ export function POSView({
                             </div>
                           </div>
                         </div>
-                        <h3 className="font-semibold text-sm mb-1 text-gray-900 dark:text-gray-100 line-clamp-2">
+                        <h3 className="font-semibold text-sm mb-1 text-foreground line-clamp-2">
                           {product.name}
                         </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                        <p className="text-xs text-muted-foreground mb-2">
                           {translate("Code", "رمز")}: {product.sku}
                         </p>
-                        <div className="flex items-center justify-between">
-                          <p className="text-lg font-bold text-albaz-green-700 dark:text-albaz-green-300">
-                            {product.sellingPrice} {translate("DZD", "دج")}
+                        <div className="flex flex-col items-stretch gap-2 pt-0.5">
+                          <p className="text-lg font-bold leading-tight text-albaz-green-700 dark:text-albaz-green-300 tabular-nums">
+                            {product.sellingPrice}{" "}
+                            <span className="text-base font-semibold">
+                              {translate("DZD", "دج")}
+                            </span>
                           </p>
-                          <Badge variant="secondary" className="bg-albaz-green-100 dark:bg-albaz-green-900 text-albaz-green-700 dark:text-albaz-green-300">
+                          <Badge
+                            variant="secondary"
+                            className="w-fit max-w-full shrink-0 self-start whitespace-normal bg-albaz-green-100 px-2 py-0.5 text-start text-xs text-albaz-green-700 dark:bg-albaz-green-900 dark:text-albaz-green-300"
+                          >
                             {translate("Disponible", "متوفر")}: {product.stock}
                           </Badge>
                         </div>
@@ -250,8 +261,8 @@ export function POSView({
       </div>
 
       {/* Cart and Keyboard Panel - Right Side (1/3 width) */}
-      <div className={`w-full lg:w-1/3 bg-white dark:bg-gray-900 border-t lg:border-t-0 ${isArabic ? 'lg:border-r' : 'lg:border-l'} border-gray-200 dark:border-gray-800 flex flex-col shadow-xl lg:sticky lg:top-0 self-start`}>
-        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+      <div className={`w-full lg:w-1/3 bg-card border-t lg:border-t-0 ${isArabic ? 'lg:border-r' : 'lg:border-l'} border-border flex flex-col shadow-xl lg:sticky lg:top-0 self-start`}>
+        <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
               {translate("Résumé de la commande", "ملخص الطلب")}
@@ -266,7 +277,7 @@ export function POSView({
               {translate("Article personnalisé", "عنصر مخصص")}
             </Button>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground">
             {translate("Commande N°", "طلب رقم")}: <span className="font-mono font-semibold">{posOrderNumber}</span>
           </p>
         </div>
@@ -443,7 +454,7 @@ export function POSView({
 
       {/* Custom Item Dialog */}
       <Dialog open={showCustomItemDialog} onOpenChange={setShowCustomItemDialog}>
-        <DialogContent className="bg-white dark:bg-gray-900 max-w-md">
+        <DialogContent className="bg-card max-w-md">
           <DialogHeader>
             <DialogTitle>{translate("Ajouter un article personnalisé", "إضافة عنصر مخصص")}</DialogTitle>
             <DialogDescription>
@@ -459,7 +470,7 @@ export function POSView({
                 value={customItemName}
                 onChange={(e) => setCustomItemName(e.target.value)}
                 autoFocus
-                className="bg-white dark:bg-gray-800"
+                className="bg-card"
               />
             </div>
             <div className="space-y-2">
@@ -473,20 +484,20 @@ export function POSView({
                   setCustomItemPrice(e.target.value)
                   setCustomItemKeypadValue(e.target.value)
                 }}
-                className="bg-white dark:bg-gray-800 text-right font-mono text-lg"
+                className="bg-card text-right font-mono text-lg"
                 readOnly
               />
             </div>
             
             {/* Numeric Keyboard */}
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+            <div className="pt-4 border-t border-border">
               <div className="grid grid-cols-3 gap-2">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((key) => (
                   <Button
                     key={key}
                     variant="outline"
                     size="lg"
-                    className={`h-12 text-xl font-mono bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                    className={`h-12 text-xl font-mono bg-card border-border hover:bg-muted ${
                       key === "⌫" ? "col-span-1" : ""
                     }`}
                     onClick={() => handleCustomItemKeypadKey(key)}

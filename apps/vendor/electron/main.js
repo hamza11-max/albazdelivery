@@ -331,6 +331,10 @@ function showErrorInWindow(win, title, message, options) {
 
 function createWindow() {
   const windowIcon = getVendorWindowIconPath()
+  if (!windowIcon) {
+    console.warn('[Window] No icon resolved; using OS default icon')
+    if (app.isPackaged) writeEarlyLog('window icon missing; default icon used')
+  }
   // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -346,6 +350,7 @@ function createWindow() {
     },
     titleBarStyle: 'default',
     show: false, // Don't show until ready
+    fullscreen: true,
   })
 
   // Set app title
@@ -357,6 +362,7 @@ function createWindow() {
 
   // Always show window when ready so user sees loading or error (not a blank screen)
   mainWindow.once('ready-to-show', () => {
+    mainWindow.setFullScreen(true)
     mainWindow.show()
     if (isDev) {
       mainWindow.webContents.openDevTools()
@@ -1345,6 +1351,31 @@ ipcMain.handle('app-version', () => {
 
 ipcMain.handle('app-name', () => {
   return app.getName()
+})
+
+ipcMain.handle('window-minimize', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.minimize()
+    return { success: true }
+  }
+  return { success: false }
+})
+
+ipcMain.handle('window-close-app', () => {
+  isQuitting = true
+  app.quit()
+  return { success: true }
+})
+
+ipcMain.on('window-minimize', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.minimize()
+  }
+})
+
+ipcMain.on('window-close-app', () => {
+  isQuitting = true
+  app.quit()
 })
 
 ipcMain.handle('app-health', () => {

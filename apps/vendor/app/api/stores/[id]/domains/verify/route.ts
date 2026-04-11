@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { prisma } from '@/root/lib/prisma'
 import {
   errorResponse,
@@ -25,7 +25,7 @@ export async function POST(
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) throw new UnauthorizedError()
 
     const storeId = params.id

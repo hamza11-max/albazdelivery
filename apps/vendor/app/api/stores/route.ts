@@ -2,7 +2,7 @@ import { type NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 
 // GET /api/stores - Get stores with optional filters; returns empty when DB unavailable (e.g. packaged app)
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       console.warn('[Stores API] Rate limit check failed:', rateLimitError)
     }
 
-    const session = await auth().catch(() => null)
+    const session = await getSessionFromRequest(request).catch(() => null)
     const searchParams = request.nextUrl.searchParams
     const pageParam = searchParams.get('page')
     const limitParam = searchParams.get('limit')

@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { emitOrderUpdated } from '@/root/lib/events'
 import { orderQuerySchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }
@@ -172,7 +172,7 @@ export async function PATCH(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }

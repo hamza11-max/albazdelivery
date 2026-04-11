@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { z } from 'zod'
 
 // Validation schema for suppliers
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }
@@ -190,7 +190,7 @@ export async function PUT(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }
@@ -257,7 +257,7 @@ export async function DELETE(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }

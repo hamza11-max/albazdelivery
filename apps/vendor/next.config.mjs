@@ -42,6 +42,10 @@ const config = {
             key: 'Permissions-Policy',
             value: 'camera=(self)',
           },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
         ],
       },
     ]

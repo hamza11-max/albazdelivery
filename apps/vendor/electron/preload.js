@@ -115,6 +115,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     installUpdate: () => ipcRenderer.send('install-update'),
     remindLater: () => ipcRenderer.send('remind-later'),
   },
+
+  appWindow: {
+    minimize: () => ipcRenderer.invoke('window-minimize'),
+    close: () => ipcRenderer.invoke('window-close-app'),
+    minimizeSend: () => ipcRenderer.send('window-minimize'),
+    closeSend: () => ipcRenderer.send('window-close-app'),
+  },
   
   // Keyboard shortcut listeners
   shortcuts: {

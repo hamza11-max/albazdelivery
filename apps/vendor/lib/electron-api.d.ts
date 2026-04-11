@@ -252,6 +252,12 @@ interface ElectronAPI {
   scanner?: ElectronScannerAPI
   invoiceHtmlToPdf?: (options: { html?: string; title?: string }) => Promise<{ ok?: boolean; error?: string; data?: Uint8Array }>
   saveBackupToFile?: (content: string, defaultFilename?: string) => Promise<{ ok: boolean; canceled?: boolean; filePath?: string; error?: string }>
+  appWindow?: {
+    minimize: () => Promise<{ success?: boolean }>
+    close: () => Promise<{ success?: boolean }>
+    minimizeSend?: () => void
+    closeSend?: () => void
+  }
 }
 
 declare global {

@@ -92,6 +92,7 @@ module.exports = {
         },
       },
       backgroundImage: {
+        'brand-cta': 'linear-gradient(135deg, #f97316 0%, #fb923c 45%, #fbbf24 100%)',
         'albaz-green-gradient': 'linear-gradient(135deg, #224c1f 0%, #2d5f2a 100%)',
         'albaz-orange-gradient': 'linear-gradient(135deg, #ff6b35 0%, #ff8c5c 50%, #ffd23f 100%)',
         'albaz-orange-glow': 'linear-gradient(135deg, rgba(255, 107, 53, 0.3) 0%, rgba(255, 140, 92, 0.2) 50%, rgba(255, 210, 63, 0.3) 100%)',
@@ -100,6 +101,8 @@ module.exports = {
         'albaz-bg-gradient-dark': 'linear-gradient(135deg, #1a1f1a 0%, #151815 50%, #1a1f1a 100%)',
       },
       boxShadow: {
+        'neu-raised': 'var(--neu-raised)',
+        'neu-inset': 'var(--neu-inset)',
         'albaz-green': '0 4px 14px 0 rgba(34, 76, 31, 0.3)',
         'albaz-orange': '0 4px 20px 0 rgba(255, 107, 53, 0.4), 0 0 30px rgba(255, 210, 63, 0.2)',
         'albaz-orange-glow': '0 0 20px rgba(255, 107, 53, 0.5), 0 0 40px rgba(255, 140, 92, 0.3), 0 0 60px rgba(255, 210, 63, 0.2)',

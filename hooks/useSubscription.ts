@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { apiFetch } from "@/root/lib/api-fetch"
 import { PLAN_FEATURES, subscriptionStatusGrantsPlanFeatures, type PlanFeatures } from "@/root/lib/subscription-plans"
 
 interface Subscription {
@@ -34,7 +35,7 @@ export function useSubscription() {
     try {
       setLoading(true)
       setError(null)
-      const res = await fetch("/api/subscriptions")
+      const res = await apiFetch("/api/subscriptions")
       const data = await res.json()
       if (data.success) {
         setSubscription(data.data)

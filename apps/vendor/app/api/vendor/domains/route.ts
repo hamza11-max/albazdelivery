@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { prisma } from '@/root/lib/prisma'
 import {
   errorResponse,
@@ -87,7 +87,7 @@ async function assertNoDomainCollisions({
 export async function GET(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) throw new UnauthorizedError()
 
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) throw new UnauthorizedError()
 
     const body = await request.json().catch(() => ({}))

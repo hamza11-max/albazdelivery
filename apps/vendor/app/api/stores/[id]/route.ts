@@ -2,7 +2,7 @@ import { type NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 
 // GET /api/stores/[id] - Get store by ID (vendor app)
@@ -46,7 +46,7 @@ export async function PATCH(
 ) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()
     }

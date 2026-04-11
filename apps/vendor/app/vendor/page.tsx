@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback, FormEvent, Suspense } from "react"
 import type { ChangeEvent } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
+import { signOut } from "next-auth/react"
 import { playSuccessSound } from "@/root/lib/notifications"
 import { 
   AlertTriangle,
@@ -57,7 +58,6 @@ import { Textarea } from "@/root/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/root/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/root/components/ui/tabs"
-import VendorSidebar from "@/root/components/VendorSidebar"
 import ElectronLogin from "@/root/components/ElectronLogin"
 import { POSView } from "../../components/POSView"
 import { ProductDialog } from "../../components/dialogs/ProductDialog"
@@ -114,12 +114,17 @@ import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisi
 import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
 import { ErrorBoundary } from "../../components/ErrorBoundary"
+import { VendorTopbar } from "../../components/navigation/VendorTopbar"
+import { VendorMenuGrid } from "../../components/navigation/VendorMenuGrid"
+import { NotificationsPanel, type VendorNotificationItem } from "../../components/navigation/NotificationsPanel"
+import { StaffSwitchDialog } from "../../components/navigation/StaffSwitchDialog"
 import {
   getTabsForShopType,
   isSettingsSectionVisible,
   type ShopType,
 } from "../../config/shopTypes"
-import { setStoredTheme } from "@/root/lib/theme"
+import { setLightDarkTheme } from "@/root/lib/theme"
+import { useSubscription } from "@/root/hooks/useSubscription"
 
 // Types
 import type {
@@ -159,6 +164,7 @@ function VendorDashboardContent() {
   const pathname = usePathname()
   const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
+  const { subscription } = useSubscription()
   const [ordersCustomerFilter, setOrdersCustomerFilter] = useState<string | null>(null)
   const [highlightOrderId, setHighlightOrderId] = useState<string | null>(null)
   
@@ -274,6 +280,7 @@ function VendorDashboardContent() {
         "ai",
         "settings",
         "rfid",
+        "menu",
       ]),
     [],
   )
@@ -346,6 +353,7 @@ function VendorDashboardContent() {
 
   const allowedTabIds = getTabsForShopType(shopType)
   useEffect(() => {
+    if (activeTab === "menu") return
     if (allowedTabIds.length > 0 && !allowedTabIds.includes(activeTab)) {
       setActiveTab(allowedTabIds[0])
     }
@@ -578,6 +586,9 @@ function VendorDashboardContent() {
   })
   const [staffPinResetOpen, setStaffPinResetOpen] = useState(false)
   const [staffPinResetTarget, setStaffPinResetTarget] = useState<any | null>(null)
+  const [showStaffSwitchDialog, setShowStaffSwitchDialog] = useState(false)
+  const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
+  const [notifications, setNotifications] = useState<VendorNotificationItem[]>([])
   const [shopInfo, setShopInfo] = useState(() => {
     if (typeof window === "undefined") {
       return { name: "", phone: "", email: "", address: "", description: "", logo: "", cover: "" }
@@ -666,6 +677,78 @@ function VendorDashboardContent() {
     return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("")
   }, [])
 
+  const pushNotification = useCallback((title: string, description: string) => {
+    setNotifications((prev) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title,
+        description,
+        createdAt: Date.now(),
+        read: false,
+      },
+      ...prev,
+    ].slice(0, 80))
+  }, [])
+
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((item) => !item.read).length,
+    [notifications]
+  )
+
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })))
+  }, [])
+
+  const handleLogoutAction = useCallback(async () => {
+    if (isElectronRuntime) {
+      ;(window as any).electronAPI?.appWindow?.close?.()
+      return
+    }
+    await signOut({ callbackUrl: "/login" })
+  }, [isElectronRuntime])
+
+  const handleMinimizeApp = useCallback(async () => {
+    const appWindow = (window as any).electronAPI?.appWindow
+    if (!appWindow) return
+    try {
+      const result = await appWindow.minimize?.()
+      if (!result?.success) {
+        appWindow.minimizeSend?.()
+      }
+    } catch {
+      appWindow.minimizeSend?.()
+    }
+  }, [])
+
+  const handleSwitchStaff = useCallback(async (staffCodeInput: string, pinInput: string) => {
+    if (!staffCodeInput || !pinInput) {
+      return { ok: false, error: translate("Code staff et PIN requis.", "رمز الموظف وPIN مطلوبان.") }
+    }
+    const normalizedCode = staffCodeInput.replace(/\D/g, "").slice(0, 4)
+    const account = staffAccounts.find((acc) => String(acc.staffCode || "").trim() === normalizedCode)
+    if (!account) {
+      return { ok: false, error: translate("Staff introuvable.", "لم يتم العثور على الموظف.") }
+    }
+    if (!account.pinHash || !account.pinSalt) {
+      return { ok: false, error: translate("Ce compte n'a pas de PIN actif.", "هذا الحساب لا يحتوي على PIN نشط.") }
+    }
+    const attemptedHash = await hashLocalPassword(pinInput, account.pinSalt)
+    if (attemptedHash !== account.pinHash) {
+      return { ok: false, error: translate("PIN incorrect.", "PIN غير صحيح.") }
+    }
+    const role = account.role === "manager" || account.role === "cashier" ? account.role : "owner"
+    setStaffRole(role)
+    pushNotification(
+      translate("Staff changé", "تم تبديل الموظف"),
+      translate(`Connecté en tant que ${account.name || role}.`, `تم الدخول كـ ${account.name || role}.`)
+    )
+    toast({
+      title: translate("Staff actif mis à jour", "تم تحديث الموظف النشط"),
+      description: translate(`Rôle actif: ${role}`, `الدور النشط: ${role}`),
+    })
+    return { ok: true }
+  }, [hashLocalPassword, pushNotification, setStaffRole, staffAccounts, toast, translate])
+
   const loadStaffAccounts = useCallback(async () => {
     if (typeof window === "undefined") return
     const electronAPI = (window as any)?.electronAPI
@@ -680,6 +763,137 @@ function VendorDashboardContent() {
     if (!isElectronRuntime) return
     loadStaffAccounts()
   }, [isElectronRuntime, loadStaffAccounts])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const installKey = "vendor-subscription-installed-at"
+    const storedInstallAt = Number(localStorage.getItem(installKey) || "0")
+    if (!storedInstallAt) {
+      localStorage.setItem(installKey, String(Date.now()))
+    }
+  }, [])
+
+  const subscriptionReminderDays = useMemo(() => {
+    const defaults = [14, 7, 3, 1, 0]
+    if (typeof window === "undefined") return defaults
+    const fromStorage = localStorage.getItem("vendor-subscription-reminder-days")
+    if (fromStorage) {
+      try {
+        const parsed = JSON.parse(fromStorage)
+        if (Array.isArray(parsed)) {
+          const normalized = parsed
+            .map((n) => Number(n))
+            .filter((n) => Number.isFinite(n) && n >= 0)
+            .map((n) => Math.floor(n))
+          if (normalized.length > 0) {
+            return Array.from(new Set(normalized)).sort((a, b) => b - a)
+          }
+        }
+      } catch {
+        // Ignore malformed local value
+      }
+    }
+    const fromEnv = process.env.NEXT_PUBLIC_SUBSCRIPTION_REMINDER_DAYS
+    if (fromEnv) {
+      const normalized = fromEnv
+        .split(",")
+        .map((v) => Number(v.trim()))
+        .filter((n) => Number.isFinite(n) && n >= 0)
+        .map((n) => Math.floor(n))
+      if (normalized.length > 0) return Array.from(new Set(normalized)).sort((a, b) => b - a)
+    }
+    return defaults
+  }, [])
+
+  const buildSubscriptionReminder = useCallback((daysLeft: number) => {
+    if (daysLeft <= 0) {
+      return {
+        title: translate("Abonnement expiré", "انتهى الاشتراك"),
+        description: translate(
+          "Votre abonnement est expiré. Renouvelez maintenant pour éviter toute interruption des ventes.",
+          "انتهى اشتراكك. جدد الآن لتجنب أي انقطاع في المبيعات."
+        ),
+      }
+    }
+    if (daysLeft === 1) {
+      return {
+        title: translate("Abonnement expire demain", "الاشتراك ينتهي غدًا"),
+        description: translate(
+          "Il reste 1 jour. Préparez le renouvellement pour garder l'application active.",
+          "يتبقى يوم واحد. جهز التجديد للحفاظ على عمل التطبيق."
+        ),
+      }
+    }
+    return {
+      title: translate("Rappel d'abonnement", "تذكير الاشتراك"),
+      description: translate(
+        `Il reste ${daysLeft} jour(s) avant expiration de l'abonnement.`,
+        `يتبقى ${daysLeft} يوم قبل انتهاء الاشتراك.`
+      ),
+    }
+  }, [translate])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const installAt = Number(localStorage.getItem("vendor-subscription-installed-at") || "0")
+    const fallbackEnd = installAt ? installAt + 30 * 24 * 60 * 60 * 1000 : 0
+    const periodEndMs = subscription?.currentPeriodEnd
+      ? new Date(subscription.currentPeriodEnd).getTime()
+      : fallbackEnd
+    if (!Number.isFinite(periodEndMs)) return
+    const daysLeft = Math.ceil((periodEndMs - Date.now()) / (24 * 60 * 60 * 1000))
+    const remindDays = new Set(subscriptionReminderDays)
+    if (!remindDays.has(Math.max(0, daysLeft))) return
+    const remindKey = `vendor-subscription-reminder:${Math.max(0, daysLeft)}`
+    const today = new Date().toISOString().slice(0, 10)
+    const alreadySent = localStorage.getItem(remindKey)
+    if (alreadySent === today) return
+    localStorage.setItem(remindKey, today)
+    const message = buildSubscriptionReminder(Math.max(0, daysLeft))
+    pushNotification(message.title, message.description)
+  }, [buildSubscriptionReminder, pushNotification, subscription?.currentPeriodEnd, subscriptionReminderDays])
+
+  useEffect(() => {
+    const updater = (window as any)?.electronAPI?.updater
+    if (!updater?.onUpdateAvailable || !updater?.onDownloaded) return
+    const offAvailable = updater.onUpdateAvailable((payload: any) => {
+      pushNotification(
+        translate("Mise à jour disponible", "تحديث متاح"),
+        translate(
+          `Version ${payload?.version || "nouvelle"} prête à télécharger.`,
+          `الإصدار ${payload?.version || "الجديد"} جاهز للتنزيل.`
+        )
+      )
+    })
+    const offDownloaded = updater.onDownloaded((payload: any) => {
+      pushNotification(
+        translate("Mise à jour prête", "التحديث جاهز"),
+        translate(
+          `Version ${payload?.version || "nouvelle"} téléchargée. Cliquez sur redémarrer pour installer.`,
+          `تم تنزيل الإصدار ${payload?.version || "الجديد"}. اضغط إعادة التشغيل للتثبيت.`
+        )
+      )
+    })
+    return () => {
+      offAvailable?.()
+      offDownloaded?.()
+    }
+  }, [pushNotification, translate])
+
+  useEffect(() => {
+    if (lowStockProducts.length === 0 || typeof window === "undefined") return
+    const today = new Date().toISOString().slice(0, 10)
+    const key = "vendor-low-stock-reminder-date"
+    if (localStorage.getItem(key) === today) return
+    localStorage.setItem(key, today)
+    pushNotification(
+      translate("Stock faible", "مخزون منخفض"),
+      translate(
+        `${lowStockProducts.length} produit(s) sont en stock faible.`,
+        `${lowStockProducts.length} منتجًا في مخزون منخفض.`
+      )
+    )
+  }, [lowStockProducts, pushNotification, translate])
 
   const handleAddStaffAccount = useCallback(async () => {
     if (!isElectronRuntime) return
@@ -1834,21 +2048,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
   return (
     <ErrorBoundary>
-      <div className={`min-h-screen bg-background flex ${isDarkMode ? 'dark' : ''}`} dir={isArabic ? "rtl" : "ltr"}>
-      {/* Vertical Sidebar */}
-      <VendorSidebar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        language={language}
-        setLanguage={setLanguage}
-        isDarkMode={isDarkMode}
-        setIsDarkMode={setIsDarkMode}
-        translate={translate}
-        allowedTabIds={allowedTabIds}
-      />
-
-      {/* Main Content */}
-      <main className="flex-1 w-full transition-all duration-300 pl-0 md:pl-[70px] pb-20 md:pb-0 min-w-0 overflow-x-auto" dir={isArabic ? "rtl" : "ltr"}>
+      <div className="min-h-screen bg-transparent" dir={isArabic ? "rtl" : "ltr"}>
+      <main className="w-full min-w-0 overflow-x-auto" dir={isArabic ? "rtl" : "ltr"}>
         <div className="w-full h-full px-2 sm:px-4 py-4 sm:py-6">
           <AdminVendorSelector
             isAdmin={isAdmin}
@@ -1858,11 +2059,38 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             isLoadingVendors={isLoadingVendors}
             translate={translate}
           />
-        
-        {/* Topbar removed — navigation is handled by the left sidebar */}
+
+          <VendorTopbar
+            isElectronRuntime={isElectronRuntime}
+            isArabic={isArabic}
+            isDarkMode={isDarkMode}
+            notificationCount={unreadNotificationCount}
+            translate={translate}
+            onOpenDashboard={() => setActiveTab("dashboard")}
+            onOpenSettings={() => setActiveTab("settings")}
+            onOpenProfile={() => setShowStaffSwitchDialog(true)}
+            onOpenNotifications={() => setShowNotificationsPanel(true)}
+            onOpenMenuPage={() => setActiveTab("menu")}
+            onMinimize={handleMinimizeApp}
+            onLogout={handleLogoutAction}
+            onToggleTheme={() => {
+              const next = !isDarkMode
+              setLightDarkTheme(next)
+              setIsDarkMode(next)
+            }}
+          />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          {/* Horizontal tabs removed - navigation now in vertical sidebar */}
+          {/* Topbar-driven navigation */}
+
+          <TabsContent value="menu" className="space-y-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <VendorMenuGrid
+              allowedTabIds={allowedTabIds}
+              activeTab={activeTab}
+              translate={translate}
+              onSelectTab={setActiveTab}
+            />
+          </TabsContent>
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
@@ -2830,8 +3058,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     variant={isDarkMode ? "default" : "outline"}
                     onClick={() => {
                       const next = !isDarkMode
+                      setLightDarkTheme(next)
                       setIsDarkMode(next)
-                      setStoredTheme(next ? "dark" : "light")
                     }}
                   >
                     {isDarkMode ? translate("Activé", "مفعل") : translate("Désactivé", "معطل")}
@@ -3063,6 +3291,21 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         </Tabs>
         </div>
       </main>
+
+      <NotificationsPanel
+        open={showNotificationsPanel}
+        notifications={notifications}
+        translate={translate}
+        onOpenChange={setShowNotificationsPanel}
+        onMarkAllRead={markAllNotificationsRead}
+      />
+
+      <StaffSwitchDialog
+        open={showStaffSwitchDialog}
+        onOpenChange={setShowStaffSwitchDialog}
+        translate={translate}
+        onSubmit={handleSwitchStaff}
+      />
 
       {/* Sale Success Dialog */}
       <SaleSuccessDialog

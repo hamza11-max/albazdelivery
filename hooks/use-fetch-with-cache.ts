@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react"
 import { useToast } from "@/root/hooks/use-toast"
 import { getCachedData, setCachedData } from "@/root/lib/api-cache"
+import { apiFetch } from "@/root/lib/api-fetch"
 
 // Define LoadingState locally to avoid circular dependencies
 export interface LoadingState {
@@ -72,8 +73,8 @@ export function useFetchWithCache(): FetchWithCacheResult {
     }
     
     try {
-      const response = await fetch(url)
-      
+      const response = await apiFetch(url)
+
       // Check if response is ok before parsing JSON
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error')
@@ -146,8 +147,8 @@ export function useFetchWithCache(): FetchWithCacheResult {
     fetchWithCache: async <T>(key: string, url: string): Promise<T> => {
       const cached = getCachedData<T>(key)
       if (cached) return cached
-      
-      const response = await fetch(url)
+
+      const response = await apiFetch(url)
       const data: CacheApiResponse<T> = await response.json()
       
       if (!data.success) {

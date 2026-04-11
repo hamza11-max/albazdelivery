@@ -12,7 +12,13 @@ export function useVendorState() {
   const isElectronRuntime = typeof window !== 'undefined' && !!window.electronAPI?.isElectron
 
   // UI States
-  const [isDarkMode, setIsDarkMode] = useState(() => (typeof window !== 'undefined' && getStoredTheme() === 'dark'))
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    if (typeof window === "undefined") return false
+    const t = getStoredTheme()
+    if (t === "dark") return true
+    if (t === "light") return false
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+  })
   const [activeTab, setActiveTab] = useState("dashboard")
   const [language, setLanguage] = useState("fr")
   const [showProductDialog, setShowProductDialog] = useState(false)

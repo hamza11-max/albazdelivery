@@ -1,0 +1,21 @@
+{
+  "name": "AlBaz Vendor",
+  "id": "/vendor",
+  "short_name": "Vendor",
+  "description": "AlBaz Vendor desktop/web POS",
+  "start_url": "/vendor",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "lang": "fr",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

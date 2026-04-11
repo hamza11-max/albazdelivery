@@ -33,51 +33,86 @@ html[dir="ltr"] {
 /* Custom base styles */
 @layer base {
   /*
-   * Shared root components (e.g. Select/portals) use bg-popover, text-muted-foreground, etc.
-   * Tailwind maps these to var(--*). Without these definitions, Electron shows transparent menus.
+   * Brand-aligned semantic tokens (light: :root, dark: .dark on html).
+   * Neumorphism + glass tokens for shell components.
    */
   :root {
-    --background: #ffffff;
-    --foreground: #09090b;
+    --background: #f3f6f2;
+    --foreground: #1f2937;
     --card: #ffffff;
-    --card-foreground: #09090b;
+    --card-foreground: #1f2937;
     --popover: #ffffff;
-    --popover-foreground: #09090b;
-    --primary: #0d9488;
-    --primary-foreground: #fafafa;
-    --secondary: #f4f4f5;
-    --secondary-foreground: #18181b;
-    --muted: #f4f4f5;
-    --muted-foreground: #71717a;
-    --accent: #f4f4f5;
-    --accent-foreground: #18181b;
-    --destructive: #ef4444;
-    --destructive-foreground: #fafafa;
-    --border: #e4e4e7;
-    --input: #e4e4e7;
-    --ring: #a1a1aa;
+    --popover-foreground: #1f2937;
+    --primary: #3f5f2a;
+    --primary-foreground: #f8faf6;
+    --secondary: #e6ece3;
+    --secondary-foreground: #274018;
+    --muted: #dfe8d9;
+    --muted-foreground: #6b7280;
+    --accent: #fff4e6;
+    --accent-foreground: #9a3412;
+    --destructive: #dc2626;
+    --destructive-foreground: #fef2f2;
+    --border: #c5d4bc;
+    --input: #c5d4bc;
+    --ring: #6b8e3a;
+
+    --brand-orange: #f97316;
+    --brand-orange-muted: #fb923c;
+
+    --body-gradient: linear-gradient(160deg, #f3f6f2 0%, #e8ede5 42%, #eef2eb 100%);
+
+    --neu-raised: 10px 10px 22px rgba(163, 177, 158, 0.38),
+      -8px -8px 20px rgba(255, 255, 255, 0.95);
+    --neu-inset: inset 5px 5px 10px rgba(163, 177, 158, 0.28),
+      inset -4px -4px 10px rgba(255, 255, 255, 0.85);
+
+    --glass-bg: rgba(255, 255, 255, 0.58);
+    --glass-border: rgba(63, 95, 42, 0.12);
+    --glass-blur: 14px;
   }
 
   .dark {
-    --background: #09090b;
-    --foreground: #fafafa;
-    --card: #09090b;
-    --card-foreground: #fafafa;
-    --popover: #ffffff;
-    --popover-foreground: #09090b;
-    --primary: #fafafa;
-    --primary-foreground: #18181b;
-    --secondary: #27272a;
-    --secondary-foreground: #fafafa;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
-    --accent: #27272a;
-    --accent-foreground: #fafafa;
-    --destructive: #7f1d1d;
-    --destructive-foreground: #fafafa;
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #52525b;
+    --background: #0b0f0a;
+    --foreground: #e5e7eb;
+    --card: #141f12;
+    --card-foreground: #e5e7eb;
+    --popover: #141f12;
+    --popover-foreground: #e5e7eb;
+    --primary: #7cb342;
+    --primary-foreground: #0b0f0a;
+    --secondary: #1f2d1c;
+    --secondary-foreground: #d1d5db;
+    --muted: #1f2d1c;
+    --muted-foreground: #9ca3af;
+    --accent: #422006;
+    --accent-foreground: #fed7aa;
+    --destructive: #b91c1c;
+    --destructive-foreground: #fef2f2;
+    --border: #2d3f28;
+    --input: #2d3f28;
+    --ring: #9ccc65;
+
+    --brand-orange: #fb923c;
+    --brand-orange-muted: #fdba74;
+
+    --body-gradient: linear-gradient(135deg, #0b0f0a 0%, #111827 52%, #0d140f 100%);
+
+    --neu-raised: 10px 10px 24px rgba(0, 0, 0, 0.55),
+      -4px -4px 16px rgba(80, 120, 60, 0.12);
+    --neu-inset: inset 5px 5px 12px rgba(0, 0, 0, 0.45),
+      inset -2px -2px 8px rgba(100, 140, 80, 0.1);
+
+    --glass-bg: rgba(17, 24, 39, 0.42);
+    --glass-border: rgba(156, 204, 101, 0.14);
+    --glass-blur: 16px;
+  }
+
+  body {
+    min-height: 100vh;
+    background-color: var(--background);
+    background-image: var(--body-gradient);
+    background-attachment: fixed;
   }
 
   html {
@@ -85,7 +120,6 @@ html[dir="ltr"] {
     @apply antialiased;
   }
 
-  /* Ensure proper scrollbar styling in dark mode */
   html.dark {
     color-scheme: dark;
   }
@@ -100,6 +134,60 @@ html[dir="ltr"] {
   .btn-primary {
     /* stylelint-disable-next-line at-rule-no-unknown */
     @apply px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600;
+  }
+
+  .glass-panel {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    box-shadow: var(--neu-raised);
+    border-radius: 1rem;
+    transition: box-shadow 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+  }
+
+  .neu-card {
+    background: var(--card);
+    color: var(--card-foreground);
+    border-radius: 1rem;
+    box-shadow: var(--neu-raised);
+    border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+    transition: all 0.25s ease;
+  }
+
+  .neu-card:hover {
+    transform: translateY(-1px);
+  }
+
+  .neu-button {
+    border-radius: 9999px;
+    box-shadow: var(--neu-raised);
+    border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+    background: color-mix(in srgb, var(--card) 88%, var(--muted));
+    transition: all 0.25s ease;
+  }
+
+  .neu-button:hover {
+    transform: scale(1.02);
+    box-shadow: var(--neu-raised), 0 0 0 1px color-mix(in srgb, var(--ring) 25%, transparent);
+  }
+
+  .neu-button:active {
+    transform: scale(0.98);
+    box-shadow: var(--neu-inset);
+  }
+
+  .neu-input {
+    border-radius: 9999px;
+    box-shadow: var(--neu-inset);
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: color-mix(in srgb, var(--card) 92%, var(--muted));
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .neu-input:focus-visible {
+    outline: none;
+    box-shadow: var(--neu-inset), 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
   }
 }
 

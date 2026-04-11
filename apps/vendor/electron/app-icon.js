@@ -8,19 +8,34 @@ const fs = require('fs')
 
 function getVendorWindowIconPath() {
   let appPath = ''
+  let resourcesPath = ''
   try {
     const { app } = require('electron')
     if (app?.getAppPath) {
       appPath = app.getAppPath()
+    }
+    if (app?.getPath) {
+      resourcesPath = app.getPath('exe') ? path.dirname(app.getPath('exe')) : ''
     }
   } catch (_) {
     /* electron not ready */
   }
 
   const candidates = []
+  if (process?.resourcesPath) {
+    candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.ico'))
+    candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'logo.ico'))
+    candidates.push(path.join(process.resourcesPath, 'build', 'icon.ico'))
+  }
+  if (resourcesPath) {
+    candidates.push(path.join(resourcesPath, 'resources', 'app.asar.unpacked', 'build', 'icon.ico'))
+    candidates.push(path.join(resourcesPath, 'resources', 'app.asar.unpacked', 'assets', 'logo.ico'))
+    candidates.push(path.join(resourcesPath, 'resources', 'build', 'icon.ico'))
+  }
   if (appPath) {
     candidates.push(path.join(appPath, 'assets', 'logo.ico'))
     candidates.push(path.join(appPath, 'assets', 'icon.ico'))
+    candidates.push(path.join(appPath, 'build', 'icon.ico'))
   }
   candidates.push(path.join(__dirname, '..', 'assets', 'logo.ico'))
   candidates.push(path.join(__dirname, '..', 'assets', 'icon.ico'))

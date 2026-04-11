@@ -64,6 +64,11 @@ export function toggleTheme(): Theme {
   return next
 }
 
+/** Persist and apply explicit light or dark (no `system` cycle). Keeps `vendor-dark-mode` in sync via `setStoredTheme`. */
+export function setLightDarkTheme(isDark: boolean): void {
+  setStoredTheme(isDark ? 'dark' : 'light')
+}
+
 export function getStoredLanguage(): string {
   if (typeof window === 'undefined') return 'fr'
   return localStorage.getItem(LANG_STORAGE_KEY) || 'fr'
