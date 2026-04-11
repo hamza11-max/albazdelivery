@@ -40,7 +40,7 @@ export function createBackup(): BackupData {
   })
 
   return {
-    version: '1.0.0',
+    version: '1.1.0',
     timestamp: new Date().toISOString(),
     sales,
     products,
