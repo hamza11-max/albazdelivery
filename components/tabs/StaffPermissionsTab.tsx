@@ -12,11 +12,11 @@ import { Users, Shield, Plus, Edit, Trash2, Save } from "lucide-react"
 import { StaffDialog, type StaffMember } from "../dialogs/StaffDialog"
 import {
   DEFAULT_ROLE_PERMISSIONS,
+  asStaffRole,
   getRolePermissions,
   getStaffPermissions,
   saveStaffPermissions,
   type Permission,
-  type StaffMember as PermStaffMember,
 } from "../../utils/permissionsUtils"
 import { useToast } from "@/root/hooks/use-toast"
 
@@ -94,7 +94,7 @@ export function StaffPermissionsTab({
   })
   const [showStaffDialog, setShowStaffDialog] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
-  const [editingStaff, setEditingStaff] = useState<PermStaffMember | null>(null)
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
   const [customPermissions, setCustomPermissions] = useState<Permission[]>([])
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false)
 
@@ -121,12 +121,20 @@ export function StaffPermissionsTab({
     }
   }
   const handleSaveStaff = (staffData: StaffMember) => {
+    const { password: _password, ...rest } = staffData
     if (selectedStaff?.id) {
-      const updated = staff.map((s) => (s.id === selectedStaff.id ? { ...staffData, id: selectedStaff.id } : s))
+      const updated = staff.map((s) =>
+        s.id === selectedStaff.id ? { ...s, ...rest, id: selectedStaff.id } : s
+      )
       setStaff(updated)
       localStorage.setItem("vendor-staff", JSON.stringify(updated))
     } else {
-      const newStaff: StaffMember = { ...staffData, id: Date.now().toString() }
+      const newStaff: StaffMember = {
+        ...rest,
+        id: Date.now().toString(),
+        isActive: rest.isActive ?? true,
+        createdAt: rest.createdAt ?? new Date().toISOString(),
+      }
       const updated = [...staff, newStaff]
       setStaff(updated)
       localStorage.setItem("vendor-staff", JSON.stringify(updated))
@@ -135,13 +143,13 @@ export function StaffPermissionsTab({
     setSelectedStaff(null)
   }
 
-  const handleEditPermissions = (member: PermStaffMember) => {
+  const handleEditPermissions = (member: StaffMember) => {
     setEditingStaff(member)
     setCustomPermissions(getStaffPermissions(member))
     setShowPermissionsDialog(true)
   }
   const handleSavePermissions = () => {
-    if (!editingStaff) return
+    if (!editingStaff?.id) return
     saveStaffPermissions(editingStaff.id, customPermissions)
     const updated = staff.map((s) => (s.id === editingStaff.id ? { ...s, permissions: customPermissions } : s))
     setStaff(updated)
@@ -156,7 +164,7 @@ export function StaffPermissionsTab({
   }
   const handleResetToRole = () => {
     if (!editingStaff) return
-    setCustomPermissions(getRolePermissions(editingStaff.role))
+    setCustomPermissions(getRolePermissions(asStaffRole(String(editingStaff.role))))
   }
   const getRoleLabel = (role: string) => {
     const roles: Record<string, { fr: string; ar: string }> = {
@@ -219,13 +227,13 @@ export function StaffPermissionsTab({
               </TableHeader>
               <TableBody>
                 {staff.map((member) => (
-                  <TableRow key={member.id}>
+                  <TableRow key={member.id ?? member.email}>
                     <TableCell className="font-medium">{member.name}</TableCell>
                     <TableCell>{member.email}</TableCell>
                     <TableCell><Badge variant="secondary">{getRoleLabel(member.role)}</Badge></TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member as PermStaffMember)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member)}>
                           <Shield className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleEditStaff(member)}><Edit className="w-4 h-4" /></Button>
@@ -269,18 +277,20 @@ export function StaffPermissionsTab({
               </TableHeader>
               <TableBody>
                 {staff.map((member) => {
-                  const perms = getStaffPermissions(member as PermStaffMember)
-                  const isCustom = member.permissions && (member as PermStaffMember).permissions?.length > 0
+                  const perms = getStaffPermissions(member)
+                  const isCustom = Boolean(member.permissions?.length)
                   return (
-                    <TableRow key={member.id}>
+                    <TableRow key={member.id ?? member.email}>
                       <TableCell className="font-medium">{member.name}</TableCell>
-                      <TableCell><Badge>{DEFAULT_ROLE_PERMISSIONS[member.role]?.name || member.role}</Badge></TableCell>
+                      <TableCell>
+                        <Badge>{DEFAULT_ROLE_PERMISSIONS[asStaffRole(String(member.role))]?.name || member.role}</Badge>
+                      </TableCell>
                       <TableCell>
                         <span className="text-sm">{perms.length} {translate("permissions", "صلاحيات")}</span>
                         {isCustom && <Badge variant="outline" className="ml-2 text-xs">{translate("Personnalisé", "مخصص")}</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member as PermStaffMember)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member)}>
                           <Edit className="w-4 h-4 mr-1" />
                           {translate("Modifier", "تعديل")}
                         </Button>
@@ -306,7 +316,9 @@ export function StaffPermissionsTab({
             <div className="flex items-center justify-between">
               <div>
                 <Label>{translate("Rôle actuel", "الدور الحالي")}</Label>
-                <p className="text-sm text-muted-foreground">{editingStaff && DEFAULT_ROLE_PERMISSIONS[editingStaff.role]?.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {editingStaff && DEFAULT_ROLE_PERMISSIONS[asStaffRole(String(editingStaff.role))]?.name}
+                </p>
               </div>
               <Button variant="outline" onClick={handleResetToRole}>{translate("Réinitialiser au rôle", "إعادة تعيين للدور")}</Button>
             </div>

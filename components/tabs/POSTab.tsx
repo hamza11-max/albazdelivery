@@ -16,8 +16,8 @@ interface POSTabProps {
   onSearchChange: (search: string) => void
   onBarcodeScan: () => void
   onAddToCart: (product: InventoryProduct) => void
-  onRemoveFromCart: (productId: number) => void
-  onUpdateQuantity: (productId: number, delta: number) => void
+  onRemoveFromCart: (productId: number | string) => void
+  onUpdateQuantity: (productId: number | string, delta: number) => void
   onDiscountChange: (discount: number) => void
   onCompleteSale: (paymentMethod: "cash" | "card") => void
 }

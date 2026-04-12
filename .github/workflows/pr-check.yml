@@ -27,5 +27,11 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate --schema=./prisma/schema.prisma
 
+      - name: Typecheck (root)
+        run: npm run type-check
+
+      - name: Typecheck (vendor app)
+        run: npm run type-check:vendor
+
       - name: Run tests
         run: npm test -- --runInBand

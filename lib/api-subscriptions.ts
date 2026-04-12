@@ -1,10 +1,9 @@
-import { NextRequest } from "next/server"
 import { getSessionFromRequest } from "./get-session-from-request"
 import { prisma } from "./prisma"
 import { stripe, PLAN_PRICES } from "./stripe"
 import { successResponse, errorResponse, UnauthorizedError } from "./errors"
 
-export async function handleSubscriptionsGet(request: NextRequest) {
+export async function handleSubscriptionsGet(request: Request) {
   try {
     const session = await getSessionFromRequest(request)
     if (!session?.user) {
@@ -46,7 +45,7 @@ export async function handleSubscriptionsGet(request: NextRequest) {
   }
 }
 
-export async function handleSubscriptionsPost(request: NextRequest) {
+export async function handleSubscriptionsPost(request: Request) {
   try {
     const session = await getSessionFromRequest(request)
     if (!session?.user) {
@@ -186,7 +185,7 @@ export async function handleSubscriptionsPost(request: NextRequest) {
   }
 }
 
-export async function handleSubscriptionsCancelPost(request: NextRequest) {
+export async function handleSubscriptionsCancelPost(request: Request) {
   try {
     const session = await getSessionFromRequest(request)
     if (!session?.user) {

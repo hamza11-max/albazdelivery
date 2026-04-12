@@ -138,13 +138,20 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, RolePermissions> = {
 }
 
 export interface StaffMember {
-  id: string
+  id?: string
   name: string
   email: string
-  role: Role
+  role: Role | string
   permissions?: Permission[]
-  isActive: boolean
-  createdAt: string
+  isActive?: boolean
+  createdAt?: string
+}
+
+export function asStaffRole(role: string): Role {
+  if (role === "owner" || role === "manager" || role === "cashier" || role === "staff") {
+    return role
+  }
+  return "staff"
 }
 
 export function getRolePermissions(role: Role): Permission[] {
@@ -160,14 +167,14 @@ export function hasAnyPermission(userPermissions: Permission[], permissions: Per
 }
 
 export function hasAllPermissions(userPermissions: Permission[], permissions: Permission[]): boolean {
-  return permissions.every((perm) => userPermissions.includes(permission))
+  return permissions.every((perm) => hasPermission(userPermissions, perm))
 }
 
 export function getStaffPermissions(staff: StaffMember): Permission[] {
   if (staff.permissions && staff.permissions.length > 0) {
     return staff.permissions
   }
-  return getRolePermissions(staff.role)
+  return getRolePermissions(asStaffRole(String(staff.role)))
 }
 
 export function saveStaffPermissions(staffId: string, permissions: Permission[]): void {

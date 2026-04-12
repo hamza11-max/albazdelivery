@@ -25,6 +25,7 @@ export function RfidLiveFeed({
   getRecentEvents,
   onEventsBatch,
   readerNameById,
+  onTagClick,
 }: RfidLiveFeedProps) {
   const [events, setEvents] = useState<RfidReadEvent[]>([])
   const [loading, setLoading] = useState(true)

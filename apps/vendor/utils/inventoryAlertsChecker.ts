@@ -51,7 +51,7 @@ export async function checkProductAlerts(products: InventoryProduct[]): Promise<
             // In-app alerts are handled by adding to history
             addAlertHistory({
               ruleId: rule.id,
-              productId: product.id,
+              productId: String(product.id),
               productName: product.name,
               type: rule.type,
               message,
@@ -73,7 +73,7 @@ export async function checkProductAlerts(products: InventoryProduct[]): Promise<
                 }
                 addAlertHistory({
                   ruleId: rule.id,
-                  productId: product.id,
+                  productId: String(product.id),
                   productName: product.name,
                   type: rule.type,
                   message,
@@ -84,7 +84,7 @@ export async function checkProductAlerts(products: InventoryProduct[]): Promise<
                 console.error('[Alerts] Failed to send email alert:', error)
                 addAlertHistory({
                   ruleId: rule.id,
-                  productId: product.id,
+                  productId: String(product.id),
                   productName: product.name,
                   type: rule.type,
                   message,

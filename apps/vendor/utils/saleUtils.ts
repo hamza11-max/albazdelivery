@@ -307,10 +307,11 @@ export async function completeSale({
     }
     
     if (data.success) {
-      const saleWithTax = { ...data.sale, tax }
+      const apiSale = data.sale as Sale
+      const saleWithTax = { ...apiSale, tax }
       
       // Award loyalty points if customer exists
-      if (posCustomerId && data.sale) {
+      if (posCustomerId && apiSale) {
         try {
           const rules = getLoyaltyRules()
           const activeRule = rules.find((r) => r.isActive) || rules[0]
@@ -319,8 +320,8 @@ export async function completeSale({
             if (pointsEarned > 0) {
               addLoyaltyPoints(
                 String(posCustomerId),
-                data.sale.customerName || translate("Client", "عميل"),
-                data.sale.customerPhone || "",
+                apiSale.customerName || translate("Client", "عميل"),
+                apiSale.customerPhone || "",
                 pointsEarned,
                 totalForAPI
               )

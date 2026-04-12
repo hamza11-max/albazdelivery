@@ -1,4 +1,3 @@
-import type { NextRequest } from "next/server"
 import type { Session } from "next-auth"
 import jwt from "jsonwebtoken"
 import { auth } from "./auth"
@@ -16,7 +15,7 @@ interface ElectronJwtPayload {
  * 1) NextAuth session cookie (web / same-origin)
  * 2) Electron JWT in `Authorization: Bearer` + `X-Electron-App: true` (desktop)
  */
-export async function getSessionFromRequest(request: NextRequest): Promise<Session | null> {
+export async function getSessionFromRequest(request: Request): Promise<Session | null> {
   const cookieSession = await auth()
   if (cookieSession?.user?.id) {
     return cookieSession

@@ -218,7 +218,10 @@ export function errorResponse(
       const isDev = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
       // In development, return empty success response so the UI still renders
       if (isDev) {
-        console.warn('[API] Database unreachable in dev — returning empty data:', (prismaError as Error).message)
+        console.warn(
+          '[API] Database unreachable in dev — returning empty data:',
+          (prismaError as unknown as { message?: string }).message ?? prismaError.code
+        )
         return NextResponse.json<ApiResponse>(
           {
             success: true,

@@ -33,7 +33,7 @@ interface POSViewProps {
   onCategoryChange: (category: string) => void
   onBarcodeScan: () => void
   onAddToCart: (product: InventoryProduct) => void
-  onRemoveFromCart: (id: number) => void
+  onRemoveFromCart: (id: number | string) => void
   onDiscountPercentChange: (value: number) => void
   onTaxPercentChange: (value: number) => void
   onKeypadKey: (key: string) => void
@@ -288,7 +288,7 @@ export function POSView({
             <div key={item.productId} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{item.productName}</p>
-                {item.productId < 0 && (
+                {Number(item.productId) < 0 && (
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                     {translate("Article personnalisé", "عنصر مخصص")}
                   </p>
@@ -305,7 +305,7 @@ export function POSView({
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                  onClick={() => onRemoveFromCart(item.productId)}
+                  onClick={() => onRemoveFromCart(Number(item.productId))}
                 >
                   <X className="w-4 h-4" />
                 </Button>

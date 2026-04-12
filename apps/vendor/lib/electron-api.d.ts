@@ -6,7 +6,15 @@ interface ElectronAuthAPI {
   login: (credentials: { email: string; password: string }) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<{ success: boolean; error?: string }>
   checkAuth: () => Promise<{ isAuthenticated: boolean; user: any | null }>
-  getSetup: () => Promise<{ setupComplete: boolean; ownerProfile?: any; shopType?: string }>
+  getToken: () => Promise<string | null>
+  getUser: () => Promise<any | null>
+  getSetup: () => Promise<{
+    setupComplete: boolean
+    ownerProfile?: any
+    shopType?: string
+    shopTypeLocked?: boolean
+    lockedShopType?: string
+  }>
   getShopType: () => Promise<string>
   setShopType: (shopType: string) => Promise<{ success: boolean; shopType?: string; error?: string }>
   verifyPasskey: (passkey: string) => Promise<{ success: boolean; error?: string }>

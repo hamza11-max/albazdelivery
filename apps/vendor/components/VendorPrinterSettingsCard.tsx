@@ -22,9 +22,15 @@ interface VendorPrinterSettingsCardProps {
   translate: (fr: string, ar: string) => string
   /** From vendor page (Electron shell); when false the card is not rendered */
   isElectronRuntime: boolean
+  /** Restaurant edition hides product label printer routing */
+  showLabelPrinter?: boolean
 }
 
-export function VendorPrinterSettingsCard({ translate, isElectronRuntime }: VendorPrinterSettingsCardProps) {
+export function VendorPrinterSettingsCard({
+  translate,
+  isElectronRuntime,
+  showLabelPrinter = true,
+}: VendorPrinterSettingsCardProps) {
   const [printers, setPrinters] = useState<Array<{ name: string; displayName?: string }>>([])
   const [printersLoading, setPrintersLoading] = useState(false)
   const [posPrinter, setPosPrinter] = useState("")
@@ -80,7 +86,9 @@ export function VendorPrinterSettingsCard({ translate, isElectronRuntime }: Vend
             {translate("Actualiser la liste", "تحديث القائمة")}
           </Button>
         </div>
-        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
+        <div
+          className={`grid gap-4 sm:grid-cols-1 ${showLabelPrinter ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}
+        >
           <div className="space-y-2">
             <Label>{translate("Ticket / reçu POS", "إيصال نقطة البيع")}</Label>
             <Select
@@ -104,29 +112,31 @@ export function VendorPrinterSettingsCard({ translate, isElectronRuntime }: Vend
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-2">
-            <Label>{translate("Étiquettes produit", "ملصقات المنتج")}</Label>
-            <Select
-              value={labelPrinter ? labelPrinter : "__default__"}
-              onValueChange={(v) => {
-                const next = v === "__default__" ? "" : v
-                setLabelPrinter(next)
-                localStorage.setItem(VENDOR_PRINTER_LABEL_KEY, next)
-              }}
-            >
-              <SelectTrigger className="w-full max-w-full">
-                <SelectValue placeholder={translate("Par défaut", "افتراضي")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__default__">{translate("Par défaut (dialogue)", "افتراضي (حوار)")}</SelectItem>
-                {printers.map((p) => (
-                  <SelectItem key={`lab-${p.name}`} value={p.name}>
-                    {p.displayName || p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {showLabelPrinter ? (
+            <div className="space-y-2">
+              <Label>{translate("Étiquettes produit", "ملصقات المنتج")}</Label>
+              <Select
+                value={labelPrinter ? labelPrinter : "__default__"}
+                onValueChange={(v) => {
+                  const next = v === "__default__" ? "" : v
+                  setLabelPrinter(next)
+                  localStorage.setItem(VENDOR_PRINTER_LABEL_KEY, next)
+                }}
+              >
+                <SelectTrigger className="w-full max-w-full">
+                  <SelectValue placeholder={translate("Par défaut", "افتراضي")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__default__">{translate("Par défaut (dialogue)", "افتراضي (حوار)")}</SelectItem>
+                  {printers.map((p) => (
+                    <SelectItem key={`lab-${p.name}`} value={p.name}>
+                      {p.displayName || p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           <div className="space-y-2">
             <Label>{translate("Facture A4", "فاتورة A4")}</Label>
             <Select

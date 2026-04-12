@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth'
+import type {} from 'next-auth/jwt'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import { prisma } from './prisma'
@@ -28,7 +29,7 @@ declare module 'next-auth' {
   }
 }
 
-declare module 'next-auth/jwt' {
+declare module "next-auth/jwt" {
   interface JWT {
     id: string
     role: UserRole
@@ -67,7 +68,7 @@ export const authConfig = {
         : `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'lax' as const,
         path: '/',
         secure: process.env.NODE_ENV === 'production', // Only secure in production (HTTPS required)
       }
@@ -179,7 +180,7 @@ export const authConfig = {
     },
   },
   session: {
-    strategy: 'jwt',
+    strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: getSecret(),

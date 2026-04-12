@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from "react"
 import type { InventoryProduct } from "@/root/lib/types"
+import type { ProductForm } from "../app/vendor/types"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
 
 interface HandleFileUploadParams {
@@ -94,7 +95,18 @@ export async function handleFileUpload({
             const storedProducts = safeLocalStorageGet<InventoryProduct[]>('electron-inventory', [])
             const index = storedProducts.findIndex((p: any) => p.id === product.id)
             if (index >= 0) {
-              storedProducts[index] = { ...storedProducts[index], ...productData, image: result }
+              const sid = productData.supplierId
+              const supplierIdParsed =
+                sid === "" || sid == null ? undefined : Number.parseInt(String(sid), 10)
+              storedProducts[index] = {
+                ...storedProducts[index],
+                ...productData,
+                image: result,
+                costPrice: Number.parseFloat(String(productData.costPrice)) || 0,
+                sellingPrice: Number.parseFloat(String(productData.sellingPrice)) || 0,
+                price: Number.parseFloat(String(productData.price)) || 0,
+                supplierId: Number.isFinite(supplierIdParsed) ? supplierIdParsed : undefined,
+              }
               if (!safeLocalStorageSet('electron-inventory', storedProducts)) {
                 throw new Error('Failed to update product image in localStorage')
               }
@@ -156,7 +168,7 @@ export async function handleFileUpload({
       }
     } else {
       // If no product selected, update the form (for new product)
-      setProductForm((prev) => ({
+      setProductForm((prev: ProductForm) => ({
         ...prev,
         image: result,
       }))

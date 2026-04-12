@@ -17,8 +17,11 @@ async function putInCache(cacheName, request, responseForCache) {
 }
 
 self.addEventListener("install", (event) => {
+  // Precache each URL separately so one 404 (e.g. slow server) does not fail the whole batch.
   event.waitUntil(
-    caches.open(SHELL_CACHE).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => Promise.resolve())
+    caches.open(SHELL_CACHE).then((cache) =>
+      Promise.all(CORE_ASSETS.map((url) => cache.add(url).catch(() => undefined)))
+    )
   );
   self.skipWaiting();
 });

@@ -3,6 +3,8 @@
 import type { LucideIcon } from "lucide-react"
 import {
   BarChart3,
+  BookOpenCheck,
+  ChefHat,
   Cloud,
   Gift,
   History,
@@ -10,6 +12,7 @@ import {
   Mail,
   Package,
   Percent,
+  QrCode,
   Radio,
   Settings,
   Shield,
@@ -31,6 +34,9 @@ export const vendorMenuItems: VendorMenuItem[] = [
   { id: "inventory", icon: Package, labelFr: "Inventaire", labelAr: "المخزون" },
   { id: "pos", icon: ShoppingCart, labelFr: "Point de Vente", labelAr: "نقطة البيع" },
   { id: "orders", icon: ShoppingBag, labelFr: "Commandes", labelAr: "الطلبات" },
+  { id: "kitchen", icon: ChefHat, labelFr: "Cuisine (KDS)", labelAr: "المطبخ (شاشة المطبخ)" },
+  { id: "dine-qr", icon: QrCode, labelFr: "QR tables & invités", labelAr: "طاولات QR والضيوف" },
+  { id: "accounting", icon: BookOpenCheck, labelFr: "Comptabilité", labelAr: "المحاسبة" },
   { id: "sales", icon: History, labelFr: "Ventes", labelAr: "المبيعات" },
   { id: "reports", icon: BarChart3, labelFr: "Rapports", labelAr: "التقارير" },
   { id: "coupons", icon: Percent, labelFr: "Coupons", labelAr: "الكوبونات" },

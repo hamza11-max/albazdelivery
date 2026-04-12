@@ -114,11 +114,12 @@ export async function handleDataLoad({
 
       // Calculate top products
       if (productsData.products) {
-        const productSales = new Map<number, { quantity: number; total: number }>()
+        const productSales = new Map<string, { quantity: number; total: number }>()
         salesData.sales.forEach((sale: Sale) => 
           sale.items.forEach((item: SaleItem) => {
-            const existing = productSales.get(item.productId) || { quantity: 0, total: 0 }
-            productSales.set(item.productId, {
+            const key = String(item.productId)
+            const existing = productSales.get(key) || { quantity: 0, total: 0 }
+            productSales.set(key, {
               quantity: existing.quantity + item.quantity,
               total: existing.total + (item.price * item.quantity)
             })
@@ -126,9 +127,9 @@ export async function handleDataLoad({
         )
 
         const topProducts = Array.from(productSales.entries())
-          .map(([productId, sales]) => ({
-            productId,
-            productName: productsData.products.find((p: InventoryProduct) => p.id === productId)?.name || 'Unknown',
+          .map(([productIdKey, sales]) => ({
+            productId: productIdKey,
+            productName: productsData.products.find((p: InventoryProduct) => String(p.id) === productIdKey)?.name || 'Unknown',
             totalQuantity: sales.quantity,
             totalSales: sales.total,
             totalSold: sales.quantity

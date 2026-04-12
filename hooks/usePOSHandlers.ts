@@ -1,12 +1,12 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, type Dispatch, type SetStateAction } from "react"
 
 interface UsePOSHandlersParams {
   cartSubtotal: number
   setPosDiscountPercent: (value: number) => void
   setPosDiscount: (value: number) => void
-  setPosKeypadValue: (value: string) => void
+  setPosKeypadValue: Dispatch<SetStateAction<string>>
   setPosTaxPercent: (value: number) => void
   setPosTax: (value: number) => void
   clearCart: () => void

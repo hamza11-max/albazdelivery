@@ -26,7 +26,7 @@ interface InventoryTabProps {
   setShowImageUploadDialog: (show: boolean) => void
   fetchProducts: (vendorId?: string) => Promise<InventoryProduct[] | null>
   handlePostProductToDelivery: (id: number | string) => Promise<void>
-  handleDeleteProduct: (id: number) => Promise<void>
+  handleDeleteProduct: (id: number | string) => Promise<void>
 }
 
 export function InventoryTab({

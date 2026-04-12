@@ -55,7 +55,9 @@ win:
       arch: x64
   # Use build/icon.ico (buildResources) so exe and shortcuts get the icon when installed
   icon: build/icon.ico
-  artifactName: ${productName}-${version}-${arch}.${ext}
+  # Match executableName — avoid ${productName} here: sanitization can differ (e.g. AlBaz-Vendor vs
+  # AlBaz.Vendor) and break auto-update when latest.yml path != the real GitHub asset name.
+  artifactName: AlBazVendor-${version}-${arch}.${ext}
   requestedExecutionLevel: asInvoker
 
 nsis:

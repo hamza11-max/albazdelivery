@@ -47,6 +47,17 @@ function readBundledFlavorFile() {
   return null
 }
 
+function getBundledFlavorLockMeta() {
+  const data = readBundledFlavorFile()
+  const shopType = data && data.shopType != null ? String(data.shopType) : ''
+  const lockShopType = Boolean(data && data.lockShopType)
+  const shopTypeLocked = Boolean(lockShopType && shopType && VALID_SHOP_TYPES.includes(shopType))
+  return {
+    shopTypeLocked,
+    lockedShopType: shopTypeLocked ? shopType : null,
+  }
+}
+
 /** First launch: seed shop_type from installer vertical (bundled-flavor.json) if user has not set one yet. */
 function applyBundledShopFlavorIfUnset() {
   const store = getAuthStore()
@@ -55,6 +66,14 @@ function applyBundledShopFlavorIfUnset() {
   const st = data && data.shopType != null ? String(data.shopType) : ''
   if (!st || !VALID_SHOP_TYPES.includes(st)) return
   store.set('shop_type', st)
+}
+
+/** If this installer locks a vertical, always keep store.shop_type aligned with the bundle. */
+function enforceBundledShopTypeIfLocked() {
+  const { shopTypeLocked, lockedShopType } = getBundledFlavorLockMeta()
+  if (!shopTypeLocked || !lockedShopType) return
+  const store = getAuthStore()
+  store.set('shop_type', lockedShopType)
 }
 function writeEarlyLog(msg) {
   const dir = getStartupLogDir()
@@ -444,6 +463,10 @@ function startNextDevServer() {
       cwd: path.join(__dirname, '..'),
       shell: true,
       stdio: 'pipe',
+      env: {
+        ...process.env,
+        VENDOR_USER_DATA_PATH: app.getPath('userData'),
+      },
     })
 
     let serverReady = false
@@ -582,6 +605,7 @@ function startNextStandaloneServer() {
     PORT: '3001',
     HOSTNAME: 'localhost',
     NODE_ENV: process.env.NODE_ENV || 'production',
+    VENDOR_USER_DATA_PATH: app.getPath('userData'),
     // Ensure auth vars for offline mode (session endpoint won't 500 when secret is set)
     NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3001',
     NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'electron-offline-secret-' + (process.env.ALBAZ_ELECTRON_PASSKEY || 'default'),
@@ -704,6 +728,7 @@ function checkAuthenticationAndLoad() {
   if (app.isPackaged) writeEarlyLog('checkAuth starting')
   ensureDevicePasskey()
   applyBundledShopFlavorIfUnset()
+  enforceBundledShopTypeIfLocked()
   if (app.isPackaged) writeEarlyLog('checkAuth passkey ok')
   const store = getAuthStore()
   const authState = store.get('vendor_auth_state')
@@ -966,14 +991,23 @@ ipcMain.handle('auth-get-setup', async () => {
   try {
     ensureDevicePasskey()
     const setupState = getSetupState()
+    const { shopTypeLocked, lockedShopType } = getBundledFlavorLockMeta()
     return {
       setupComplete: setupState.setupComplete,
       ownerProfile: setupState.ownerProfile,
       shopType: setupState.shopType || 'other',
+      shopTypeLocked,
+      lockedShopType: lockedShopType || undefined,
     }
   } catch (error) {
     console.error('[Electron Auth] Setup check error:', error)
-    return { setupComplete: false, ownerProfile: null, shopType: 'other', error: error.message }
+    return {
+      setupComplete: false,
+      ownerProfile: null,
+      shopType: 'other',
+      shopTypeLocked: false,
+      error: error.message,
+    }
   }
 })
 
@@ -991,6 +1025,14 @@ ipcMain.handle('auth-set-shop-type', async (event, shopType) => {
   try {
     const valid = ['restaurant', 'retail', 'grocery', 'other'].includes(String(shopType))
     const value = valid ? String(shopType) : 'other'
+    const { shopTypeLocked, lockedShopType } = getBundledFlavorLockMeta()
+    if (shopTypeLocked && lockedShopType && value !== lockedShopType) {
+      return {
+        success: false,
+        error: 'Ce type de commerce est fixé pour cette version de l’application.',
+        shopType: lockedShopType,
+      }
+    }
     const store = getAuthStore()
     store.set('shop_type', value)
     return { success: true, shopType: value }
@@ -1828,6 +1870,13 @@ function generateProductLabelsHtml(products, fields, labelType, widthMm, heightM
 
 ipcMain.handle('print-product-labels', async (event, { products, fields, labelType, widthMm, heightMm, shopName, deviceName }) => {
   try {
+    const st = getAuthStore().get('shop_type') || 'other'
+    if (st === 'restaurant') {
+      return {
+        success: false,
+        error: 'L’impression d’étiquettes produit n’est pas disponible dans l’édition restaurant.',
+      }
+    }
     if (!Array.isArray(products) || products.length === 0) {
       return { success: false, error: 'No products to print' }
     }

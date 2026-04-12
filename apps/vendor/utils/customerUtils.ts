@@ -31,8 +31,9 @@ export async function saveCustomer({
       ...customerForm,
       id: `customer-${Date.now()}`,
       vendorId: activeVendorId || 'local-vendor',
-      createdAt: new Date().toISOString(),
-    }
+      totalPurchases: 0,
+      createdAt: new Date(),
+    } as Customer
     
     const storedCustomers = safeLocalStorageGet<Customer[]>('electron-customers', [])
     storedCustomers.push(customerData)

@@ -3,6 +3,27 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "next": [
+        "../../node_modules/next"
+      ],
+      "@/hooks/*": [
+        "../../hooks/*"
+      ],
+      "@/components/*": [
+        "../../components/*"
+      ],
+      "@/lib/prisma": [
+        "../../lib/prisma.ts"
+      ],
+      "@/lib/constants": [
+        "../../lib/constants.ts"
+      ],
+      "@/generated/prisma/client": [
+        "../../generated/prisma/client"
+      ],
+      "@/lib/types": [
+        "../../lib/types.ts"
+      ],
       "@/*": [
         "./*"
       ],
@@ -27,11 +48,14 @@
     "../../components/**/*",
     "../../hooks/**/*",
     "../../lib/**/*",
+    "../../types/global.d.ts",
     "next-env.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    ".next"
+    ".next",
+    "__tests__",
+    "app/vendor/page-original-backup.tsx"
   ]
 }

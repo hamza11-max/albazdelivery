@@ -1,20 +1,30 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/root/components/ui/button"
 import { Card, CardContent } from "@/root/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
 import { Badge } from "@/root/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/root/components/ui/tabs"
+import { Switch } from "@/root/components/ui/switch"
 import { Edit, Upload, Send, Trash2, Plus, RotateCcw, Package, Tag } from "lucide-react"
 import type { InventoryProduct } from "@/root/lib/types"
 import { isElectronOfflineInventoryVendorId } from "@/utils/electronUtils"
+import { electronFetch, isElectronRuntime } from "@/lib/electron-fetch"
 import { InventoryAlertsTab } from "./InventoryAlertsTab"
+
+async function vendorApiFetch(url: string, init?: RequestInit): Promise<Response> {
+  if (isElectronRuntime()) return electronFetch(url, init)
+  return fetch(url, { ...init, credentials: "include" })
+}
 
 interface InventoryTabProps {
   products: InventoryProduct[]
   isElectronRuntime: boolean
   activeVendorId?: string
   isArabic: boolean
+  /** When true, show QR menu / 86 column and sync to guest menu state. */
+  dineTablesUi?: boolean
   translate: (fr: string, ar: string) => string
   toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void
   setProducts: (products: InventoryProduct[]) => void
@@ -35,6 +45,7 @@ export function InventoryTab({
   isElectronRuntime,
   activeVendorId,
   isArabic,
+  dineTablesUi = false,
   translate,
   toast,
   setProducts,
@@ -49,6 +60,55 @@ export function InventoryTab({
   handleDeleteProduct,
   onPrintLabels,
 }: InventoryTabProps) {
+  const [qrHiddenIds, setQrHiddenIds] = useState<Set<string>>(() => new Set())
+
+  const refreshQrHidden = useCallback(async () => {
+    if (!dineTablesUi) return
+    try {
+      const res = await vendorApiFetch("/api/vendor/restaurant/guest-menu/product-state")
+      const j = await res.json().catch(() => null)
+      const ids = Array.isArray(j?.data?.hiddenIds) ? j.data.hiddenIds : []
+      setQrHiddenIds(new Set(ids.map((x: unknown) => String(x))))
+    } catch {
+      /* ignore */
+    }
+  }, [dineTablesUi])
+
+  useEffect(() => {
+    void refreshQrHidden()
+  }, [refreshQrHidden])
+
+  const setQrHiddenForProduct = async (product: InventoryProduct, hidden: boolean) => {
+    try {
+      const res = await vendorApiFetch("/api/vendor/restaurant/guest-menu/product-state", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: String(product.id), hidden }),
+      })
+      const j = await res.json().catch(() => null)
+      if (!res.ok) {
+        toast({
+          title: translate("Erreur", "خطأ"),
+          description: j?.error?.message || j?.message || translate("Mise à jour impossible", "تعذر التحديث"),
+          variant: "destructive",
+        })
+        return
+      }
+      const ids = Array.isArray(j?.data?.hiddenIds) ? j.data.hiddenIds : []
+      setQrHiddenIds(new Set(ids.map((x: unknown) => String(x))))
+      toast({
+        title: hidden ? translate("Retiré du menu QR", "أُزيل من قائمة QR") : translate("Rétabli sur le menu QR", "أُعيد لقائمة QR"),
+        description: translate("Les invités verront le menu à jour sous peu.", "سيرى الضيوف القائمة محدثة قريباً."),
+      })
+    } catch (e: any) {
+      toast({
+        title: translate("Erreur", "خطأ"),
+        description: e?.message || translate("Réseau", "شبكة"),
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -127,7 +187,7 @@ export function InventoryTab({
                   // Normalize header to canonical field name (case-insensitive, trim, map French/English)
                   // Covers common "inventaire.xlsx" columns: Code, Désignation, Catégorie, Prix d'achat, Prix de vente, Stock, etc.
                   const headerToField: Record<string, string> = {
-                    sku: 'sku', code: 'sku', ref: 'sku', reference: 'sku', 'code produit': 'sku', 'code article': 'sku', reference: 'sku',
+                    sku: 'sku', code: 'sku', ref: 'sku', reference: 'sku', 'code produit': 'sku', 'code article': 'sku',
                     name: 'name', nom: 'name', productname: 'name', produit: 'name', 'nom du produit': 'name', product: 'name',
                     designation: 'name', libellé: 'name', libelle: 'name', 'nom produit': 'name', article: 'name', désignation: 'name',
                     category: 'category', categorie: 'category', cat: 'category', type: 'category', famille: 'category',
@@ -289,6 +349,11 @@ export function InventoryTab({
                   <TableHead>Prix Coût</TableHead>
                   <TableHead>Prix Vente</TableHead>
                   <TableHead>Stock</TableHead>
+                  {dineTablesUi ? (
+                    <TableHead className="whitespace-nowrap">
+                      {translate("Menu QR (86)", "قائمة QR (نفد)")}
+                    </TableHead>
+                  ) : null}
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -305,6 +370,21 @@ export function InventoryTab({
                         {product.stock}
                       </Badge>
                     </TableCell>
+                    {dineTablesUi ? (
+                      <TableCell>
+                        <div className="flex items-center gap-2" title={translate("Masquer des invités QR", "إخفاء عن ضيوف QR")}>
+                          <Switch
+                            checked={qrHiddenIds.has(String(product.id))}
+                            onCheckedChange={(v) => void setQrHiddenForProduct(product, v === true)}
+                          />
+                          <span className="text-xs text-muted-foreground max-w-[5rem]">
+                            {qrHiddenIds.has(String(product.id))
+                              ? translate("Masqué", "مخفي")
+                              : translate("Visible", "ظاهر")}
+                          </span>
+                        </div>
+                      </TableCell>
+                    ) : null}
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
@@ -312,7 +392,7 @@ export function InventoryTab({
                           size="icon"
                           onClick={() => {
                             setEditingProduct(product)
-                            const cost = product.costPrice ?? product.cost ?? 0
+                            const cost = product.costPrice ?? 0
                             const selling = product.sellingPrice ?? product.price ?? 0
                             setProductForm({
                               sku: product.sku ?? '',

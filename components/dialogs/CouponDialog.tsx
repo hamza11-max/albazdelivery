@@ -249,7 +249,7 @@ export function CouponDialog({
                 onChange={(e) => setFormData({ ...formData, usageLimit: parseInt(e.target.value) || 0 })}
                 placeholder={translate("0 = illimité", "0 = غير محدود")}
               />
-              {coupon && formData.usageLimit > 0 && (
+              {coupon && (formData.usageLimit ?? 0) > 0 && (
                 <p className="text-sm text-muted-foreground">
                   {translate("Utilisé", "مستخدم")}: {formData.usedCount} / {formData.usageLimit}
                 </p>

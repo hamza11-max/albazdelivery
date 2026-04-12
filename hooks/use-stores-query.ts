@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { storesAPI } from '../lib/api-client'
-import type { Store } from './use-stores'
+import type { Store } from '../lib/types'
 
 export interface StoresQueryParams {
   categoryId?: number

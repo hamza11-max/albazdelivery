@@ -1,6 +1,7 @@
 /**
  * Windows pack for a vertical: sets VENDOR_BUILD_FLAVOR and merges electron-builder.flavor-<name>.yml
  * Usage: node scripts/electron-build-win-flavor.js <restaurant|retail|grocery|other>
+ * Build restaurant + retail + grocery sequentially: npm run electron:build:win:all-verticals
  */
 const path = require('path')
 const { spawnSync } = require('child_process')

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, type Dispatch, type SetStateAction } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/card"
 import { Button } from "@/root/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
@@ -13,11 +13,11 @@ import { Users, Shield, Plus, Edit, Trash2, Save } from "lucide-react"
 import { StaffDialog, type StaffMember } from "../dialogs/StaffDialog"
 import {
   DEFAULT_ROLE_PERMISSIONS,
+  asStaffRole,
   getRolePermissions,
   getStaffPermissions,
   saveStaffPermissions,
   type Permission,
-  type StaffMember as PermStaffMember,
 } from "../../utils/permissionsUtils"
 import { useToast } from "@/root/hooks/use-toast"
 
@@ -48,7 +48,7 @@ interface StaffPermissionsTabProps {
   isElectronRuntime?: boolean
   electronStaffAccounts?: ElectronStaffAccount[]
   electronStaffForm?: ElectronStaffForm
-  onElectronStaffFormChange?: (form: ElectronStaffForm) => void
+  onElectronStaffFormChange?: Dispatch<SetStateAction<ElectronStaffForm>>
   onAddElectronStaff?: () => void
   onRemoveElectronStaff?: (id: string) => void
   onOpenElectronPinReset?: (account: ElectronStaffAccount) => void
@@ -95,7 +95,7 @@ export function StaffPermissionsTab({
   })
   const [showStaffDialog, setShowStaffDialog] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null)
-  const [editingStaff, setEditingStaff] = useState<PermStaffMember | null>(null)
+  const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null)
   const [customPermissions, setCustomPermissions] = useState<Permission[]>([])
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false)
 
@@ -122,12 +122,20 @@ export function StaffPermissionsTab({
     }
   }
   const handleSaveStaff = (staffData: StaffMember) => {
+    const { password: _password, ...rest } = staffData
     if (selectedStaff?.id) {
-      const updated = staff.map((s) => (s.id === selectedStaff.id ? { ...staffData, id: selectedStaff.id } : s))
+      const updated = staff.map((s) =>
+        s.id === selectedStaff.id ? { ...s, ...rest, id: selectedStaff.id } : s
+      )
       setStaff(updated)
       localStorage.setItem("vendor-staff", JSON.stringify(updated))
     } else {
-      const newStaff: StaffMember = { ...staffData, id: Date.now().toString() }
+      const newStaff: StaffMember = {
+        ...rest,
+        id: Date.now().toString(),
+        isActive: rest.isActive ?? true,
+        createdAt: rest.createdAt ?? new Date().toISOString(),
+      }
       const updated = [...staff, newStaff]
       setStaff(updated)
       localStorage.setItem("vendor-staff", JSON.stringify(updated))
@@ -136,13 +144,13 @@ export function StaffPermissionsTab({
     setSelectedStaff(null)
   }
 
-  const handleEditPermissions = (member: PermStaffMember) => {
+  const handleEditPermissions = (member: StaffMember) => {
     setEditingStaff(member)
     setCustomPermissions(getStaffPermissions(member))
     setShowPermissionsDialog(true)
   }
   const handleSavePermissions = () => {
-    if (!editingStaff) return
+    if (!editingStaff?.id) return
     saveStaffPermissions(editingStaff.id, customPermissions)
     const updated = staff.map((s) => (s.id === editingStaff.id ? { ...s, permissions: customPermissions } : s))
     setStaff(updated)
@@ -157,7 +165,7 @@ export function StaffPermissionsTab({
   }
   const handleResetToRole = () => {
     if (!editingStaff) return
-    setCustomPermissions(getRolePermissions(editingStaff.role))
+    setCustomPermissions(getRolePermissions(asStaffRole(String(editingStaff.role))))
   }
   const getRoleLabel = (role: string) => {
     const roles: Record<string, { fr: string; ar: string }> = {
@@ -200,7 +208,7 @@ export function StaffPermissionsTab({
                 <Label>{translate("Nom", "الاسم")}</Label>
                 <Input
                   value={electronStaffForm.name}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder={translate("Nom complet", "الاسم الكامل")}
                 />
               </div>
@@ -208,7 +216,7 @@ export function StaffPermissionsTab({
                 <Label>{translate("Téléphone", "الهاتف")}</Label>
                 <Input
                   value={electronStaffForm.phone}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, phone: e.target.value }))}
+                  onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, phone: e.target.value }))}
                   placeholder="05XXXXXXXX"
                 />
               </div>
@@ -216,7 +224,7 @@ export function StaffPermissionsTab({
                 <Label>{translate("Email", "البريد الإلكتروني")}</Label>
                 <Input
                   value={electronStaffForm.email}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, email: e.target.value }))}
                   placeholder="email@example.com"
                 />
               </div>
@@ -225,7 +233,7 @@ export function StaffPermissionsTab({
                 <select
                   className="border rounded-md px-3 py-2 bg-background w-full"
                   value={electronStaffForm.role}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, role: e.target.value }))}
+                  onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, role: e.target.value }))}
                 >
                   <option value="owner">{translate("Propriétaire", "مالك")}</option>
                   <option value="manager">{translate("Manager", "مدير")}</option>
@@ -236,7 +244,12 @@ export function StaffPermissionsTab({
                 <Label>{translate("Code personnel (4 chiffres)", "رمز الموظف (4 أرقام)")}</Label>
                 <Input
                   value={electronStaffForm.staffCode}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, staffCode: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                  onChange={(e) =>
+                    onElectronStaffFormChange((prev) => ({
+                      ...prev,
+                      staffCode: e.target.value.replace(/\D/g, "").slice(0, 4),
+                    }))
+                  }
                   placeholder="1234"
                 />
               </div>
@@ -245,7 +258,7 @@ export function StaffPermissionsTab({
                 <Input
                   type="password"
                   value={electronStaffForm.password}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, password: e.target.value }))}
+                  onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, password: e.target.value }))}
                   placeholder="••••••••"
                 />
               </div>
@@ -254,7 +267,7 @@ export function StaffPermissionsTab({
                 <Input
                   type="password"
                   value={electronStaffForm.confirmPassword}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, confirmPassword: e.target.value }))}
+                  onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                   placeholder="••••••••"
                 />
               </div>
@@ -263,7 +276,7 @@ export function StaffPermissionsTab({
                 <Input
                   type="password"
                   value={electronStaffForm.pin}
-                  onChange={(e) => onElectronStaffFormChange((prev: ElectronStaffForm) => ({ ...prev, pin: e.target.value }))}
+                  onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, pin: e.target.value }))}
                   placeholder="••••"
                 />
               </div>
@@ -308,7 +321,11 @@ export function StaffPermissionsTab({
                           {translate("Réinitialiser PIN", "إعادة تعيين PIN")}
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" onClick={() => onRemoveElectronStaff(account.id)}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => account.id && onRemoveElectronStaff(account.id)}
+                      >
                         {translate("Supprimer", "حذف")}
                       </Button>
                     </div>
@@ -332,7 +349,13 @@ export function StaffPermissionsTab({
             <div className="text-sm text-muted-foreground">{electronPinResetTarget.name || translate("Compte sélectionné", "الحساب المحدد")}</div>
             <DialogFooter>
               <Button variant="outline" onClick={() => onElectronPinResetOpenChange(false)}>{translate("Annuler", "إلغاء")}</Button>
-              <Button variant="destructive" onClick={() => { onConfirmElectronPinReset(electronPinResetTarget.id); onElectronPinResetOpenChange(false); }}>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  onConfirmElectronPinReset(electronPinResetTarget.id ?? null)
+                  onElectronPinResetOpenChange(false)
+                }}
+              >
                 {translate("Réinitialiser", "إعادة التعيين")}
               </Button>
             </DialogFooter>
@@ -369,13 +392,13 @@ export function StaffPermissionsTab({
               </TableHeader>
               <TableBody>
                 {staff.map((member) => (
-                  <TableRow key={member.id}>
+                  <TableRow key={member.id ?? member.email}>
                     <TableCell className="font-medium">{member.name}</TableCell>
                     <TableCell>{member.email}</TableCell>
                     <TableCell><Badge variant="secondary">{getRoleLabel(member.role)}</Badge></TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member as PermStaffMember)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member)}>
                           <Shield className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleEditStaff(member)}>
@@ -424,18 +447,20 @@ export function StaffPermissionsTab({
               </TableHeader>
               <TableBody>
                 {staff.map((member) => {
-                  const perms = getStaffPermissions(member as PermStaffMember)
-                  const isCustom = member.permissions && (member as PermStaffMember).permissions?.length > 0
+                  const perms = getStaffPermissions(member)
+                  const isCustom = Boolean(member.permissions?.length)
                   return (
-                    <TableRow key={member.id}>
+                    <TableRow key={member.id ?? member.email}>
                       <TableCell className="font-medium">{member.name}</TableCell>
-                      <TableCell><Badge>{DEFAULT_ROLE_PERMISSIONS[member.role]?.name || member.role}</Badge></TableCell>
+                      <TableCell>
+                        <Badge>{DEFAULT_ROLE_PERMISSIONS[asStaffRole(String(member.role))]?.name || member.role}</Badge>
+                      </TableCell>
                       <TableCell>
                         <span className="text-sm">{perms.length} {translate("permissions", "صلاحيات")}</span>
                         {isCustom && <Badge variant="outline" className="ml-2 text-xs">{translate("Personnalisé", "مخصص")}</Badge>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member as PermStaffMember)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditPermissions(member)}>
                           <Edit className="w-4 h-4 mr-1" />
                           {translate("Modifier", "تعديل")}
                         </Button>
@@ -461,7 +486,9 @@ export function StaffPermissionsTab({
             <div className="flex items-center justify-between">
               <div>
                 <Label>{translate("Rôle actuel", "الدور الحالي")}</Label>
-                <p className="text-sm text-muted-foreground">{editingStaff && DEFAULT_ROLE_PERMISSIONS[editingStaff.role]?.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {editingStaff && DEFAULT_ROLE_PERMISSIONS[asStaffRole(String(editingStaff.role))]?.name}
+                </p>
               </div>
               <Button variant="outline" onClick={handleResetToRole}>{translate("Réinitialiser au rôle", "إعادة تعيين للدور")}</Button>
             </div>

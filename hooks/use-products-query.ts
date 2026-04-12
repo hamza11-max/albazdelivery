@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { productsAPI } from '../lib/api-client'
-import type { Product } from './use-products'
+import type { Product } from '../lib/types'
 
 export interface ProductsQueryParams {
   search?: string

@@ -21,8 +21,9 @@ export async function fetchDrivers({
     const response = await safeFetch("/api/vendors/drivers")
     const data = await parseAPIResponse(response)
     if (data.success) {
-      setConnectedDrivers(data.data?.connectedDrivers || [])
-      setPendingDriverRequests(data.data?.pendingRequests || [])
+      const payload = data.data
+      setConnectedDrivers((payload?.connectedDrivers as any[]) || [])
+      setPendingDriverRequests((payload?.pendingRequests as any[]) || [])
     } else {
       // Handle unsuccessful response
       setConnectedDrivers([])

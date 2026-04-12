@@ -43,7 +43,7 @@ function logEnvironmentCheck() {
 const GET = async (req: NextRequest) => {
   logEnvironmentCheck()
   try {
-    return await handlers.GET(req)
+    return await handlers.GET(req as never)
   } catch (error) {
     console.error('[Vendor Auth] Error processing GET request:', error)
     return Response.json(
@@ -56,7 +56,7 @@ const GET = async (req: NextRequest) => {
 const POST = async (req: NextRequest) => {
   logEnvironmentCheck()
   try {
-    return await handlers.POST(req)
+    return await handlers.POST(req as never)
   } catch (error) {
     console.error('[Vendor Auth] Error processing POST request:', error)
     return Response.json(

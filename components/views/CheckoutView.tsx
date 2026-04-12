@@ -3,7 +3,7 @@ import { ShoppingCart, Trash2, Minus, Plus, Loader2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { CheckoutViewProps } from '../../lib/types'
+import type { CheckoutViewProps, PaymentMethod } from '../../lib/types'
 import { CartItemSkeleton } from '../ui/skeleton-loaders'
 import { useErrorHandler } from '../../hooks/use-error-handler'
 import { validateRequired } from '../../lib/validation'
@@ -164,7 +164,7 @@ export function CheckoutView({
                   name="payment"
                   value="cash"
                   checked={paymentMethod === 'cash'}
-                  onChange={(e) => onPaymentMethodChange(e.target.value)}
+                  onChange={(e) => onPaymentMethodChange(e.target.value as PaymentMethod)}
                   className="w-4 h-4 text-[#1a4d1a]"
                 />
                 <div className="flex-1">

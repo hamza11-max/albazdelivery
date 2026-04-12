@@ -97,7 +97,7 @@ export class CloudSyncManager {
 
       if (response && response.ok) {
         const result = await parseAPIResponse(response)
-        const syncData = result.data as SyncData
+        const syncData = result.data as unknown as SyncData
 
         // Apply synced data to local storage
         if (syncData.sales) {

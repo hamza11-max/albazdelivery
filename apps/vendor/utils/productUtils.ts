@@ -43,8 +43,8 @@ export async function saveProduct({
       stock: productForm.stock,
       lowStockThreshold: productForm.lowStockThreshold,
       vendorId: vid,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
     if (editingProduct) {
       (productData as any).id = editingProduct.id

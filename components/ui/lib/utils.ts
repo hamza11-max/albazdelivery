@@ -9,22 +9,28 @@ import { type ClassValue, clsx } from "clsx"
  * This pattern ensures tailwind-merge is only accessed when cn() is called,
  * not during module evaluation, preventing "Cannot access 'tw' before initialization" errors.
  */
-let twMergeCache: ReturnType<typeof import("tailwind-merge").twMerge> | null = null
+type TwMergeFn = (input: string) => string
 
-function getTwMerge() {
+let twMergeCache: TwMergeFn | null = null
+
+function getTwMerge(): TwMergeFn {
   if (twMergeCache === null) {
     try {
       // Access the module at runtime, not during module evaluation
       // This prevents webpack from hoisting and creating circular dependencies
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const tailwindMergeModule = require("tailwind-merge")
-      twMergeCache = tailwindMergeModule.twMerge || tailwindMergeModule.default?.twMerge || tailwindMergeModule.default
-      if (!twMergeCache) {
-        twMergeCache = ((...args: string[]) => args.join(" ")) as any
+      const tailwindMergeModule = require("tailwind-merge") as {
+        twMerge?: TwMergeFn
+        default?: { twMerge?: TwMergeFn } | TwMergeFn
       }
-    } catch (error) {
-      // Fallback: return a function that just uses clsx
-      twMergeCache = ((...args: string[]) => args.join(" ")) as any
+      const candidate =
+        tailwindMergeModule.twMerge ??
+        (typeof tailwindMergeModule.default === "function"
+          ? (tailwindMergeModule.default as TwMergeFn)
+          : tailwindMergeModule.default?.twMerge)
+      twMergeCache = candidate ?? ((s: string) => s)
+    } catch {
+      twMergeCache = (s: string) => s
     }
   }
   return twMergeCache

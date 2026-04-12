@@ -4,6 +4,19 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      flavor:
+        description: "Vertical flavor (one codebase). Use 'all' for restaurant+retail+grocery sequentially."
+        required: true
+        default: restaurant
+        type: choice
+        options:
+          - restaurant
+          - retail
+          - grocery
+          - other
+          - all
 
 jobs:
   build-and-publish-win:
@@ -23,8 +36,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build desktop app
-        run: npm run -w @albaz/vendor build:electron
+      - name: Vendor app type checking
+        run: npm run type-check:vendor
 
-      - name: Publish Windows release
-        run: cd apps/vendor && npx electron-builder --win --publish always
+      - name: Build Windows desktop (flavored pack + publish)
+        shell: pwsh
+        run: |
+          $event = $env:GITHUB_EVENT_NAME
+          if ($event -eq 'workflow_dispatch') {
+            $f = '${{ github.event.inputs.flavor }}'
+          } else {
+            $f = 'restaurant'
+          }
+          if ([string]::IsNullOrWhiteSpace($f)) { $f = 'restaurant' }
+          if ($f -eq 'all') {
+            npm run build:vendor:desktop:all-verticals
+          } else {
+            npm run "electron:build:win:$f" -w @albaz/vendor
+          }

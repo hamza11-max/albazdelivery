@@ -16,9 +16,7 @@ import type { ReactNode } from "react"
 import { Button } from "@/root/components/ui/button"
 import { Badge } from "@/root/components/ui/badge"
 import { cn } from "@/root/lib/utils"
-
-/** Official ALBAZ mark (`public/logo.png`, same source as login). Avoid `/logo.svg` placeholder. */
-const BRAND_LOGO_SRC = "/logo.png"
+import { BRAND_MARK_SRC } from "@/lib/brand-mark"
 
 /** Primary green (wordmark) — Lucide uses currentColor for stroke. */
 const iconGreen = "text-albaz-green-700 dark:text-albaz-green-300"
@@ -122,7 +120,7 @@ export function VendorTopbar({
             aria-label="ALBAZ"
           >
             <img
-              src={BRAND_LOGO_SRC}
+              src={BRAND_MARK_SRC}
               alt="ALBAZ"
               width={320}
               height={100}

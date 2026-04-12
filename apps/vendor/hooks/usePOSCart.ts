@@ -63,20 +63,20 @@ export function usePOSCart() {
   }, [])
 
   const removeFromCart = useCallback((id: number | string) => {
-    setPosCart(posCart.filter((item) => item.id !== id))
-  }, [posCart])
+    setPosCart((prev) => prev.filter((item) => String(item.id) !== String(id)))
+  }, [])
 
   const updateCartQuantity = useCallback((productId: number | string, delta: number) => {
-    setPosCart(
-      posCart
+    setPosCart((prev) =>
+      prev
         .map((item) =>
-          item.productId === productId 
-            ? { ...item, quantity: Math.max(0, item.quantity + delta) } 
+          String(item.productId) === String(productId)
+            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
             : item
         )
         .filter((item) => item.quantity > 0)
     )
-  }, [posCart])
+  }, [])
 
   const clearCart = useCallback(() => {
     setPosCart([])

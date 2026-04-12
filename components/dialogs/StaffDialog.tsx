@@ -7,13 +7,10 @@ import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/root/components/ui/select"
 import { X } from "lucide-react"
+import type { StaffMember as VendorStaffMember } from "../../utils/permissionsUtils"
 
-export interface StaffMember {
-  id?: string
-  name: string
-  email: string
-  role: string
-  password: string
+export type StaffMember = VendorStaffMember & {
+  password?: string
 }
 
 interface StaffDialogProps {

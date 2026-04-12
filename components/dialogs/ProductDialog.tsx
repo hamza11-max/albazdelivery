@@ -380,7 +380,7 @@ export function ProductDialog({
                       productForm.barcode,
                       productForm.name || "Product"
                     )
-                    if (window.electronAPI?.isElectron && window.electronAPI?.print?.printHtml) {
+                    if (window.electronAPI?.isElectron) {
                       const result = await printBarcodeWithElectron(html)
                       if (!result?.success) {
                         toast({

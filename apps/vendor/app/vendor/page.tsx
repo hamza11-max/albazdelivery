@@ -66,6 +66,9 @@ import { SupplierDialog } from "../../components/dialogs/SupplierDialog"
 import { DashboardTab } from "../../components/tabs/DashboardTab"
 import { InventoryTab } from "../../components/tabs/InventoryTab"
 import { OrdersTab } from "../../components/tabs/OrdersTab"
+import { KitchenTab } from "../../components/tabs/KitchenTab"
+import { DineQrTab } from "../../components/tabs/DineQrTab"
+import { AccountingTab } from "../../components/tabs/AccountingTab"
 import { DriversTab } from "../../components/tabs/DriversTab"
 import { SalesTab } from "../../components/tabs/SalesTab"
 import { SuppliersTab } from "../../components/tabs/SuppliersTab"
@@ -123,6 +126,7 @@ import {
   isSettingsSectionVisible,
   type ShopType,
 } from "../../config/shopTypes"
+import { getVendorFeatureFlags } from "../../config/vendorFeatures"
 import { setLightDarkTheme } from "@/root/lib/theme"
 import { useSubscription } from "@/root/hooks/useSubscription"
 
@@ -351,7 +355,15 @@ function VendorDashboardContent() {
     }).catch(() => {})
   }, [isElectronRuntime])
 
-  const allowedTabIds = getTabsForShopType(shopType)
+  const vendorFeatures = useMemo(() => getVendorFeatureFlags(shopType), [shopType])
+  const allowedTabIds = useMemo(() => {
+    return getTabsForShopType(shopType).filter((id) => {
+      if (id === "dine-qr") return vendorFeatures.dineTablesUi
+      if (id === "accounting") return vendorFeatures.accountingModule
+      if (id === "kitchen") return vendorFeatures.kitchenBoard
+      return true
+    })
+  }, [shopType, vendorFeatures])
   useEffect(() => {
     if (activeTab === "menu") return
     if (allowedTabIds.length > 0 && !allowedTabIds.includes(activeTab)) {
@@ -2155,6 +2167,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               isElectronRuntime={isElectronRuntime}
               activeVendorId={activeVendorId}
               isArabic={isArabic}
+              dineTablesUi={vendorFeatures.dineTablesUi}
               translate={translate}
               toast={toast}
               setProducts={setProducts}
@@ -2167,29 +2180,32 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               fetchProducts={fetchProducts}
               handlePostProductToDelivery={handlePostProductToDelivery}
               handleDeleteProduct={handleDeleteProduct}
-              onPrintLabels={isElectronRuntime && (window as any).electronAPI?.print?.printProductLabels
-                ? async (items: InventoryProduct[]) => {
-                    if (items.length === 0) {
-                      toast({ title: translate("Aucun produit", "لا منتجات"), description: translate("Sélectionnez des produits à imprimer", "اختر منتجات للطباعة"), variant: "destructive" })
-                      return
+              onPrintLabels={
+                vendorFeatures.labelPrinting &&
+                isElectronRuntime &&
+                (window as any).electronAPI?.print?.printProductLabels
+                  ? async (items: InventoryProduct[]) => {
+                      if (items.length === 0) {
+                        toast({ title: translate("Aucun produit", "لا منتجات"), description: translate("Sélectionnez des produits à imprimer", "اختر منتجات للطباعة"), variant: "destructive" })
+                        return
+                      }
+                      try {
+                        const res = await (window as any).electronAPI.print.printProductLabels({
+                          products: items,
+                          fields: labelFields,
+                          labelType,
+                          widthMm: labelWidthMm,
+                          heightMm: labelHeightMm,
+                          shopName: shopInfo?.name || '',
+                          deviceName: getVendorPrinterDevice(VENDOR_PRINTER_LABEL_KEY) || undefined,
+                        })
+                        if (res?.success) toast({ title: translate("Impression lancée", "تم بدء الطباعة"), description: translate("Les étiquettes ont été envoyées à l'imprimante.", "تم إرسال الملصقات إلى الطابعة.") })
+                        else toast({ title: translate("Erreur", "خطأ"), description: res?.error || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
+                      } catch (e: any) {
+                        toast({ title: translate("Erreur", "خطأ"), description: e?.message || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
+                      }
                     }
-                    try {
-                      const res = await (window as any).electronAPI.print.printProductLabels({
-                        products: items,
-                        fields: labelFields,
-                        labelType,
-                        widthMm: labelWidthMm,
-                        heightMm: labelHeightMm,
-                        shopName: shopInfo?.name || '',
-                        deviceName: getVendorPrinterDevice(VENDOR_PRINTER_LABEL_KEY) || undefined,
-                      })
-                      if (res?.success) toast({ title: translate("Impression lancée", "تم بدء الطباعة"), description: translate("Les étiquettes ont été envoyées à l'imprimante.", "تم إرسال الملصقات إلى الطابعة.") })
-                      else toast({ title: translate("Erreur", "خطأ"), description: res?.error || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
-                    } catch (e: any) {
-                      toast({ title: translate("Erreur", "خطأ"), description: e?.message || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
-                    }
-                  }
-                : undefined
+                  : undefined
               }
             />
           </TabsContent>
@@ -2208,6 +2224,22 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             />
           </TabsContent>
 
+          <TabsContent value="kitchen" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <KitchenTab
+              orders={orders}
+              loadingState={loadingState}
+              translate={translate}
+              handleUpdateOrderStatus={handleUpdateOrderStatus}
+            />
+          </TabsContent>
+
+          <TabsContent value="dine-qr" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <DineQrTab translate={translate} />
+          </TabsContent>
+
+          <TabsContent value="accounting" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+            <AccountingTab translate={translate} />
+          </TabsContent>
 
           {/* Drivers Tab */}
           <TabsContent value="drivers" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
@@ -3232,7 +3264,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 )}
               </p>
             )}
-            <VendorPrinterSettingsCard translate={translate} isElectronRuntime={isElectronRuntime} />
+            <VendorPrinterSettingsCard
+              translate={translate}
+              isElectronRuntime={isElectronRuntime}
+              showLabelPrinter={vendorFeatures.labelPrinting}
+            />
 
             {isElectronRuntime && <AppUpdateCard translate={translate} toast={toast} />}
 

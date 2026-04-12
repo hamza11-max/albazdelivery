@@ -88,9 +88,26 @@ export async function GET(request: NextRequest) {
       whatsappOrderCount: 0,
     })
 
-    let saleAggregates: Awaited<ReturnType<typeof prisma.sale.groupBy>> = []
-    let orderAggregates: Awaited<ReturnType<typeof prisma.order.groupBy>> = []
-    let waAggregates: Awaited<ReturnType<typeof prisma.order.groupBy>> = []
+    type SaleCustomerAgg = {
+      customerId: string | null
+      _sum: { total: number | null }
+      _max: { createdAt: Date | null }
+      _count: { id: number }
+    }
+    type OrderCustomerAgg = {
+      customerId: string
+      _sum: { total: number | null }
+      _max: { createdAt: Date | null }
+      _count: { id: number }
+    }
+    type OrderWaAgg = {
+      customerId: string
+      _count: { id: number }
+    }
+
+    let saleAggregates: SaleCustomerAgg[] = []
+    let orderAggregates: OrderCustomerAgg[] = []
+    let waAggregates: OrderWaAgg[] = []
 
     try {
       ;[saleAggregates, orderAggregates, waAggregates] = await Promise.all([

@@ -28,7 +28,7 @@ export async function downloadInvoicePdfViaElectron(
       : raw instanceof ArrayBuffer
         ? new Uint8Array(raw)
         : new Uint8Array(raw as ArrayBuffer)
-  const blob = new Blob([bytes], { type: "application/pdf" })
+  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" })
   const url = URL.createObjectURL(blob)
   const link = document.createElement("a")
   link.href = url

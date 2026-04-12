@@ -9,6 +9,7 @@ import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
 import Link from "next/link"
 import { SHOP_TYPES, SHOP_TYPE_LABELS } from "../../config/shopTypes"
+import { BRAND_MARK_SRC } from "@/lib/brand-mark"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -93,7 +94,12 @@ function LoginForm() {
     try {
       const result = await (window as any).electronAPI?.auth?.verifyPasskey?.(passkey)
       if (result?.success) {
-        setSetupStep("shoptype")
+        const setup = await (window as any).electronAPI?.auth?.getSetup?.()
+        if (setup?.shopTypeLocked && setup?.lockedShopType) {
+          setSetupStep("owner")
+        } else {
+          setSetupStep("shoptype")
+        }
       } else {
         setError(result?.error || "Passkey invalide")
       }
@@ -291,7 +297,7 @@ function LoginForm() {
       <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-transparent dark:border-gray-700">
         {/* Logo Section */}
         <div className="bg-black dark:bg-gray-900 p-8 text-center flex flex-col items-center justify-center">
-          <img src="/logo.png" alt="AlBaz" className="h-16 w-auto object-contain mb-2" />
+          <img src={BRAND_MARK_SRC} alt="AlBaz" className="h-16 w-auto object-contain mb-2" />
           <p className="text-gray-300 text-sm">Vendor Dashboard</p>
         </div>
 

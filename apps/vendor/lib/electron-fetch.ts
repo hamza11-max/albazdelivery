@@ -1,19 +1,9 @@
 /**
  * Electron-aware fetch wrapper
  * Adds authentication headers when running in Electron
+ *
+ * Window.electronAPI is declared in lib/electron-api.d.ts
  */
-
-declare global {
-  interface Window {
-    electronAPI?: {
-      isElectron: boolean
-      auth: {
-        getToken: () => Promise<string | null>
-        getUser: () => Promise<any | null>
-      }
-    }
-  }
-}
 
 export async function electronFetch(
   url: string,

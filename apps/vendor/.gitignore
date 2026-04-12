@@ -3,3 +3,6 @@ bundled-flavor.json
 dist/
 build/
 *.exe
+# Electron pack outputs (never commit)
+*.asar
+**/app.asar.unpacked/

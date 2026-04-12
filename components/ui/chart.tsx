@@ -215,7 +215,7 @@ function ChartTooltipContent({
               ) : (
                 <>
                   {typeof itemConfig?.icon === 'function' ? (
-                    React.createElement(itemConfig.icon, {
+                    React.createElement(itemConfig.icon as React.ComponentType<{ className?: string }>, {
                       className: 'h-2.5 w-2.5 text-muted-foreground shrink-0',
                     })
                   ) : (
@@ -308,7 +308,7 @@ function ChartLegendContent({
             }
           >
             {typeof itemConfig?.icon === 'function' && !hideIcon ? (
-              React.createElement(itemConfig.icon, {
+              React.createElement(itemConfig.icon as React.ComponentType<{ className?: string }>, {
                 className: 'h-3 w-3 text-muted-foreground',
               })
             ) : (

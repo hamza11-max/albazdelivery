@@ -77,7 +77,8 @@ export function CouponsTab({ translate, isArabic }: CouponsTabProps) {
     
     if (!coupon.isActive) return false
     if (now < start || now > end) return false
-    if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) return false
+    const limit = coupon.usageLimit ?? 0
+    if (limit > 0 && coupon.usedCount >= limit) return false
     
     return true
   }
@@ -175,7 +176,7 @@ export function CouponsTab({ translate, isArabic }: CouponsTabProps) {
                         {new Date(coupon.startDate).toLocaleDateString()} - {new Date(coupon.endDate).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        {coupon.usageLimit > 0 ? (
+                        {(coupon.usageLimit ?? 0) > 0 ? (
                           <span>
                             {coupon.usedCount} / {coupon.usageLimit}
                           </span>

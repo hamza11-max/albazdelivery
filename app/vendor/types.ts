@@ -24,8 +24,8 @@ export type { Category }
 export type { ApiResponse } from '@/root/lib/types'
 
 export interface CartItem {
-  id: number
-  productId: number
+  id: number | string
+  productId: number | string
   productName: string
   quantity: number
   price: number
@@ -66,7 +66,7 @@ export interface ProductUpdateData extends BaseProductFields {
 }
 
 export interface TopProductData {
-  productId: number
+  productId: number | string
   productName: string
   totalQuantity: number
   totalSales: number

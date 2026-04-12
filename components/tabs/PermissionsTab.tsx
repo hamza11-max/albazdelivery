@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Shield, Edit, Save, X } from "lucide-react"
 import {
   DEFAULT_ROLE_PERMISSIONS,
+  asStaffRole,
   getRolePermissions,
   getStaffPermissions,
   saveStaffPermissions,
@@ -97,12 +98,13 @@ export function PermissionsTab({ translate }: PermissionsTabProps) {
   }
 
   const handleSavePermissions = () => {
-    if (!editingStaff) return
+    const staffId = editingStaff?.id
+    if (!staffId) return
 
-    saveStaffPermissions(editingStaff.id, customPermissions)
+    saveStaffPermissions(staffId, customPermissions)
     
     const updated = staff.map((s) => {
-      if (s.id === editingStaff.id) {
+      if (s.id === staffId) {
         return { ...s, permissions: customPermissions }
       }
       return s
@@ -129,7 +131,7 @@ export function PermissionsTab({ translate }: PermissionsTabProps) {
 
   const handleResetToRole = () => {
     if (!editingStaff) return
-    const rolePerms = getRolePermissions(editingStaff.role)
+    const rolePerms = getRolePermissions(asStaffRole(String(editingStaff.role)))
     setCustomPermissions(rolePerms)
   }
 
@@ -195,10 +197,12 @@ export function PermissionsTab({ translate }: PermissionsTabProps) {
                   const perms = getStaffPermissions(member)
                   const isCustom = member.permissions && member.permissions.length > 0
                   return (
-                    <TableRow key={member.id}>
+                    <TableRow key={member.id ?? member.email}>
                       <TableCell className="font-medium">{member.name}</TableCell>
                       <TableCell>
-                        <Badge>{DEFAULT_ROLE_PERMISSIONS[member.role]?.name || member.role}</Badge>
+                        <Badge>
+                          {DEFAULT_ROLE_PERMISSIONS[asStaffRole(String(member.role))]?.name || member.role}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -248,7 +252,8 @@ export function PermissionsTab({ translate }: PermissionsTabProps) {
               <div>
                 <Label>{translate("Rôle actuel", "الدور الحالي")}</Label>
                 <p className="text-sm text-muted-foreground">
-                  {editingStaff && DEFAULT_ROLE_PERMISSIONS[editingStaff.role]?.name}
+                  {editingStaff &&
+                    DEFAULT_ROLE_PERMISSIONS[asStaffRole(String(editingStaff.role))]?.name}
                 </p>
               </div>
               <Button variant="outline" onClick={handleResetToRole}>

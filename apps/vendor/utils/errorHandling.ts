@@ -174,7 +174,7 @@ export function getErrorMessage(
           "طلبات كثيرة جداً. يرجى المحاولة لاحقاً."
         )
       }
-      if (error.statusCode >= 500) {
+      if ((error.statusCode ?? 0) >= 500) {
         return translate(
           "Erreur serveur. Veuillez réessayer plus tard.",
           "خطأ في الخادم. يرجى المحاولة لاحقاً."
@@ -326,10 +326,25 @@ export async function safeFetch(
   }
 }
 
+/** Common JSON shape returned by vendor/ERP `fetch` handlers */
+export interface VendorApiResponse {
+  success: boolean
+  message?: string
+  data?: Record<string, unknown>
+  sale?: unknown
+  error?: {
+    message?: string
+    details?: unknown[]
+    issues?: unknown[]
+  }
+}
+
 /**
  * Parse API response with error handling
  */
-export async function parseAPIResponse<T>(response: Response): Promise<T> {
+export async function parseAPIResponse<T extends VendorApiResponse = VendorApiResponse>(
+  response: Response
+): Promise<T> {
   try {
     const data = await response.json()
     validateAPIResponse(response, data)

@@ -17,6 +17,12 @@
     "start": "turbo run start",
     "lint": "turbo run lint",
     "type-check": "tsc --noEmit",
+    "type-check:vendor": "npm run type-check -w @albaz/vendor",
+    "build:vendor:desktop:restaurant": "npm run electron:build:win:restaurant -w @albaz/vendor",
+    "build:vendor:desktop:retail": "npm run electron:build:win:retail -w @albaz/vendor",
+    "build:vendor:desktop:grocery": "npm run electron:build:win:grocery -w @albaz/vendor",
+    "build:vendor:desktop:other": "npm run electron:build:win:other -w @albaz/vendor",
+    "build:vendor:desktop:all-verticals": "npm run electron:build:win:all-verticals -w @albaz/vendor",
     "clean": "turbo run clean",
     "vercel-build": "node -e \"const fs=require('fs');['.next','app/customer/.next'].forEach(p=>{try{fs.rmSync(p,{recursive:true,force:true})}catch{}});\" && prisma generate --schema=./prisma/schema.prisma && prisma migrate deploy --schema=./prisma/schema.prisma && next build --webpack",
     "postinstall": "prisma generate --schema=./prisma/schema.prisma || exit 0; node scripts/sync-customer-copy-to-mobile.js",
@@ -185,6 +191,7 @@
     "zustand": "^5.0.8"
   },
   "overrides": {
+    "next": "^16.0.7",
     "cookie": ">=0.7.0",
     "next-csrf": {
       "cookie": ">=0.7.0"

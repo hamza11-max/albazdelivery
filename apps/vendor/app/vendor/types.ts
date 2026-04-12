@@ -66,7 +66,7 @@ export interface ProductUpdateData extends BaseProductFields {
 }
 
 export interface TopProductData {
-  productId: number
+  productId: number | string
   productName: string
   totalQuantity: number
   totalSales: number

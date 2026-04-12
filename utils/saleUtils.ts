@@ -298,8 +298,9 @@ export async function completeSale({
         console.warn('[Sale] Failed to check inventory alerts:', alertError)
       }
       
-      setLastSale(data.sale)
-      setCompletedSale(data.sale)
+      const completed = data.sale as Sale
+      setLastSale(completed)
+      setCompletedSale(completed)
       setShowSaleSuccessDialog(true)
       clearCart()
       setPosTax(0)

@@ -1,5 +1,5 @@
 // Customer app types
-import type { Order } from '@albaz/shared'
+import type { Order as CustomerAppOrder } from '@albaz/shared'
 import type { ProductDefinition, CategoryDefinition, StoreDefinition } from './mock-data'
 
 export type PageView = 'home' | 'category' | 'store' | 'checkout' | 'tracking' | 'orders' | 'profile'
@@ -129,6 +129,78 @@ export interface Order {
   isPackageDelivery?: boolean
 }
 
+export interface HomePageProps {
+  categories: CategoryDefinition[]
+  selectedLanguage: string
+  searchQuery: string
+  onSearchChange: (q: string) => void
+  onCategorySelect: (categoryId: number | string) => void
+  onPackageDelivery: () => void
+  selectedCity: string
+  isDarkMode: boolean
+  onToggleDarkMode: () => void
+  onGoHome: () => void
+  t: TranslationFn
+}
+
+export interface CategoryViewProps {
+  selectedCategory: number | string
+  categories: CategoryDefinition[]
+  filteredStores: StoreDefinition[]
+  isLoading?: boolean
+  onBack: () => void
+  onStoreSelect: (storeId: number | string) => void
+  selectedLanguage: string
+  t: TranslationFn
+}
+
+export interface StoreViewProps {
+  selectedStore: number | string
+  stores: StoreDefinition[]
+  products: ProductDefinition[]
+  isLoading?: boolean
+  onBack: () => void
+  addToCart: (productId: number | string, quantity?: number) => void
+  t: TranslationFn
+}
+
+export interface CheckoutViewProps {
+  cart: CartItem[]
+  products: ProductDefinition[]
+  subtotal: number
+  deliveryFee: number
+  paymentMethod: PaymentMethod
+  onPaymentMethodChange: (method: PaymentMethod) => void
+  onUpdateQuantity: (productId: string, delta: number) => void
+  onRemoveFromCart: (productId: string) => void
+  onPlaceOrder: () => void | Promise<void>
+  onContinueShopping: () => void
+  t: TranslationFn
+}
+
+export interface MyOrdersViewProps {
+  customerId: string
+  onBack: () => void
+  onOrderSelect: (order: CustomerAppOrder) => void
+  t: TranslationFn
+}
+
+export interface ProfileViewProps {
+  user: User | null
+  selectedLanguage: string
+  onSelectLanguage: (lang: string) => void
+  onBackHome: () => void
+  onSignOut: () => void | Promise<void>
+  t: TranslationFn
+}
+
+export interface TrackingViewProps {
+  currentOrder: Order | null
+  orderId: string
+  onBackHome: () => void
+  t: TranslationFn
+}
+
 export interface Delivery {
   id: string
   orderId: string
@@ -143,12 +215,12 @@ export interface Delivery {
 }
 
 export interface InventoryProduct {
-  id: number
+  id: number | string
   sku: string
   name: string
   category: string
   description?: string
-  supplierId?: number
+  supplierId?: number | string
   costPrice: number
   sellingPrice: number
   price: number
@@ -177,7 +249,7 @@ export interface Customer {
 }
 
 export interface Supplier {
-  id: number
+  id: number | string
   name: string
   contactPerson: string
   phone: string
@@ -190,6 +262,8 @@ export interface Supplier {
 export interface Sale {
   id: string
   customerId?: string
+  customerName?: string
+  customerPhone?: string
   items: SaleItem[]
   subtotal: number
   discount: number
@@ -199,7 +273,7 @@ export interface Sale {
 }
 
 export interface SaleItem {
-  productId: number
+  productId: number | string
   productName: string
   quantity: number
   price: number
@@ -214,7 +288,7 @@ export interface SalesForecast {
 }
 
 export interface InventoryRecommendation {
-  productId: number
+  productId: number | string
   productName: string
   currentStock: number
   recommendedQuantity: number

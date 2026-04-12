@@ -3,6 +3,7 @@
 import { Printer } from "lucide-react"
 import { Button } from "@/root/components/ui/button"
 import type { Sale } from "@/root/lib/types"
+import { BRAND_MARK_SRC } from "@/lib/brand-mark"
 
 interface ReceiptViewProps {
   showReceipt: boolean
@@ -55,7 +56,7 @@ export function ReceiptView({
               </div>
             ) : (
               <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center shadow-lg">
-                <img src="/logo.png" alt="ALBAZ" className="h-16 w-auto" />
+                <img src={BRAND_MARK_SRC} alt="ALBAZ" className="h-16 w-auto" />
               </div>
             )}
           </div>

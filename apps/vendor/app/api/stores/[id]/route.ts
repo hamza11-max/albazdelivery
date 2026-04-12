@@ -22,7 +22,6 @@ export async function GET(
         where: { id: storeId },
         include: {
           vendor: { select: { id: true, name: true, phone: true } },
-          category: { select: { id: true, name: true, nameFr: true, nameAr: true } },
         },
       })
       if (!store) {

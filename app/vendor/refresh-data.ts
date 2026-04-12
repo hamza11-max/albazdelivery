@@ -1,6 +1,8 @@
 // Direct API fetch functions - do not use hooks here
 // These functions are called from components that already have the hook context
 
+import type { InventoryProduct } from "@/root/lib/types"
+
 async function fetchFromAPI<T>(url: string): Promise<T> {
   const response = await fetch(url)
   let body: any = null
@@ -91,7 +93,7 @@ export async function fetchInventory(vendorId?: string) {
   }
 }
 
-export async function fetchProducts(vendorId?: string) {
+export async function fetchProducts(vendorId?: string): Promise<InventoryProduct[]> {
   const buildUrl = (basePath: string) => {
     if (!vendorId) return basePath
     const separator = basePath.includes('?') ? '&' : '?'
@@ -99,7 +101,7 @@ export async function fetchProducts(vendorId?: string) {
   }
 
   const response = await fetchFromAPI<{ products?: unknown[] }>(buildUrl('/api/erp/inventory'))
-  return Array.isArray(response?.products) ? response.products : []
+  return (Array.isArray(response?.products) ? response.products : []) as InventoryProduct[]
 }
 
 export async function fetchCustomers(vendorId?: string) {
