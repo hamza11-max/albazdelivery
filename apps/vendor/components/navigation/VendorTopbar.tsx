@@ -61,7 +61,7 @@ function TopIconButton({
       variant="outline"
       size="icon"
       className={cn(
-        "neu-button relative h-9 w-9 shrink-0 rounded-full border-transparent bg-transparent",
+        "neu-button relative h-10 w-10 shrink-0 rounded-full border-transparent bg-transparent sm:h-11 sm:w-11",
         iconGreen,
         className,
       )}
@@ -97,7 +97,7 @@ export function VendorTopbar({
   }
 
   return (
-    <div className="glass-panel mb-4 px-3 py-2.5">
+    <div className="glass-panel mb-4 px-3 py-3">
       <div
         className={cn(
           "flex flex-wrap items-center gap-2 sm:gap-3",
@@ -107,7 +107,7 @@ export function VendorTopbar({
         {/* Brand lockup: official asset, full mark, no circular crop */}
         <div
           className={cn(
-            "flex min-w-0 shrink-0 items-center gap-3",
+            "flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3",
             isArabic ? "flex-row-reverse" : "",
           )}
         >
@@ -133,12 +133,12 @@ export function VendorTopbar({
               )}
             />
           </Link>
-          <div className="min-w-0 truncate text-sm font-semibold text-foreground">
+          <div className="hidden min-w-0 truncate text-sm font-semibold text-foreground min-[420px]:block">
             {translate("AlBaz Vendor", "الباز للبائع")}
           </div>
         </div>
 
-        <div className="order-last w-full min-w-0 sm:order-none sm:flex-1 sm:max-w-md">
+        <div className="order-last w-full min-w-0 sm:order-none sm:flex-1 sm:max-w-md lg:max-w-lg xl:max-w-xl">
           <input
             type="search"
             readOnly
@@ -146,7 +146,7 @@ export function VendorTopbar({
             aria-label={translate("Rechercher dans le POS", "البحث في نقطة البيع")}
             placeholder={translate("Rechercher…", "بحث…")}
             className={cn(
-              "neu-input text-muted-foreground placeholder:text-muted-foreground/80 h-9 w-full px-3 py-1 text-sm",
+              "neu-input text-muted-foreground placeholder:text-muted-foreground/80 h-10 w-full px-3 py-2 text-sm sm:h-11",
               isArabic ? "text-right" : "text-left",
             )}
             onMouseDown={(e) => {
@@ -162,7 +162,7 @@ export function VendorTopbar({
 
         <div
           className={cn(
-            "ms-auto flex min-w-0 flex-1 items-center justify-end gap-1.5 overflow-x-auto pb-0.5 sm:ms-0 sm:flex-none sm:gap-2",
+            "ms-auto flex max-w-full items-center justify-end gap-2 overflow-x-auto pb-1 sm:ms-0 sm:gap-2.5 lg:overflow-visible",
             isArabic ? "flex-row-reverse" : "",
           )}
           aria-label={translate("Actions rapides", "إجراءات سريعة")}

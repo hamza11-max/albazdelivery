@@ -15,7 +15,7 @@ export function VendorMenuGrid({ allowedTabIds, activeTab, translate, onSelectTa
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">{translate("Menu rapide", "القائمة السريعة")}</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((item) => {
           const Icon = item.icon
           const isActive = activeTab === item.id
@@ -27,9 +27,9 @@ export function VendorMenuGrid({ allowedTabIds, activeTab, translate, onSelectTa
               }`}
               onClick={() => onSelectTab(item.id)}
             >
-              <CardContent className="flex flex-col items-center gap-2 p-4 text-center">
-                <Icon className="h-6 w-6" />
-                <span className="text-sm font-medium">{translate(item.labelFr, item.labelAr)}</span>
+              <CardContent className="flex min-h-24 flex-col items-center justify-center gap-2 p-3 text-center sm:min-h-28 sm:p-4">
+                <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-xs font-medium sm:text-sm">{translate(item.labelFr, item.labelAr)}</span>
               </CardContent>
             </Card>
           )

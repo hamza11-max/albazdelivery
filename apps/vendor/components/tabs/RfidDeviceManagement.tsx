@@ -108,11 +108,11 @@ export function RfidDeviceManagement({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-4 items-end">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="space-y-2">
               <Label>{translate("Type", "النوع")}</Label>
               <Select value={newType} onValueChange={(v) => setNewType(v as "keyboard" | "serial")}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full xl:w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -127,7 +127,7 @@ export function RfidDeviceManagement({
                 placeholder={translate("ex: Porte 1", "مثال: البوابة 1")}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="w-[180px]"
+                className="w-full xl:w-[180px]"
               />
             </div>
             {newType === "serial" && (
@@ -138,7 +138,7 @@ export function RfidDeviceManagement({
                     value={newPort || (ports.length === 0 ? "__no_ports__" : "__none__")}
                     onValueChange={(v) => setNewPort(v === "__no_ports__" || v === "__none__" ? "" : v)}
                   >
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-full xl:w-[140px]">
                       <SelectValue placeholder={translate("Choisir", "اختر")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -164,12 +164,12 @@ export function RfidDeviceManagement({
                     type="number"
                     value={newBaud}
                     onChange={(e) => setNewBaud(Number(e.target.value) || 9600)}
-                    className="w-[100px]"
+                    className="w-full xl:w-[100px]"
                   />
                 </div>
               </>
             )}
-            <Button onClick={handleAdd} size="sm">
+            <Button onClick={handleAdd} size="sm" className="w-full md:w-auto self-end">
               <Plus className="w-4 h-4 mr-1" />
               {translate("Ajouter", "إضافة")}
             </Button>

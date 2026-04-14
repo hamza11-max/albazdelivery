@@ -104,7 +104,7 @@ export function CouponDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {coupon ? translate("Modifier le coupon", "تعديل الكوبون") : translate("Créer un coupon", "إنشاء كوبون")}
@@ -117,7 +117,7 @@ export function CouponDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="coupon-code">{translate("Code du coupon", "رمز الكوبون")} *</Label>
                 <div className="flex gap-2">
@@ -156,7 +156,7 @@ export function CouponDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="coupon-type">{translate("Type de réduction", "نوع الخصم")} *</Label>
                 <Select value={formData.type} onValueChange={(value: "percentage" | "fixed") => setFormData({ ...formData, type: value })}>
@@ -216,7 +216,7 @@ export function CouponDialog({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="coupon-start-date">{translate("Date de début", "تاريخ البداية")} *</Label>
                 <Input
@@ -270,7 +270,7 @@ export function CouponDialog({
               </Select>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <Label htmlFor="coupon-active">{translate("Actif", "نشط")}</Label>
                 <p className="text-sm text-muted-foreground">

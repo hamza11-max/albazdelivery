@@ -118,19 +118,19 @@ export function POSView({
     }
   }
   return (
-    <div className={`flex flex-col lg:flex-row min-h-[calc(100vh-120px)] w-full bg-transparent gap-4 lg:gap-6 items-start ${isArabic ? 'lg:flex-row-reverse' : ''}`}>
+    <div className={`flex min-h-[calc(100vh-120px)] w-full flex-col items-start gap-4 bg-transparent lg:flex-row lg:gap-5 xl:gap-6 ${isArabic ? 'lg:flex-row-reverse' : ''}`}>
       {/* Products Area - Left Side (2/3 width) */}
-      <div className="flex-1 flex flex-col overflow-hidden w-full lg:w-2/3">
+      <div className="flex w-full flex-1 flex-col overflow-hidden lg:w-[62%] xl:w-[65%]">
         {/* Product Area */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="flex-1 flex flex-col overflow-hidden p-3 md:p-6 min-w-0 gap-4 md:gap-6">
+          <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-3 md:p-5 xl:p-6">
             {/* Prominent Total Display */}
-            <div className="rounded-xl border-2 border-albaz-orange-500 bg-black text-red-500 px-4 sm:px-6 py-4 sm:py-6 shadow-lg">
-              <div className="flex items-center justify-between gap-4">
+            <div className="rounded-xl border-2 border-albaz-orange-500 bg-black px-4 py-4 text-red-500 shadow-lg sm:px-6 sm:py-6">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                 <span className="text-xl sm:text-2xl font-semibold text-white">
                   {translate("Montant total", "المبلغ الإجمالي")}
                 </span>
-                <span className="text-3xl sm:text-5xl font-mono font-bold tracking-tight">
+                <span className="text-2xl sm:text-5xl font-mono font-bold tracking-tight break-all sm:break-normal">
                   {(manualTotal !== null ? manualTotal : cartTotal).toFixed(3)} {translate("DZD", "دج")}
                 </span>
               </div>
@@ -163,7 +163,7 @@ export function POSView({
               <div className="flex items-center gap-3 overflow-x-auto pb-2">
                 <button
                   onClick={() => onCategoryChange("all")}
-                  className={`px-6 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                  className={`min-h-11 rounded-lg px-6 py-3 text-sm font-medium whitespace-nowrap transition-all ${
                     posSelectedCategory === "all"
                       ? "bg-albaz-orange-gradient text-white albaz-glow-orange shadow-albaz-orange"
                       : "bg-card text-albaz-green-700 dark:text-albaz-green-300 border border-border hover:border-albaz-orange-400"
@@ -177,7 +177,7 @@ export function POSView({
                     <button
                       key={cat.id}
                       onClick={() => onCategoryChange(cat.name)}
-                      className={`px-6 py-2.5 rounded-lg font-medium whitespace-nowrap transition-all ${
+                      className={`min-h-11 rounded-lg px-6 py-3 text-sm font-medium whitespace-nowrap transition-all ${
                         posSelectedCategory === cat.name
                           ? "bg-albaz-orange-gradient text-white albaz-glow-orange shadow-albaz-orange"
                           : "bg-card text-albaz-green-700 dark:text-albaz-green-300 border border-border hover:border-albaz-orange-400"
@@ -195,7 +195,7 @@ export function POSView({
               <h3 className="text-lg font-semibold text-albaz-green-700 dark:text-albaz-green-300 mb-4">
                 {translate("Choisir des produits", "اختر المنتجات")}
               </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
                 {products
                   .filter(
                     (p) =>
@@ -261,9 +261,9 @@ export function POSView({
       </div>
 
       {/* Cart and Keyboard Panel - Right Side (1/3 width) */}
-      <div className={`w-full lg:w-1/3 bg-card border-t lg:border-t-0 ${isArabic ? 'lg:border-r' : 'lg:border-l'} border-border flex flex-col shadow-xl lg:sticky lg:top-0 self-start`}>
-        <div className="p-6 border-b border-border">
-          <div className="flex items-center justify-between mb-2">
+      <div className={`flex w-full flex-col self-start border-border bg-card shadow-xl lg:sticky lg:top-2 lg:w-[38%] lg:max-w-[560px] lg:min-w-[380px] lg:border-t-0 xl:w-[35%] ${isArabic ? 'lg:border-r' : 'lg:border-l'} border-t`}>
+        <div className="border-b border-border p-4 sm:p-6">
+          <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-bold text-albaz-green-700 dark:text-albaz-green-300">
               {translate("Résumé de la commande", "ملخص الطلب")}
             </h2>
@@ -271,7 +271,7 @@ export function POSView({
               variant="outline"
               size="sm"
               onClick={() => setShowCustomItemDialog(true)}
-              className="h-8 px-3 text-xs"
+              className="h-10 px-3 text-sm"
             >
               <PlusCircle className="w-4 h-4 mr-1" />
               {translate("Article personnalisé", "عنصر مخصص")}
@@ -283,9 +283,9 @@ export function POSView({
         </div>
 
         {/* Order Items */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
           {posCart.map((item) => (
-            <div key={item.productId} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div key={item.productId} className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">{item.productName}</p>
                 {Number(item.productId) < 0 && (
@@ -304,7 +304,7 @@ export function POSView({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                   onClick={() => onRemoveFromCart(Number(item.productId))}
                 >
                   <X className="w-4 h-4" />
@@ -322,7 +322,7 @@ export function POSView({
         </div>
 
         {/* Order Summary Totals */}
-        <div className="p-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
+        <div className="space-y-3 border-t border-gray-200 p-4 dark:border-gray-800 sm:p-6">
           <div className="flex justify-between text-sm">
             <span className="text-gray-600 dark:text-gray-400">{translate("Sous-total", "المجموع الفرعي")}:</span>
             <span className="font-semibold text-gray-900 dark:text-gray-100">{cartSubtotal.toFixed(2)} {translate("DZD", "دج")}</span>
@@ -330,27 +330,27 @@ export function POSView({
           
           {/* Coupon Code Input */}
           <div className="space-y-2">
-            <Label className="text-xs text-gray-600 dark:text-gray-400">{translate("Code promo", "رمز الخصم")}</Label>
+            <Label className="text-sm text-gray-600 dark:text-gray-400">{translate("Code promo", "رمز الخصم")}</Label>
             <div className="flex gap-2">
               <Input
                 type="text"
                 placeholder={translate("Entrez le code", "أدخل الرمز")}
                 value={posCouponCode}
                 onChange={(e) => onCouponCodeChange(e.target.value.toUpperCase())}
-                className="flex-1 h-8 text-xs"
+                className="h-10 flex-1 text-sm"
               />
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={onApplyCoupon}
-                className="h-8 px-3 text-xs"
+                className="h-10 px-4 text-sm"
               >
                 {translate("Appliquer", "تطبيق")}
               </Button>
             </div>
             {posAppliedCoupon && (
-              <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded text-xs">
+              <div className="flex items-center justify-between rounded bg-green-50 p-2 text-sm dark:bg-green-900/20">
                 <span className="text-green-700 dark:text-green-300">
                   {translate("Coupon appliqué", "تم تطبيق الكوبون")}: {posAppliedCoupon.code}
                 </span>
@@ -358,7 +358,7 @@ export function POSView({
                   variant="ghost"
                   size="sm"
                   onClick={onRemoveCoupon}
-                  className="h-6 w-6 p-0 text-red-500"
+                  className="h-8 w-8 p-0 text-red-500"
                 >
                   <X className="w-3 h-3" />
                 </Button>
@@ -366,8 +366,8 @@ export function POSView({
             )}
           </div>
 
-          <div className="flex items-center justify-between text-sm gap-2">
-            <div className="flex items-center gap-2 flex-1">
+          <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2 flex-1">
               <span className="text-gray-600 dark:text-gray-400">{translate("Remise", "الخصم")}:</span>
               <Input
                 type="number"
@@ -379,13 +379,13 @@ export function POSView({
                   const value = parseFloat(e.target.value) || 0
                   onDiscountPercentChange(value)
                 }}
-                className="w-16 h-7 text-xs px-2 py-0"
+                className="h-9 w-20 px-2 py-1 text-sm"
               />
               <span className="text-gray-600 dark:text-gray-400">%</span>
             </div>
             <span className="font-semibold text-red-600 dark:text-red-400">-{posDiscount.toFixed(2)} {translate("DZD", "دج")}</span>
           </div>
-          <div className="flex items-center justify-between text-sm gap-2 pt-2 border-t border-gray-200 dark:border-gray-800">
+          <div className="flex flex-col gap-2 border-t border-gray-200 pt-2 text-sm dark:border-gray-800 sm:flex-row sm:items-center sm:justify-between">
             <span className="text-gray-600 dark:text-gray-400">{translate("Montant total", "المبلغ الإجمالي")}:</span>
             <div className="flex items-center gap-2">
               <Input
@@ -397,7 +397,7 @@ export function POSView({
                   const value = e.target.value === '' ? null : parseFloat(e.target.value) || 0
                   onManualTotalChange(value)
                 }}
-                className="w-24 h-8 text-sm px-2 py-0 text-right font-semibold"
+                className="h-10 w-28 px-2 py-1 text-right text-sm font-semibold"
                 placeholder={cartTotal.toFixed(2)}
               />
               <span className="text-gray-600 dark:text-gray-400">{translate("DZD", "دج")}</span>
@@ -412,8 +412,8 @@ export function POSView({
         </div>
 
         {/* Action Buttons */}
-        <div className="p-3 md:p-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
-          <div className="grid grid-cols-2 gap-2 md:gap-3">
+        <div className="space-y-3 border-t border-gray-200 p-3 dark:border-gray-800 md:p-6">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:gap-3">
             <Button
               variant="outline"
               size="lg"
@@ -432,10 +432,10 @@ export function POSView({
               {translate("Confirmer", "تأكيد")}
             </Button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Button
               variant="outline"
-              className="border-albaz-green-300 dark:border-albaz-green-700 text-albaz-green-700 dark:text-albaz-green-300 hover:bg-albaz-green-50 dark:hover:bg-albaz-green-900/20"
+              className="h-11 border-albaz-green-300 text-albaz-green-700 hover:bg-albaz-green-50 dark:border-albaz-green-700 dark:text-albaz-green-300 dark:hover:bg-albaz-green-900/20"
               onClick={onClearCart}
             >
               <RotateCcw className="w-4 h-4 mr-2" />
@@ -443,7 +443,7 @@ export function POSView({
             </Button>
             <Button
               variant="outline"
-              className="border-albaz-green-300 dark:border-albaz-green-700 text-albaz-green-700 dark:text-albaz-green-300 hover:bg-albaz-green-50 dark:hover:bg-albaz-green-900/20"
+              className="h-11 border-albaz-green-300 text-albaz-green-700 hover:bg-albaz-green-50 dark:border-albaz-green-700 dark:text-albaz-green-300 dark:hover:bg-albaz-green-900/20"
             >
               <LogOut className="w-4 h-4 mr-2" />
               {translate("Terminer la session", "إنهاء الجلسة")}
@@ -497,7 +497,7 @@ export function POSView({
                     key={key}
                     variant="outline"
                     size="lg"
-                    className={`h-12 text-xl font-mono bg-card border-border hover:bg-muted ${
+                    className={`h-14 text-xl font-mono bg-card border-border hover:bg-muted ${
                       key === "⌫" ? "col-span-1" : ""
                     }`}
                     onClick={() => handleCustomItemKeypadKey(key)}
@@ -510,7 +510,7 @@ export function POSView({
                 <Button
                   variant="outline"
                   size="lg"
-                  className="flex-1 h-10 bg-red-50 hover:bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30"
+                  className="h-11 flex-1 border-red-200 bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30"
                   onClick={() => {
                     setCustomItemPrice("")
                     setCustomItemKeypadValue("")
@@ -522,7 +522,7 @@ export function POSView({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
+            <Button className="w-full sm:w-auto" variant="outline" onClick={() => {
               setShowCustomItemDialog(false)
               setCustomItemName("")
               setCustomItemPrice("")
@@ -530,7 +530,7 @@ export function POSView({
             }}>
               {translate("Annuler", "إلغاء")}
             </Button>
-            <Button onClick={handleAddCustomItem} disabled={!customItemName.trim() || parseFloat(customItemPrice) <= 0}>
+            <Button className="w-full sm:w-auto" onClick={handleAddCustomItem} disabled={!customItemName.trim() || parseFloat(customItemPrice) <= 0}>
               {translate("Ajouter", "إضافة")}
             </Button>
           </DialogFooter>

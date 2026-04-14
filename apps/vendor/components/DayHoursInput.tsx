@@ -69,38 +69,38 @@ export function DayHoursInput({ dayKey, dayLabel, isWeekend, translate }: DayHou
   }
 
   return (
-    <div className="flex items-center gap-4 p-3 border rounded-lg">
+    <div className="flex flex-col gap-3 rounded-lg border p-3 md:flex-row md:items-center md:gap-4">
       <div className="flex-1">
         <div className="flex items-center gap-2">
           <Switch
             checked={isOpen}
             onCheckedChange={handleToggle}
           />
-          <Label className="font-medium min-w-[100px]">
+          <Label className="font-medium">
             {translate(dayLabel.fr, dayLabel.ar)}
             {isWeekend && <span className="text-xs text-muted-foreground ml-2">({translate("Weekend", "عطلة نهاية الأسبوع")})</span>}
           </Label>
         </div>
       </div>
       {isOpen && (
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <Label className="text-sm">{translate("Ouverture", "الفتح")}</Label>
             <Input
               type="time"
               value={openingHour}
               onChange={(e) => handleOpeningChange(e.target.value)}
-              className="w-32"
+              className="w-full sm:w-32"
             />
           </div>
           <span className="text-muted-foreground">-</span>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
             <Label className="text-sm">{translate("Fermeture", "الإغلاق")}</Label>
             <Input
               type="time"
               value={closingHour}
               onChange={(e) => handleClosingChange(e.target.value)}
-              className="w-32"
+              className="w-full sm:w-32"
             />
           </div>
         </div>

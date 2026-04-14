@@ -2061,8 +2061,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   return (
     <ErrorBoundary>
       <div className="min-h-screen bg-transparent" dir={isArabic ? "rtl" : "ltr"}>
-      <main className="w-full min-w-0 overflow-x-auto" dir={isArabic ? "rtl" : "ltr"}>
-        <div className="w-full h-full px-2 sm:px-4 py-4 sm:py-6">
+      <main className="w-full min-w-0 overflow-x-hidden" dir={isArabic ? "rtl" : "ltr"}>
+        <div className="mx-auto h-full w-full max-w-[1900px] px-2 py-4 sm:px-4 sm:py-6 2xl:px-6">
           <AdminVendorSelector
             isAdmin={isAdmin}
             selectedVendorId={selectedVendorId}
@@ -2095,7 +2095,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Topbar-driven navigation */}
 
-          <TabsContent value="menu" className="space-y-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="menu" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <VendorMenuGrid
               allowedTabIds={allowedTabIds}
               activeTab={activeTab}
@@ -2105,7 +2105,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Dashboard Tab */}
-          <TabsContent value="dashboard" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="dashboard" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <DashboardTab
               todaySales={todaySales}
               weekSales={weekSales}
@@ -2120,7 +2120,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
 
           {/* POS Tab - Modern ALBAZ Design */}
-          <TabsContent value="pos" className="space-y-0 p-0 -mx-2 sm:-mx-4">
+          <TabsContent value="pos" className="space-y-0 p-0 -mx-2 sm:-mx-4 lg:-mx-5 2xl:-mx-6">
       <POSView
               products={products}
               categories={categories}
@@ -2161,7 +2161,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Inventory Tab */}
-          <TabsContent value="inventory" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="inventory" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <InventoryTab
               products={products}
               isElectronRuntime={isElectronRuntime}
@@ -2211,7 +2211,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="orders" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <OrdersTab
               orders={orders}
               loadingState={loadingState}
@@ -2224,7 +2224,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             />
           </TabsContent>
 
-          <TabsContent value="kitchen" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="kitchen" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <KitchenTab
               orders={orders}
               loadingState={loadingState}
@@ -2233,16 +2233,16 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             />
           </TabsContent>
 
-          <TabsContent value="dine-qr" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="dine-qr" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <DineQrTab translate={translate} />
           </TabsContent>
 
-          <TabsContent value="accounting" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="accounting" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <AccountingTab translate={translate} />
           </TabsContent>
 
           {/* Drivers Tab */}
-          <TabsContent value="drivers" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="drivers" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <DriversTab
               loadingDrivers={loadingDrivers}
               pendingDriverRequests={pendingDriverRequests}
@@ -2253,7 +2253,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* RFID Tab */}
-          <TabsContent value="rfid" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="rfid" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <RfidDashboardTab
               translate={translate}
               isElectronRuntime={isElectronRuntime}
@@ -2403,7 +2403,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Sales History Tab */}
-          <TabsContent value="sales" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="sales" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <SalesTab
               sales={sales}
               translate={translate}
@@ -2413,7 +2413,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Reports Tab */}
-          <TabsContent value="reports" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="reports" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <ReportsTab
               sales={sales}
               products={products}
@@ -2422,7 +2422,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Coupons Tab */}
-          <TabsContent value="coupons" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="coupons" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <CouponsTab
               translate={translate}
               isArabic={isArabic}
@@ -2430,17 +2430,17 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Sync & Save Tab (merged Backup + Cloud Sync) */}
-          <TabsContent value="sync-save" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="sync-save" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <SyncSaveTab translate={translate} vendorId={activeVendorId} />
           </TabsContent>
 
           {/* Email Tab */}
-          <TabsContent value="email" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="email" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <EmailTab translate={translate} />
           </TabsContent>
 
           {/* Staff & Permissions Tab (merged: staff add + permissions) */}
-          <TabsContent value="staff-permissions" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="staff-permissions" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <StaffPermissionsTab
               translate={translate}
               isElectronRuntime={isElectronRuntime}
@@ -2461,7 +2461,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Clients & Loyalty Tab (merged) */}
-          <TabsContent value="clients-loyalty" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="clients-loyalty" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <ClientsLoyaltyTab
               customers={customers}
               translate={translate}
@@ -2471,7 +2471,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Suppliers Tab */}
-          <TabsContent value="suppliers" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="suppliers" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <SuppliersTab
               suppliers={suppliers}
               translate={translate}
@@ -2480,7 +2480,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* AI Insights Tab */}
-          <TabsContent value="ai" className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="ai" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">Insights Alimentés par l'IA</h2>
 
             {/* Sales Forecast */}
@@ -2494,7 +2494,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               <CardContent>
                 {salesForecast ? (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <p className="text-sm text-muted-foreground mb-1">Semaine Prochaine</p>
                         <p className="text-2xl font-bold">{salesForecast.week?.toFixed(2)} DZD</p>
@@ -2576,11 +2576,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </TabsContent>
 
           {/* Settings Tab — nested sub-tabs */}
-          <TabsContent value="settings" className="space-y-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
+          <TabsContent value="settings" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
 
             <Tabs defaultValue="shop" className="w-full gap-4">
-              <TabsList className="mb-1 grid h-auto w-full max-w-full min-h-9 grid-cols-2 gap-1 p-1 sm:flex sm:flex-wrap sm:justify-start">
+              <TabsList className="mb-1 grid h-auto w-full max-w-full min-h-9 grid-cols-1 gap-1 p-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:justify-start">
                 <TabsTrigger value="shop" className="gap-1.5 px-2 sm:flex-none">
                   <Store className="size-4 shrink-0" />
                   <span className="truncate">{translate("Boutique", "المتجر")}</span>
@@ -2845,7 +2845,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                           : translate("Activer", "تفعيل")}
                       </Button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <div className="space-y-1">
                         <Label>{translate("Début", "البداية")}</Label>
                         <Input
@@ -3292,7 +3292,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                         value={selectedSerialPort}
                         onChange={(e) => handleSerialPortChange(e.target.value)}
                         disabled={loadingSerialPorts}
-                        className="flex h-9 w-[220px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex h-9 w-full max-w-full sm:w-[220px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <option value="">{translate("Aucun", "لا شيء")}</option>
                         {serialPortsList.map((p) => (
@@ -3311,7 +3311,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     <select
                       value={serialBaudRate}
                       onChange={(e) => handleSerialBaudChange(Number(e.target.value))}
-                      className="flex h-9 w-[140px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex h-9 w-full max-w-full sm:w-[140px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {BAUD_OPTIONS.map((b) => (
                         <option key={b} value={b}>{b}</option>

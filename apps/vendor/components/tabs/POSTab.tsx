@@ -54,7 +54,7 @@ export function POSTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Selection */}
         <div className="lg:col-span-2 space-y-4">
-          <div className={`flex ${isArabic ? "flex-row-reverse" : "flex-row"} items-center gap-2`}>
+          <div className={`flex flex-col gap-2 sm:flex-row ${isArabic ? "sm:flex-row-reverse" : "sm:flex-row"} sm:items-center`}>
             <div className="relative flex-1">
               <Search
                 className={`absolute ${isArabic ? "right-3" : "left-3"} top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5`}
@@ -72,7 +72,7 @@ export function POSTab({
             <Button
               type="button"
               variant="outline"
-              className="shrink-0"
+              className="h-10 w-full shrink-0 px-4 sm:w-auto"
               onClick={onBarcodeScan}
             >
               <ScanLine className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
@@ -80,7 +80,7 @@ export function POSTab({
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {filteredProducts.map((product) => (
               <Card
                 key={product.id}
@@ -124,7 +124,7 @@ export function POSTab({
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 bg-transparent"
+                      className="h-10 w-10 bg-transparent"
                       onClick={() => onUpdateQuantity(item.productId, -1)}
                     >
                       <Minus className="w-4 h-4" />
@@ -133,7 +133,7 @@ export function POSTab({
                     <Button
                       variant="outline"
                       size="icon"
-                      className="h-8 w-8 bg-transparent"
+                      className="h-10 w-10 bg-transparent"
                       onClick={() => onUpdateQuantity(item.productId, 1)}
                     >
                       <Plus className="w-4 h-4" />
@@ -141,7 +141,7 @@ export function POSTab({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-red-600"
+                      className="h-10 w-10 text-red-600"
                       onClick={() => onRemoveFromCart(item.productId)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -170,7 +170,7 @@ export function POSTab({
                     type="number"
                     value={discount}
                     onChange={(e) => onDiscountChange(Number.parseFloat(e.target.value) || 0)}
-                    className="h-8"
+                    className="h-10"
                   />
                   <span className="text-sm">DZD</span>
                 </div>

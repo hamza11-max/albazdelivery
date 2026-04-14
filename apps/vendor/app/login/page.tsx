@@ -294,16 +294,16 @@ function LoginForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-3xl shadow-2xl overflow-hidden border border-transparent dark:border-gray-700">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-transparent bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
         {/* Logo Section */}
-        <div className="bg-black dark:bg-gray-900 p-8 text-center flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center justify-center bg-black p-6 text-center dark:bg-gray-900 sm:p-8">
           <img src={BRAND_MARK_SRC} alt="AlBaz" className="h-16 w-auto object-contain mb-2" />
           <p className="text-gray-300 text-sm">Vendor Dashboard</p>
         </div>
 
         {/* Form Section */}
-        <div className="p-8">
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">Connexion</h2>
+        <div className="p-5 sm:p-8">
+          <h2 className="mb-2 text-xl font-bold text-gray-800 dark:text-gray-100 sm:text-2xl">Connexion</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">Connectez-vous à votre compte vendeur</p>
 
           {error && (
@@ -355,10 +355,10 @@ function LoginForm() {
                       type="button"
                       disabled={loading}
                       onClick={() => handleShopTypeSelect(id)}
-                      className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50"
+                      className="flex flex-col items-start gap-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-left transition hover:border-teal-400 hover:bg-teal-50 disabled:opacity-50 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <span className="font-medium text-gray-800">{labels.fr}</span>
-                      <span className="text-sm text-gray-500">{labels.ar}</span>
+                      <span className="text-sm text-gray-500 sm:text-right">{labels.ar}</span>
                     </button>
                   )
                 })}

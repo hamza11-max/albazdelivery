@@ -42,7 +42,7 @@ export function ProductDialog({
               : translate("Remplissez les informations pour ajouter un nouveau produit à l'inventaire", "املأ المعلومات لإضافة منتج جديد إلى المخزون")}
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <Label>SKU</Label>
             <Input
@@ -65,10 +65,10 @@ export function ProductDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label className="flex items-center justify-between">
+            <Label className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
               <span>{translate("Code-barres", "الرمز الشريطي")}</span>
               {onScanBarcode && (
-                <Button type="button" variant="outline" size="sm" onClick={onScanBarcode} className="h-7 px-2">
+                <Button type="button" variant="outline" size="sm" onClick={onScanBarcode} className="h-9 w-full px-3 sm:w-auto">
                   <ScanLine className="w-4 h-4 mr-1" />
                   {translate("Scanner", "مسح")}
                 </Button>
@@ -112,9 +112,9 @@ export function ProductDialog({
               onChange={(e: ChangeEvent<HTMLInputElement>) => onFormChange({ ...productForm, lowStockThreshold: Number(e.target.value) })}
             />
           </div>
-          <div className="col-span-2 space-y-2">
+          <div className="space-y-2 md:col-span-2">
             <Label>{translate("Photo du Produit", "صورة المنتج")}</Label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               {onFileUpload ? (
                 <Input
                   type="file"
@@ -136,7 +136,7 @@ export function ProductDialog({
                   variant="outline"
                   size="sm"
                   onClick={() => onFormChange({ ...productForm, image: "" })}
-                  className="text-red-600 hover:text-red-700"
+                  className="h-9 w-full text-red-600 hover:text-red-700 sm:w-auto"
                 >
                   <X className="w-4 h-4 mr-1" />
                   {translate("Supprimer", "حذف")}

@@ -158,6 +158,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
               </div>
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -237,6 +238,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -256,6 +258,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                   {translate("Aucune alerte envoyée", "لم يتم إرسال أي تنبيهات")}
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -303,6 +306,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -326,7 +330,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                 placeholder={translate("Ex: Alerte stock faible", "مثال: تنبيه مخزون منخفض")}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>{translate("Type d'alerte", "نوع التنبيه")} *</Label>
                 <Select
@@ -372,7 +376,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
             </div>
             <div className="space-y-2">
               <Label>{translate("Canaux de notification", "قنوات الإشعارات")}</Label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {Object.entries(CHANNEL_LABELS).map(([key, labels]) => {
                   const Icon = labels.icon
                   const isSelected = (ruleForm.channels || []).includes(key as AlertChannel)
@@ -408,7 +412,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <Label>{translate("Activer", "تفعيل")}</Label>
               <Switch
                 checked={ruleForm.enabled !== undefined ? ruleForm.enabled : true}

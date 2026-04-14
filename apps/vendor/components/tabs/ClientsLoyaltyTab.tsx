@@ -18,7 +18,7 @@ export function ClientsLoyaltyTab({ customers, translate, setShowCustomerDialog,
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <h2 className="text-2xl font-bold">{translate("Clients & Fidélité", "العملاء والولاء")}</h2>
       <Tabs defaultValue="clients" className="space-y-4">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-1 sm:max-w-md sm:grid-cols-2">
           <TabsTrigger value="clients" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             {translate("Clients", "العملاء")}

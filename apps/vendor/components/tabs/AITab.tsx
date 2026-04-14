@@ -36,7 +36,7 @@ export function AITab({
         <CardContent>
           {salesForecast ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">{translate("Semaine Prochaine", "الأسبوع القادم")}</p>
                   <p className="text-2xl font-bold">{salesForecast.week?.toFixed(2)} {translate("DZD", "دج")}</p>
@@ -82,12 +82,12 @@ export function AITab({
           {inventoryRecommendations.length > 0 ? (
             <div className="space-y-3">
               {inventoryRecommendations.map((rec) => (
-                <div key={rec.productId} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div key={rec.productId} className="flex flex-col gap-2 rounded-lg bg-muted p-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="font-medium">{rec.productName}</p>
                     <p className="text-sm text-muted-foreground">{rec.reason}</p>
                   </div>
-                  <Badge>{translate("Commander", "طلب")} {rec.recommendedQuantity}</Badge>
+                  <Badge className="w-fit">{translate("Commander", "طلب")} {rec.recommendedQuantity}</Badge>
                 </div>
               ))}
             </div>
