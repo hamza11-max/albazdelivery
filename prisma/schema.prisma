@@ -50,6 +50,7 @@ model User {
   driverPerformance   DriverPerformance?
   subscription        Subscription?
   addresses           CustomerAddress[]
+  webauthnCredentials WebAuthnCredential[]
   
   @@index([email])
   @@index([phone])
@@ -960,4 +961,105 @@ model SubscriptionPasskey {
 
   @@index([subscriptionId])
   @@index([usedAt])
+}
+
+model WebAuthnCredential {
+  id               String                  @id @default(cuid())
+  userId           String
+  credentialId     String                  @unique
+  publicKey        String
+  counter          Int                     @default(0)
+  transports       String[]
+  deviceType       String?
+  backedUp         Boolean                 @default(false)
+  nickname         String?
+  status           WebAuthnCredentialStatus @default(PENDING)
+  approvedAt       DateTime?
+  approvedBy       String?
+  revokedAt        DateTime?
+  revokedBy        String?
+  revocationReason String?
+  lastUsedAt       DateTime?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([approvedAt])
+  @@index([revokedAt])
+}
+
+model WebAuthnChallenge {
+  id        String               @id @default(cuid())
+  userId    String?
+  challenge String               @unique
+  purpose   WebAuthnChallengePurpose
+  expiresAt DateTime
+  consumedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime             @default(now())
+
+  @@index([userId])
+  @@index([purpose])
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
+
+model WebAuthnPasskeyAuthGrant {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([consumedAt])
+}
+
+model PasskeyAuditLog {
+  id           String           @id @default(cuid())
+  actorUserId  String?
+  targetUserId String?
+  credentialId String?
+  action       PasskeyAuditAction
+  details      Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime         @default(now())
+
+  @@index([actorUserId])
+  @@index([targetUserId])
+  @@index([credentialId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+enum WebAuthnCredentialStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+enum WebAuthnChallengePurpose {
+  REGISTRATION
+  AUTHENTICATION
+}
+
+enum PasskeyAuditAction {
+  REGISTRATION_OPTIONS_ISSUED
+  REGISTRATION_COMPLETED_PENDING
+  AUTH_OPTIONS_ISSUED
+  AUTH_SUCCESS
+  AUTH_FAILED
+  ADMIN_APPROVED
+  ADMIN_REJECTED
+  ADMIN_REVOKED
 }

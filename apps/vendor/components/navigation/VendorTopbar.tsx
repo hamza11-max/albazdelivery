@@ -4,7 +4,6 @@ import Link from "next/link"
 import {
   Bell,
   LayoutDashboard,
-  Menu,
   Minimize2,
   Moon,
   Settings,
@@ -89,15 +88,8 @@ export function VendorTopbar({
   onLogout,
   onToggleTheme,
 }: VendorTopbarProps) {
-  const focusPosSearch = () => {
-    const el = document.getElementById("pos-search-input")
-    if (el && "focus" in el) {
-      ;(el as HTMLInputElement).focus()
-    }
-  }
-
   return (
-    <div className="glass-panel mb-4 px-3 py-3">
+    <div className="glass-panel sticky top-0 z-40 mb-4 px-3 py-3">
       <div
         className={cn(
           "flex flex-wrap items-center gap-2 sm:gap-3",
@@ -136,28 +128,6 @@ export function VendorTopbar({
           <div className="hidden min-w-0 truncate text-sm font-semibold text-foreground min-[420px]:block">
             {translate("AlBaz Vendor", "الباز للبائع")}
           </div>
-        </div>
-
-        <div className="order-last w-full min-w-0 sm:order-none sm:flex-1 sm:max-w-md lg:max-w-lg xl:max-w-xl">
-          <input
-            type="search"
-            readOnly
-            tabIndex={0}
-            aria-label={translate("Rechercher dans le POS", "البحث في نقطة البيع")}
-            placeholder={translate("Rechercher…", "بحث…")}
-            className={cn(
-              "neu-input text-muted-foreground placeholder:text-muted-foreground/80 h-10 w-full px-3 py-2 text-sm sm:h-11",
-              isArabic ? "text-right" : "text-left",
-            )}
-            onMouseDown={(e) => {
-              e.preventDefault()
-              focusPosSearch()
-            }}
-            onFocus={(e) => {
-              e.target.blur()
-              focusPosSearch()
-            }}
-          />
         </div>
 
         <div
@@ -204,7 +174,13 @@ export function VendorTopbar({
             )}
           </TopIconButton>
           <TopIconButton title={translate("Menu", "القائمة")} onClick={onOpenMenuPage}>
-            <Menu className={navIconSize} strokeWidth={strokeNav} />
+            <img
+              src={BRAND_MARK_SRC}
+              alt="ALBAZ menu"
+              width={22}
+              height={22}
+              className="h-[22px] w-[22px] rounded-sm object-contain"
+            />
           </TopIconButton>
           {isElectronRuntime && (
             <TopIconButton title={translate("Minimiser", "تصغير")} onClick={onMinimize}>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
+import { WebAuthnPasskeysTab } from "@/root/components/tabs/WebAuthnPasskeysTab"
 import { AdminHeader } from "../../../components/AdminHeader"
 import { Button } from "@albaz/ui"
 import { ArrowLeft } from "lucide-react"
@@ -68,6 +69,9 @@ export default function AdminPasskeysPage() {
             Retour au panneau
           </Button>
           <h2 className="text-xl font-semibold">Passkeys d&apos;abonnement</h2>
+        </div>
+        <div className="mb-6">
+          <WebAuthnPasskeysTab />
         </div>
         <PasskeysTab vendors={vendors} onRefresh={fetchVendors} listLimit={200} />
       </main>

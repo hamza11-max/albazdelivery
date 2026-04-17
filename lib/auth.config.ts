@@ -4,6 +4,7 @@ import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import { prisma } from './prisma'
 import { verifyPassword } from './password'
+import { consumePasskeyAuthGrant } from './webauthn/grants'
 
 export type UserRole = 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN'
 const algerianPhoneRegex = /^0[567]\d{8}$/
@@ -85,6 +86,29 @@ export const authConfig = {
       : []),
     Credentials({
       async authorize(credentials: any) {
+        const passkeyToken = String(credentials?.passkeyToken ?? "").trim()
+        if (passkeyToken) {
+          const userId = await consumePasskeyAuthGrant(passkeyToken)
+          if (!userId) {
+            return null
+          }
+
+          const passkeyUser = await prisma.user.findUnique({
+            where: { id: userId },
+          })
+
+          if (!passkeyUser) return null
+          if (passkeyUser.status !== "APPROVED") return null
+
+          return {
+            id: passkeyUser.id,
+            email: passkeyUser.email,
+            name: passkeyUser.name,
+            role: passkeyUser.role as UserRole,
+            status: passkeyUser.status as 'PENDING' | 'APPROVED' | 'REJECTED',
+          }
+        }
+
         const identifier = String(credentials?.identifier ?? '').trim()
         const password = String(credentials?.password ?? '')
         if (!identifier || !password) {

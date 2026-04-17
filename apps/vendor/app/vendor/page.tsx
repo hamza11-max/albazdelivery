@@ -119,8 +119,11 @@ import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSetting
 import { ErrorBoundary } from "../../components/ErrorBoundary"
 import { VendorTopbar } from "../../components/navigation/VendorTopbar"
 import { VendorMenuGrid } from "../../components/navigation/VendorMenuGrid"
+import { WebAuthnPasskeysCard } from "../../components/security/WebAuthnPasskeysCard"
+import { vendorMenuItems } from "../../components/navigation/vendor-menu-items"
 import { NotificationsPanel, type VendorNotificationItem } from "../../components/navigation/NotificationsPanel"
 import { StaffSwitchDialog } from "../../components/navigation/StaffSwitchDialog"
+import { getTabIdForShortcut, getVendorTabShortcut } from "../../components/navigation/tab-shortcuts"
 import {
   getTabsForShopType,
   isSettingsSectionVisible,
@@ -364,6 +367,20 @@ function VendorDashboardContent() {
       return true
     })
   }, [shopType, vendorFeatures])
+  const shortcutItems = useMemo(() => {
+    const menuEntry = { id: "menu", labelFr: "Menu rapide", labelAr: "القائمة السريعة" }
+    const tabEntries = vendorMenuItems
+      .filter((item) => allowedTabIds.includes(item.id))
+      .map((item) => ({
+        id: item.id,
+        labelFr: item.labelFr,
+        labelAr: item.labelAr,
+      }))
+    return [menuEntry, ...tabEntries].map((entry) => ({
+      ...entry,
+      shortcut: getVendorTabShortcut(entry.id),
+    }))
+  }, [allowedTabIds])
   useEffect(() => {
     if (activeTab === "menu") return
     if (allowedTabIds.length > 0 && !allowedTabIds.includes(activeTab)) {
@@ -599,6 +616,7 @@ function VendorDashboardContent() {
   const [staffPinResetOpen, setStaffPinResetOpen] = useState(false)
   const [staffPinResetTarget, setStaffPinResetTarget] = useState<any | null>(null)
   const [showStaffSwitchDialog, setShowStaffSwitchDialog] = useState(false)
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false)
   const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
   const [notifications, setNotifications] = useState<VendorNotificationItem[]>([])
   const [shopInfo, setShopInfo] = useState(() => {
@@ -1389,6 +1407,43 @@ function VendorDashboardContent() {
       }, 80)
     })
   }, [isElectronRuntime, setActiveTab])
+
+  // Keyboard shortcuts for all vendor pages (Ctrl/Cmd+Shift+<key>).
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const isTypingTarget =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      if (isTypingTarget) return
+
+      const isQuestionMark =
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        (event.key === "?" || (event.key === "/" && event.shiftKey))
+      if (isQuestionMark) {
+        event.preventDefault()
+        setShowShortcutsDialog(true)
+        return
+      }
+
+      const tabId = getTabIdForShortcut(event)
+      if (!tabId) return
+      if (tabId !== "menu" && !allowedTabIds.includes(tabId)) return
+
+      event.preventDefault()
+      setActiveTab(tabId)
+    }
+
+    window.addEventListener("keydown", handleKeydown)
+    return () => window.removeEventListener("keydown", handleKeydown)
+  }, [allowedTabIds, setActiveTab])
 
   // Load vendor store info to control intake/pause (skip in Electron offline mode — no web session)
   useEffect(() => {
@@ -2578,6 +2633,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           {/* Settings Tab — nested sub-tabs */}
           <TabsContent value="settings" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
+            <WebAuthnPasskeysCard translate={translate} />
 
             <Tabs defaultValue="shop" className="w-full gap-4">
               <TabsList className="mb-1 grid h-auto w-full max-w-full min-h-9 grid-cols-1 gap-1 p-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:justify-start">
@@ -3342,6 +3398,37 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         translate={translate}
         onSubmit={handleSwitchStaff}
       />
+
+      <Dialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              {translate("Raccourcis clavier", "اختصارات لوحة المفاتيح")}
+            </DialogTitle>
+            <DialogDescription>
+              {translate(
+                "Astuce: appuyez sur ? pour ouvrir cette aide, puis utilisez Ctrl+Shift+<lettre> pour naviguer.",
+                "نصيحة: اضغط ? لفتح هذه المساعدة، ثم استخدم Ctrl+Shift+<حرف> للتنقل.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid max-h-[55vh] gap-2 overflow-y-auto pr-1">
+            {shortcutItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm"
+              >
+                <span>{translate(item.labelFr, item.labelAr)}</span>
+                <kbd className="rounded border bg-background px-2 py-1 text-xs font-semibold">
+                  {item.shortcut}
+                </kbd>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Sale Success Dialog */}
       <SaleSuccessDialog

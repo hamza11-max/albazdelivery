@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from "@/root/components/ui/card"
 import { vendorMenuItems } from "./vendor-menu-items"
+import { getVendorTabShortcut } from "./tab-shortcuts"
 
 interface VendorMenuGridProps {
   allowedTabIds: string[]
@@ -19,6 +20,7 @@ export function VendorMenuGrid({ allowedTabIds, activeTab, translate, onSelectTa
         {items.map((item) => {
           const Icon = item.icon
           const isActive = activeTab === item.id
+          const shortcut = getVendorTabShortcut(item.id)
           return (
             <Card
               key={item.id}
@@ -30,6 +32,7 @@ export function VendorMenuGrid({ allowedTabIds, activeTab, translate, onSelectTa
               <CardContent className="flex min-h-24 flex-col items-center justify-center gap-2 p-3 text-center sm:min-h-28 sm:p-4">
                 <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
                 <span className="text-xs font-medium sm:text-sm">{translate(item.labelFr, item.labelAr)}</span>
+                {shortcut ? <span className="text-[10px] text-muted-foreground">{shortcut}</span> : null}
               </CardContent>
             </Card>
           )

@@ -10,6 +10,11 @@ import { Label } from "@/root/components/ui/label"
 import Link from "next/link"
 import { SHOP_TYPES, SHOP_TYPE_LABELS } from "../../config/shopTypes"
 import { BRAND_MARK_SRC } from "@/lib/brand-mark"
+import {
+  buildAuthenticationRequestOptions,
+  serializeAuthenticationCredential,
+  supportsWebAuthnInBrowser,
+} from "../../lib/webauthn-browser"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -30,6 +35,9 @@ function LoginForm() {
   const [isElectron, setIsElectron] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
+  const passkeyFeatureEnabled =
+    String(process.env.NEXT_PUBLIC_ALBAZ_FEATURE_WEBAUTHN_PASSKEYS || "").toLowerCase() === "true"
   const router = useRouter()
   const searchParams = useSearchParams()
   const isMountedRef = useRef(true)
@@ -292,6 +300,76 @@ function LoginForm() {
     }
   }
 
+  const handlePasskeySignIn = async () => {
+    setError("")
+    if (isElectron) return
+    if (!identifier.trim()) {
+      setError("Entrez d'abord votre email ou téléphone.")
+      return
+    }
+    if (!passkeyFeatureEnabled) {
+      setError("La connexion passkey est désactivée.")
+      return
+    }
+    if (!supportsWebAuthnInBrowser()) {
+      setError("Votre navigateur ne prend pas en charge la connexion WebAuthn.")
+      return
+    }
+
+    setPasskeyLoading(true)
+    try {
+      const optionsRes = await fetch("/api/auth/passkeys/auth/options", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ identifier }),
+      })
+      const optionsData = await optionsRes.json()
+      if (!optionsRes.ok || !optionsData?.success) {
+        throw new Error(optionsData?.error?.message || "Impossible de démarrer la connexion passkey")
+      }
+
+      const credential = (await navigator.credentials.get(
+        buildAuthenticationRequestOptions(optionsData.data.options),
+      )) as PublicKeyCredential | null
+      if (!credential) {
+        throw new Error("Connexion passkey annulée")
+      }
+
+      const verifyRes = await fetch("/api/auth/passkeys/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          challengeId: optionsData.data.challengeId,
+          credential: serializeAuthenticationCredential(credential),
+        }),
+      })
+      const verifyData = await verifyRes.json()
+      if (!verifyRes.ok || !verifyData?.success) {
+        throw new Error(verifyData?.error?.message || "Échec de la vérification passkey")
+      }
+
+      const signInResult = await signIn("credentials", {
+        passkeyToken: verifyData.data.passkeyToken,
+        redirect: false,
+      })
+      if (signInResult?.error) {
+        throw new Error("Impossible de finaliser la session passkey")
+      }
+
+      router.push("/vendor")
+      router.refresh()
+      setTimeout(() => {
+        window.location.href = "/vendor"
+      }, 100)
+    } catch (err: any) {
+      setError(err?.message || "Connexion passkey échouée")
+    } finally {
+      setPasskeyLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md overflow-hidden rounded-3xl border border-transparent bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
@@ -527,6 +605,17 @@ function LoginForm() {
               >
                 {loading ? "Connexion..." : "Se connecter"}
               </Button>
+              {!isElectron && passkeyFeatureEnabled && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePasskeySignIn}
+                  disabled={passkeyLoading || loading}
+                  className="w-full"
+                >
+                  {passkeyLoading ? "Connexion passkey..." : "Se connecter avec passkey"}
+                </Button>
+              )}
             </form>
           )}
 

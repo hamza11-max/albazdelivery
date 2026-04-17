@@ -154,6 +154,42 @@ import type {
   CategoriesData
 } from "./types"
 
+const VENDOR_PAGE_SHORTCUTS: Record<string, string> = {
+  dashboard: "Ctrl+Shift+D",
+  pos: "Ctrl+Shift+P",
+  inventory: "Ctrl+Shift+I",
+  orders: "Ctrl+Shift+O",
+  drivers: "Ctrl+Shift+V",
+  sales: "Ctrl+Shift+S",
+  reports: "Ctrl+Shift+R",
+  coupons: "Ctrl+Shift+C",
+  "sync-save": "Ctrl+Shift+Y",
+  email: "Ctrl+Shift+E",
+  "staff-permissions": "Ctrl+Shift+F",
+  "clients-loyalty": "Ctrl+Shift+L",
+  suppliers: "Ctrl+Shift+U",
+  ai: "Ctrl+Shift+G",
+  settings: "Ctrl+Shift+N",
+}
+
+const VENDOR_PAGE_SHORTCUT_LABELS: Array<{ id: string; labelFr: string; labelAr: string }> = [
+  { id: "dashboard", labelFr: "Tableau de bord", labelAr: "لوحة التحكم" },
+  { id: "pos", labelFr: "Point de Vente", labelAr: "نقطة البيع" },
+  { id: "inventory", labelFr: "Inventaire", labelAr: "المخزون" },
+  { id: "orders", labelFr: "Commandes", labelAr: "الطلبات" },
+  { id: "drivers", labelFr: "Chauffeurs", labelAr: "السائقون" },
+  { id: "sales", labelFr: "Ventes", labelAr: "المبيعات" },
+  { id: "reports", labelFr: "Rapports", labelAr: "التقارير" },
+  { id: "coupons", labelFr: "Coupons", labelAr: "الكوبونات" },
+  { id: "sync-save", labelFr: "Sync & Sauvegarde", labelAr: "المزامنة والنسخ الاحتياطي" },
+  { id: "email", labelFr: "Email", labelAr: "البريد الإلكتروني" },
+  { id: "staff-permissions", labelFr: "Personnel & Permissions", labelAr: "الموظفون والصلاحيات" },
+  { id: "clients-loyalty", labelFr: "Clients & Fidélité", labelAr: "العملاء والولاء" },
+  { id: "suppliers", labelFr: "Fournisseurs", labelAr: "الموردون" },
+  { id: "ai", labelFr: "Analyse IA", labelAr: "تحليلات الذكاء الاصطناعي" },
+  { id: "settings", labelFr: "Paramètres", labelAr: "الإعدادات" },
+]
+
 function VendorDashboardContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -164,6 +200,7 @@ function VendorDashboardContent() {
   
   // Mobile view state - 'home' shows homepage, other values show specific tabs
   const [mobileView, setMobileView] = useState<'home' | string>('home')
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false)
   const [ordersCustomerFilter, setOrdersCustomerFilter] = useState<string | null>(null)
   const [highlightOrderId, setHighlightOrderId] = useState<string | null>(null)
   
@@ -1085,6 +1122,47 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     }
   }, [setActiveTab])
 
+  // Keyboard shortcuts for all pages/tabs + "?" help.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const isTypingTarget =
+        !!target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable)
+      if (isTypingTarget) return
+
+      const isQuestionMark =
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        (event.key === "?" || (event.key === "/" && event.shiftKey))
+      if (isQuestionMark) {
+        event.preventDefault()
+        setShowShortcutsDialog(true)
+        return
+      }
+
+      if (!(event.ctrlKey || event.metaKey) || !event.shiftKey || event.altKey) return
+      const key = event.key.toLowerCase()
+      const combo = `Ctrl+Shift+${key.toUpperCase()}`
+      const tabId =
+        Object.entries(VENDOR_PAGE_SHORTCUTS).find(([, shortcut]) => shortcut === combo)?.[0] ?? null
+      if (!tabId || !vendorTabIds.has(tabId)) return
+
+      event.preventDefault()
+      setActiveTab(tabId)
+      if (isMobile) setMobileView(tabId)
+    }
+
+    window.addEventListener("keydown", handleKeydown)
+    return () => window.removeEventListener("keydown", handleKeydown)
+  }, [isMobile, setActiveTab, vendorTabIds])
+
   // Mobile Homepage Component - Clean icon grid, no dashboard content
   const MobileHomepage = () => {
     const menuItems = [
@@ -1126,6 +1204,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                   <Icon className="w-8 h-8 text-white" />
                 </div>
                 <span className="text-sm font-semibold text-center leading-tight">{label}</span>
+                <span className="text-[10px] text-muted-foreground">{VENDOR_PAGE_SHORTCUTS[item.id]}</span>
               </button>
             )
           })}
@@ -2063,6 +2142,37 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
       {/* Mobile Bottom Navigation */}
       {isMobile && <MobileBottomNav />}
+
+      <Dialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HelpCircle className="h-5 w-5" />
+              {translate("Raccourcis clavier", "اختصارات لوحة المفاتيح")}
+            </DialogTitle>
+            <DialogDescription>
+              {translate(
+                "Astuce: appuyez sur ? pour ouvrir cette aide, puis utilisez Ctrl+Shift+<lettre> pour naviguer.",
+                "نصيحة: اضغط ? لفتح هذه المساعدة، ثم استخدم Ctrl+Shift+<حرف> للتنقل.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid max-h-[55vh] gap-2 overflow-y-auto pr-1">
+            {VENDOR_PAGE_SHORTCUT_LABELS.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm"
+              >
+                <span>{translate(item.labelFr, item.labelAr)}</span>
+                <kbd className="rounded border bg-background px-2 py-1 text-xs font-semibold">
+                  {VENDOR_PAGE_SHORTCUTS[item.id]}
+                </kbd>
+              </div>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Sale Success Dialog */}
       <SaleSuccessDialog
