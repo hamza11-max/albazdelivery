@@ -1,0 +1,181 @@
+__tests__/hooks/usePOSCart.test.tsx(18,5): error TS2353: Object literal may only specify known properties, and 'vendorId' does not exist in type 'InventoryProduct'.
+__tests__/hooks/usePOSHandlers.test.tsx(92,54): error TS7030: Not all code paths return a value.
+__tests__/hooks/usePOSHandlers.test.tsx(113,54): error TS7030: Not all code paths return a value.
+__tests__/utils/productUtils.test.ts(94,9): error TS2353: Object literal may only specify known properties, and 'vendorId' does not exist in type 'InventoryProduct'.
+__tests__/utils/productUtils.test.ts(130,9): error TS2353: Object literal may only specify known properties, and 'fetchInventory' does not exist in type 'SaveProductParams'.
+__tests__/utils/productUtils.test.ts(157,9): error TS2353: Object literal may only specify known properties, and 'fetchInventory' does not exist in type 'SaveProductParams'.
+__tests__/utils/productUtils.test.ts(214,11): error TS2353: Object literal may only specify known properties, and 'vendorId' does not exist in type 'InventoryProduct'.
+__tests__/utils/productUtils.test.ts(230,11): error TS2353: Object literal may only specify known properties, and 'vendorId' does not exist in type 'InventoryProduct'.
+app/api/auth/[...nextauth]/route.ts(46,31): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/auth/[...nextauth]/route.ts(59,32): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/ai-insights/route.ts(12,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/customers/route.ts(19,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/customers/route.ts(231,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/dashboard/route.ts(15,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/inventory/route.ts(50,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/inventory/route.ts(184,47): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/inventory/route.ts(350,47): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/inventory/route.ts(480,47): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/sales/route.ts(43,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/sales/route.ts(164,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/suppliers/route.ts(25,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/suppliers/route.ts(145,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/suppliers/route.ts(193,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/erp/suppliers/route.ts(260,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/stores/[id]/domains/route.ts(91,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/stores/[id]/domains/route.ts(156,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/stores/[id]/domains/verify/route.ts(28,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/stores/[id]/route.ts(48,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/stores/route.ts(16,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/subscriptions/cancel/route.ts(5,40): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/subscriptions/route.ts(8,33): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/subscriptions/route.ts(12,34): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/vendor/domains/route.ts(90,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/vendor/domains/route.ts(149,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/vendor/domains/verify/route.ts(25,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/vendors/orders/route.ts(14,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+app/api/vendors/orders/route.ts(175,49): error TS2345: Argument of type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/spec-extension/request").NextRequest' is not assignable to parameter of type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/spec-extension/request").NextRequest'.
+  Types of property 'nextUrl' are incompatible.
+    Property '[Internal]' is missing in type 'import("e:/nn/albazdelivery/apps/vendor/node_modules/next/dist/server/web/next-url").NextURL' but required in type 'import("e:/nn/albazdelivery/node_modules/next/dist/server/web/next-url").NextURL'.
+components/dialogs/CouponDialog.tsx(252,26): error TS18048: 'formData.usageLimit' is possibly 'undefined'.
+components/tabs/CouponsTab.tsx(80,9): error TS18048: 'coupon.usageLimit' is possibly 'undefined'.
+components/tabs/CouponsTab.tsx(80,54): error TS18048: 'coupon.usageLimit' is possibly 'undefined'.
+components/tabs/CouponsTab.tsx(178,26): error TS18048: 'coupon.usageLimit' is possibly 'undefined'.
+components/tabs/PermissionsTab.tsx(102,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+components/tabs/PermissionsTab.tsx(132,42): error TS2345: Argument of type 'string' is not assignable to parameter of type 'Role'.
+components/tabs/PermissionsTab.tsx(201,33): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Record<Role, RolePermissions>'.
+  No index signature with a parameter of type 'string' was found on type 'Record<Role, RolePermissions>'.
+components/tabs/PermissionsTab.tsx(251,36): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'Record<Role, RolePermissions>'.
+  No index signature with a parameter of type 'string' was found on type 'Record<Role, RolePermissions>'.
+utils/aiUtils.ts(28,9): error TS18046: 'data' is of type 'unknown'.
+utils/aiUtils.ts(29,17): error TS18046: 'data' is of type 'unknown'.
+utils/cloudSyncUtils.ts(100,26): error TS18046: 'result' is of type 'unknown'.
+utils/customerUtils.ts(38,26): error TS2345: Argument of type '{ id: string; vendorId: string; createdAt: string; name: string; email: string; phone: string; address: string; }' is not assignable to parameter of type 'Customer'.
+  Property 'totalPurchases' is missing in type '{ id: string; vendorId: string; createdAt: string; name: string; email: string; phone: string; address: string; }' but required in type 'Customer'.
+utils/customerUtils.ts(60,9): error TS18046: 'data' is of type 'unknown'.
+utils/customerUtils.ts(70,9): error TS18046: 'data' is of type 'unknown'.
+utils/driverUtils.ts(32,9): error TS18046: 'data' is of type 'unknown'.
+utils/driverUtils.ts(33,27): error TS18046: 'data' is of type 'unknown'.
+utils/driverUtils.ts(34,32): error TS18046: 'data' is of type 'unknown'.
+utils/driverUtils.ts(76,9): error TS18046: 'data' is of type 'unknown'.
+utils/driverUtils.ts(91,9): error TS18046: 'data' is of type 'unknown'.
+utils/fileUtils.ts(97,15): error TS2322: Type '{ image: string; id: number; sku: string; name: string; description: string; category: string; supplierId: string; costPrice: string; sellingPrice: string; price: string; stock: number; lowStockThreshold: number; barcode: string; vendorId: string; createdAt: Date; updatedAt: Date; }' is not assignable to type 'InventoryProduct'.
+  Types of property 'supplierId' are incompatible.
+    Type 'string' is not assignable to type 'number'.
+utils/fileUtils.ts(121,15): error TS18046: 'data' is of type 'unknown'.
+utils/fileUtils.ts(133,15): error TS18046: 'data' is of type 'unknown'.
+utils/fileUtils.ts(133,38): error TS18046: 'data' is of type 'unknown'.
+utils/fileUtils.ts(159,23): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+utils/inventoryAlertsChecker.ts(54,15): error TS2322: Type 'number' is not assignable to type 'string'.
+utils/inventoryAlertsChecker.ts(76,19): error TS2322: Type 'number' is not assignable to type 'string'.
+utils/inventoryAlertsChecker.ts(87,19): error TS2322: Type 'number' is not assignable to type 'string'.
+utils/orderUtils.ts(42,9): error TS18046: 'data' is of type 'unknown'.
+utils/orderUtils.ts(82,9): error TS18046: 'data' is of type 'unknown'.
+utils/productUtils.ts(62,11): error TS2322: Type '{ id: string | number; costPrice: number; sellingPrice: number; price: number; stock: number; lowStockThreshold: number; vendorId: string; createdAt: string; updatedAt: string; sku: string; supplierId: string; ... 4 more ...; category: string; }' is not assignable to type 'InventoryProduct'.
+  Types of property 'id' are incompatible.
+    Type 'string | number' is not assignable to type 'number'.
+      Type 'string' is not assignable to type 'number'.
+utils/productUtils.ts(100,9): error TS18046: 'data' is of type 'unknown'.
+utils/productUtils.ts(124,21): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'InventoryProduct[]'.
+  Type 'unknown' is not assignable to type 'InventoryProduct'.
+utils/productUtils.ts(125,52): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(predicate: (value: unknown, index: number, array: unknown[]) => value is InventoryProduct, thisArg?: any): InventoryProduct[]', gave the following error.
+    Argument of type '(p: InventoryProduct) => boolean' is not assignable to parameter of type '(value: unknown, index: number, array: unknown[]) => value is InventoryProduct'.
+      Types of parameters 'p' and 'value' are incompatible.
+        Type 'unknown' is not assignable to type 'InventoryProduct'.
+  Overload 2 of 2, '(predicate: (value: unknown, index: number, array: unknown[]) => unknown, thisArg?: any): unknown[]', gave the following error.
+    Argument of type '(p: InventoryProduct) => boolean' is not assignable to parameter of type '(value: unknown, index: number, array: unknown[]) => unknown'.
+      Types of parameters 'p' and 'value' are incompatible.
+        Type 'unknown' is not assignable to type 'InventoryProduct'.
+utils/productUtils.ts(136,9): error TS18046: 'data' is of type 'unknown'.
+utils/productUtils.ts(204,9): error TS18046: 'data' is of type 'unknown'.
+utils/productUtils.ts(217,9): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(113,7): error TS2322: Type '{ productId: string | number; productName: string; quantity: number; price: number; discount: number; }[]' is not assignable to type 'SaleItem[]'.
+  Type '{ productId: string | number; productName: string; quantity: number; price: number; discount: number; }' is not assignable to type 'SaleItem'.
+    Types of property 'productId' are incompatible.
+      Type 'string | number' is not assignable to type 'number'.
+        Type 'string' is not assignable to type 'number'.
+utils/saleUtils.ts(284,26): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(288,11): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(288,48): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(289,34): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(294,18): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(294,54): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(295,34): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(301,24): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(301,47): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(309,9): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(310,32): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(313,28): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(322,17): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(323,17): error TS18046: 'data' is of type 'unknown'.
+utils/saleUtils.ts(353,9): error TS18046: 'data' is of type 'unknown'.
+utils/supplierUtils.ts(38,26): error TS2345: Argument of type '{ id: string; vendorId: string; createdAt: string; name: string; contactPerson: string; phone: string; email: string; address: string; }' is not assignable to parameter of type 'Supplier'.
+  Property 'productsSupplied' is missing in type '{ id: string; vendorId: string; createdAt: string; name: string; contactPerson: string; phone: string; email: string; address: string; }' but required in type 'Supplier'.
+utils/supplierUtils.ts(62,9): error TS18046: 'data' is of type 'unknown'.
+utils/supplierUtils.ts(72,9): error TS18046: 'data' is of type 'unknown'.
+../../utils/aiUtils.ts(21,9): error TS18046: 'data' is of type 'unknown'.
+../../utils/aiUtils.ts(22,17): error TS18046: 'data' is of type 'unknown'.
+../../utils/cloudSyncUtils.ts(100,26): error TS18046: 'result' is of type 'unknown'.
+../../utils/driverUtils.ts(23,9): error TS18046: 'data' is of type 'unknown'.
+../../utils/driverUtils.ts(24,27): error TS18046: 'data' is of type 'unknown'.
+../../utils/driverUtils.ts(25,32): error TS18046: 'data' is of type 'unknown'.
+../../utils/driverUtils.ts(67,9): error TS18046: 'data' is of type 'unknown'.
+../../utils/driverUtils.ts(82,9): error TS18046: 'data' is of type 'unknown'.

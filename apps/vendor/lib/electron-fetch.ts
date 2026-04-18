@@ -26,7 +26,10 @@ export async function electronFetch(
     }
   }
 
-  return fetch(url, options)
+  // Browser: ensure NextAuth session cookies are sent (defaults omit credentials on some stacks).
+  const credentials = options.credentials ?? (isElectron ? 'same-origin' : 'include')
+
+  return fetch(url, { ...options, credentials })
 }
 
 export function isElectronRuntime(): boolean {

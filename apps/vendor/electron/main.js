@@ -170,6 +170,88 @@ function getAuthStore() {
   return new Store({ name: 'vendor-auth' })
 }
 
+/** Read NEXTAUTH_SECRET from apps/vendor/.env.local so main-process JWTs match the Next server in dev. */
+function readNextAuthSecretFromVendorEnvLocal() {
+  try {
+    const p = path.join(__dirname, '..', '.env.local')
+    if (!fs.existsSync(p)) return ''
+    const raw = fs.readFileSync(p, 'utf8')
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const m = trimmed.match(/^NEXTAUTH_SECRET\s*=\s*(.*)$/)
+      if (!m) continue
+      let v = m[1].trim()
+      if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+        v = v.slice(1, -1)
+      }
+      return v
+    }
+    return ''
+  } catch (_) {
+    return ''
+  }
+}
+
+/**
+ * Secret for JWTs minted in the main process — must match verification in
+ * lib/get-session-from-request.ts and signing in apps/vendor electron-login route.
+ * Packaged standalone spawns Next with NEXTAUTH_SECRET defaulting to electron-offline-…
+ */
+function getVendorJwtSecretForMain() {
+  const fromEnv = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || readNextAuthSecretFromVendorEnvLocal()
+  if (fromEnv) return fromEnv
+  if (app.isPackaged) {
+    return 'electron-offline-secret-' + (process.env.ALBAZ_ELECTRON_PASSKEY || 'default')
+  }
+  return 'fallback-secret'
+}
+
+let _vendorJwtLib = null
+function getJsonwebtoken() {
+  if (_vendorJwtLib) return _vendorJwtLib
+  const searchRoots = [
+    path.join(__dirname, '..'),
+    path.join(__dirname, '..', '..'),
+    path.join(__dirname, '..', '..', '..'),
+  ]
+  for (const root of searchRoots) {
+    try {
+      _vendorJwtLib = require(require.resolve('jsonwebtoken', { paths: [root] }))
+      return _vendorJwtLib
+    } catch (_) {
+      /* try next */
+    }
+  }
+  throw new Error('jsonwebtoken not found (install workspace deps from repo root)')
+}
+
+/** Map offline roles so vendor-only API routes accept local owner/staff sessions. */
+function mapLocalRoleToApiVendorRole(role) {
+  const r = String(role || '').toUpperCase()
+  if (r === 'ADMIN') return 'ADMIN'
+  return 'VENDOR'
+}
+
+function mintVendorDesktopJwt(userProfile) {
+  const jwt = getJsonwebtoken()
+  const secret = getVendorJwtSecretForMain()
+  const userId = String(userProfile && userProfile.id ? userProfile.id : '')
+  const email = String(userProfile && userProfile.email ? userProfile.email : '').trim() || 'local@vendor.offline'
+  const role = mapLocalRoleToApiVendorRole(userProfile && userProfile.role)
+  if (!userId) throw new Error('mintVendorDesktopJwt: missing user id')
+  return jwt.sign(
+    {
+      userId,
+      email,
+      role,
+      vendorId: userId,
+    },
+    secret,
+    { expiresIn: '7d' }
+  )
+}
+
 function getVendorConfig() {
   let config = {}
   if (!app.isPackaged) return config
@@ -783,10 +865,17 @@ ipcMain.handle('auth-login', async (event, credentials) => {
             phone: staff.phone || '',
             role: staff.role || 'STAFF',
           }
+          let desktopJwt
+          try {
+            desktopJwt = mintVendorDesktopJwt(userProfile)
+          } catch (e) {
+            console.error('[Electron Auth] Could not mint desktop JWT (staff):', e && e.message)
+            return { success: false, error: 'Could not start session. Restart the app or check installation.' }
+          }
           store.set('vendor_auth_state', {
             isAuthenticated: true,
             user: userProfile,
-            token: `electron-local-${Date.now()}`,
+            token: desktopJwt,
             expiresAt: Date.now() + (12 * 60 * 60 * 1000),
             sessionId: currentSessionId,
           })
@@ -812,10 +901,17 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           phone: localAccount.profile?.phone || '',
           role: localAccount.type === 'owner' ? 'OWNER' : (localAccount.profile?.role || 'STAFF'),
         }
+        let desktopJwt
+        try {
+          desktopJwt = mintVendorDesktopJwt(userProfile)
+        } catch (e) {
+          console.error('[Electron Auth] Could not mint desktop JWT (PIN):', e && e.message)
+          return { success: false, error: 'Could not start session. Restart the app or check installation.' }
+        }
         store.set('vendor_auth_state', {
           isAuthenticated: true,
           user: userProfile,
-          token: `electron-local-${Date.now()}`,
+          token: desktopJwt,
           expiresAt: Date.now() + (12 * 60 * 60 * 1000),
           sessionId: currentSessionId,
         })
@@ -841,10 +937,17 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           phone: localAccount.profile?.phone || '',
           role: localAccount.type === 'owner' ? 'OWNER' : (localAccount.profile?.role || 'STAFF'),
         }
+        let desktopJwt
+        try {
+          desktopJwt = mintVendorDesktopJwt(userProfile)
+        } catch (e) {
+          console.error('[Electron Auth] Could not mint desktop JWT (local password):', e && e.message)
+          return { success: false, error: 'Could not start session. Restart the app or check installation.' }
+        }
         store.set('vendor_auth_state', {
           isAuthenticated: true,
           user: userProfile,
-          token: `electron-local-${Date.now()}`,
+          token: desktopJwt,
           expiresAt: Date.now() + (12 * 60 * 60 * 1000),
           sessionId: currentSessionId,
         })
