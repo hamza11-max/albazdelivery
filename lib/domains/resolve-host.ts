@@ -16,7 +16,7 @@ export interface ResolveHostOptions {
   baseDomain?: string
 }
 
-const DEFAULT_BASE_DOMAIN = 'albazdelivery.com'
+const DEFAULT_BASE_DOMAIN = 'al-baz.app'
 
 function getBaseDomain(baseDomainOverride?: string): string {
   return normalizeHost(baseDomainOverride || process.env.BASE_DOMAIN || DEFAULT_BASE_DOMAIN) || DEFAULT_BASE_DOMAIN

@@ -47,6 +47,7 @@ interface POSViewProps {
   onCouponCodeChange?: (code: string) => void
   onApplyCoupon?: () => void
   onRemoveCoupon?: () => void
+  isElectronFullscreen?: boolean
 }
 
 export function POSView({
@@ -85,6 +86,7 @@ export function POSView({
   onCouponCodeChange = () => {},
   onApplyCoupon = () => {},
   onRemoveCoupon = () => {},
+  isElectronFullscreen = false,
 }: POSViewProps) {
   const [showCustomItemDialog, setShowCustomItemDialog] = useState(false)
   const [customItemName, setCustomItemName] = useState("")
@@ -118,12 +120,12 @@ export function POSView({
     }
   }
   return (
-    <div className={`flex min-h-[calc(100vh-120px)] w-full flex-col items-start gap-4 bg-transparent lg:flex-row lg:gap-5 xl:gap-6 ${isArabic ? 'lg:flex-row-reverse' : ''}`}>
+    <div className={`flex w-full flex-col items-start gap-4 bg-transparent lg:min-h-0 lg:overflow-hidden lg:flex-row lg:gap-5 xl:gap-6 ${isElectronFullscreen ? "lg:h-[calc(100dvh-84px)]" : "lg:h-[calc(100dvh-96px)]"} ${isArabic ? 'lg:flex-row-reverse' : ''}`}>
       {/* Products Area - Left Side (2/3 width) */}
-      <div className="flex w-full flex-1 flex-col overflow-hidden lg:w-[62%] xl:w-[65%]">
+      <div className="flex min-h-[520px] w-full flex-1 flex-col overflow-hidden lg:h-full lg:min-h-0 lg:w-[62%] xl:w-[65%]">
         {/* Product Area */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-3 md:p-5 xl:p-6">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden min-w-0">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-3 md:p-5 xl:p-6">
             {/* Prominent Total Display */}
             <div className="rounded-xl border-2 border-albaz-orange-500 bg-black px-4 py-4 text-red-500 shadow-lg sm:px-6 sm:py-6">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -191,7 +193,7 @@ export function POSView({
             </div>
 
             {/* Product Grid */}
-            <div className="flex-1 overflow-y-auto min-w-0">
+            <div className="min-h-[260px] flex-1 overflow-y-auto min-w-0 overscroll-contain pr-1">
               <h3 className="text-lg font-semibold text-albaz-green-700 dark:text-albaz-green-300 mb-4">
                 {translate("Choisir des produits", "اختر المنتجات")}
               </h3>
@@ -261,7 +263,7 @@ export function POSView({
       </div>
 
       {/* Cart and Keyboard Panel - Right Side (1/3 width) */}
-      <div className={`flex w-full flex-col self-start border-border bg-card shadow-xl lg:sticky lg:top-2 lg:w-[38%] lg:max-w-[560px] lg:min-w-[380px] lg:border-t-0 xl:w-[35%] ${isArabic ? 'lg:border-r' : 'lg:border-l'} border-t`}>
+      <div className={`flex w-full flex-col self-start border-border bg-card shadow-xl lg:h-full lg:w-[38%] lg:max-w-[560px] lg:min-w-[380px] lg:border-t-0 xl:w-[35%] ${isArabic ? 'lg:border-r' : 'lg:border-l'} border-t`}>
         <div className="border-b border-border p-4 sm:p-6">
           <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-bold text-albaz-green-700 dark:text-albaz-green-300">

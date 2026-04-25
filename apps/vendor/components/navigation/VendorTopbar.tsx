@@ -3,6 +3,7 @@
 import Link from "next/link"
 import {
   Bell,
+  HelpCircle,
   LayoutDashboard,
   Minimize2,
   Moon,
@@ -39,6 +40,7 @@ interface VendorTopbarProps {
   onOpenProfile: () => void
   onOpenNotifications: () => void
   onOpenMenuPage: () => void
+  onOpenHelp: () => void
   onMinimize: () => void
   onLogout: () => void
   onToggleTheme: () => void
@@ -84,22 +86,23 @@ export function VendorTopbar({
   onOpenProfile,
   onOpenNotifications,
   onOpenMenuPage,
+  onOpenHelp,
   onMinimize,
   onLogout,
   onToggleTheme,
 }: VendorTopbarProps) {
   return (
-    <div className="glass-panel sticky top-0 z-40 mb-4 px-3 py-3">
+    <header className="glass-panel sticky top-0 z-50 mb-4 rounded-none border-x-0 border-t-0 px-3 py-3 shadow-sm sm:px-4">
       <div
         className={cn(
-          "flex flex-wrap items-center gap-2 sm:gap-3",
+          "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:gap-3",
           isArabic ? "flex-row-reverse" : "",
         )}
       >
         {/* Brand lockup: official asset, full mark, no circular crop */}
         <div
           className={cn(
-            "flex min-w-0 flex-1 items-center gap-2 sm:flex-none sm:gap-3",
+            "flex min-w-0 items-center gap-2 sm:gap-3",
             isArabic ? "flex-row-reverse" : "",
           )}
         >
@@ -132,7 +135,7 @@ export function VendorTopbar({
 
         <div
           className={cn(
-            "ms-auto flex max-w-full items-center justify-end gap-2 overflow-x-auto pb-1 sm:ms-0 sm:gap-2.5 lg:overflow-visible",
+            "flex max-w-full items-center justify-center gap-2 overflow-x-auto pb-1 sm:gap-2.5 lg:overflow-visible",
             isArabic ? "flex-row-reverse" : "",
           )}
           aria-label={translate("Actions rapides", "إجراءات سريعة")}
@@ -182,6 +185,17 @@ export function VendorTopbar({
               className="h-[22px] w-[22px] rounded-sm object-contain"
             />
           </TopIconButton>
+          <TopIconButton title={translate("Aide", "مساعدة")} onClick={onOpenHelp} className={iconOrange}>
+            <HelpCircle className={navIconSize} strokeWidth={strokeNav} />
+          </TopIconButton>
+        </div>
+
+        <div
+          className={cn(
+            "flex min-w-0 items-center justify-end gap-2",
+            isArabic ? "justify-start" : "",
+          )}
+        >
           {isElectronRuntime && (
             <TopIconButton title={translate("Minimiser", "تصغير")} onClick={onMinimize}>
               <Minimize2 className={navIconSize} strokeWidth={strokeNav} />
@@ -192,6 +206,6 @@ export function VendorTopbar({
           </TopIconButton>
         </div>
       </div>
-    </div>
+    </header>
   )
 }

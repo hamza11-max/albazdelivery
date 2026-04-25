@@ -4,21 +4,21 @@ import {
   csrfProtection,
   setCsrfTokenCookie,
   generateCsrfToken,
-} from '@/lib/security/csrf'
+} from './lib/security/csrf'
 import {
   securityHeadersMiddleware,
   handleCorsPreflight,
   applySecurityHeaders,
-} from '@/lib/security/headers'
+} from './lib/security/headers'
 import {
   auditSecurityEventConsole,
   getClientInfo,
-} from '@/lib/security/audit-client-info'
+} from './lib/security/audit-client-info'
 import {
   extractSubdomain,
   isReservedSubdomain,
   normalizeHost,
-} from '@/lib/domains/utils'
+} from './lib/domains/utils'
 
 /**
  * Pathnames that must NEVER be rewritten to the storefront, even when the
@@ -68,7 +68,7 @@ function collectPlatformHosts(baseDomain: string): Set<string> {
 
 /**
  * Global middleware with:
- * - Tenant host + subdomain detection (take.app-style storefront rewriting)
+ * - Tenant host + subdomain detection (vendor subdomain → /s/{slug} rewrite)
  * - Conditional CSRF protection
  * - Security headers
  * - CORS handling
@@ -78,7 +78,7 @@ export default async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const requestHeaders = new Headers(request.headers)
   const normalizedHost = normalizeHost(request.headers.get('host'))
-  const baseDomain = normalizeHost(process.env.BASE_DOMAIN || '') || 'albazdelivery.com'
+  const baseDomain = normalizeHost(process.env.BASE_DOMAIN || '') || 'al-baz.app'
   const platformHosts = collectPlatformHosts(baseDomain)
 
   // Detect tenant host + (optional) subdomain
@@ -105,7 +105,7 @@ export default async function middleware(request: NextRequest) {
   }
 
   // -----------------------------------------------------------------
-  // Storefront rewrite (take.app-style). Edge-safe: no DB access here.
+  // Storefront rewrite (e.g. demo.al-baz.app). Edge-safe: no DB access here.
   // Vendor resolution by host happens inside app/s/[vendorSlug]/layout.tsx.
   // -----------------------------------------------------------------
   if (!shouldBypassStorefrontRewrite(pathname)) {

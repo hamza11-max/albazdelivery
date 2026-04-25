@@ -263,6 +263,8 @@ interface ElectronAPI {
   appWindow?: {
     minimize: () => Promise<{ success?: boolean }>
     close: () => Promise<{ success?: boolean }>
+    isFullscreen?: () => Promise<boolean>
+    onFullscreenChange?: (callback: (isFullscreen: boolean) => void) => () => void
     minimizeSend?: () => void
     closeSend?: () => void
   }

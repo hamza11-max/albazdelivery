@@ -27,7 +27,7 @@ interface VendorDomainsCardProps {
   translate?: (fr: string, ar: string) => string
   /**
    * Apex domain used to construct the preview link for subdomains. Defaults
-   * to `NEXT_PUBLIC_BASE_DOMAIN` or `albazdelivery.com`.
+   * to `NEXT_PUBLIC_BASE_DOMAIN` or `al-baz.app`.
    */
   baseDomain?: string
 }
@@ -71,7 +71,7 @@ export function VendorDomainsCard({
     () =>
       (baseDomain ||
         process.env.NEXT_PUBLIC_BASE_DOMAIN ||
-        "albazdelivery.com") as string,
+        "al-baz.app") as string,
     [baseDomain]
   )
 
@@ -227,8 +227,8 @@ export function VendorDomainsCard({
         </CardTitle>
         <CardDescription>
           {t(
-            "Activez une page de commande publique pour vos clients — votre lien « take.app » à vous.",
-            "فعّل صفحة طلب عامة لعملائك — رابط «take.app» الخاص بك."
+            "Activez une page de commande publique pour vos clients — votre lien « al-baz.app » à vous.",
+            "فعّل صفحة طلب عامة لعملائك — رابط «al-baz.app» الخاص بك."
           )}
         </CardDescription>
       </CardHeader>

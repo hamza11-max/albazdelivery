@@ -21,6 +21,7 @@ import {
   Receipt,
   Search,
   Settings,
+  Shield,
   ShoppingBag,
   ShoppingCart,
   Store,
@@ -636,6 +637,7 @@ function VendorDashboardContent() {
   const [showStaffSwitchDialog, setShowStaffSwitchDialog] = useState(false)
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false)
   const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
+  const [isElectronFullscreen, setIsElectronFullscreen] = useState(false)
   const [notifications, setNotifications] = useState<VendorNotificationItem[]>([])
   const [shopInfo, setShopInfo] = useState(() => {
     if (typeof window === "undefined") {
@@ -767,6 +769,26 @@ function VendorDashboardContent() {
       appWindow.minimizeSend?.()
     }
   }, [])
+
+  useEffect(() => {
+    if (!isElectronRuntime) return
+    const appWindow = (window as any)?.electronAPI?.appWindow
+    let cleanup: (() => void) | undefined
+
+    appWindow?.isFullscreen?.()
+      ?.then((value: boolean) => setIsElectronFullscreen(Boolean(value)))
+      .catch(() => undefined)
+
+    if (appWindow?.onFullscreenChange) {
+      cleanup = appWindow.onFullscreenChange((value: boolean) => {
+        setIsElectronFullscreen(Boolean(value))
+      })
+    }
+
+    return () => {
+      cleanup?.()
+    }
+  }, [isElectronRuntime])
 
   const handleSwitchStaff = useCallback(async (staffCodeInput: string, pinInput: string) => {
     if (!staffCodeInput || !pinInput) {
@@ -2208,7 +2230,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     <ErrorBoundary>
       <div className="min-h-screen bg-transparent" dir={isArabic ? "rtl" : "ltr"}>
       <main className="w-full min-w-0 overflow-x-hidden" dir={isArabic ? "rtl" : "ltr"}>
-        <div className="mx-auto h-full w-full max-w-[1900px] px-2 py-4 sm:px-4 sm:py-6 2xl:px-6">
+        <div className="mx-auto h-full w-full max-w-[1900px] px-2 pb-4 pt-0 sm:px-4 sm:pb-6 2xl:px-6">
           <AdminVendorSelector
             isAdmin={isAdmin}
             selectedVendorId={selectedVendorId}
@@ -2229,6 +2251,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             onOpenProfile={() => setShowStaffSwitchDialog(true)}
             onOpenNotifications={() => setShowNotificationsPanel(true)}
             onOpenMenuPage={() => setActiveTab("menu")}
+            onOpenHelp={() => setShowShortcutsDialog(true)}
             onMinimize={handleMinimizeApp}
             onLogout={handleLogoutAction}
             onToggleTheme={() => {
@@ -2303,6 +2326,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onCouponCodeChange={setPosCouponCode}
               onApplyCoupon={handleApplyCoupon}
               onRemoveCoupon={handleRemoveCoupon}
+              isElectronFullscreen={isElectronFullscreen}
             />
           </TabsContent>
 
@@ -2724,14 +2748,20 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           {/* Settings Tab — nested sub-tabs */}
           <TabsContent value="settings" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
-            <WebAuthnPasskeysCard translate={translate} />
-            <VendorDomainsCard translate={translate} />
 
             <Tabs defaultValue="shop" className="w-full gap-4">
               <TabsList className="mb-1 grid h-auto w-full max-w-full min-h-9 grid-cols-1 gap-1 p-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:justify-start">
                 <TabsTrigger value="shop" className="gap-1.5 px-2 sm:flex-none">
                   <Store className="size-4 shrink-0" />
                   <span className="truncate">{translate("Boutique", "المتجر")}</span>
+                </TabsTrigger>
+                <TabsTrigger value="display" className="gap-1.5 px-2 sm:flex-none">
+                  <Receipt className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Affichage & reçus", "العرض والإيصالات")}</span>
+                </TabsTrigger>
+                <TabsTrigger value="devices" className="gap-1.5 px-2 sm:flex-none">
+                  <Printer className="size-4 shrink-0" />
+                  <span className="truncate">{translate("Matériel", "الأجهزة")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="team" className="gap-1.5 px-2 sm:flex-none">
                   <Users className="size-4 shrink-0" />
@@ -2745,13 +2775,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                   <Wallet className="size-4 shrink-0" />
                   <span className="truncate">{translate("Paiements", "المدفوعات")}</span>
                 </TabsTrigger>
-                <TabsTrigger value="display" className="gap-1.5 px-2 sm:flex-none">
-                  <Receipt className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Affichage & reçus", "العرض والإيصالات")}</span>
-                </TabsTrigger>
-                <TabsTrigger value="devices" className="gap-1.5 px-2 sm:flex-none">
-                  <Printer className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Matériel", "الأجهزة")}</span>
+                <TabsTrigger value="security" className="gap-1.5 px-2 sm:flex-none">
+                  <Shield className="size-4 shrink-0" />
+                  <span className="truncate text-left leading-tight sm:max-w-[10rem]">
+                    {translate(
+                      "Sécurité, clés d'accès & vitrine en ligne",
+                      "الأمان والمفاتيح والواجهة",
+                    )}
+                  </span>
                 </TabsTrigger>
               </TabsList>
 
@@ -3469,6 +3500,17 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </CardContent>
               </Card>
             )}
+              </TabsContent>
+
+              <TabsContent value="security" className="mt-4 space-y-6 outline-none">
+                <p className="text-sm text-muted-foreground max-w-2xl">
+                  {translate(
+                    "Gérez les passkeys (connexion sans mot de passe) et l’adresse web publique de votre vitrine (sous-domaine ou domaine personnalisé).",
+                    "أدِر مفاتيح التحقق (تسجيل دخول بدون كلمة مرور) وعنوان واجهتك العامة (نطاق فرعي أو نطاق مخصّص).",
+                  )}
+                </p>
+                <WebAuthnPasskeysCard translate={translate} />
+                <VendorDomainsCard translate={translate} />
               </TabsContent>
             </Tabs>
           </TabsContent>

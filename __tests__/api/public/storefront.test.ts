@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { createMockRequest, generateCuid } from '@/__tests__/helpers/test-utils'
 
 /**
- * Public storefront API tests — take.app-style vendor storefronts.
+ * Public storefront API tests — vendor subdomains (e.g. demo.al-baz.app).
  *
  * Covers:
  *  - GET  /api/public/storefront/[vendorSlug]/profile

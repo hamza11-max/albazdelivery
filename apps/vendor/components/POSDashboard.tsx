@@ -155,9 +155,64 @@ export default function POSDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       {/* Main Container */}
-      <div className="flex h-screen flex-col md:flex-row">
+      <div className="flex h-dvh min-h-0 flex-col overflow-hidden">
+        <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/95 px-4 py-3 shadow-sm backdrop-blur">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-200 to-slate-300 text-sm font-bold text-slate-700">
+                Ab
+              </div>
+              <div className="hidden min-w-0 sm:block">
+                <p className="truncate text-sm font-semibold text-slate-900">AlBaz POS</p>
+                <p className="truncate text-xs text-slate-500">Point of sale</p>
+              </div>
+            </div>
+
+            <nav className="flex max-w-full items-center justify-center gap-2 overflow-x-auto px-1" aria-label="POS navigation">
+              {[
+                { id: "pos", Icon: ShoppingCart, label: "POS" },
+                { id: "sales", Icon: BarChart3, label: "Sales" },
+                { id: "inventory", Icon: Package, label: "Inventory" },
+                { id: "customers", Icon: Users, label: "Customers" },
+                { id: "quick", Icon: Zap, label: "Quick" },
+              ].map(({ id, Icon, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${
+                    activeTab === id
+                      ? "bg-yellow-300 text-slate-900 shadow-lg shadow-yellow-300/30"
+                      : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  }`}
+                  title={label}
+                  aria-label={label}
+                >
+                  <Icon size={22} />
+                </button>
+              ))}
+            </nav>
+
+            <div className="flex min-w-0 items-center justify-end gap-2">
+              <button
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                title="Settings"
+                aria-label="Settings"
+              >
+                <Settings size={22} />
+              </button>
+              <button
+                className="flex h-11 w-11 items-center justify-center rounded-xl text-amber-600 transition-colors hover:bg-amber-50"
+                title="Help"
+                aria-label="Help"
+              >
+                <HelpCircle size={22} />
+              </button>
+            </div>
+          </div>
+        </header>
+
         {/* Sidebar */}
-          <aside className="hidden md:flex w-24 bg-gradient-to-b from-white to-slate-50 border-r border-slate-200/50 flex-col items-center py-8 gap-8 shadow-sm">
+          <aside className="hidden w-24 bg-gradient-to-b from-white to-slate-50 border-r border-slate-200/50 flex-col items-center py-8 gap-8 shadow-sm">
           {/* Logo */}
           <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-slate-600 font-bold text-sm">
             Ab
@@ -290,7 +345,7 @@ export default function POSDashboard() {
         </aside>
 
         {/* Mobile bottom nav (phones) */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 border-t border-slate-200/50 flex items-center justify-around py-2 shadow-lg z-50">
+        <nav className="hidden fixed bottom-0 left-0 right-0 bg-white/90 border-t border-slate-200/50 items-center justify-around py-2 shadow-lg z-50">
           {[
             { id: 'pos', Icon: ShoppingCart, label: 'POS' },
             { id: 'sales', Icon: BarChart3, label: 'Sales' },
@@ -317,7 +372,7 @@ export default function POSDashboard() {
         </nav>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="min-h-0 flex-1 flex flex-col overflow-hidden">
           {/* Top header removed for clean POS view */}
 
           {/* Tabs */}
@@ -348,7 +403,7 @@ export default function POSDashboard() {
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
             {/* Products (left): scrolls independently; never collapsed by cart */}
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-slate-200/60 md:border-r">
-              <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+              <div className="min-h-[260px] flex-1 overflow-y-auto p-4 md:p-6">
                 <div className="mb-4">
                   {/* Category Filters Horizontal Bar */}
                   <div className="flex gap-3 overflow-x-auto pb-2">

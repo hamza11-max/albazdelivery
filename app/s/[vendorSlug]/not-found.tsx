@@ -12,7 +12,7 @@ export default function StorefrontNotFound() {
           domain is not yet verified. Check the URL or come back soon.
         </p>
         <Link
-          href="https://albazdelivery.com"
+          href="https://al-baz.app"
           className="mt-6 inline-block rounded-md bg-slate-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-slate-800"
         >
           Visit AlBaz Delivery

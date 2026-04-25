@@ -87,7 +87,7 @@ async function main() {
       shopType: 'Restaurant',
       city: 'Algiers',
       address: '789 Restaurant Street, Algiers',
-      // take.app-style storefront: https://demo.${BASE_DOMAIN}
+      // Public storefront: https://demo.${BASE_DOMAIN} (e.g. demo.al-baz.app)
       vendorSubdomain: 'demo',
       vendorDomainStatus: 'VERIFIED',
       vendorDomainVerifiedAt: new Date(),
@@ -531,7 +531,7 @@ async function main() {
   console.log('Driver:   driver@test.com / Driver123!')
   console.log('─────────────────────────────────────────')
   console.log('\n🛍  Demo storefront:')
-  console.log(`   Subdomain: demo.${process.env.BASE_DOMAIN || 'albazdelivery.com'}`)
+  console.log(`   Subdomain: demo.${process.env.BASE_DOMAIN || 'al-baz.app'}`)
   console.log('   Local:     http://demo.localhost:3000/ (after hosts file setup)')
   console.log('   See docs/CUSTOM_DOMAINS_README.md for local testing.')
 }

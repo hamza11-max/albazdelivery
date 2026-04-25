@@ -36,7 +36,7 @@ export async function resolveVendorBySlugOrHost({
 
   if (normalizedHost) {
     const baseDomain =
-      normalizeHost(process.env.BASE_DOMAIN || '') || 'albazdelivery.com'
+      normalizeHost(process.env.BASE_DOMAIN || '') || 'al-baz.app'
     if (
       normalizedHost !== baseDomain &&
       !normalizedHost.endsWith(`.${baseDomain}`)

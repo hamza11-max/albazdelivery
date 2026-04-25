@@ -119,6 +119,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   appWindow: {
     minimize: () => ipcRenderer.invoke('window-minimize'),
     close: () => ipcRenderer.invoke('window-close-app'),
+    isFullscreen: () => ipcRenderer.invoke('window-is-fullscreen'),
+    onFullscreenChange: (callback) => {
+      const handler = (_event, isFullscreen) => callback(Boolean(isFullscreen))
+      ipcRenderer.on('window-fullscreen-change', handler)
+      return () => ipcRenderer.removeListener('window-fullscreen-change', handler)
+    },
     minimizeSend: () => ipcRenderer.send('window-minimize'),
     closeSend: () => ipcRenderer.send('window-close-app'),
   },

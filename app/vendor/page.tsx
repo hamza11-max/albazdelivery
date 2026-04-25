@@ -1858,6 +1858,94 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </CardContent>
             </Card>
 
+            {/* Appearance Settings — same order as apps/vendor Paramètres (affichage après boutique) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  {translate("Apparence", "المظهر")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{translate("Mode sombre", "الوضع الداكن")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {translate("Activer le thème sombre", "تفعيل السمة الداكنة")}
+                    </p>
+                  </div>
+                  <Button
+                    variant={isDarkMode ? "default" : "outline"}
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                  >
+                    {isDarkMode ? translate("Activé", "مفعل") : translate("Désactivé", "معطل")}
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">{translate("Langue", "اللغة")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {translate("Choisir la langue de l'interface", "اختر لغة الواجهة")}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={language === "fr" ? "default" : "outline"}
+                      onClick={() => setLanguage("fr")}
+                      size="sm"
+                    >
+                      Français
+                    </Button>
+                    <Button
+                      variant={language === "ar" ? "default" : "outline"}
+                      onClick={() => setLanguage("ar")}
+                      size="sm"
+                    >
+                      العربية
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Receipt Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="w-5 h-5" />
+                  {translate("Paramètres des reçus", "إعدادات الإيصالات")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>{translate("Message de pied de page", "رسالة التذييل")}</Label>
+                  <Input 
+                    placeholder={translate("Merci pour votre achat!", "شكراً لتسوقكم!")}
+                    defaultValue=""
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-medium">{translate("Commandes WhatsApp", "طلبات واتساب")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {translate(
+                        "Imprimer le reçu automatiquement lorsque vous confirmez (acceptez) une commande provenant de WhatsApp.",
+                        "طباعة الإيصال تلقائياً عند تأكيد (قبول) طلب قادم من واتساب.",
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={autoPrintWhatsappOnConfirm ? "default" : "outline"}
+                    onClick={() => setAutoPrintWhatsappOnConfirm(!autoPrintWhatsappOnConfirm)}
+                    className={autoPrintWhatsappOnConfirm ? "bg-albaz-green-gradient hover:opacity-90 text-white shrink-0" : "shrink-0"}
+                  >
+                    {autoPrintWhatsappOnConfirm ? translate("Activé", "مفعّل") : translate("Désactivé", "معطّل")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {featureFlags.orderPause && (
               <Card>
                 <CardHeader>
@@ -2030,94 +2118,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </CardContent>
               </Card>
             )}
-
-            {/* Appearance Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  {translate("Apparence", "المظهر")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{translate("Mode sombre", "الوضع الداكن")}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {translate("Activer le thème sombre", "تفعيل السمة الداكنة")}
-                    </p>
-                  </div>
-                  <Button
-                    variant={isDarkMode ? "default" : "outline"}
-                    onClick={() => setIsDarkMode(!isDarkMode)}
-                  >
-                    {isDarkMode ? translate("Activé", "مفعل") : translate("Désactivé", "معطل")}
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{translate("Langue", "اللغة")}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {translate("Choisir la langue de l'interface", "اختر لغة الواجهة")}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant={language === "fr" ? "default" : "outline"}
-                      onClick={() => setLanguage("fr")}
-                      size="sm"
-                    >
-                      Français
-                    </Button>
-                    <Button
-                      variant={language === "ar" ? "default" : "outline"}
-                      onClick={() => setLanguage("ar")}
-                      size="sm"
-                    >
-                      العربية
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Receipt Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="w-5 h-5" />
-                  {translate("Paramètres des reçus", "إعدادات الإيصالات")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>{translate("Message de pied de page", "رسالة التذييل")}</Label>
-                  <Input 
-                    placeholder={translate("Merci pour votre achat!", "شكراً لتسوقكم!")}
-                    defaultValue=""
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-medium">{translate("Commandes WhatsApp", "طلبات واتساب")}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {translate(
-                        "Imprimer le reçu automatiquement lorsque vous confirmez (acceptez) une commande provenant de WhatsApp.",
-                        "طباعة الإيصال تلقائياً عند تأكيد (قبول) طلب قادم من واتساب.",
-                      )}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant={autoPrintWhatsappOnConfirm ? "default" : "outline"}
-                    onClick={() => setAutoPrintWhatsappOnConfirm(!autoPrintWhatsappOnConfirm)}
-                    className={autoPrintWhatsappOnConfirm ? "bg-albaz-green-gradient hover:opacity-90 text-white shrink-0" : "shrink-0"}
-                  >
-                    {autoPrintWhatsappOnConfirm ? translate("Activé", "مفعّل") : translate("Désactivé", "معطّل")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Subscription Management */}
             <Card>

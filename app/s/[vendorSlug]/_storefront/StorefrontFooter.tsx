@@ -37,7 +37,7 @@ export function StorefrontFooter({ vendor }: FooterProps) {
               </a>
             ) : null}
             <a
-              href="https://albazdelivery.com"
+              href="https://al-baz.app"
               target="_blank"
               rel="noopener noreferrer"
               className="text-slate-500 hover:text-slate-700"

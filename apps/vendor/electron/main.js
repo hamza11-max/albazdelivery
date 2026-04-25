@@ -457,6 +457,14 @@ function createWindow() {
   // Set app title
   mainWindow.setTitle('AlBaz Vendor App')
 
+  const sendFullscreenState = () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window-fullscreen-change', mainWindow.isFullScreen())
+    }
+  }
+  mainWindow.on('enter-full-screen', sendFullscreenState)
+  mainWindow.on('leave-full-screen', sendFullscreenState)
+
   // Show a loading page immediately so the user always sees a window (packaged app)
   const loadingHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AlBaz Vendor</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#1e293b;"><div style="text-align:center;color:#e2e8f0;"><p style="font-size:18px;">Starting AlBaz Vendor...</p><p style="color:#94a3b8;">Waiting for server</p><p style="font-size:12px;color:#64748b;margin-top:1rem;">If this stays or the app does not open, open this log in Notepad:</p><p style="font-size:11px;color:#94a3b8;margin-top:0.5rem;word-break:break-all;">%APPDATA%\\AlBaz Vendor\\vendor-startup.log</p></div></body></html>'
   mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(loadingHtml))
@@ -1504,6 +1512,10 @@ ipcMain.handle('window-minimize', () => {
     return { success: true }
   }
   return { success: false }
+})
+
+ipcMain.handle('window-is-fullscreen', () => {
+  return Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen())
 })
 
 ipcMain.handle('window-close-app', () => {
