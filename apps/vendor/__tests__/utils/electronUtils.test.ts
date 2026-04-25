@@ -181,7 +181,7 @@ describe('loadElectronOfflineData', () => {
     })
     
     expect(setProducts).not.toHaveBeenCalled()
-    expect(setSales).not.toHaveBeenCalled()
+    expect(setSales).toHaveBeenCalledWith([])
   })
 
   it('should handle invalid JSON gracefully', () => {
@@ -237,7 +237,7 @@ describe('loadElectronOfflineData', () => {
     })
     
     const topProducts = setTopProducts.mock.calls[0][0] as TopProductData[]
-    expect(topProducts.every(p => p.productId > 0)).toBe(true)
+    expect(topProducts.every(p => Number(p.productId) > 0)).toBe(true)
   })
 })
 

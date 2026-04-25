@@ -19,8 +19,8 @@ declare module 'next' {
 
 declare module 'next/navigation' {
   export function useRouter(): {
-    push: (url: string) => void;
-    replace: (url: string) => void;
+    push: (url: string, options?: { scroll?: boolean }) => void;
+    replace: (url: string, options?: { scroll?: boolean }) => void;
     back: () => void;
     forward: () => void;
     refresh: () => void;
@@ -29,6 +29,9 @@ declare module 'next/navigation' {
   
   export function usePathname(): string;
   export function useSearchParams(): URLSearchParams;
+  export function notFound(): never;
+  export function redirect(url: string): never;
+  export function permanentRedirect(url: string): never;
 }
 
 declare module 'next/server' {

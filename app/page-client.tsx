@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { useQueryClient } from '@tanstack/react-query'
-import type { Order } from '@albaz/shared'
+import type { Order as CustomerOrder } from '@albaz/shared'
 
 import { useSSE } from '@/lib/use-sse'
 import { BottomNav } from '../components/navigation/BottomNav'
@@ -16,7 +16,7 @@ import { MyOrdersView } from '../components/views/MyOrdersView'
 import { TrackingView } from '../components/views/TrackingView'
 import { ProfileView } from '../components/views/ProfileView'
 import { cities } from '../lib/mock-data'
-import type { CartItem, PageView, TranslationFn } from '../lib/types'
+import type { CartItem, PageView, TranslationFn, Order, PaymentMethod, User as AppUser } from '../lib/types'
 import { useCategoriesQuery } from '@/hooks/use-categories-query'
 import { useStoresQuery } from '@/hooks/use-stores-query'
 import { useProductsQuery } from '@/hooks/use-products-query'
@@ -49,7 +49,7 @@ export default function AlBazApp() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [orderId, setOrderId] = useState<string | null>(null)
-  const [paymentMethod, setPaymentMethod] = useState('cash')
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [selectedLanguage, setSelectedLanguage] = useState('fr')
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null)
 
@@ -81,6 +81,16 @@ export default function AlBazApp() {
   const productsResult = useProductsQuery(selectedStore)
   const apiProducts = productsResult?.data ?? []
   const productsLoading = productsResult?.isLoading ?? false
+  const profileUser: AppUser | null = user?.id
+    ? {
+        id: user.id,
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        role: (user.role?.toLowerCase() || 'customer') as AppUser['role'],
+        createdAt: new Date(),
+      }
+    : null
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -149,7 +159,7 @@ export default function AlBazApp() {
 
   // Transform API stores to match expected format (using string IDs directly)
   const filteredStores = useMemo(() => {
-    return apiStores.map((store: { id: string; name: string; type: string; rating: number; deliveryTime?: string; categoryId: number }) => ({
+    return apiStores.map((store) => ({
       id: store.id, // Use string ID directly
       name: store.name,
       type: store.type,
@@ -161,7 +171,7 @@ export default function AlBazApp() {
 
   // Transform API products to match expected format (using string IDs directly)
   const products = useMemo(() => {
-    return apiProducts.map((product: { id: string; storeId: string; name: string; description: string; price: number; image?: string | null; rating: number }) => ({
+    return apiProducts.map((product) => ({
       id: product.id, // Use string ID directly
       storeId: product.storeId, // Use string ID directly
       name: product.name,
@@ -287,9 +297,9 @@ export default function AlBazApp() {
     handleResetSelections()
   }
 
-  const handleOrderSelect = (order: Order) => {
+  const handleOrderSelect = (order: CustomerOrder) => {
     setOrderId(order.id)
-    setCurrentOrder(order)
+    setCurrentOrder(order as unknown as Order)
     setCurrentPage('tracking')
   }
 
@@ -328,8 +338,8 @@ export default function AlBazApp() {
             selectedLanguage={selectedLanguage}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
-            onCategorySelect={(categoryId: number) => {
-              setSelectedCategory(categoryId)
+            onCategorySelect={(categoryId: string | number) => {
+              setSelectedCategory(Number(categoryId))
               setCurrentPage('category')
             }}
             onPackageDelivery={() => router.push('/package-delivery')}
@@ -343,13 +353,13 @@ export default function AlBazApp() {
 
         {currentPage === 'category' && (
           <CategoryView
-            selectedCategory={selectedCategory}
+            selectedCategory={selectedCategory ?? ''}
             categories={categories}
             filteredStores={filteredStores}
             isLoading={storesLoading}
             onBack={handleGoHome}
-            onStoreSelect={(storeId: string) => {
-              setSelectedStore(storeId)
+            onStoreSelect={(storeId: string | number) => {
+              setSelectedStore(String(storeId))
               setCurrentPage('store')
             }}
             selectedLanguage={selectedLanguage}
@@ -359,12 +369,12 @@ export default function AlBazApp() {
 
         {currentPage === 'store' && (
           <StoreView
-            selectedStore={selectedStore}
+            selectedStore={selectedStore ?? ''}
             stores={filteredStores}
             products={products}
             isLoading={productsLoading}
             onBack={() => setCurrentPage('category')}
-            addToCart={addToCart}
+            addToCart={(productId) => addToCart(String(productId))}
             t={t}
           />
         )}
@@ -390,12 +400,12 @@ export default function AlBazApp() {
         )}
 
         {currentPage === 'tracking' && (
-          <TrackingView currentOrder={currentOrder} orderId={orderId} onBackHome={handleGoHome} t={t} />
+          <TrackingView currentOrder={currentOrder} orderId={orderId ?? ''} onBackHome={handleGoHome} t={t} />
         )}
 
         {currentPage === 'profile' && (
           <ProfileView
-            user={user}
+            user={profileUser}
             selectedLanguage={selectedLanguage}
             onSelectLanguage={setSelectedLanguage}
             onBackHome={handleGoHome}

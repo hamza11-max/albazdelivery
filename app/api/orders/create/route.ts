@@ -48,7 +48,9 @@ export async function POST(request: NextRequest) {
     const {
       storeId,
       items,
+      subtotal,
       deliveryFee,
+      total,
       paymentMethod,
       deliveryAddress,
       city,

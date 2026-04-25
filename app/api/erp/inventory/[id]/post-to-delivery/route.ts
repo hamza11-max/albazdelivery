@@ -75,7 +75,7 @@ export async function POST(
         where: { id: existingProduct.id },
         data: {
           name: inventoryProduct.name,
-          description: inventoryProduct.description || inventoryProduct.name,
+          description: inventoryProduct.name,
           price: inventoryProduct.sellingPrice,
           image: inventoryProduct.image || null,
           category: inventoryProduct.category || null,
@@ -88,7 +88,7 @@ export async function POST(
         data: {
           storeId: store.id,
           name: inventoryProduct.name,
-          description: inventoryProduct.description || inventoryProduct.name,
+          description: inventoryProduct.name,
           price: inventoryProduct.sellingPrice,
           image: inventoryProduct.image || null,
           category: inventoryProduct.category || null,

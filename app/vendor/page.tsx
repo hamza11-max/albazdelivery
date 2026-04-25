@@ -961,7 +961,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   }
 
   // Delete Product - using utility function
-  const handleDeleteProduct = async (id: number) => {
+  const handleDeleteProduct = async (id: number | string) => {
     if (!confirm(translate("Êtes-vous sûr de vouloir supprimer ce produit?", "هل أنت متأكد من حذف هذا المنتج؟"))) return
     await deleteProduct({
       id,
@@ -2245,10 +2245,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         editingProduct={editingProduct}
         onSave={handleSaveProduct}
         onFileUpload={handleFileUpload}
-        onScanBarcode={() => {
-          productFormScanRef.current = true
-          setIsBarcodeScannerOpen(true)
-        }}
         translate={translate}
       />
 

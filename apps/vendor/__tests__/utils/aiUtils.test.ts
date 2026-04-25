@@ -47,7 +47,7 @@ describe('fetchAIInsights', () => {
     expect(mockSetters.setProductBundles).toHaveBeenCalledWith([{ products: [1, 2], discount: 10 }])
   })
 
-  it('should fetch without vendorId when not provided', async () => {
+  it('should skip remote fetch for offline Electron vendor fallback when vendorId is not provided', async () => {
     ;(global.fetch as jest.Mock).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, data: {} }),
@@ -58,14 +58,10 @@ describe('fetchAIInsights', () => {
       ...mockSetters,
     })
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      '/api/erp/ai-insights',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-        }),
-      })
-    )
+    expect(global.fetch).not.toHaveBeenCalled()
+    expect(mockSetters.setSalesForecast).toHaveBeenCalledWith(null)
+    expect(mockSetters.setInventoryRecommendations).toHaveBeenCalledWith([])
+    expect(mockSetters.setProductBundles).toHaveBeenCalledWith([])
   })
 
   it('should handle empty data', async () => {
@@ -108,15 +104,14 @@ describe('fetchAIInsights', () => {
   it('should handle fetch errors gracefully', async () => {
     ;(global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'))
 
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation()
-
     await fetchAIInsights({
       activeVendorId: 'vendor-1',
       ...mockSetters,
     })
 
-    expect(consoleErrorSpy).toHaveBeenCalled()
-    consoleErrorSpy.mockRestore()
+    expect(mockSetters.setSalesForecast).toHaveBeenCalledWith(null)
+    expect(mockSetters.setInventoryRecommendations).toHaveBeenCalledWith([])
+    expect(mockSetters.setProductBundles).toHaveBeenCalledWith([])
   })
 
   it('should handle unsuccessful response', async () => {

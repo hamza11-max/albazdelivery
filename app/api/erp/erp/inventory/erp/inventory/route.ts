@@ -162,8 +162,9 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    const user = session?.user ?? { id: 'dev-vendor', role: 'VENDOR' }
+    const isAdmin = user.role === 'ADMIN'
+    const isVendor = user.role === 'VENDOR'
 
     if (!isDev && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can create products')
@@ -205,7 +206,7 @@ export async function POST(request: NextRequest) {
       image,
     } = validatedData
 
-    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : user.id
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId is required to create a product'), 400)
@@ -293,8 +294,9 @@ export async function PUT(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    const user = session?.user ?? { id: 'dev-vendor', role: 'VENDOR' }
+    const isAdmin = user.role === 'ADMIN'
+    const isVendor = user.role === 'VENDOR'
 
     if (!isDev && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can update products')
@@ -319,7 +321,7 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
+    if (isVendor && existing.vendorId !== user.id) {
       throw new ForbiddenError('You can only update your own products')
     }
 
@@ -398,8 +400,9 @@ export async function DELETE(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    const isAdmin = session.user.role === 'ADMIN'
-    const isVendor = session.user.role === 'VENDOR'
+    const user = session?.user ?? { id: 'dev-vendor', role: 'VENDOR' }
+    const isAdmin = user.role === 'ADMIN'
+    const isVendor = user.role === 'VENDOR'
 
     if (!isDev && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can delete products')
@@ -428,7 +431,7 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
+    if (isVendor && existing.vendorId !== user.id) {
       throw new ForbiddenError('You can only delete your own products')
     }
 

@@ -11,10 +11,15 @@ describe('Vendor page structure validation', () => {
     expect(content).toContain('import { InventoryTab }')
     expect(content).toContain('import { POSView }')
     expect(content).toContain('import { SalesTab }')
-    expect(content).toContain('import { CustomersTab }')
+    expect(content).toContain('import { OrdersTab }')
+    expect(content).toContain('import { KitchenTab }')
+    expect(content).toContain('import { DineQrTab }')
+    expect(content).toContain('import { AccountingTab }')
+    expect(content).toContain('import { DriversTab }')
     expect(content).toContain('import { SuppliersTab }')
     expect(content).toContain('import { AITab }')
-    expect(content).toContain('import { SettingsTab }')
+    expect(content).toContain('import { ReportsTab }')
+    expect(content).toContain('import { CouponsTab }')
   })
 
   it('uses modular dialog components', () => {

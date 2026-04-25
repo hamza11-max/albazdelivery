@@ -1,4 +1,5 @@
 import { prisma } from "@/root/lib/prisma"
+import type { Prisma } from "@/generated/prisma/client"
 import { getClientMetadata } from "./common"
 
 interface PasskeyAuditInput {
@@ -27,7 +28,7 @@ export async function logPasskeyAuditEvent(input: PasskeyAuditInput): Promise<vo
         actorUserId: input.actorUserId || undefined,
         targetUserId: input.targetUserId || undefined,
         credentialId: input.credentialId || undefined,
-        details: input.details || undefined,
+        details: (input.details || undefined) as Prisma.InputJsonValue | undefined,
         ipAddress: ipAddress || undefined,
         userAgent: userAgent || undefined,
       },

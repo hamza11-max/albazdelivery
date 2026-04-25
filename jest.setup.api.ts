@@ -4,6 +4,8 @@
 
 import { jest, beforeEach, afterEach } from '@jest/globals'
 
+jest.mock('server-only', () => ({}))
+
 // Mock crypto.randomUUID for Node.js environment
 // This ensures crypto.randomUUID is available in Jest tests
 try {

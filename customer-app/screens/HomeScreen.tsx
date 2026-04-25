@@ -2,10 +2,8 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Dimensions,
 } from 'react-native';
 import { colors, spacing, typography, borderRadius, shadows } from '../theme/colors';
@@ -13,6 +11,10 @@ import { Logo } from '../components/Logo';
 import { BottomNavigation, TabType } from '../components/BottomNavigation';
 
 const { width } = Dimensions.get('window');
+const { ScrollView, TextInput } = require('react-native') as {
+  ScrollView: React.ComponentType<any>;
+  TextInput: React.ComponentType<any>;
+};
 
 interface Category {
   id: string;
@@ -295,7 +297,7 @@ const styles = StyleSheet.create({
   },
   vendorName: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semibold,
+    fontFamily: typography.fontFamily.medium,
     fontWeight: typography.fontWeight.semibold,
     color: colors.text.primary,
   },

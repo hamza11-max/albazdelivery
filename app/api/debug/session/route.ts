@@ -56,7 +56,6 @@ export async function GET(request: NextRequest) {
         name: session.user.name,
         email: session.user.email ? session.user.email.slice(0, 3) + '***' : null,
         role: session.user.role,
-        image: session.user.image ? '***' : null,
       } : null,
       expires: session.expires,
     } : null

@@ -8,15 +8,16 @@ import { createAuditLog, AuditActions, AuditResources } from '../../../../lib/au
 import { z } from 'zod'
 
 const adSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
+  title: z.string().min(1, 'Title is required').optional(),
+  titleFr: z.string().min(1, 'French title is required').optional(),
+  titleAr: z.string().min(1, 'Arabic title is required').optional(),
   description: z.string().optional(),
-  imageUrl: z.string().url('Invalid image URL'),
+  descriptionFr: z.string().optional(),
+  descriptionAr: z.string().optional(),
+  imageUrl: z.string().url('Invalid image URL').optional().or(z.literal('')),
   linkUrl: z.string().url('Invalid link URL').optional().or(z.literal('')),
-  position: z.enum(['HOME_BANNER', 'HOME_SIDEBAR', 'CATEGORY_TOP', 'CATEGORY_SIDEBAR', 'PRODUCT_PAGE', 'CHECKOUT_PAGE', 'MOBILE_BANNER']),
-  priority: z.number().int().min(0).default(0),
+  displayOrder: z.number().int().min(0).optional(),
   isActive: z.boolean().default(true),
-  startDate: z.string().datetime().optional().nullable(),
-  endDate: z.string().datetime().optional().nullable(),
 })
 
 // GET /api/admin/ads - List all ads
@@ -34,7 +35,6 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const position = searchParams.get('position')
     const isActive = searchParams.get('isActive')
     const pageParam = searchParams.get('page')
     const limitParam = searchParams.get('limit')
@@ -44,9 +44,6 @@ export async function GET(request: NextRequest) {
 
     const where: any = {}
 
-    if (position) {
-      where.position = position
-    }
     if (isActive !== null && isActive !== undefined) {
       where.isActive = isActive === 'true'
     }
@@ -55,7 +52,7 @@ export async function GET(request: NextRequest) {
       prisma.ad.findMany({
         where,
         orderBy: [
-          { priority: 'desc' },
+          { displayOrder: 'asc' },
           { createdAt: 'desc' },
         ],
         skip: (page - 1) * limit,
@@ -100,19 +97,25 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const validatedData = adSchema.parse(body)
+    const titleFr = validatedData.titleFr || validatedData.title
+    const titleAr = validatedData.titleAr || validatedData.title
+    const descriptionFr = validatedData.descriptionFr || validatedData.description || ''
+    const descriptionAr = validatedData.descriptionAr || validatedData.description || ''
+
+    if (!titleFr || !titleAr) {
+      return errorResponse(new Error('titleFr/titleAr or title is required'), 400)
+    }
 
     const ad = await prisma.ad.create({
       data: {
-        title: validatedData.title,
-        description: validatedData.description || '',
-        imageUrl: validatedData.imageUrl,
+        titleFr,
+        titleAr,
+        descriptionFr,
+        descriptionAr,
+        imageUrl: validatedData.imageUrl || null,
         linkUrl: validatedData.linkUrl || null,
-        position: validatedData.position,
-        priority: validatedData.priority,
         isActive: validatedData.isActive,
-        startDate: validatedData.startDate ? new Date(validatedData.startDate) : null,
-        endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
-        createdBy: session.user.id,
+        displayOrder: validatedData.displayOrder || 0,
       },
     })
 
@@ -124,8 +127,8 @@ export async function POST(request: NextRequest) {
       resource: 'AD',
       resourceId: ad.id,
       details: {
-        title: ad.title,
-        position: ad.position,
+        titleFr: ad.titleFr,
+        displayOrder: ad.displayOrder,
       },
       status: 'SUCCESS',
     }, request)

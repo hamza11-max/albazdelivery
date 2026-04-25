@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { auth } from '@/root/lib/auth'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
+import { SubscriptionPlan, SubscriptionStatus } from '@/generated/prisma/client'
 
 // PATCH /api/admin/subscriptions/[id] - Extend or update subscription (admin only)
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -24,7 +25,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     })
     if (!existing) throw new NotFoundError('Subscription')
 
-    const updates: { currentPeriodEnd?: Date; plan?: string; status?: string } = {}
+    const updates: { currentPeriodEnd?: Date; plan?: SubscriptionPlan; status?: SubscriptionStatus } = {}
 
     if (typeof extendDays === 'number' && extendDays > 0) {
       const from = new Date(existing.currentPeriodEnd).getTime() > Date.now()
@@ -34,11 +35,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     if (plan && ['STARTER', 'PROFESSIONAL', 'BUSINESS', 'ENTERPRISE'].includes(String(plan).toUpperCase())) {
-      updates.plan = String(plan).toUpperCase()
+      updates.plan = String(plan).toUpperCase() as SubscriptionPlan
     }
 
     if (status && ['ACTIVE', 'TRIAL', 'CANCELLED', 'EXPIRED', 'PAST_DUE'].includes(String(status).toUpperCase())) {
-      updates.status = String(status).toUpperCase()
+      updates.status = String(status).toUpperCase() as SubscriptionStatus
     }
 
     if (Object.keys(updates).length === 0) {

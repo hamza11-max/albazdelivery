@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
             name: true,
             address: true,
             city: true,
-            image: true,
           },
         },
       },

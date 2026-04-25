@@ -62,6 +62,8 @@ model User {
   notifications       Notification[]
   driverLocation      DriverLocation?
   driverPerformance   DriverPerformance?
+  driverVendorConnections DriverVendorConnection[] @relation("DriverVendorConnectionsAsDriver")
+  vendorDriverConnections DriverVendorConnection[] @relation("DriverVendorConnectionsAsVendor")
   subscription        Subscription?
   addresses           CustomerAddress[]
   webauthnCredentials WebAuthnCredential[]
@@ -207,6 +209,7 @@ model CatalogCategory {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  stores     Store[]
 
   @@index([isActive])
   @@index([sortOrder])
@@ -237,8 +240,13 @@ model Store {
   domainStatus              DomainStatus  @default(PENDING)
   domainVerificationToken   String?
   domainVerifiedAt          DateTime?
+  whatsappPhoneNumberId     String?       @unique
+  whatsappBusinessAccountId String?
+  whatsappAccessToken       String?
+  whatsappOnboardingStatus  String?
 
-  vendor   User      @relation(fields: [vendorId], references: [id])
+  vendor   User            @relation(fields: [vendorId], references: [id])
+  category CatalogCategory @relation(fields: [categoryId], references: [id])
   products Product[]
   orders   Order[]
   
@@ -248,6 +256,25 @@ model Store {
   @@index([isActive])
   @@index([subdomain])
   @@index([customDomain])
+}
+
+model DriverVendorConnection {
+  id          String   @id @default(cuid())
+  driverId    String
+  vendorId    String
+  status      String   @default("PENDING")
+  requestedAt DateTime @default(now())
+  respondedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  driver User @relation("DriverVendorConnectionsAsDriver", fields: [driverId], references: [id], onDelete: Cascade)
+  vendor User @relation("DriverVendorConnectionsAsVendor", fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, vendorId])
+  @@index([driverId])
+  @@index([vendorId])
+  @@index([status])
 }
 
 model Product {

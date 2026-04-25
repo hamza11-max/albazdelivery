@@ -15,6 +15,9 @@ interface SaveProductParams {
   setProductForm: (form: ProductForm) => void
   setEditingProduct: (product: InventoryProduct | null) => void
   setShowProductDialog: (show: boolean) => void
+  fetchInventory?: (vendorId?: string) => Promise<any>
+  fetchDashboardData?: (vendorId?: string) => Promise<any>
+  fetchProducts?: (vendorId?: string) => Promise<InventoryProduct[] | null>
   toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void
   translate: (fr: string, ar: string) => string
 }
@@ -29,6 +32,9 @@ export async function saveProduct({
   setProductForm,
   setEditingProduct,
   setShowProductDialog,
+  fetchInventory: refreshInventory = fetchInventory,
+  fetchDashboardData: refreshDashboard = fetchDashboardData,
+  fetchProducts: refreshProducts = fetchProducts,
   toast,
   translate,
 }: SaveProductParams) {
@@ -117,9 +123,9 @@ export async function saveProduct({
       setShowProductDialog(false)
       
       // Refresh data
-      await fetchInventory(vid)
-      await fetchDashboardData(vid)
-      const updatedProducts = await fetchProducts(vid)
+      await refreshInventory(vid)
+      await refreshDashboard(vid)
+      const updatedProducts = await refreshProducts(vid)
       if (updatedProducts) {
         setProducts(updatedProducts)
         setLowStockProducts(updatedProducts.filter((p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)))

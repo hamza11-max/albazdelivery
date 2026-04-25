@@ -63,7 +63,7 @@ describe('productUtils', () => {
       await saveProduct({
         productForm: mockProductForm,
         editingProduct: null,
-        activeVendorId: 'vendor-1',
+        activeVendorId: 'electron-vendor',
         isElectronRuntime: true,
         toast: mockToast,
         translate: mockTranslate,
@@ -83,6 +83,7 @@ describe('productUtils', () => {
         id: 1,
         name: 'Old Product',
         sellingPrice: 5.00,
+        price: 5.00,
         costPrice: 2.00,
         stock: 50,
         category: 'Old Category',
@@ -101,7 +102,7 @@ describe('productUtils', () => {
       await saveProduct({
         productForm: { ...mockProductForm, name: 'Updated Product' },
         editingProduct: existingProduct,
-        activeVendorId: 'vendor-1',
+        activeVendorId: 'electron-vendor',
         isElectronRuntime: true,
         toast: mockToast,
         translate: mockTranslate,
@@ -171,7 +172,7 @@ describe('productUtils', () => {
       await saveProduct({
         productForm: mockProductForm,
         editingProduct: null,
-        activeVendorId: 'vendor-1',
+        activeVendorId: 'electron-vendor',
         isElectronRuntime: true,
         toast: mockToast,
         translate: mockTranslate,
@@ -203,6 +204,7 @@ describe('productUtils', () => {
           id: 1,
           name: 'Product 1',
           sellingPrice: 10,
+          price: 10,
           costPrice: 5,
           stock: 100,
           category: 'Test',
@@ -219,6 +221,7 @@ describe('productUtils', () => {
           id: 2,
           name: 'Product 2',
           sellingPrice: 15,
+          price: 15,
           costPrice: 8,
           stock: 50,
           category: 'Test',
@@ -237,7 +240,7 @@ describe('productUtils', () => {
 
       await deleteProduct({
         id: 1,
-        activeVendorId: 'vendor-1',
+        activeVendorId: 'electron-vendor',
         isElectronRuntime: true,
         setProducts: mockSetters.setProducts,
         setLowStockProducts: mockSetters.setLowStockProducts,
@@ -262,7 +265,7 @@ describe('productUtils', () => {
 
       await deleteProduct({
         id: 1,
-        activeVendorId: 'vendor-1',
+        activeVendorId: 'electron-vendor',
         isElectronRuntime: true,
         setProducts: mockSetters.setProducts,
         setLowStockProducts: mockSetters.setLowStockProducts,

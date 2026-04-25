@@ -221,6 +221,14 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
       return
     }
 
+    const stripeClient = stripe
+    const stripeElements = elements
+    if (!stripeClient || !stripeElements) {
+      setPaymentStatus("error")
+      setPaymentError("Le module de paiement n'est pas encore prêt.")
+      return
+    }
+
     setIsLoading(true)
     setPaymentStatus("processing")
 
@@ -246,11 +254,11 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
         throw new Error(payload?.error?.message || "Initialisation du paiement impossible.")
       }
 
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
+      const { error: stripeError, paymentIntent } = await stripeClient.confirmCardPayment(
         clientSecret,
         {
           payment_method: {
-            card: elements.getElement(CardElement)!,
+            card: stripeElements.getElement(CardElement)!,
             billing_details: {
               name: fullName,
               phone,

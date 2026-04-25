@@ -28,6 +28,7 @@ const config: Config.InitialOptions = {
       setupFiles: ['<rootDir>/jest.polyfills.js'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       moduleNameMapper: {
+        '^@/root/(.*)$': '<rootDir>/$1',
         '^@/(.*)$': '<rootDir>/$1',
         '^\\.(css|sass|scss)$': 'identity-obj-proxy',
         '^\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js',
@@ -45,6 +46,7 @@ const config: Config.InitialOptions = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/.next/',
+    '/dist/',
     '/cypress/',
     '/tests-e2e/',
     '/lib/types/test.ts',
@@ -52,7 +54,13 @@ const config: Config.InitialOptions = {
     '/__tests__/jest-matchers.d.ts',
     '/__tests__/test-utils.tsx',
     '/__tests__/mocks/'
-  ]
+  ],
+  modulePathIgnorePatterns: [
+    '<rootDir>/apps/vendor/dist/',
+  ],
+  watchPathIgnorePatterns: [
+    '<rootDir>/apps/vendor/dist/',
+  ],
 };
 
 export default config;

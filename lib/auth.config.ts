@@ -16,6 +16,8 @@ declare module 'next-auth' {
     name: string
     role: UserRole
     phone?: string
+    address?: string
+    city?: string
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
   }
 
@@ -26,6 +28,9 @@ declare module 'next-auth' {
       email: string
       role: UserRole
       status: 'PENDING' | 'APPROVED' | 'REJECTED'
+      phone?: string
+      address?: string
+      city?: string
     }
   }
 }
@@ -35,6 +40,9 @@ declare module "next-auth/jwt" {
     id: string
     role: UserRole
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    phone?: string
+    address?: string
+    city?: string
   }
 }
 

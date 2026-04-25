@@ -30,7 +30,6 @@ import {
   X,
 } from "lucide-react"
 import type { Order } from "@/root/lib/types"
-import type { KdsColumnKey } from "@/lib/kitchen-kds-preferences"
 import {
   loadColumnSounds,
   loadKdsStations,
@@ -41,10 +40,12 @@ import {
   saveLineStations,
   saveWarnMinutes,
   setLineStation,
-  type ColumnSoundPrefs,
-  type LineStationMap,
 } from "@/lib/kitchen-kds-preferences"
 import { playKitchenColumnChime } from "@/lib/kitchen-kds-sounds"
+
+type KdsColumnKey = "pending" | "accepted" | "preparing" | "ready"
+type LineStationMap = Record<string, Record<string, string>>
+type ColumnSoundPrefs = Record<KdsColumnKey, boolean>
 
 const KITCHEN_STATUSES = new Set(["PENDING", "ACCEPTED", "PREPARING", "READY"])
 const SESSION_DISMISSED_KEY = "vendor-kds-dismissed-ready-v1"

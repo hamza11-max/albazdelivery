@@ -4,7 +4,15 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/root/components/ui/button"
 import { Input } from "@/root/components/ui/input"
-import type { GuestMenuProduct } from "@/lib/guest-menu-products"
+
+type GuestMenuProduct = {
+  id: string
+  name: string
+  description?: string
+  sellingPrice: number
+  image?: string
+  category?: string
+}
 
 type CartLine = { product: GuestMenuProduct; quantity: number }
 

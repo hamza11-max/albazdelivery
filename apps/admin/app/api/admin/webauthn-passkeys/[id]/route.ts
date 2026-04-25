@@ -4,7 +4,7 @@ import { prisma } from "@/root/lib/prisma"
 import { errorResponse, ForbiddenError, UnauthorizedError, ValidationError, successResponse } from "@/root/lib/errors"
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { isWebAuthnPasskeysEnabled } from "@/root/lib/webauthn/feature"
-import { csrfProtection } from "@/apps/admin/lib/csrf"
+import { csrfProtection } from "@/lib/csrf"
 import { logPasskeyAuditEvent } from "@/root/lib/webauthn/audit"
 
 type AdminPasskeyAction = "approve" | "reject" | "revoke"

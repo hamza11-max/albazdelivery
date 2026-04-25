@@ -93,6 +93,7 @@ describe('usePOSHandlers', () => {
       if (typeof value === 'function') {
         return value('123')
       }
+      return undefined
     })
 
     act(() => {
@@ -114,6 +115,7 @@ describe('usePOSHandlers', () => {
       if (typeof value === 'function') {
         return value('12')
       }
+      return undefined
     })
 
     act(() => {

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/root/components/ui/t
 import { Switch } from "@/root/components/ui/switch"
 import { Edit, Upload, Send, Trash2, Plus, RotateCcw, Package, Tag } from "lucide-react"
 import type { InventoryProduct } from "@/root/lib/types"
-import { isElectronOfflineInventoryVendorId } from "@/utils/electronUtils"
+import { isElectronOfflineInventoryVendorId } from "../../utils/electronUtils"
 import { electronFetch, isElectronRuntime } from "@/lib/electron-fetch"
 import { InventoryAlertsTab } from "./InventoryAlertsTab"
 

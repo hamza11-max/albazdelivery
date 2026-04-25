@@ -1,5 +1,6 @@
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
+import type { NextAuthConfig } from 'next-auth'
 import { loginSchema, algerianPhoneRegex } from './validations/auth'
 import { prisma } from './prisma'
 import { verifyPassword } from './password'
@@ -13,6 +14,8 @@ declare module 'next-auth' {
     name: string
     role: UserRole
     phone?: string
+    address?: string
+    city?: string
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
   }
 
@@ -23,6 +26,9 @@ declare module 'next-auth' {
       email: string
       role: UserRole
       status: 'PENDING' | 'APPROVED' | 'REJECTED'
+      phone?: string
+      address?: string
+      city?: string
     }
   }
 }
@@ -32,6 +38,9 @@ declare module 'next-auth/jwt' {
     id: string
     role: UserRole
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    phone?: string
+    address?: string
+    city?: string
   }
 }
 
@@ -60,7 +69,7 @@ export const authConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
     Credentials({
-      async authorize(credentials: Record<string, string> | undefined) {
+      async authorize(credentials: Partial<Record<string, unknown>>) {
         // Validate credentials
         const validatedFields = loginSchema.safeParse(credentials)
 
@@ -141,4 +150,4 @@ export const authConfig = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-}
+} satisfies NextAuthConfig

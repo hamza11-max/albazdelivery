@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import dynamic from "next/dynamic"
+import nextDynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@albaz/ui"
@@ -16,7 +16,7 @@ import { UserListViewWithBulk } from "../../components/UserListViewWithBulk"
 import { ApprovalsView } from "../../components/ApprovalsView"
 import { AuditLogView } from "../../components/AuditLogView"
 import { AdsManagementView } from "../../components/AdsManagementView"
-const AnalyticsDashboard = dynamic(
+const AnalyticsDashboard = nextDynamic(
   () =>
     import("../../components/AnalyticsDashboard").then((mod) => mod.AnalyticsDashboard),
   {

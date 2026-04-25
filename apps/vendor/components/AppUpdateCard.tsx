@@ -5,7 +5,17 @@ import { Download, RefreshCw, Rocket } from "lucide-react"
 import { Button } from "@/root/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/root/components/ui/card"
 import { Progress } from "@/root/components/ui/progress"
-import type { AppUpdateStatusPayload } from "@/lib/electron-api"
+
+type AppUpdateStatusPayload = {
+  status: "checking" | "available" | "not-available" | "error" | "downloading" | "downloaded"
+  version?: string
+  releaseDate?: string
+  message?: string
+  percent?: number
+  transferred?: number
+  total?: number
+  bytesPerSecond?: number
+}
 
 type ToastFn = (options: {
   title: string

@@ -2,7 +2,7 @@ import {
   type Customer, 
   type Sale, 
   type SaleItem, 
-  type InventoryProduct,
+  type InventoryProduct as RootInventoryProduct,
   type Order,
   type Supplier
 } from "@/root/lib/types"
@@ -13,9 +13,13 @@ export type {
   Customer,
   Sale,
   SaleItem,
-  InventoryProduct,
   Order,
   Supplier
+}
+
+export interface InventoryProduct extends Omit<RootInventoryProduct, "id"> {
+  id: number | string
+  vendorId?: string
 }
 
 export type { Category }

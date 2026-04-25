@@ -9,8 +9,8 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "dev:clean": "node -e \"const fs=require('fs');const p=require('path');const d=p.join(__dirname,'.next');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true});console.log('Cleaned .next');}\" && next dev -p 3001",
-    "build": "next build",
-    "build:electron": "cross-env ELECTRON_BUILD=true next build",
+    "build": "next build --webpack",
+    "build:electron": "cross-env ELECTRON_BUILD=true next build --webpack",
     "start": "next start -p 3001",
     "electron": "electron .",
     "electron:dev": "npm run setup:icons && cross-env NODE_ENV=development electron .",

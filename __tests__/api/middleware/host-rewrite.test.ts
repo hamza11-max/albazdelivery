@@ -17,7 +17,9 @@ jest.mock('@/root/lib/security/csrf', () => ({
 }))
 
 jest.mock('@/root/lib/security/headers', () => {
-  const { NextResponse } = jest.requireActual('next/server')
+  const { NextResponse } = jest.requireActual<{ NextResponse: unknown }>(
+    'next/server'
+  )
   return {
     applySecurityHeaders: jest.fn((r: any) => r),
     securityHeadersMiddleware: jest.fn((_req: any, r: any) => r),

@@ -8,6 +8,8 @@ import { z } from "zod"
 
 export const dynamic = "force-dynamic"
 
+type GuestOrderRow = { status: string }
+
 function assertVendor(session: Awaited<ReturnType<typeof getSessionFromRequest>>) {
   if (!session?.user?.id) throw new UnauthorizedError()
   const role = String(session.user.role || "")
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
     const status = request.nextUrl.searchParams.get("status")?.trim()
     let orders = listGuestOrders()
     if (status && ["PENDING", "ACCEPTED", "REJECTED"].includes(status)) {
-      orders = orders.filter((o) => o.status === status)
+      orders = orders.filter((o: GuestOrderRow) => o.status === status)
     }
     return successResponse({ orders })
   } catch (e: any) {

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3003",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start -p 3003",
     "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext .js,.jsx,.ts,.tsx --config .eslintrc.json --no-eslintrc",
     "type-check": "tsc --noEmit",
@@ -16,7 +16,7 @@
     "@albaz/shared": "*",
     "@albaz/ui": "*",
     "@albaz/auth": "*",
-    "next": "^15.5.6",
+    "next": "^16.0.7",
     "next-auth": "^5.0.0-beta.25",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

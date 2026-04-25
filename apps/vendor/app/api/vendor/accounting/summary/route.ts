@@ -7,6 +7,8 @@ import { asRootRequest } from "@/lib/next-request-bridge"
 
 export const dynamic = "force-dynamic"
 
+type ExpenseRow = { createdAt: number; amount: number | string }
+
 function assertVendor(session: Awaited<ReturnType<typeof getSessionFromRequest>>) {
   if (!session?.user?.id) throw new UnauthorizedError()
   const role = String(session.user.role || "")
@@ -23,8 +25,8 @@ export async function GET(request: NextRequest) {
     const to = Number(request.nextUrl.searchParams.get("toMs")) || now
     const sales = listOfflineSalesInRange(from, to)
     const salesSummary = summarizeSales(sales)
-    const expenses = listExpenses().filter((e) => e.createdAt >= from && e.createdAt <= to)
-    const expenseTotal = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0)
+    const expenses = listExpenses().filter((e: ExpenseRow) => e.createdAt >= from && e.createdAt <= to)
+    const expenseTotal = expenses.reduce((s: number, e: ExpenseRow) => s + (Number(e.amount) || 0), 0)
     return successResponse({
       fromMs: from,
       toMs: to,

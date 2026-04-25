@@ -10,9 +10,6 @@ const config = {
   output: process.env.ELECTRON_BUILD ? 'standalone' : undefined,
   // Keep Prisma and native modules out of the server bundle
   serverExternalPackages: ['@prisma/client', 'better-sqlite3'],
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

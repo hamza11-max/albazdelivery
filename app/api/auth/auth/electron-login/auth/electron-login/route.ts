@@ -24,12 +24,7 @@ export async function POST(request: NextRequest) {
         password: true,
         role: true,
         status: true,
-        vendorProfile: {
-          select: {
-            id: true,
-            businessName: true,
-          }
-        }
+        shopType: true,
       }
     })
 
@@ -72,7 +67,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         email: user.email,
         role: user.role,
-        vendorId: user.vendorProfile?.id,
+        vendorId: user.role === 'VENDOR' ? user.id : undefined,
       },
       secret,
       { expiresIn: '7d' }
@@ -85,8 +80,8 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name: user.name,
         role: user.role,
-        vendorId: user.vendorProfile?.id,
-        businessName: user.vendorProfile?.businessName,
+        vendorId: user.role === 'VENDOR' ? user.id : undefined,
+        businessName: user.shopType || user.name,
       },
       token,
     })

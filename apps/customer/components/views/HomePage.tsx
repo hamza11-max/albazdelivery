@@ -59,7 +59,7 @@ export const HomePage = React.memo(function HomePage({
           <div className="albaz-search px-4 py-[11px] flex items-center gap-3 animate-[fadeSlideUp_0.65s_ease]">
             <Search className="w-5 h-5 text-[var(--albaz-text-soft)] shrink-0" />
             <Input
-              ref={searchInputRef}
+              ref={searchInputRef as React.Ref<HTMLInputElement>}
               type="text"
               placeholder={t('search', customerCopy.search.placeholder, 'ابحث عن أي شيء...')}
               value={searchQuery}

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { generateAuthenticationOptions } from "@simplewebauthn/server"
+import { isoBase64URL } from "@simplewebauthn/server/helpers"
 import { prisma } from "@/root/lib/prisma"
 import { errorResponse, ForbiddenError, ValidationError, successResponse } from "@/root/lib/errors"
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       timeout: 60_000,
       userVerification: "preferred",
       allowCredentials: credentials.map((credential) => ({
-        id: credential.credentialId,
+        id: isoBase64URL.toBuffer(credential.credentialId),
         type: "public-key",
       })),
     })

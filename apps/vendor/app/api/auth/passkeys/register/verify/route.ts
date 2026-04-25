@@ -62,9 +62,9 @@ export async function POST(request: NextRequest) {
       throw new ValidationError("Passkey registration verification failed")
     }
 
-    const transports = verification.registrationInfo.credential.transports || []
-    const publicKey = isoBase64URL.fromBuffer(verification.registrationInfo.credential.publicKey)
-    const counter = verification.registrationInfo.credential.counter
+    const transports = (registrationCredential.response?.transports || []) as string[]
+    const publicKey = isoBase64URL.fromBuffer(verification.registrationInfo.credentialPublicKey)
+    const counter = verification.registrationInfo.counter
 
     const storedCredential = await prisma.webAuthnCredential.upsert({
       where: { credentialId },

@@ -1,6 +1,12 @@
 import { useState, useMemo, useCallback } from "react"
-import type { InventoryProduct } from "@/root/lib/types"
-import type { CartItem } from "../app/vendor/types"
+import type { CartItem, InventoryProduct } from "../app/vendor/types"
+
+let posOrderSequence = 0
+
+function makePosOrderNumber(): string {
+  posOrderSequence = (posOrderSequence + 1) % 1000
+  return `ORD-${Date.now().toString().slice(-6)}-${posOrderSequence.toString().padStart(3, "0")}`
+}
 
 export function usePOSCart() {
   const [posCart, setPosCart] = useState<CartItem[]>([])
@@ -11,7 +17,7 @@ export function usePOSCart() {
   const [posTaxPercent, setPosTaxPercent] = useState(2)
   const [posSelectedCategory, setPosSelectedCategory] = useState<string>("all")
   const [posOrderNumber, setPosOrderNumber] = useState<string>(() => {
-    return `ORD-${Date.now().toString().slice(-6)}`
+    return makePosOrderNumber()
   })
   const [posKeypadValue, setPosKeypadValue] = useState<string>("")
   const [posSearch, setPosSearch] = useState("")
@@ -85,7 +91,7 @@ export function usePOSCart() {
     setPosKeypadValue("")
     setPosCouponCode("")
     setPosAppliedCoupon(null)
-    setPosOrderNumber(`ORD-${Date.now().toString().slice(-6)}`)
+    setPosOrderNumber(makePosOrderNumber())
   }, [])
 
   const applyCoupon = useCallback((coupon: any, subtotal: number) => {

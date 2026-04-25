@@ -7,6 +7,9 @@ declare module 'next-auth' {
     email: string
     name: string
     role: 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN'
+    phone?: string
+    address?: string
+    city?: string
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
   }
 
@@ -18,6 +21,9 @@ declare module 'next-auth' {
       email: string
       role: 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN'
       status: 'PENDING' | 'APPROVED' | 'REJECTED'
+      phone?: string
+      address?: string
+      city?: string
     }
   }
 }
@@ -27,6 +33,9 @@ declare module 'next-auth/jwt' {
     id: string
     role: 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN'
     status: 'PENDING' | 'APPROVED' | 'REJECTED'
+    phone?: string
+    address?: string
+    city?: string
   }
 }
 

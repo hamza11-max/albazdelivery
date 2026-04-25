@@ -1,12 +1,13 @@
 import { renderHook, act } from '@testing-library/react'
 import { usePOSCart } from '../../hooks/usePOSCart'
-import type { InventoryProduct } from '@/root/lib/types'
+import type { InventoryProduct } from '../../app/vendor/types'
 
 describe('usePOSCart', () => {
   const mockProduct: InventoryProduct = {
     id: 1,
     name: 'Test Product',
     sellingPrice: 10.99,
+    price: 10.99,
     costPrice: 5.00,
     stock: 100,
     category: 'Test',

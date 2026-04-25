@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         credentialID: isoBase64URL.toBuffer(credential.credentialId),
         credentialPublicKey: isoBase64URL.toBuffer(credential.publicKey),
         counter: credential.counter,
-        transports: credential.transports,
+        transports: credential.transports as any,
       },
       requireUserVerification: true,
     })

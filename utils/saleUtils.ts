@@ -65,6 +65,7 @@ export async function completeSale({
   toast,
   translate,
   isArabic = false,
+  setOfflineQueueCount,
 }: CompleteSaleParams) {
   if (posCart.length === 0) {
     toast({
