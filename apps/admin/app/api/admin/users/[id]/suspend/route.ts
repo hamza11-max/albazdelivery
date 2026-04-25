@@ -5,6 +5,8 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../../lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../../../lib/audit'
+import { notifyUserSuspended } from '@/root/lib/mail/adminUserNotifications'
+import { notificationEmailStatus } from '@/root/lib/mail/sendTransactionalEmail'
 
 // POST /api/admin/users/[id]/suspend - Suspend user account
 export async function POST(
@@ -85,11 +87,19 @@ export async function POST(
       status: 'SUCCESS',
     }, request)
 
-    // TODO: Send notification to user about suspension
+    const mailResult = await notifyUserSuspended({
+      to: user.email,
+      name: user.name,
+      reason: typeof reason === 'string' ? reason : null,
+    })
+    if (mailResult.ok === false) {
+      console.error('[admin/suspend] notification email failed', mailResult.error)
+    }
 
     return successResponse({
       user: updatedUser,
       message: `User ${user.name} has been suspended${reason ? `: ${reason}` : ''}`,
+      notificationEmail: notificationEmailStatus(mailResult),
     })
   } catch (error) {
     return errorResponse(error)

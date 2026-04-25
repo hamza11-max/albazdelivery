@@ -69,7 +69,14 @@ async function main() {
   const vendorPassword = await hashPassword('Vendor123!')
   const vendor = await prisma.user.upsert({
     where: { email: 'vendor@test.com' },
-    update: {},
+    update: {
+      vendorSubdomain: 'demo',
+      vendorDomainStatus: 'VERIFIED',
+      vendorDomainVerifiedAt: new Date(),
+      storefrontTagline: 'Authentic Indian cuisine — delivered hot.',
+      storefrontAccentColor: '#ea580c',
+      storefrontWhatsappPhone: '+213771234567',
+    },
     create: {
       name: 'Le Taj Mahal Restaurant',
       email: 'vendor@test.com',
@@ -80,9 +87,114 @@ async function main() {
       shopType: 'Restaurant',
       city: 'Algiers',
       address: '789 Restaurant Street, Algiers',
+      // take.app-style storefront: https://demo.${BASE_DOMAIN}
+      vendorSubdomain: 'demo',
+      vendorDomainStatus: 'VERIFIED',
+      vendorDomainVerifiedAt: new Date(),
+      storefrontTagline: 'Authentic Indian cuisine — delivered hot.',
+      storefrontAccentColor: '#ea580c',
+      storefrontWhatsappPhone: '+213771234567',
     },
   })
-  console.log('✅ Vendor created:', vendor.email)
+  console.log('✅ Vendor created:', vendor.email, '→ storefront slug "demo"')
+
+  // Catalog categories (customer browse / store.categoryId)
+  console.log('Seeding catalog categories...')
+  const catalogRows = [
+    {
+      slug: 'shops',
+      name: 'Shops',
+      nameAr: 'متاجر',
+      nameFr: 'Boutiques',
+      iconImage: '/icons/gifts-icon.png',
+      color: 'bg-gradient-to-br from-emerald-100 to-green-50',
+      iconColor: 'text-emerald-600',
+      sortOrder: 0,
+    },
+    {
+      slug: 'pharmacy-beauty',
+      name: 'Pharmacy & Beauty',
+      nameAr: 'صيدلية وتجميل',
+      nameFr: 'Pharmacie & Beauté',
+      iconImage: '/icons/pharmacy-and-supplements-icon.png',
+      color: 'bg-gradient-to-br from-pink-100 to-rose-50',
+      iconColor: 'text-pink-500',
+      sortOrder: 1,
+    },
+    {
+      slug: 'groceries',
+      name: 'Groceries',
+      nameAr: 'بقالة',
+      nameFr: 'Épicerie',
+      iconImage: '/icons/shops-and-groceries-icon--cart-.png',
+      color: 'bg-gradient-to-br from-orange-100 to-amber-50',
+      iconColor: 'text-orange-500',
+      sortOrder: 2,
+    },
+    {
+      slug: 'food',
+      name: 'Food',
+      nameAr: 'طعام',
+      nameFr: 'Nourriture',
+      iconImage: '/icons/food-icon--pizza-and-burger--.png',
+      color: 'bg-gradient-to-br from-orange-100 to-yellow-50',
+      iconColor: 'text-orange-600',
+      sortOrder: 3,
+    },
+    {
+      slug: 'package-delivery',
+      name: 'Package Delivery',
+      nameAr: 'توصيل الطرود',
+      nameFr: 'Livraison de colis',
+      iconImage: '/icons/package-delivery-icon--motorcyle-.png',
+      color: 'bg-gradient-to-br from-yellow-100 to-amber-50',
+      iconColor: 'text-yellow-600',
+      sortOrder: 4,
+    },
+  ]
+  for (const c of catalogRows) {
+    await prisma.catalogCategory.upsert({
+      where: { slug: c.slug },
+      update: {
+        name: c.name,
+        nameAr: c.nameAr,
+        nameFr: c.nameFr,
+        iconImage: c.iconImage,
+        color: c.color,
+        iconColor: c.iconColor,
+        sortOrder: c.sortOrder,
+        isActive: true,
+      },
+      create: { ...c, isActive: true },
+    })
+  }
+  console.log('✅ Catalog categories ready')
+
+  // Sample vendor payouts (finance tab)
+  await prisma.vendorPayout.deleteMany({ where: { vendorId: vendor.id } })
+  await prisma.vendorPayout.createMany({
+    data: [
+      {
+        vendorId: vendor.id,
+        periodLabel: 'This week',
+        grossAmount: 125000,
+        feesAmount: 2500,
+        netAmount: 122500,
+        status: 'pending',
+        etaLabel: 'Friday',
+      },
+      {
+        vendorId: vendor.id,
+        periodLabel: 'Last week',
+        grossAmount: 98000,
+        feesAmount: 2000,
+        netAmount: 96000,
+        status: 'settled',
+        etaLabel: 'Paid',
+      },
+    ],
+  })
+  console.log('✅ Vendor payouts seeded')
 
   // Create Store for Vendor
   console.log('Creating vendor store...')
@@ -418,6 +530,10 @@ async function main() {
   console.log('Vendor:   vendor@test.com / Vendor123!')
   console.log('Driver:   driver@test.com / Driver123!')
   console.log('─────────────────────────────────────────')
+  console.log('\n🛍  Demo storefront:')
+  console.log(`   Subdomain: demo.${process.env.BASE_DOMAIN || 'albazdelivery.com'}`)
+  console.log('   Local:     http://demo.localhost:3000/ (after hosts file setup)')
+  console.log('   See docs/CUSTOM_DOMAINS_README.md for local testing.')
 }
 
 main()

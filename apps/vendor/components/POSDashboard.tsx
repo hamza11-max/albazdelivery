@@ -344,44 +344,49 @@ export default function POSDashboard() {
             </button>
           </div>
 
-          {/* Content Area */}
-          <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
-            {/* Products Grid */}
-            <div className="flex-1 overflow-y-auto p-4 md:p-8">
-              <div className="mb-4">
-                {/* Category Filters Horizontal Bar */}
-                <div className="flex gap-3 overflow-x-auto pb-2">
-                  <button onClick={() => setFilterCategory("All")} className={`whitespace-nowrap px-3 py-1 rounded-lg text-sm font-medium transition-all ${filterCategory === "All" ? "bg-emerald-100 text-emerald-800" : "bg-white/60 text-slate-700"}`}>
-                    All
-                  </button>
-                  {Array.from(new Set(SAMPLE_PRODUCTS.map((p) => p.category))).map((cat) => (
-                    <button key={cat} onClick={() => setFilterCategory(cat)} className={`whitespace-nowrap px-3 py-1 rounded-lg text-sm font-medium transition-all ${filterCategory === cat ? "bg-emerald-100 text-emerald-800" : "bg-white/60 text-slate-700"}`}>
-                      {cat}
+          {/* Content Area — two columns so products stay visible (Electron / narrow POS) */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+            {/* Products (left): scrolls independently; never collapsed by cart */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-slate-200/60 md:border-r">
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6">
+                <div className="mb-4">
+                  {/* Category Filters Horizontal Bar */}
+                  <div className="flex gap-3 overflow-x-auto pb-2">
+                    <button onClick={() => setFilterCategory("All")} className={`whitespace-nowrap px-3 py-1 rounded-lg text-sm font-medium transition-all ${filterCategory === "All" ? "bg-emerald-100 text-emerald-800" : "bg-white/60 text-slate-700"}`}>
+                      All
                     </button>
-                  ))}
-                </div>
+                    {Array.from(new Set(SAMPLE_PRODUCTS.map((p) => p.category))).map((cat) => (
+                      <button key={cat} onClick={() => setFilterCategory(cat)} className={`whitespace-nowrap px-3 py-1 rounded-lg text-sm font-medium transition-all ${filterCategory === cat ? "bg-emerald-100 text-emerald-800" : "bg-white/60 text-slate-700"}`}>
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
 
-                {/* Product Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 mt-4">
-                  {SAMPLE_PRODUCTS.filter((p) => filterCategory === "All" || p.category === filterCategory).map((product) => (
-                    <div key={product.id} onClick={() => addToCart(product)} className="rounded-xl bg-white shadow-md hover:shadow-xl transition-shadow duration-200 p-3 cursor-pointer">
-                      <div className="rounded-lg overflow-hidden bg-gradient-to-br from-emerald-50 to-slate-50">
-                        <img src={product.image} alt="" className="w-full h-40 object-cover" />
+                  {/* Product Grid */}
+                  <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:grid-cols-4">
+                    {SAMPLE_PRODUCTS.filter((p) => filterCategory === "All" || p.category === filterCategory).map((product) => (
+                      <div key={product.id} onClick={() => addToCart(product)} className="cursor-pointer rounded-xl bg-white p-3 shadow-md transition-shadow duration-200 hover:shadow-xl">
+                        <div className="overflow-hidden rounded-lg bg-gradient-to-br from-emerald-50 to-slate-50">
+                          <img src={product.image} alt="" className="h-32 w-full object-cover sm:h-40" />
+                        </div>
+                        <div className="mt-3">
+                          <div className="text-sm font-medium text-slate-800">{product.name}</div>
+                          <div className="text-xs text-slate-500">{product.category}</div>
+                          <div className="mt-2 font-semibold text-slate-900">${product.price}</div>
+                        </div>
                       </div>
-                      <div className="mt-3">
-                        <div className="text-sm font-medium text-slate-800">{product.name}</div>
-                        <div className="text-xs text-slate-500">{product.category}</div>
-                        <div className="mt-2 font-semibold text-slate-900">${product.price}</div>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
+            </div>
 
+            {/* Cart & checkout (right): fixed width on desktop, full width stacked on phone */}
+            <div className="flex max-h-[55vh] w-full shrink-0 flex-col overflow-hidden border-t border-slate-200/60 bg-white md:max-h-none md:h-auto md:w-[min(100%,420px)] md:border-t-0">
               {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 md:px-6 md:py-4">
                 {cart.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-slate-400">
+                  <div className="flex min-h-[120px] items-center justify-center py-8 text-slate-400">
                     <p className="text-sm">No items in cart</p>
                   </div>
                 ) : (

@@ -1,21 +1,30 @@
 import { type NextRequest } from 'next/server'
 import { successResponse, errorResponse } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { categories } from '@/lib/mock-data'
+import { prisma } from '@/root/lib/prisma'
 
-// GET /api/categories - Get all categories
-// Note: Categories are currently defined in mock-data.ts
-// In the future, this should be moved to a database table
+// GET /api/categories — active rows from CatalogCategory (see prisma/seed.ts)
 export async function GET(request: NextRequest) {
   try {
-    // Apply rate limiting
     applyRateLimit(request, rateLimitConfigs.api)
 
-    // Return categories from mock data
-    // TODO: Replace with database query when Category model is added
+    const rows = await prisma.catalogCategory.findMany({
+      where: { isActive: true },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    })
+
+    const categories = rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      nameAr: r.nameAr,
+      nameFr: r.nameFr,
+      iconImage: r.iconImage ?? undefined,
+      color: r.color,
+      iconColor: r.iconColor,
+    }))
+
     return successResponse({ categories })
   } catch (error) {
     return errorResponse(error)
   }
 }
-

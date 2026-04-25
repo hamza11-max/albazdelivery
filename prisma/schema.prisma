@@ -32,7 +32,21 @@ model User {
   photoUrl      String? // Profile/vehicle photo
   address       String?
   city          String?
-  
+
+  // Vendor-level storefront domain (take.app-style)
+  vendorSubdomain                 String?       @unique
+  vendorCustomDomain              String?       @unique
+  vendorDomainStatus              DomainStatus  @default(PENDING)
+  vendorDomainVerificationToken   String?
+  vendorDomainVerifiedAt          DateTime?
+
+  // Vendor-level storefront branding
+  storefrontLogoUrl   String?
+  storefrontHeroUrl   String?
+  storefrontTagline   String?
+  storefrontAccentColor String?
+  storefrontWhatsappPhone String?
+
   // Relations
   orders              Order[]        @relation("CustomerOrders")
   vendorOrders        Order[]        @relation("VendorOrders")
@@ -51,11 +65,21 @@ model User {
   subscription        Subscription?
   addresses           CustomerAddress[]
   webauthnCredentials WebAuthnCredential[]
+  vendorPayouts       VendorPayout[]
+  vendorDisputes      VendorDispute[]
   
   @@index([email])
   @@index([phone])
   @@index([role])
   @@index([status])
+  @@index([vendorSubdomain])
+  @@index([vendorCustomDomain])
+}
+
+enum DomainStatus {
+  PENDING
+  VERIFIED
+  FAILED
 }
 
 model CustomerAddress {
@@ -129,6 +153,66 @@ enum ApprovalStatus {
 }
 
 // ========================================
+// Vendor finance (payouts & disputes)
+// ========================================
+
+model VendorPayout {
+  id          String   @id @default(cuid())
+  vendorId    String
+  vendor      User     @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  periodLabel String
+  grossAmount Float
+  feesAmount  Float
+  netAmount   Float
+  status      String
+  etaLabel    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  disputes    VendorDispute[]
+
+  @@index([vendorId])
+}
+
+model VendorDispute {
+  id        String   @id @default(cuid())
+  vendorId  String
+  vendor    User         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  payoutId  String
+  payout    VendorPayout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  orderId   String?
+  reason    String
+  amount    Float
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([vendorId])
+  @@index([payoutId])
+}
+
+// ========================================
+// Customer catalog (home / browse categories)
+// ========================================
+
+model CatalogCategory {
+  id         Int      @id @default(autoincrement())
+  slug       String   @unique
+  name       String
+  nameAr     String
+  nameFr     String
+  iconImage  String?
+  color      String
+  iconColor  String
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+// ========================================
 // Store & Product Management
 // ========================================
 
@@ -146,7 +230,14 @@ model Store {
   isActive     Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  
+
+  // Store-level storefront domain (overrides vendor-level when present)
+  subdomain                 String?       @unique
+  customDomain              String?       @unique
+  domainStatus              DomainStatus  @default(PENDING)
+  domainVerificationToken   String?
+  domainVerifiedAt          DateTime?
+
   vendor   User      @relation(fields: [vendorId], references: [id])
   products Product[]
   orders   Order[]
@@ -155,6 +246,8 @@ model Store {
   @@index([categoryId])
   @@index([city])
   @@index([isActive])
+  @@index([subdomain])
+  @@index([customDomain])
 }
 
 model Product {

@@ -14,10 +14,38 @@ import {
   auditSecurityEventConsole,
   getClientInfo,
 } from '@/lib/security/audit-client-info'
-import { extractSubdomain, normalizeHost } from '@/lib/domains/utils'
+import {
+  extractSubdomain,
+  isReservedSubdomain,
+  normalizeHost,
+} from '@/lib/domains/utils'
+
+/**
+ * Pathnames that must NEVER be rewritten to the storefront, even when the
+ * request arrives on a vendor subdomain or custom domain.
+ */
+const STOREFRONT_BYPASS_PREFIXES = [
+  '/_next/',
+  '/api/',
+  '/s/',
+  '/__nextjs_', // Next.js internal endpoints
+]
+
+const STOREFRONT_BYPASS_EXACT = new Set([
+  '/favicon.ico',
+  '/robots.txt',
+  '/sitemap.xml',
+])
+
+function shouldBypassStorefrontRewrite(pathname: string): boolean {
+  if (STOREFRONT_BYPASS_EXACT.has(pathname)) return true
+  if (/\.[a-z0-9]+$/i.test(pathname)) return true // static asset (png, css, js...)
+  return STOREFRONT_BYPASS_PREFIXES.some((p) => pathname === p.slice(0, -1) || pathname.startsWith(p))
+}
 
 /**
  * Global middleware with:
+ * - Tenant host + subdomain detection (take.app-style storefront rewriting)
  * - Conditional CSRF protection
  * - Security headers
  * - CORS handling
@@ -29,12 +57,47 @@ export default async function middleware(request: NextRequest) {
   const normalizedHost = normalizeHost(request.headers.get('host'))
   const baseDomain = normalizeHost(process.env.BASE_DOMAIN || '') || 'albazdelivery.com'
 
+  // Detect tenant host + (optional) subdomain
+  let tenantSubdomain: string | null = null
+  let isCustomDomainHost = false
+
   if (normalizedHost) {
     requestHeaders.set('x-tenant-host', normalizedHost)
 
-    const tenantSubdomain = extractSubdomain(normalizedHost, baseDomain)
-    if (tenantSubdomain) {
+    tenantSubdomain = extractSubdomain(normalizedHost, baseDomain)
+    if (tenantSubdomain && !isReservedSubdomain(tenantSubdomain)) {
       requestHeaders.set('x-tenant-subdomain', tenantSubdomain)
+    } else if (
+      normalizedHost !== baseDomain &&
+      !normalizedHost.endsWith(`.${baseDomain}`) &&
+      !normalizedHost.startsWith('localhost') &&
+      !/^\d+\.\d+\.\d+\.\d+$/.test(normalizedHost)
+    ) {
+      // Host is neither the base domain, a base-domain subdomain, localhost,
+      // nor an IP literal → treat as a custom-domain storefront host.
+      isCustomDomainHost = true
+    }
+  }
+
+  // -----------------------------------------------------------------
+  // Storefront rewrite (take.app-style). Edge-safe: no DB access here.
+  // Vendor resolution by host happens inside app/s/[vendorSlug]/layout.tsx.
+  // -----------------------------------------------------------------
+  if (!shouldBypassStorefrontRewrite(pathname)) {
+    if (tenantSubdomain && !isReservedSubdomain(tenantSubdomain)) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/s/${tenantSubdomain}${pathname === '/' ? '' : pathname}`
+      return applySecurityHeaders(
+        NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+      )
+    }
+
+    if (isCustomDomainHost) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/s/__host__${pathname === '/' ? '' : pathname}`
+      return applySecurityHeaders(
+        NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+      )
     }
   }
 

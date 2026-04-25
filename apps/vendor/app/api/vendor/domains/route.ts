@@ -19,6 +19,7 @@ import {
   normalizeSubdomainInput,
 } from '@/root/lib/domains/utils'
 import { getDomainVerificationInstructions } from '@/root/lib/domains/verification'
+import { removeDomainFromVercelProject } from '@/root/lib/domains/vercel-provisioning'
 
 function canManageVendorDomains(session: any, targetVendorId: string): boolean {
   if (!session?.user) return false
@@ -27,7 +28,7 @@ function canManageVendorDomains(session: any, targetVendorId: string): boolean {
 }
 
 async function getStoreCustomDomainCount(vendorId: string): Promise<number> {
-  return (prisma.store as any).count({
+  return prisma.store.count({
     where: {
       vendorId,
       customDomain: { not: null },
@@ -46,14 +47,14 @@ async function assertNoDomainCollisions({
 }) {
   if (vendorSubdomain) {
     const [sameVendorSubdomain, sameStoreSubdomain] = await Promise.all([
-      (prisma.user as any).findFirst({
+      prisma.user.findFirst({
         where: {
           id: { not: vendorId },
           vendorSubdomain,
         },
         select: { id: true },
       }),
-      (prisma.store as any).findFirst({
+      prisma.store.findFirst({
         where: { subdomain: vendorSubdomain },
         select: { id: true },
       }),
@@ -65,14 +66,14 @@ async function assertNoDomainCollisions({
 
   if (vendorCustomDomain) {
     const [sameVendorDomain, sameStoreDomain] = await Promise.all([
-      (prisma.user as any).findFirst({
+      prisma.user.findFirst({
         where: {
           id: { not: vendorId },
           vendorCustomDomain,
         },
         select: { id: true },
       }),
-      (prisma.store as any).findFirst({
+      prisma.store.findFirst({
         where: { customDomain: vendorCustomDomain },
         select: { id: true },
       }),
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [vendor, entitlements, usedStoreCustomDomains] = await Promise.all([
-      (prisma.user as any).findUnique({
+      prisma.user.findUnique({
         where: { id: targetVendorId },
         select: {
           id: true,
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Provide vendorSubdomain and/or vendorCustomDomain')
     }
 
-    const vendor = await (prisma.user as any).findUnique({
+    const vendor = await prisma.user.findUnique({
       where: { id: targetVendorId },
       select: {
         id: true,
@@ -219,7 +220,9 @@ export async function POST(request: NextRequest) {
     const verificationToken = requiresVerification ? makeVerificationToken() : null
     const now = new Date()
 
-    const updated = await (prisma.user as any).update({
+    const previousCustomDomain = vendor.vendorCustomDomain
+
+    const updated = await prisma.user.update({
       where: { id: targetVendorId },
       data: {
         vendorSubdomain: nextSubdomain,
@@ -236,6 +239,13 @@ export async function POST(request: NextRequest) {
         vendorDomainVerifiedAt: true,
       },
     })
+
+    if (
+      previousCustomDomain &&
+      previousCustomDomain !== updated.vendorCustomDomain
+    ) {
+      await removeDomainFromVercelProject(previousCustomDomain).catch(() => null)
+    }
 
     const usedStoreCustomDomains = await getStoreCustomDomainCount(targetVendorId)
     const response: any = {

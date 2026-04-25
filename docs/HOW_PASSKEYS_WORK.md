@@ -126,7 +126,7 @@ Defined in `lib/webauthn/common.ts`:
 | POST | `/api/auth/passkeys/register/options` | Start enrollment |
 | POST | `/api/auth/passkeys/register/verify` | Finish enrollment → `PENDING` credential |
 | GET | `/api/auth/passkeys/me` | List current user’s WebAuthn credentials |
-| DELETE | `/api/auth/passkeys/me/[id]` | Vendor-initiated removal where implemented |
+| DELETE | `/api/auth/passkeys/me/[id]` | Vendor-initiated removal (sets credential to `REVOKED`) |
 | POST | `/api/auth/passkeys/auth/options` | Start sign-in (identifier) |
 | POST | `/api/auth/passkeys/auth/verify` | Finish sign-in → issue `passkeyToken` |
 

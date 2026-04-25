@@ -29,7 +29,7 @@ export async function resolveHostTenant(hostHeader: string | null | undefined, o
   const baseDomain = getBaseDomain(options.baseDomain)
 
   // 1) Store custom domain
-  const storeByCustomDomain = await (prisma.store as any).findFirst({
+  const storeByCustomDomain = await prisma.store.findFirst({
     where: { customDomain: normalizedHost, domainStatus: 'VERIFIED' },
     select: { id: true, vendorId: true },
   })
@@ -44,7 +44,7 @@ export async function resolveHostTenant(hostHeader: string | null | undefined, o
   }
 
   // 2) Vendor custom domain
-  const vendorByCustomDomain = await (prisma.user as any).findFirst({
+  const vendorByCustomDomain = await prisma.user.findFirst({
     where: { role: 'VENDOR', vendorCustomDomain: normalizedHost, vendorDomainStatus: 'VERIFIED' },
     select: { id: true },
   })
@@ -61,7 +61,7 @@ export async function resolveHostTenant(hostHeader: string | null | undefined, o
   const candidateSubdomain = extractSubdomain(normalizedHost, baseDomain)
   if (!candidateSubdomain || isReservedSubdomain(candidateSubdomain)) return null
 
-  const storeBySubdomain = await (prisma.store as any).findFirst({
+  const storeBySubdomain = await prisma.store.findFirst({
     where: { subdomain: candidateSubdomain, domainStatus: 'VERIFIED' },
     select: { id: true, vendorId: true },
   })
@@ -75,7 +75,7 @@ export async function resolveHostTenant(hostHeader: string | null | undefined, o
     } satisfies ResolvedTenantContext
   }
 
-  const vendorBySubdomain = await (prisma.user as any).findFirst({
+  const vendorBySubdomain = await prisma.user.findFirst({
     where: { role: 'VENDOR', vendorSubdomain: candidateSubdomain, vendorDomainStatus: 'VERIFIED' },
     select: { id: true },
   })

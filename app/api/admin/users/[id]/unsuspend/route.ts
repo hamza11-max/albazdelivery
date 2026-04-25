@@ -5,6 +5,8 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../admin/lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../../admin/lib/audit'
+import { notifyUserUnsuspended } from '@/lib/mail/adminUserNotifications'
+import { notificationEmailStatus } from '@/lib/mail/sendTransactionalEmail'
 
 // POST /api/admin/users/[id]/unsuspend - Unsuspend/activate user account
 export async function POST(
@@ -77,11 +79,18 @@ export async function POST(
       status: 'SUCCESS',
     }, request)
 
-    // TODO: Send notification to user about account activation
+    const mailResult = await notifyUserUnsuspended({
+      to: user.email,
+      name: user.name,
+    })
+    if (mailResult.ok === false) {
+      console.error('[admin/unsuspend] notification email failed', mailResult.error)
+    }
 
     return successResponse({
       user: updatedUser,
       message: `User ${user.name} has been activated`,
+      notificationEmail: notificationEmailStatus(mailResult),
     })
   } catch (error) {
     return errorResponse(error)

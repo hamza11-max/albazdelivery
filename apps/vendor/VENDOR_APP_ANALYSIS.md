@@ -4,7 +4,9 @@
 
 The Vendor App is a comprehensive Point of Sale (POS) and business management system designed for vendors to manage their inventory, sales, customers, suppliers, and operations. It supports both web and Electron desktop environments with offline capabilities.
 
-**Last Updated:** December 2024
+In addition to the back-office, every vendor now gets a **public branded storefront** (take.app-style) reachable on a vendor subdomain (`<slug>.albazdelivery.com`) or an optional custom domain (`shop.yourbrand.com`). The storefront is a full ordering experience — catalog, cart, guest checkout — that funnels orders into the same `Order` pipeline and WhatsApp vendor notifications used everywhere else in the platform.
+
+**Last Updated:** April 2026
 
 ---
 
@@ -20,6 +22,9 @@ The Vendor App is a comprehensive Point of Sale (POS) and business management sy
 8. [API Integration](#api-integration)
 9. [User Interface](#user-interface)
 10. [Security & Authentication](#security--authentication)
+11. [Public Storefront (Vendor Subdomains & Custom Domains)](#public-storefront-vendor-subdomains--custom-domains)
+12. [WhatsApp API Strategy](#whatsapp-api-strategy)
+13. [Restaurant Version Analysis](#restaurant-version-analysis)
 
 ---
 
@@ -178,6 +183,54 @@ apps/vendor/
   - Dark mode toggle
   - Language selection (French/Arabic)
 
+### 13. Public Storefront & Custom Domains (take.app-style)
+- **Vendor Subdomain**
+  - Free `<slug>.albazdelivery.com` storefront on every plan
+  - Live availability validation against reserved labels (`admin`, `api`, `vendor`, etc.)
+  - Sharable preview link once status is `VERIFIED`
+  
+- **Custom Domain (paid plans)**
+  - Bring your own apex/subdomain (`shop.yourbrand.com`)
+  - DNS-based ownership verification (TXT + CNAME)
+  - Auto-attached to the Vercel project for free SSL on successful verification
+  - Subscription-gated: STARTER blocked, PROFESSIONAL+ allowed (vendor + 1 store), BUSINESS (5 stores), ENTERPRISE (unlimited)
+  
+- **Branded Storefront UX**
+  - Catalog grouped by store with hero, accent color, tagline, and logo
+  - Product detail pages with add-to-cart
+  - Persistent cart (localStorage, scoped per vendor)
+  - Guest checkout (name, phone, address, payment method)
+  - Order confirmation page protected by an opaque signed token
+  
+- **Order Funnel Reuse**
+  - Storefront orders flow through the same `createOrderInternal` used by WhatsApp & customer apps
+  - Existing WhatsApp vendor notifications, loyalty accrual, and pricing logic apply unchanged
+  - Guest customers are stored as shadow `CUSTOMER` users keyed by normalized phone
+
+### 14. Domain Management UI
+- **`apps/vendor/app/vendor/settings/domains/page.tsx`** — standalone settings page
+- **`VendorDomainsCard`** embedded in the main `Settings` tab of the vendor dashboard
+- DNS instructions card (TXT host + value, CNAME host + target)
+- One-click "Verify" with rate-limit protection
+- Subscription status badge (plan + entitlements)
+
+### 15. WhatsApp Messaging Strategy
+- **Default platform WhatsApp channel**
+  - AlBaz-owned WhatsApp API used for MVP/onboarding
+  - Sends order alerts and operational notifications without vendor setup friction
+  - Best default for small vendors and pilots
+
+- **Optional vendor-owned WhatsApp API**
+  - Paid-plan upgrade for serious vendors who want their own WhatsApp Business number
+  - Better brand trust: customers see the vendor's name/number instead of the platform number
+  - Vendor owns customer conversation history, templates, limits, and opt-ins
+  - Recommended path: Meta Embedded Signup rather than manual token paste
+
+- **Hybrid operating model**
+  - `PLATFORM` mode for default notifications through AlBaz
+  - `VENDOR_OWNED` mode for branded customer messaging, automation, templates, and two-way support
+  - Keeps onboarding simple while preserving a scalable long-term architecture
+
 ---
 
 ## Component Structure
@@ -233,6 +286,19 @@ apps/vendor/
 6. **ReceiptDialog**: Receipt display
 7. **ImageUploadDialog**: Image upload functionality
 8. **BarcodeScannerDialog**: Barcode scanning interface
+
+### Storefront / Domain Components
+
+1. **`components/security/VendorDomainsCard.tsx`** — vendor-side card to view/set `vendorSubdomain` and `vendorCustomDomain`, render DNS instructions, and trigger verification.
+2. **`app/vendor/settings/domains/page.tsx`** — standalone settings page that hosts `VendorDomainsCard`.
+
+The public storefront itself lives in the **root Next.js app** (the one that handles customer-facing traffic), not under `apps/vendor`:
+
+- `app/s/[vendorSlug]/{layout, page, products/[productId], cart, checkout, orders/[id]}` — App Router storefront tree.
+- `app/s/[vendorSlug]/_storefront/{StorefrontHeader, StorefrontFooter, StorefrontCartProvider, ProductCard}.tsx` — UI primitives.
+- `app/api/public/storefront/{[vendorSlug]/{profile,catalog,products/[productId]}, orders, orders/[id]}/route.ts` — public, CSRF-protected APIs.
+
+This split keeps the desktop POS / Electron bundle in `apps/vendor` lean while routing all customer storefront traffic through the main deployment.
 
 ---
 
@@ -313,6 +379,8 @@ apps/vendor/
 - Offline sales queue (web version)
 
 ### API Endpoints
+
+**ERP / vendor-internal:**
 - `/api/erp/inventory` - Inventory management
 - `/api/erp/sales` - Sales operations
 - `/api/erp/customers` - Customer management
@@ -321,6 +389,22 @@ apps/vendor/
 - `/api/erp/categories` - Category management
 - `/api/vendors/orders` - Order management
 - `/api/erp/ai-insights` - AI insights
+
+**Domain management (vendor-authenticated):**
+- `GET /api/vendor/domains` - Read current vendor domain config + entitlements
+- `POST /api/vendor/domains` - Set/clear `vendorSubdomain` and `vendorCustomDomain`
+- `POST /api/vendor/domains/verify` - Run DNS TXT/CNAME verification + Vercel attach
+- `GET /api/stores/:id/domains` - Read store-level domain config
+- `POST /api/stores/:id/domains` - Set/clear store `subdomain`/`customDomain`
+- `POST /api/stores/:id/domains/verify` - Verify store custom domain
+- All routes are mirrored under `apps/vendor/app/api/...` for the desktop bundle
+
+**Public storefront (unauthenticated, CSRF-protected mutations):**
+- `GET /api/public/storefront/[vendorSlug]/profile` - Vendor branding + active stores
+- `GET /api/public/storefront/[vendorSlug]/catalog` - Products grouped by store
+- `GET /api/public/storefront/[vendorSlug]/products/[productId]` - Product detail
+- `POST /api/public/storefront/orders` - Create a guest order, returns `{orderId, token}`
+- `GET /api/public/storefront/orders/[id]?token=...` - Fetch order for confirmation page
 
 ### Data Flow
 1. **Product Operations**: API → Local State → UI Update
@@ -430,7 +514,28 @@ apps/vendor/
 
 ## Recent Updates & Enhancements
 
-### Latest Features (December 2024)
+### Latest Features (April 2026)
+
+1. **Vendor Storefronts (take.app-style)**
+   - Branded public ordering site at `<slug>.albazdelivery.com` for every vendor
+   - Optional custom domain (`shop.yourbrand.com`) with DNS-based ownership verification (TXT + CNAME)
+   - Subscription-gated: STARTER blocked from custom domains; PROFESSIONAL+ allowed (vendor + N stores by plan)
+   - Auto-provisioning to Vercel project on successful verification (`lib/domains/vercel-provisioning.ts`) so SSL is issued automatically
+   - Edge-safe middleware rewrites `<slug>.albazdelivery.com/path` → `/s/<slug>/path` and custom-domain hosts → `/s/__host__/path` (resolved server-side via `x-tenant-host` header)
+   - Full storefront tree under `app/s/[vendorSlug]/{layout, page, products/[id], cart, checkout, orders/[id]}` with branded layout, persistent localStorage cart, and guest checkout
+   - Guest orders flow through the existing `createOrderInternal` pipeline, reusing WhatsApp vendor notifications and loyalty accrual
+   - Vendor UI: `VendorDomainsCard` embedded in the Settings tab + standalone `app/vendor/settings/domains` page
+   - Demo vendor seeded with `vendorSubdomain='demo'` for local testing
+   - Test coverage: 11 middleware host-rewrite tests + 10 public storefront API tests
+
+2. **WhatsApp API operating model**
+   - Recommended hybrid model: AlBaz shared WhatsApp API by default, vendor-owned WhatsApp Business API as an optional upgrade
+   - Platform mode keeps onboarding simple and lets new vendors receive storefront/customer-app order alerts immediately
+   - Vendor-owned mode supports branded sender identity, vendor templates, two-way customer conversations, and better isolation of Meta quality/limit issues
+   - Future data model should store encrypted vendor credentials and provider identifiers (`wabaId`, `phoneNumberId`, access token, webhook token) only for vendors using `VENDOR_OWNED` mode
+   - Meta Embedded Signup is preferred over manual token entry for production
+
+### Previous Features (December 2024)
 
 1. **Invoice System**
    - Professional invoice template
@@ -463,6 +568,207 @@ apps/vendor/
    - System printer dialog
    - Print preview
    - PDF generation
+
+---
+
+## Public Storefront (Vendor Subdomains & Custom Domains)
+
+### Goals
+
+Give every vendor a branded public ordering page (think *take.app*) that:
+
+- Lives on a free `<slug>.albazdelivery.com` subdomain by default.
+- Can be upgraded to a paid custom domain (`shop.yourbrand.com`) on PROFESSIONAL+.
+- Offers a complete catalog → cart → guest checkout → confirmation flow.
+- Funnels orders into the **same** `Order` model + WhatsApp vendor notifications used by the customer app and WhatsApp Flow — no parallel pipelines, no duplicate logic.
+
+### Request flow
+
+```
+Customer browser
+  → middleware.ts (Edge-safe; extracts host, sets x-tenant-host, rewrites URL)
+  → app/s/[vendorSlug]/* (App Router storefront pages on Node.js)
+  → /api/public/storefront/* (resolves vendor → catalog/orders)
+  → prisma → DB
+  → createOrderInternal → existing Order pipeline + WhatsApp notify
+```
+
+### Tenant resolution precedence
+
+`lib/domains/resolve-host.ts` resolves an incoming host with the following order, mirroring take.app:
+
+1. Store-level **custom domain**
+2. Vendor-level **custom domain**
+3. Store-level **subdomain**
+4. Vendor-level **subdomain**
+
+Custom-domain hosts arrive at `/s/__host__/...` via middleware (a sentinel slug); the storefront layout then re-resolves the real vendor server-side from the `x-tenant-host` header.
+
+### Schema additions
+
+`User` (vendor):
+- `vendorSubdomain` (unique, normalized, reserved-label list enforced)
+- `vendorCustomDomain` (unique, normalized FQDN)
+- `vendorDomainStatus`: `PENDING | VERIFIED | FAILED`
+- `vendorDomainVerificationToken`, `vendorDomainVerifiedAt`
+- Storefront branding: `storefrontLogoUrl`, `storefrontHeroUrl`, `storefrontTagline`, `storefrontAccentColor`, `storefrontWhatsappPhone`
+
+`Store`:
+- `subdomain`, `customDomain` (unique each)
+- `domainStatus`, `domainVerificationToken`, `domainVerifiedAt`
+
+### Subscription entitlements
+
+Implemented in `lib/subscriptions/domain-entitlements.ts`:
+
+| Plan          | Vendor custom domain | Store custom domains | Domain writes |
+|---------------|----------------------|----------------------|---------------|
+| STARTER       | Blocked              | 0                    | Allowed if `ACTIVE`/`TRIAL` |
+| PROFESSIONAL  | 1                    | 1                    | Allowed if `ACTIVE`/`TRIAL` |
+| BUSINESS      | 1                    | 5                    | Allowed if `ACTIVE`/`TRIAL` |
+| ENTERPRISE    | 1                    | unlimited            | Allowed if `ACTIVE`/`TRIAL` |
+
+`PAST_DUE`, `CANCELED`, `EXPIRED` block all domain writes and verifications.
+
+### DNS verification
+
+`lib/domains/verification.ts` implements:
+
+- TXT record check at `_albaz-verify.<domain>` containing the per-vendor token.
+- CNAME check pointing `<domain>` at `CUSTOM_DOMAIN_CNAME_TARGET` (default `cname.vercel-dns.com`).
+- Both must pass to mark the domain `VERIFIED`.
+
+### Vercel provisioning
+
+`lib/domains/vercel-provisioning.ts` calls the Vercel Domains REST API:
+
+- `POST /v10/projects/{projectId}/domains` on successful verification → SSL auto-issued.
+- `DELETE /v9/projects/{projectId}/domains/{domain}` when a custom domain is removed/changed.
+- No-op when `VERCEL_API_TOKEN` / `VERCEL_PROJECT_ID` are absent (local dev).
+- Idempotent: `409 already exists` on add and `404` on delete are treated as success.
+
+### Guest checkout
+
+`lib/storefront/ensure-guest-customer.ts` finds-or-creates a shadow `CUSTOMER` user keyed by normalized phone (Algerian number variants supported), with a synthetic email and hashed random password — same shape used by the WhatsApp pipeline. The returned customer is then passed to `createOrderInternal`, which:
+
+- Recomputes pricing from `Product` rows (no client-supplied prices trusted)
+- Creates the `Order` and `OrderItem` rows
+- Triggers the existing WhatsApp vendor notification
+- Awards loyalty points
+- Returns the persisted order
+
+The storefront API then signs an HMAC token (`signOrderToken` in `lib/storefront/orders.ts`) so the unauthenticated confirmation page can fetch its order without enumeration risk.
+
+### Reserved subdomains
+
+`lib/domains/utils.ts` blocks any subdomain that conflicts with platform routes/services: `www, api, admin, app, vendor(s), driver(s), customer(s), auth, login, signup, register, signin, logout, storefront, cdn, static, assets, images, docs, help, status, billing, dashboard, pos, store(s), health, ws, webhooks, mail, smtp, pop, imap, support, localhost`.
+
+### Required environment variables
+
+- `BASE_DOMAIN` — apex used for vendor subdomains (e.g. `albazdelivery.com`)
+- `CUSTOM_DOMAIN_CNAME_TARGET` — value shown in DNS instructions (default `cname.vercel-dns.com`)
+- `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID` — for production custom-domain auto-provisioning
+- `VERCEL_TEAM_ID` — only when the project is owned by a Vercel team
+- `AUTH_SECRET` — used to sign storefront order tokens (already used for NextAuth)
+
+### Local testing
+
+Three options (full details in `docs/CUSTOM_DOMAINS_README.md`):
+
+1. **`*.localhost`** — set `BASE_DOMAIN=localhost`, run `npm run dev`, visit `http://demo.localhost:3000/`.
+2. **Hosts-file apex** — add `127.0.0.1 albazdelivery.local` and `127.0.0.1 demo.albazdelivery.local`, set `BASE_DOMAIN=albazdelivery.local`.
+3. **Manual `Host` header** via curl/Postman.
+
+Run `npx prisma db seed` to provision the demo vendor at `demo.<BASE_DOMAIN>`.
+
+---
+
+## WhatsApp API Strategy
+
+### Recommendation
+
+Use a **hybrid WhatsApp model**:
+
+- **Default:** one AlBaz-owned WhatsApp Business API channel for order alerts and platform messages.
+- **Upgrade:** vendor-owned WhatsApp Business API for vendors who need branded customer conversations, custom templates, automation, or higher isolation.
+
+This keeps onboarding fast for small vendors while leaving a clean path for professional restaurants and high-volume stores.
+
+### Why not only one shared WhatsApp API?
+
+One shared AlBaz number is the fastest MVP path, but it should not be the only long-term model:
+
+- All customers see the platform identity instead of the vendor's brand.
+- Vendor replies require routing logic or support handoff.
+- Message limits and quality-rating problems are shared across all vendors.
+- If Meta restricts the shared number, every vendor is impacted.
+- Vendor-specific marketing templates, opt-ins, and customer-history ownership become harder to manage.
+
+### Why not force every vendor to bring their own API?
+
+Forcing vendor-owned WhatsApp API on day one creates unnecessary friction:
+
+- Meta Business setup and verification can be confusing for small shops.
+- Each vendor needs a WhatsApp Business Account, phone number, templates, and webhook routing.
+- Support burden increases during onboarding.
+- Many vendors only need reliable order alerts, not a full conversation platform.
+
+### Operating modes
+
+| Mode | Owner | Best for | Pros | Trade-offs |
+|------|-------|----------|------|------------|
+| `PLATFORM` | AlBaz | MVP, small vendors, basic order alerts | Fast onboarding, one integration to operate, lower setup friction | Shared limits/quality, platform sender identity |
+| `VENDOR_OWNED` | Vendor | Restaurants, brands, high-volume vendors | Vendor brand identity, own templates, own conversations, better isolation | Requires Meta setup, credential storage, onboarding support |
+
+### Suggested data model
+
+Vendor WhatsApp settings should stay nullable until a vendor chooses `VENDOR_OWNED` mode:
+
+```ts
+whatsappMode: 'PLATFORM' | 'VENDOR_OWNED'
+whatsappPhoneNumberId?: string
+whatsappBusinessAccountId?: string
+whatsappAccessTokenEncrypted?: string
+whatsappWebhookVerifyToken?: string
+whatsappTemplatesSyncedAt?: Date
+```
+
+Sensitive values must be encrypted at rest. Production onboarding should use **Meta Embedded Signup** so vendors connect their WhatsApp Business account through a guided flow instead of pasting long-lived tokens into the dashboard.
+
+### Rollout plan
+
+1. Keep AlBaz shared WhatsApp API as the default order-notification channel.
+2. Add vendor settings for preferred notification number and storefront contact number.
+3. Add `VENDOR_OWNED` WhatsApp API as a paid-plan capability (recommended: BUSINESS / ENTERPRISE).
+4. Add Meta Embedded Signup and webhook routing by `phone_number_id`.
+5. Add template management, customer opt-in tracking, and vendor conversation inbox only after the domain/storefront flow is stable.
+
+---
+
+## Restaurant Version Analysis
+
+Restaurants need a stricter, faster workflow than general retail. The restaurant version should be a specialized configuration of the same vendor app, not a separate app. It should reuse authentication, POS, inventory, storefront, WhatsApp, orders, and reporting, while changing the UI defaults and data model around menus, tables, kitchen flow, and delivery timing.
+
+For the complete restaurant-specific product and technical analysis, see:
+
+- `apps/vendor/docs/VENDOR_APP_RESTAURANT_VERSION_ANALYSIS.md`
+
+### Restaurant-specific priorities
+
+1. **Fast order capture** — waiter/cashier can build an order quickly by category, modifier, and table.
+2. **Menu management** — dishes, variants, add-ons, availability, prep time, allergens, and scheduled menus.
+3. **Kitchen operations** — Kitchen Display System (KDS), ticket status, prep timers, and station routing.
+4. **Dining modes** — dine-in, takeaway, delivery, curbside, and storefront orders in one order book.
+5. **Table management** — floor plan, table status, split/merge bills, waiter assignment.
+6. **WhatsApp + storefront** — customer ordering, order confirmations, and optional vendor-owned WhatsApp for branded conversations.
+7. **Restaurant reporting** — item mix, peak hours, prep-time SLA, cancellation/refund reasons, table turnover, delivery performance.
+
+### Recommended approach
+
+- Add a `shopType = 'Restaurant'` feature profile that turns on restaurant-specific tabs and language.
+- Preserve the existing POS for retail/vendor use, but add restaurant mode UI (`Menu`, `Tables`, `Kitchen`, `Orders`, `Delivery`, `Reports`).
+- Reuse the public storefront already built under `app/s/[vendorSlug]`, but present menu categories, modifiers, and pickup/delivery slots for restaurant vendors.
+- Keep WhatsApp platform mode as default, then offer vendor-owned WhatsApp API for restaurant brands that need their own number.
 
 ---
 
@@ -1038,6 +1344,8 @@ Additional documentation available:
 - `ERROR_HANDLING.md`: Error handling guidelines
 - `TESTING.md`: Testing documentation
 - `REFACTORING_PROGRESS.md`: Refactoring progress
+- `docs/VENDOR_APP_USER_GUIDE.md`: Pilot user guide for shop owners and staff
+- `docs/VENDOR_APP_RESTAURANT_VERSION_ANALYSIS.md`: Restaurant-specific app profile, workflows, data model, and rollout plan
 
 ---
 
@@ -1075,8 +1383,10 @@ Additional documentation available:
 
 The Vendor App is a comprehensive POS and business management system with robust offline capabilities, modern UI/UX, and extensive features for managing all aspects of a vendor's business operations. The application supports both web and desktop environments, making it versatile for different deployment scenarios.
 
+As of April 2026 it also fronts a **public, branded vendor storefront** (vendor subdomains + custom domains), turning every vendor into their own ordering site without leaving the AlBaz platform. Storefront orders flow through the same `Order` / WhatsApp / loyalty pipeline as the rest of the platform, so vendors get a unified order book regardless of channel (POS, customer app, WhatsApp Flow, public storefront).
+
 **Status**: Production Ready
-**Version**: Latest (December 2024)
+**Version**: Latest (April 2026)
 **Maintainer**: Development Team
 
 ---

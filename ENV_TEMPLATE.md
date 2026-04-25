@@ -105,6 +105,26 @@ DELIVERY_FEE="500"
 TAX_RATE="0"
 MAX_ORDER_ITEMS="50"
 MAX_CART_VALUE="100000"
+
+# ==============================================
+# VENDOR STOREFRONTS / CUSTOM DOMAINS (take.app-style)
+# ==============================================
+# Apex domain used for vendor subdomains, e.g. "albazdelivery.com"
+# Customers will reach a vendor at `<vendorSubdomain>.${BASE_DOMAIN}`.
+BASE_DOMAIN="albazdelivery.com"
+
+# CNAME target vendors should point their custom apex/www at. On Vercel this
+# is typically "cname.vercel-dns.com".
+CUSTOM_DOMAIN_CNAME_TARGET="cname.vercel-dns.com"
+
+# Vercel Domains API — used to programmatically attach verified custom
+# domains to the deployed project so Vercel issues SSL certs automatically.
+# Leave blank locally; the app falls back to no-op provisioning.
+# Docs: https://vercel.com/docs/rest-api/reference/endpoints/projects/add-a-domain-to-a-project
+VERCEL_API_TOKEN=""
+VERCEL_PROJECT_ID=""
+# Only required when the project is owned by a Vercel team.
+VERCEL_TEAM_ID=""
 ```
 
 ## Setup Instructions
@@ -150,6 +170,9 @@ MAX_CART_VALUE="100000"
 - `GOOGLE_CLIENT_ID` - OAuth login
 - `SENTRY_DSN` - Error tracking
 - `SMTP_*` - Email notifications
+- `BASE_DOMAIN` - Apex for vendor subdomain storefronts (`<slug>.${BASE_DOMAIN}`)
+- `CUSTOM_DOMAIN_CNAME_TARGET` - CNAME target shown to vendors in DNS instructions
+- `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID` - Programmatic custom-domain provisioning on Vercel
 
 ## Security Notes
 

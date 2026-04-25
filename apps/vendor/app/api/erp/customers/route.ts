@@ -223,7 +223,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create new customer (stub for future implementation)
+/**
+ * POST — **By design** customers are not created from this ERP endpoint.
+ * End-users register (customer role); the vendor CRM lists linked users from sales/orders.
+ * A future “invite / quick-add customer” flow would extend this with validation and `User`/`Customer` creation.
+ */
 export async function POST(request: NextRequest) {
   try {
     applyRateLimit(request, rateLimitConfigs.api)

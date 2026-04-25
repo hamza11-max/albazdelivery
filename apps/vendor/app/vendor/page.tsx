@@ -120,6 +120,7 @@ import { ErrorBoundary } from "../../components/ErrorBoundary"
 import { VendorTopbar } from "../../components/navigation/VendorTopbar"
 import { VendorMenuGrid } from "../../components/navigation/VendorMenuGrid"
 import { WebAuthnPasskeysCard } from "../../components/security/WebAuthnPasskeysCard"
+import { VendorDomainsCard } from "../../components/security/VendorDomainsCard"
 import { vendorMenuItems } from "../../components/navigation/vendor-menu-items"
 import { NotificationsPanel, type VendorNotificationItem } from "../../components/navigation/NotificationsPanel"
 import { StaffSwitchDialog } from "../../components/navigation/StaffSwitchDialog"
@@ -164,6 +165,25 @@ import type {
   OrdersData,
   CategoriesData
 } from "./types"
+
+type FinancePayoutRow = {
+  id: string
+  period: string
+  gross: number
+  fees: number
+  net: number
+  status: string
+  eta: string
+}
+
+type FinanceDisputeRow = {
+  id: string
+  payoutId: string
+  orderId: string
+  reason: string
+  amount: number
+  status?: string
+}
 
 function VendorDashboardContent() {
   const router = useRouter()
@@ -441,13 +461,11 @@ function VendorDashboardContent() {
     if (typeof window === "undefined") return false
     return localStorage.getItem("vendor-auto-print-whatsapp-confirm") === "true"
   })
-  const [payouts] = useState(() => [
-    { id: 'PAYOUT-001', period: 'Cette semaine', gross: 125000, fees: 2500, net: 122500, status: 'pending', eta: 'Vendredi' },
-    { id: 'PAYOUT-000', period: 'Semaine dernière', gross: 98000, fees: 2000, net: 96000, status: 'settled', eta: 'Déjà payé' },
-  ])
-  const [disputes, setDisputes] = useState<Array<{ id: string; payoutId: string; orderId: string; reason: string; amount: number }>>([])
+  const [payouts, setPayouts] = useState<FinancePayoutRow[]>([])
+  const [disputes, setDisputes] = useState<FinanceDisputeRow[]>([])
   const [disputeForm, setDisputeForm] = useState({ payoutId: '', orderId: '', reason: '', amount: '' })
   const [isSubmittingDispute, setIsSubmittingDispute] = useState(false)
+
   const [offlineQueueCount, setOfflineQueueCount] = useState(() => {
     if (typeof window === 'undefined') return 0
     try {
@@ -1205,17 +1223,41 @@ function VendorDashboardContent() {
 
     setIsSubmittingDispute(true)
     try {
-      // For now, just store locally (stub)
-      setDisputes((prev) => [
-        ...prev,
-        {
-          id: `DISP-${Date.now()}`,
+      const vendorId = isAdmin ? activeVendorId : effectiveUser?.id
+      const q = isAdmin && vendorId ? `?vendorId=${encodeURIComponent(vendorId)}` : ""
+      const res = await fetch(`/api/vendor/finance/disputes${q}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           payoutId: disputeForm.payoutId,
-          orderId: disputeForm.orderId,
-          reason: disputeForm.reason,
+          orderId: disputeForm.orderId.trim() || undefined,
+          reason: disputeForm.reason.trim(),
           amount: amountValue,
-        },
-      ])
+          ...(isAdmin && vendorId ? { vendorId } : {}),
+        }),
+      })
+      const json = await res.json()
+      if (!json?.success) {
+        const msg =
+          json?.error?.message ||
+          json?.message ||
+          translate("Échec de l'envoi", "فشل الإرسال")
+        throw new Error(typeof msg === "string" ? msg : "Request failed")
+      }
+      const d = json.data?.dispute
+      if (d?.id) {
+        setDisputes((prev) => [
+          {
+            id: d.id,
+            payoutId: d.payoutId,
+            orderId: d.orderId ?? "",
+            reason: d.reason,
+            amount: d.amount,
+            status: d.status,
+          },
+          ...prev,
+        ])
+      }
       setDisputeForm({ payoutId: '', orderId: '', reason: '', amount: '' })
       toast({
         title: translate("Réclamation enregistrée", "تم تسجيل الاعتراض"),
@@ -1244,6 +1286,55 @@ function VendorDashboardContent() {
     fetchOrders,
     fetchCategories
   } = useDashboardData()
+
+  useEffect(() => {
+    if (isElectronRuntime || isLocalOfflineVendor) return
+    if (!isAuthenticated) return
+    const vendorId = isAdmin ? activeVendorId : effectiveUser?.id
+    if (!vendorId) {
+      setPayouts([])
+      setDisputes([])
+      return
+    }
+    let cancelled = false
+    const q = isAdmin ? `?vendorId=${encodeURIComponent(vendorId)}` : ""
+    ;(async () => {
+      try {
+        const [pr, dr] = await Promise.all([
+          fetch(`/api/vendor/finance/payouts${q}`),
+          fetch(`/api/vendor/finance/disputes${q}`),
+        ])
+        const pj = await pr.json()
+        const dj = await dr.json()
+        if (cancelled) return
+        if (pj?.success && pj?.data?.payouts && Array.isArray(pj.data.payouts)) {
+          setPayouts(pj.data.payouts as FinancePayoutRow[])
+        } else if (!cancelled) {
+          setPayouts([])
+        }
+        if (dj?.success && dj?.data?.disputes && Array.isArray(dj.data.disputes)) {
+          setDisputes(dj.data.disputes as FinanceDisputeRow[])
+        } else if (!cancelled) {
+          setDisputes([])
+        }
+      } catch {
+        if (!cancelled) {
+          setPayouts([])
+          setDisputes([])
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    isElectronRuntime,
+    isLocalOfflineVendor,
+    isAuthenticated,
+    isAdmin,
+    activeVendorId,
+    effectiveUser?.id,
+  ])
 
   // Refresh offline queue count (Electron offline DB preferred)
   const refreshOfflineQueueCount = useCallback(async () => {
@@ -2634,6 +2725,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           <TabsContent value="settings" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
             <WebAuthnPasskeysCard translate={translate} />
+            <VendorDomainsCard translate={translate} />
 
             <Tabs defaultValue="shop" className="w-full gap-4">
               <TabsList className="mb-1 grid h-auto w-full max-w-full min-h-9 grid-cols-1 gap-1 p-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:justify-start">
@@ -3008,7 +3100,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
               <TabsContent value="finance" className="mt-4 space-y-6 outline-none">
 
-          {/* Payouts & Disputes (stub) */}
+          {/* Payouts & disputes (DB-backed via /api/vendor/finance/*) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

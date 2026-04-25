@@ -11,6 +11,7 @@ import {
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { getVendorDomainEntitlements } from '@/root/lib/subscriptions/domain-entitlements'
 import { verifyDomainOwnership } from '@/root/lib/domains/verification'
+import { addDomainToVercelProject } from '@/root/lib/domains/vercel-provisioning'
 
 function canVerifyStoreDomain(session: any, vendorId: string): boolean {
   if (!session?.user) return false
@@ -31,7 +32,7 @@ export async function POST(
     const storeId = params.id
     if (!storeId) throw new ValidationError('Store ID is required')
 
-    const store = await (prisma.store as any).findUnique({
+    const store = await prisma.store.findUnique({
       where: { id: storeId },
       select: {
         id: true,
@@ -66,7 +67,7 @@ export async function POST(
     )
 
     if (!verification.verified) {
-      await (prisma.store as any).update({
+      await prisma.store.update({
         where: { id: store.id },
         data: { domainStatus: 'FAILED' },
       })
@@ -81,7 +82,7 @@ export async function POST(
       })
     }
 
-    const updated = await (prisma.store as any).update({
+    const updated = await prisma.store.update({
       where: { id: store.id },
       data: {
         domainStatus: 'VERIFIED',
@@ -95,11 +96,17 @@ export async function POST(
       },
     })
 
+    let provisioning: Awaited<ReturnType<typeof addDomainToVercelProject>> | null = null
+    if (updated.customDomain) {
+      provisioning = await addDomainToVercelProject(updated.customDomain)
+    }
+
     return successResponse({
       verified: true,
       status: updated.domainStatus,
       verifiedAt: updated.domainVerifiedAt,
       customDomain: updated.customDomain,
+      provisioning,
     })
   } catch (error) {
     return errorResponse(error)

@@ -11,6 +11,8 @@
 
 ## Pending Tasks
 
+Tracked implementation items now live in the repo (for example: vendor finance APIs under `apps/vendor/app/api/vendor/finance/`, transactional mail under `lib/mail/`, and `ROADMAP.md` for product backlog). Update this file when you add a new critical task.
+
 ## Followup Steps
 - [x] Test authentication flow with NextAuth (build and type-check passed)
 - [x] Test Redis-based rate limiting (build and type-check passed)

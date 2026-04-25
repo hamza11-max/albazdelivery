@@ -4,6 +4,8 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { hashPassword } from '@/lib/password'
+import { notifyUserPasswordResetByAdmin } from '@/root/lib/mail/adminUserNotifications'
+import { notificationEmailStatus } from '@/root/lib/mail/sendTransactionalEmail'
 import { z } from 'zod'
 
 // POST /api/admin/users/[id]/reset-password - Reset user password
@@ -59,10 +61,17 @@ export async function POST(
       },
     })
 
-    // TODO: Send email to user with new password or reset link
+    const mailResult = await notifyUserPasswordResetByAdmin({
+      to: user.email,
+      name: user.name,
+    })
+    if (mailResult.ok === false) {
+      console.error('[admin/reset-password] notification email failed', mailResult.error)
+    }
 
     return successResponse({
       message: `Password reset successfully for ${user.name}`,
+      notificationEmail: notificationEmailStatus(mailResult),
     })
   } catch (error) {
     return errorResponse(error)

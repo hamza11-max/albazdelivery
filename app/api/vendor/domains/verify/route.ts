@@ -11,6 +11,7 @@ import {
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { getVendorDomainEntitlements } from '@/root/lib/subscriptions/domain-entitlements'
 import { verifyDomainOwnership } from '@/root/lib/domains/verification'
+import { addDomainToVercelProject } from '@/root/lib/domains/vercel-provisioning'
 
 function canVerifyVendorDomains(session: any, targetVendorId: string): boolean {
   if (!session?.user) return false
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const vendor = await (prisma.user as any).findUnique({
+    const vendor = await prisma.user.findUnique({
       where: { id: targetVendorId },
       select: {
         id: true,
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
     )
 
     if (!verification.verified) {
-      await (prisma.user as any).update({
+      await prisma.user.update({
         where: { id: targetVendorId },
         data: { vendorDomainStatus: 'FAILED' },
       })
@@ -80,7 +81,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const updated = await (prisma.user as any).update({
+    const updated = await prisma.user.update({
       where: { id: targetVendorId },
       data: {
         vendorDomainStatus: 'VERIFIED',
@@ -94,11 +95,20 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Best-effort: attach the verified custom domain to the Vercel project so
+    // Vercel issues SSL + routes traffic here. No-op locally when the Vercel
+    // env vars aren't configured.
+    let provisioning: Awaited<ReturnType<typeof addDomainToVercelProject>> | null = null
+    if (updated.vendorCustomDomain) {
+      provisioning = await addDomainToVercelProject(updated.vendorCustomDomain)
+    }
+
     return successResponse({
       verified: true,
       status: updated.vendorDomainStatus,
       verifiedAt: updated.vendorDomainVerifiedAt,
       customDomain: updated.vendorCustomDomain,
+      provisioning,
     })
   } catch (error) {
     return errorResponse(error)
