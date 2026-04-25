@@ -1,7 +1,8 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Home, ArrowLeft } from "lucide-react"
+import { Home } from "lucide-react"
+import { NotFoundBackButton } from "./not-found-back-button"
 
 // Force dynamic rendering to avoid static generation issues
 export const dynamic = 'force-dynamic'
@@ -25,12 +26,7 @@ export default function NotFound() {
                 Retour à l'accueil
               </Link>
             </Button>
-            <Button variant="outline" asChild className="w-full">
-              <Link href="javascript:history.back()">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Page précédente
-              </Link>
-            </Button>
+            <NotFoundBackButton />
           </div>
         </CardContent>
       </Card>
