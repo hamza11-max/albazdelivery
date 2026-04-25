@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { VendorDomainsCard } from "@/components/security/VendorDomainsCard"
+import { VendorDomainsCard } from "../../../../components/security/VendorDomainsCard"
 
 export const dynamic = "force-dynamic"
 

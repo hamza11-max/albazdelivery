@@ -84,6 +84,7 @@ export function VendorDomainsCard({
   const [customDomainInput, setCustomDomainInput] = useState("")
   const [saving, setSaving] = useState(false)
   const [verifying, setVerifying] = useState(false)
+  const [copiedValue, setCopiedValue] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -186,14 +187,36 @@ export function VendorDomainsCard({
   }
 
   const status = data?.domains.status
-  const previewUrl =
-    data?.domains.subdomain && status === "VERIFIED"
-      ? `https://${data.domains.subdomain}.${apex}`
-      : null
-  const customPreviewUrl =
-    data?.domains.customDomain && status === "VERIFIED"
-      ? `https://${data.domains.customDomain}`
-      : null
+  const normalizedSubdomain = subdomainInput.trim().toLowerCase()
+  const normalizedCustomDomain = customDomainInput.trim().toLowerCase()
+  const subdomainUrl = normalizedSubdomain
+    ? `https://${normalizedSubdomain}.${apex}`
+    : null
+  const customDomainUrl = normalizedCustomDomain
+    ? `https://${normalizedCustomDomain}`
+    : null
+  const savedSubdomain = data?.domains.subdomain || ""
+  const savedCustomDomain = data?.domains.customDomain || ""
+  const hasChanges =
+    normalizedSubdomain !== savedSubdomain ||
+    normalizedCustomDomain !== savedCustomDomain
+  const canEdit = Boolean(data?.subscription?.allowDomainWrites)
+  const canEditCustom = Boolean(
+    data?.subscription?.allowDomainWrites &&
+      data?.subscription?.allowVendorCustomDomain
+  )
+  const canSave =
+    canEdit && hasChanges && Boolean(normalizedSubdomain || normalizedCustomDomain)
+
+  const copyToClipboard = useCallback(async (value: string) => {
+    try {
+      await navigator.clipboard?.writeText(value)
+      setCopiedValue(value)
+      window.setTimeout(() => setCopiedValue(null), 1500)
+    } catch {
+      // Clipboard is optional in embedded Electron/webview contexts.
+    }
+  }, [])
 
   return (
     <Card>
@@ -220,7 +243,65 @@ export function VendorDomainsCard({
           <>
             <StatusBanner status={status} t={t} />
 
-            {!data?.subscription?.allowDomainWrites ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <DomainPreviewTile
+                title={t("Lien sous-domaine", "رابط النطاق الفرعي")}
+                description={t(
+                  "Le lien simple à partager avec vos clients.",
+                  "الرابط السهل لمشاركته مع العملاء."
+                )}
+                href={subdomainUrl}
+                emptyLabel={t("Choisissez un sous-domaine", "اختر نطاقاً فرعياً")}
+                copyLabel={
+                  copiedValue === subdomainUrl
+                    ? t("Copié", "تم النسخ")
+                    : t("Copier", "نسخ")
+                }
+                openLabel={t("Ouvrir", "فتح")}
+                onCopy={copyToClipboard}
+              />
+              <DomainPreviewTile
+                title={t("Domaine personnalisé", "النطاق المخصّص")}
+                description={t(
+                  "Connectez votre propre marque après DNS.",
+                  "اربط علامتك التجارية بعد إعداد DNS."
+                )}
+                href={customDomainUrl}
+                emptyLabel={t("Aucun domaine personnalisé", "لا يوجد نطاق مخصّص")}
+                copyLabel={
+                  copiedValue === customDomainUrl
+                    ? t("Copié", "تم النسخ")
+                    : t("Copier", "نسخ")
+                }
+                openLabel={t("Ouvrir", "فتح")}
+                onCopy={copyToClipboard}
+              />
+            </div>
+
+            {data?.subscription ? (
+              <div className="grid gap-2 rounded-lg border bg-muted/20 p-3 text-xs text-muted-foreground sm:grid-cols-3">
+                <div>
+                  <span className="block font-medium text-foreground">
+                    {t("Plan", "الخطة")}
+                  </span>
+                  {data.subscription.currentPlan}
+                </div>
+                <div>
+                  <span className="block font-medium text-foreground">
+                    {t("Statut", "الحالة")}
+                  </span>
+                  {data.subscription.currentStatus}
+                </div>
+                <div>
+                  <span className="block font-medium text-foreground">
+                    {t("Domaines magasins restants", "نطاقات المتاجر المتبقية")}
+                  </span>
+                  {data.subscription.remainingStoreDomains}
+                </div>
+              </div>
+            ) : null}
+
+            {!canEdit ? (
               <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
                 {t(
                   "Votre abonnement actuel ne permet pas de modifier les domaines. Réactivez ou passez à un plan supérieur.",
@@ -238,28 +319,23 @@ export function VendorDomainsCard({
                   <Input
                     id="vendor-subdomain"
                     value={subdomainInput}
-                    onChange={(e) => setSubdomainInput(e.target.value)}
+                    onChange={(e) =>
+                      setSubdomainInput(e.target.value.toLowerCase())
+                    }
                     placeholder="myvendor"
                     className="border-none shadow-none focus-visible:ring-0"
-                    disabled={
-                      saving || !data?.subscription?.allowDomainWrites
-                    }
+                    disabled={saving || !canEdit}
                   />
                   <span className="flex items-center border-l bg-muted px-3 text-xs text-muted-foreground">
                     .{apex}
                   </span>
                 </div>
-                {previewUrl ? (
-                  <a
-                    href={previewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    <LinkIcon className="size-3" />
-                    {previewUrl}
-                  </a>
-                ) : null}
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "Utilisez uniquement lettres, chiffres et tirets. Exemple: demo.",
+                    "استخدم الأحرف والأرقام والشرطة فقط. مثال: demo."
+                  )}
+                </p>
               </div>
 
               <div className="space-y-1.5">
@@ -269,13 +345,11 @@ export function VendorDomainsCard({
                 <Input
                   id="vendor-custom-domain"
                   value={customDomainInput}
-                  onChange={(e) => setCustomDomainInput(e.target.value)}
-                  placeholder="shop.mybrand.com"
-                  disabled={
-                    saving ||
-                    !data?.subscription?.allowDomainWrites ||
-                    !data?.subscription?.allowVendorCustomDomain
+                  onChange={(e) =>
+                    setCustomDomainInput(e.target.value.toLowerCase())
                   }
+                  placeholder="shop.mybrand.com"
+                  disabled={saving || !canEditCustom}
                 />
                 {!data?.subscription?.allowVendorCustomDomain ? (
                   <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
@@ -286,16 +360,13 @@ export function VendorDomainsCard({
                     )}
                   </p>
                 ) : null}
-                {customPreviewUrl ? (
-                  <a
-                    href={customPreviewUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    <LinkIcon className="size-3" />
-                    {customPreviewUrl}
-                  </a>
+                {canEditCustom ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t(
+                      "Après l'enregistrement, ajoutez les DNS ci-dessous puis lancez la vérification.",
+                      "بعد الحفظ، أضف سجلات DNS أدناه ثم شغّل التحقق."
+                    )}
+                  </p>
                 ) : null}
               </div>
 
@@ -309,16 +380,16 @@ export function VendorDomainsCard({
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="submit"
-                  disabled={saving || !data?.subscription?.allowDomainWrites}
+                  disabled={saving || !canSave}
                 >
                   {saving ? (
                     <Loader2 className="mr-2 size-4 animate-spin" />
                   ) : null}
-                  {t("Enregistrer", "حفظ")}
+                  {hasChanges
+                    ? t("Enregistrer", "حفظ")
+                    : t("Aucun changement", "لا توجد تغييرات")}
                 </Button>
-                {customDomainInput &&
-                data?.domains.customDomain &&
-                status !== "VERIFIED" ? (
+                {data?.domains.customDomain && status !== "VERIFIED" ? (
                   <Button
                     type="button"
                     variant="secondary"
@@ -346,12 +417,77 @@ export function VendorDomainsCard({
             </form>
 
             {data?.verification?.records?.length ? (
-              <DnsInstructions records={data.verification.records} t={t} />
+              <DnsInstructions
+                records={data.verification.records}
+                copiedValue={copiedValue}
+                onCopy={copyToClipboard}
+                t={t}
+              />
             ) : null}
           </>
         )}
       </CardContent>
     </Card>
+  )
+}
+
+function DomainPreviewTile({
+  title,
+  description,
+  href,
+  emptyLabel,
+  copyLabel,
+  openLabel,
+  onCopy,
+}: {
+  title: string
+  description: string
+  href: string | null
+  emptyLabel: string
+  copyLabel: string
+  openLabel: string
+  onCopy: (value: string) => void
+}) {
+  return (
+    <div className="rounded-lg border bg-background p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <LinkIcon className="size-4 text-muted-foreground" />
+        <div>
+          <p className="text-sm font-medium">{title}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {href ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="min-w-0 flex-1 truncate rounded-md bg-muted px-2 py-1.5 font-mono text-xs text-primary hover:underline"
+          >
+            {href}
+          </a>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onCopy(href)}
+          >
+            <Copy className="mr-1 size-3" />
+            {copyLabel}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" asChild>
+            <a href={href} target="_blank" rel="noreferrer">
+              {openLabel}
+            </a>
+          </Button>
+        </div>
+      ) : (
+        <p className="rounded-md bg-muted px-2 py-1.5 text-xs text-muted-foreground">
+          {emptyLabel}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -395,9 +531,13 @@ function StatusBanner({
 
 function DnsInstructions({
   records,
+  copiedValue,
+  onCopy,
   t,
 }: {
   records: Array<{ type: string; host: string; value: string; purpose: string }>
+  copiedValue: string | null
+  onCopy: (value: string) => void
   t: (fr: string, ar: string) => string
 }) {
   return (
@@ -426,17 +566,20 @@ function DnsInstructions({
                 <td className="py-1.5 pr-3 text-muted-foreground">
                   {r.purpose}
                 </td>
-                <td className="py-1.5">
-                  <button
+                <td className="py-1.5 text-right">
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     title={t("Copier", "نسخ")}
-                    onClick={() =>
-                      navigator.clipboard?.writeText(r.value).catch(() => {})
-                    }
-                    className="inline-flex size-6 items-center justify-center rounded hover:bg-muted"
+                    onClick={() => onCopy(`${r.type} ${r.host} ${r.value}`)}
+                    className="h-7 px-2 text-xs"
                   >
-                    <Copy className="size-3" />
-                  </button>
+                    <Copy className="mr-1 size-3" />
+                    {copiedValue === `${r.type} ${r.host} ${r.value}`
+                      ? t("Copié", "تم النسخ")
+                      : t("Copier", "نسخ")}
+                  </Button>
                 </td>
               </tr>
             ))}

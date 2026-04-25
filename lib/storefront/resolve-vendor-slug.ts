@@ -1,6 +1,6 @@
 import 'server-only'
-import { prisma } from '@/lib/prisma'
-import { isReservedSubdomain, normalizeHost } from '@/lib/domains/utils'
+import { prisma } from '../prisma'
+import { isReservedSubdomain, normalizeHost } from '../domains/utils'
 
 export interface ResolvedStorefrontVendor {
   id: string
