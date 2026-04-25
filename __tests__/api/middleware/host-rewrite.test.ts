@@ -46,16 +46,46 @@ function getRewriteTarget(response: Response): string | null {
   return response.headers.get('x-middleware-rewrite')
 }
 
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name]
+  } else {
+    process.env[name] = value
+  }
+}
+
 describe('middleware storefront host rewrite', () => {
   const originalEnv = process.env.BASE_DOMAIN
+  const originalNextAuthUrl = process.env.NEXTAUTH_URL
+  const originalNextPublicAppUrl = process.env.NEXT_PUBLIC_APP_URL
+  const originalNextPublicApiUrl = process.env.NEXT_PUBLIC_API_URL
+  const originalVercelUrl = process.env.VERCEL_URL
+  const originalVercelProjectProductionUrl =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+  const originalPlatformHosts = process.env.ALBAZ_PLATFORM_HOSTS
 
   beforeEach(() => {
     process.env.BASE_DOMAIN = 'albazdelivery.com'
+    delete process.env.NEXTAUTH_URL
+    delete process.env.NEXT_PUBLIC_APP_URL
+    delete process.env.NEXT_PUBLIC_API_URL
+    delete process.env.VERCEL_URL
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL
+    delete process.env.ALBAZ_PLATFORM_HOSTS
     jest.clearAllMocks()
   })
 
   afterEach(() => {
-    process.env.BASE_DOMAIN = originalEnv
+    restoreEnv('BASE_DOMAIN', originalEnv)
+    restoreEnv('NEXTAUTH_URL', originalNextAuthUrl)
+    restoreEnv('NEXT_PUBLIC_APP_URL', originalNextPublicAppUrl)
+    restoreEnv('NEXT_PUBLIC_API_URL', originalNextPublicApiUrl)
+    restoreEnv('VERCEL_URL', originalVercelUrl)
+    restoreEnv(
+      'VERCEL_PROJECT_PRODUCTION_URL',
+      originalVercelProjectProductionUrl
+    )
+    restoreEnv('ALBAZ_PLATFORM_HOSTS', originalPlatformHosts)
   })
 
   it('rewrites vendor subdomain host to /s/{slug}{path}', async () => {
@@ -86,6 +116,26 @@ describe('middleware storefront host rewrite', () => {
     const rewrite = getRewriteTarget(response)
     expect(rewrite).not.toBeNull()
     expect(new URL(rewrite!).pathname).toBe('/s/__host__/cart')
+  })
+
+  it('does not rewrite the configured production app host login page', async () => {
+    process.env.NEXTAUTH_URL = 'https://al-baz.app'
+
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('al-baz.app', '/login')
+    const response = await middleware(request)
+
+    expect(getRewriteTarget(response)).toBeNull()
+  })
+
+  it('does not rewrite platform host aliases from ALBAZ_PLATFORM_HOSTS', async () => {
+    process.env.ALBAZ_PLATFORM_HOSTS = 'al-baz.app,www.al-baz.app'
+
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('www.al-baz.app', '/login')
+    const response = await middleware(request)
+
+    expect(getRewriteTarget(response)).toBeNull()
   })
 
   it('does not rewrite the base domain host', async () => {

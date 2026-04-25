@@ -84,6 +84,9 @@ NODE_ENV="development"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_API_URL="http://localhost:3000/api"
 ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003"
+# Comma-separated app/admin hosts that must never be treated as vendor custom
+# storefront domains by middleware. Add production domains such as "al-baz.app".
+ALBAZ_PLATFORM_HOSTS=""
 
 # ==============================================
 # FEATURE FLAGS

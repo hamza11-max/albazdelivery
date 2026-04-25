@@ -43,6 +43,29 @@ function shouldBypassStorefrontRewrite(pathname: string): boolean {
   return STOREFRONT_BYPASS_PREFIXES.some((p) => pathname === p.slice(0, -1) || pathname.startsWith(p))
 }
 
+function collectPlatformHosts(baseDomain: string): Set<string> {
+  const rawHosts = [
+    baseDomain,
+    process.env.NEXTAUTH_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+    process.env.VERCEL_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    process.env.ALBAZ_PLATFORM_HOSTS,
+  ]
+
+  const hosts = new Set<string>()
+  for (const raw of rawHosts) {
+    if (!raw) continue
+    for (const part of raw.split(',')) {
+      const host = normalizeHost(part)
+      if (host) hosts.add(host)
+    }
+  }
+
+  return hosts
+}
+
 /**
  * Global middleware with:
  * - Tenant host + subdomain detection (take.app-style storefront rewriting)
@@ -56,6 +79,7 @@ export default async function middleware(request: NextRequest) {
   const requestHeaders = new Headers(request.headers)
   const normalizedHost = normalizeHost(request.headers.get('host'))
   const baseDomain = normalizeHost(process.env.BASE_DOMAIN || '') || 'albazdelivery.com'
+  const platformHosts = collectPlatformHosts(baseDomain)
 
   // Detect tenant host + (optional) subdomain
   let tenantSubdomain: string | null = null
@@ -69,6 +93,7 @@ export default async function middleware(request: NextRequest) {
       requestHeaders.set('x-tenant-subdomain', tenantSubdomain)
     } else if (
       normalizedHost !== baseDomain &&
+      !platformHosts.has(normalizedHost) &&
       !normalizedHost.endsWith(`.${baseDomain}`) &&
       !normalizedHost.startsWith('localhost') &&
       !/^\d+\.\d+\.\d+\.\d+$/.test(normalizedHost)
