@@ -95,6 +95,19 @@ export function extractSubdomain(host: string, baseDomain: string): string | nul
   return label
 }
 
+/**
+ * Local dev storefront host: `{slug}.localhost` (port stripped by {@link normalizeHost}).
+ * Use together with `isVendorDomainsDevUnlock()` from domain-entitlements-config.
+ */
+export function extractLocalhostVendorSubdomain(host: string | null | undefined): string | null {
+  const normalizedHost = normalizeHost(host)
+  if (!normalizedHost || !normalizedHost.endsWith('.localhost')) return null
+  const label = normalizedHost.slice(0, -'.localhost'.length)
+  if (!label || label.includes('.')) return null
+  if (isReservedSubdomain(label)) return null
+  return label
+}
+
 export function makeVerificationToken(): string {
   return crypto.randomUUID().replace(/-/g, '')
 }

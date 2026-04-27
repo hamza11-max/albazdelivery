@@ -12,6 +12,9 @@ const config: Config.InitialOptions = {
       setupFilesAfterEnv: ['<rootDir>/jest.setup.api.ts'],
       moduleNameMapper: {
         '^@/root/(.*)$': '<rootDir>/$1',
+        // apps/admin uses @/* → ./apps/admin/*; these collide with root @/lib/* in Jest
+        '^@/lib/csrf$': '<rootDir>/apps/admin/lib/csrf',
+        '^@/lib/audit$': '<rootDir>/apps/admin/lib/audit',
         '^@/(.*)$': '<rootDir>/$1',
       },
       transform: {

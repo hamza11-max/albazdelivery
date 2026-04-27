@@ -3,6 +3,7 @@ import {
   DOMAIN_ENTITLEMENTS_BY_PLAN,
   type DomainEntitlements,
   isDomainWriteStatusAllowed,
+  isVendorDomainsDevUnlock,
   toSupportedPlan,
 } from './domain-entitlements-config'
 
@@ -17,12 +18,23 @@ export async function getVendorDomainEntitlements(vendorId: string): Promise<Dom
   const allowDomainWrites = isDomainWriteStatusAllowed(currentStatus)
   const planEntitlements = DOMAIN_ENTITLEMENTS_BY_PLAN[currentPlan]
 
-  return {
+  const base: DomainEntitlements = {
     currentPlan,
     currentStatus,
     allowDomainWrites,
     allowVendorCustomDomain: allowDomainWrites && planEntitlements.allowVendorCustomDomain,
     maxStoreCustomDomains: allowDomainWrites ? planEntitlements.maxStoreCustomDomains : 0,
   }
+
+  if (isVendorDomainsDevUnlock()) {
+    return {
+      ...base,
+      allowDomainWrites: true,
+      allowVendorCustomDomain: true,
+      maxStoreCustomDomains: -1,
+    }
+  }
+
+  return base
 }
 export { calculateRemainingStoreDomains } from './domain-entitlements-config'

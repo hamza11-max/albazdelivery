@@ -15,10 +15,12 @@ import {
   getClientInfo,
 } from './lib/security/audit-client-info'
 import {
+  extractLocalhostVendorSubdomain,
   extractSubdomain,
   isReservedSubdomain,
   normalizeHost,
 } from './lib/domains/utils'
+import { isVendorDomainsDevUnlock } from './lib/subscriptions/domain-entitlements-config'
 
 /**
  * Pathnames that must NEVER be rewritten to the storefront, even when the
@@ -89,6 +91,9 @@ export default async function middleware(request: NextRequest) {
     requestHeaders.set('x-tenant-host', normalizedHost)
 
     tenantSubdomain = extractSubdomain(normalizedHost, baseDomain)
+    if (!tenantSubdomain && isVendorDomainsDevUnlock()) {
+      tenantSubdomain = extractLocalhostVendorSubdomain(normalizedHost)
+    }
     if (tenantSubdomain && !isReservedSubdomain(tenantSubdomain)) {
       requestHeaders.set('x-tenant-subdomain', tenantSubdomain)
     } else if (

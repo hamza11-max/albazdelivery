@@ -39,3 +39,17 @@ export function calculateRemainingStoreDomains(
   if (maxStoreCustomDomains < 0) return -1
   return Math.max(maxStoreCustomDomains - usedStoreCustomDomains, 0)
 }
+
+/**
+ * When true, vendor subdomain + custom domain settings are writable regardless
+ * of plan or subscription status (for `next dev` and optional local `next start`).
+ *
+ * Set `VENDOR_DOMAINS_DEV_UNLOCK=1` to enable the same behavior when
+ * `NODE_ENV` is `production` (e.g. local production build).
+ */
+export function isVendorDomainsDevUnlock(): boolean {
+  return (
+    process.env.NODE_ENV === 'development' ||
+    process.env.VENDOR_DOMAINS_DEV_UNLOCK === '1'
+  )
+}

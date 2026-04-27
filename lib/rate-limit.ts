@@ -27,6 +27,10 @@ if (typeof globalThis !== 'undefined') {
       }
     }, CLEANUP_INTERVAL_MS)
 
+    // Allow process/test runs to exit when this timer is the only active handle
+    const nodeTimer = interval as ReturnType<typeof setInterval> & { unref?: () => void }
+    nodeTimer.unref?.()
+
     globalWithCleanup.__albazRateLimitCleanup = interval
   }
 }
@@ -254,20 +258,27 @@ const normalizeOptions = (
   return result
 }
 
-export async function applyRateLimit(
+/**
+ * Enforces the rate limit for this request. When the in-memory limiter is used
+ * (no Redis ratelimit instance), a violator throws synchronously so callers that
+ * omitted `await` still hit `try/catch` and cannot bypass the limit. When Upstash
+ * is configured, a Promise is returned and must be `await`ed to block the handler.
+ */
+export function applyRateLimit(
   req: Request,
   input?: RateLimitConfig | RateLimitOptions | any
-): Promise<void> {
+): void | Promise<void> {
   const identifier = getClientIdentifier(req)
   const { ratelimit: ratelimitInstance, config } = normalizeOptions(input)
 
   if (ratelimitInstance) {
-    const result = await applyRedisRateLimit(identifier, ratelimitInstance)
-    if (!result.success) {
-      const resetIn = Math.ceil((result.reset.getTime() - Date.now()) / 1000)
-      throw new TooManyRequestsError(`Rate limit exceeded. Try again in ${resetIn} seconds.`)
-    }
-    return
+    return (async () => {
+      const result = await applyRedisRateLimit(identifier, ratelimitInstance)
+      if (!result.success) {
+        const resetIn = Math.ceil((result.reset.getTime() - Date.now()) / 1000)
+        throw new TooManyRequestsError(`Rate limit exceeded. Try again in ${resetIn} seconds.`)
+      }
+    })()
   }
 
   const result = checkRateLimit(identifier, config)

@@ -65,6 +65,8 @@ describe('middleware storefront host rewrite', () => {
   const originalVercelProjectProductionUrl =
     process.env.VERCEL_PROJECT_PRODUCTION_URL
   const originalPlatformHosts = process.env.ALBAZ_PLATFORM_HOSTS
+  const originalNodeEnv = process.env.NODE_ENV
+  const originalVendorDomainsDevUnlock = process.env.VENDOR_DOMAINS_DEV_UNLOCK
 
   beforeEach(() => {
     process.env.BASE_DOMAIN = 'albazdelivery.com'
@@ -74,6 +76,7 @@ describe('middleware storefront host rewrite', () => {
     delete process.env.VERCEL_URL
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL
     delete process.env.ALBAZ_PLATFORM_HOSTS
+    delete process.env.VENDOR_DOMAINS_DEV_UNLOCK
     jest.clearAllMocks()
   })
 
@@ -103,6 +106,30 @@ describe('middleware storefront host rewrite', () => {
   it('rewrites root path of a vendor subdomain to /s/{slug}', async () => {
     const middleware = (await import('@/middleware')).default
     const request = buildRequest('demo.albazdelivery.com', '/')
+    const response = await middleware(request)
+
+    const rewrite = getRewriteTarget(response)
+    expect(rewrite).not.toBeNull()
+    expect(new URL(rewrite!).pathname).toBe('/s/demo')
+  })
+
+  it('rewrites {slug}.localhost to /s/{slug} when NODE_ENV is development', async () => {
+    process.env.NODE_ENV = 'development'
+
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('demo.localhost:3000', '/menu')
+    const response = await middleware(request)
+
+    const rewrite = getRewriteTarget(response)
+    expect(rewrite).not.toBeNull()
+    expect(new URL(rewrite!).pathname).toBe('/s/demo/menu')
+  })
+
+  it('rewrites {slug}.localhost when VENDOR_DOMAINS_DEV_UNLOCK=1 (e.g. next start local)', async () => {
+    process.env.VENDOR_DOMAINS_DEV_UNLOCK = '1'
+
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('demo.localhost:3000', '/')
     const response = await middleware(request)
 
     const rewrite = getRewriteTarget(response)
