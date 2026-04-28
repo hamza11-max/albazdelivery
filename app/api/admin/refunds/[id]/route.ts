@@ -1,7 +1,7 @@
 /** Admin: complete or reject a refund (execute Stripe refund for card + PaymentIntent). */
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { PaymentMethod, RefundStatus } from '@prisma/client'
+import { PaymentMethod, RefundStatus } from '@/generated/prisma/client'
 
 import { prisma } from '@/root/lib/prisma'
 import { csrfProtection } from '../../../../admin/lib/csrf'

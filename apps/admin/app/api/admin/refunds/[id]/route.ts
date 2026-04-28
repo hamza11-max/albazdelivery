@@ -1,7 +1,7 @@
 /** Mirrored from `app/api/admin/refunds/[id]/route.ts` for workspace deployment. */
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { PaymentMethod, RefundStatus } from '@prisma/client'
+import { PaymentMethod, RefundStatus } from '@/root/generated/prisma/client'
 
 import { prisma } from '@/root/lib/prisma'
 import { csrfProtection } from '../../../../../lib/csrf'

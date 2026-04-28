@@ -1,7 +1,7 @@
 /** Mirrored from `apps/admin/app/api/admin/orders/manual/route.ts` for root deployment. */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
-import { Role } from '@prisma/client'
+import { Role } from '@/generated/prisma/client'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'

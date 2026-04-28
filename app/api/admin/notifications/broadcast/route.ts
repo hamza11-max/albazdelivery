@@ -1,7 +1,7 @@
 /** Mirrored admin notification broadcast (`apps/admin`). */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
-import { Role, NotificationType } from '@prisma/client'
+import { Role, NotificationType } from '@/generated/prisma/client'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'

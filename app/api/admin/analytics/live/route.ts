@@ -4,7 +4,7 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
-import { OrderStatus } from '@prisma/client'
+import { OrderStatus } from '@/generated/prisma/client'
 
 const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
   OrderStatus.PENDING,

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
-import { Role, NotificationType } from '@prisma/client'
+import { Role, NotificationType } from '@/root/generated/prisma/client'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'

@@ -1,8 +1,8 @@
 /** Mirrored from `apps/admin/app/api/admin/refunds/route.ts` for root deployment. */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
-import type { Prisma } from '@prisma/client'
-import { RefundStatus } from '@prisma/client'
+import type { Prisma } from '@/generated/prisma/client'
+import { RefundStatus } from '@/generated/prisma/client'
 import { successResponse, errorResponse, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
