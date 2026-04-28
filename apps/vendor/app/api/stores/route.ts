@@ -8,7 +8,7 @@ import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 export async function GET(request: NextRequest) {
   try {
     try {
-      applyRateLimit(request, rateLimitConfigs.api)
+      await applyRateLimit(request, rateLimitConfigs.api)
     } catch (rateLimitError) {
       console.warn('[Stores API] Rate limit check failed:', rateLimitError)
     }

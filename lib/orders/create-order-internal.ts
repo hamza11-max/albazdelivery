@@ -1,5 +1,6 @@
 import { prisma } from '@/root/lib/prisma'
 import { emitOrderCreated, emitNotificationSent } from '@/root/lib/events'
+import { logNotificationChannelPlan } from '@/lib/notifications/log-channel-plan'
 import { OrderStatus } from '@/lib/constants'
 import type { OrderSource, PaymentMethod } from '@/generated/prisma/client'
 
@@ -108,6 +109,11 @@ export async function createOrderInternal(params: CreateOrderInternalInput) {
     },
   })
   emitNotificationSent(vendorNotification)
+  logNotificationChannelPlan('order_status', {
+    recipientId: store.vendorId,
+    orderId: order.id,
+    notificationId: vendorNotification.id,
+  })
 
   if (params.paymentMethod !== 'CASH') {
     await prisma.payment.create({

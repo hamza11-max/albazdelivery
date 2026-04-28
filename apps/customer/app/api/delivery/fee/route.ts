@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const city = request.nextUrl.searchParams.get('city')?.trim()
 
     if (!city) {

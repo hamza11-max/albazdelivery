@@ -69,7 +69,11 @@ model User {
   webauthnCredentials WebAuthnCredential[]
   vendorPayouts       VendorPayout[]
   vendorDisputes      VendorDispute[]
-  
+  /// Vendor owner account: staff members linked for POS / ERP access control
+  vendorStaffMembers  VendorStaffMember[] @relation("VendorStaffEmployer")
+  /// When this user is employed by another vendor (multi-user staff)
+  vendorEmployment    VendorStaffMember?   @relation("VendorStaffStaffUser")
+
   @@index([email])
   @@index([phone])
   @@index([role])
@@ -152,6 +156,28 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// Sub-roles for vendor staff (server-enforced on selected APIs; see `lib/vendor-staff-access.ts`)
+enum VendorStaffRole {
+  MANAGER
+  CASHIER
+}
+
+/// Links a platform `User` (role VENDOR or future staff role) to a vendor owner account.
+model VendorStaffMember {
+  id            String          @id @default(cuid())
+  vendorOwnerId String
+  staffUserId   String          @unique
+  role          VendorStaffRole @default(CASHIER)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  vendorOwner User @relation("VendorStaffEmployer", fields: [vendorOwnerId], references: [id], onDelete: Cascade)
+  staffUser   User @relation("VendorStaffStaffUser", fields: [staffUserId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorOwnerId, staffUserId])
+  @@index([vendorOwnerId])
 }
 
 // ========================================
@@ -364,6 +390,15 @@ model WhatsAppWebhookEvent {
   createdAt  DateTime @default(now())
 }
 
+/// Dedupe Stripe webhook deliveries (idempotency — same event id must not double-apply)
+model ProcessedStripeWebhookEvent {
+  id        String   @id /// evt_... from Stripe
+  type      String
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model OrderItem {
   id        String @id @default(cuid())
   orderId   String
@@ -432,15 +467,17 @@ enum PaymentStatus {
 }
 
 model Refund {
-  id          String       @id @default(cuid())
-  paymentId   String       @unique
-  orderId     String       @unique
-  amount      Float
-  reason      String
-  status      RefundStatus @default(PENDING)
-  createdAt   DateTime     @default(now())
-  processedAt DateTime?
-  
+  id             String       @id @default(cuid())
+  paymentId      String       @unique
+  orderId        String       @unique
+  amount         Float
+  reason         String
+  status         RefundStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+  processedAt    DateTime?
+  /// Set when refund is executed via Stripe (`re_...`)
+  stripeRefundId String?      @unique
+
   payment Payment @relation(fields: [paymentId], references: [id])
   order   Order   @relation(fields: [orderId], references: [id])
   

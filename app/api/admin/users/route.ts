@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, Vali
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { hashPassword } from '@/lib/password'
+import { csrfProtection } from '../../../admin/lib/csrf'
 
 // GET /api/admin/users - Get all users (admin only)
 export async function GET(request: NextRequest) {
@@ -94,6 +95,10 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/users - Create user (admin only, e.g. vendor)
 export async function POST(request: NextRequest) {
   try {
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()

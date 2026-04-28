@@ -7,7 +7,7 @@ import { auth } from '@/root/lib/auth'
 // GET - Fetch all unique categories from inventory products
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // DISABLED for Electron app (no authentication)
     // const session = await auth()

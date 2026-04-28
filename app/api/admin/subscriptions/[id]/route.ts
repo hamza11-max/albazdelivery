@@ -3,10 +3,15 @@ import { auth } from '@/root/lib/auth'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
 import { SubscriptionPlan, SubscriptionStatus } from '@/generated/prisma/client'
+import { csrfProtection } from '../../../../admin/lib/csrf'
 
 // PATCH /api/admin/subscriptions/[id] - Extend or update subscription (admin only)
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
     if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {

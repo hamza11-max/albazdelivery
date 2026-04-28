@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderUpdated } from '@/lib/events'
 import { updateOrderStatusSchema } from '@/lib/validations/order'
+import { userActsAsVendorOwner } from '@/lib/vendor-staff-access'
 
 // GET /api/orders/[id] - Get a specific order
 export async function GET(
@@ -12,7 +13,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const paramsResolved = await context.params
 
@@ -71,9 +72,15 @@ export async function GET(
 
     // Authorization: Users can only view their own orders (except admin)
     if (session.user.role !== 'ADMIN') {
+      const vendorOk =
+        order.vendorId != null &&
+        (await userActsAsVendorOwner({
+          actorId: session.user.id,
+          vendorOwnerId: order.vendorId,
+        }))
       const hasAccess =
         order.customerId === session.user.id ||
-        order.vendorId === session.user.id ||
+        vendorOk ||
         order.driverId === session.user.id
 
       if (!hasAccess) {
@@ -93,7 +100,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const paramsResolved = await context.params
 
@@ -123,7 +130,11 @@ export async function PATCH(
     const userId = session.user.id
 
     if (role === 'VENDOR') {
-      if (existingOrder.vendorId !== userId) {
+      const vendorOk = await userActsAsVendorOwner({
+        actorId: userId,
+        vendorOwnerId: existingOrder.vendorId,
+      })
+      if (!vendorOk) {
         throw new ForbiddenError('You can only update your own orders')
       }
       if (!['ACCEPTED', 'PREPARING', 'READY'].includes(status)) {

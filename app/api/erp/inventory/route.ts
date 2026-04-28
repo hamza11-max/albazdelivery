@@ -6,11 +6,12 @@ import { auth } from '@/lib/auth'
 import { createInventoryProductSchema, updateInventoryProductSchema } from '@/lib/validations/api'
 import { checkUsageLimit } from '@/lib/featureGate'
 import { z } from 'zod'
+import { resolveVendorOwnerContextId, userActsAsVendorOwner, assertVendorMayMutateInventoryCatalog } from '@/lib/vendor-staff-access'
 
 // GET - Fetch all inventory products
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -29,7 +30,9 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const vendorIdParam = searchParams.get('vendorId')
 
-    const targetVendorId = isAdmin ? vendorIdParam : session.user.id
+    const targetVendorId = isAdmin
+      ? vendorIdParam
+      : await resolveVendorOwnerContextId(session.user.id)
 
     if (isAdmin && !targetVendorId) {
       return errorResponse(new Error('vendorId query parameter is required for admin access'), 400)
@@ -106,7 +109,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new product
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -138,10 +141,16 @@ export async function POST(request: NextRequest) {
       image,
     } = validatedData
 
-    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+    const vendorId = isAdmin
+      ? overrideVendorId ?? vendorIdParam
+      : await resolveVendorOwnerContextId(session.user.id)
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId is required to create a product'), 400)
+    }
+
+    if (!isAdmin) {
+      await assertVendorMayMutateInventoryCatalog(session.user.id, vendorId)
     }
 
     // Verify supplier belongs to vendor if provided
@@ -234,7 +243,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update product
 export async function PUT(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -267,8 +276,15 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
+    if (
+      isVendor &&
+      !(await userActsAsVendorOwner({ actorId: session.user.id, vendorOwnerId: existing.vendorId }))
+    ) {
       throw new ForbiddenError('You can only update your own products')
+    }
+
+    if (isVendor) {
+      await assertVendorMayMutateInventoryCatalog(session.user.id, existing.vendorId)
     }
 
     // Verify supplier belongs to vendor if provided
@@ -334,7 +350,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete product
 export async function DELETE(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -371,8 +387,15 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && existing.vendorId !== session.user.id) {
+    if (
+      isVendor &&
+      !(await userActsAsVendorOwner({ actorId: session.user.id, vendorOwnerId: existing.vendorId }))
+    ) {
       throw new ForbiddenError('You can only delete your own products')
+    }
+
+    if (isVendor) {
+      await assertVendorMayMutateInventoryCatalog(session.user.id, existing.vendorId)
     }
 
     await prisma.inventoryProduct.delete({ where: { id } })

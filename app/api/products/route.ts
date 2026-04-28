@@ -10,7 +10,7 @@ import { z } from 'zod'
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const searchParams = request.nextUrl.searchParams
     const storeId = searchParams.get('storeId')
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()

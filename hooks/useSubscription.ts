@@ -38,7 +38,12 @@ export function useSubscription() {
       const res = await apiFetch("/api/subscriptions")
       const data = await res.json()
       if (data.success) {
-        setSubscription(data.data)
+        const d = data.data as { subscription?: Subscription | null } | Subscription | null
+        if (d && typeof d === "object" && "subscription" in d) {
+          setSubscription(d.subscription ?? null)
+        } else {
+          setSubscription((d as Subscription) ?? null)
+        }
       } else {
         setError(data.error || "Failed to fetch subscription")
       }

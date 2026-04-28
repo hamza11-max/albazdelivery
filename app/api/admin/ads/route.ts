@@ -3,12 +3,13 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { csrfProtection } from '../../../admin/lib/csrf'
 
 // GET /api/admin/ads - Get all ads (admin only)
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()
@@ -44,8 +45,12 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/ads - Create a new ad (admin only)
 export async function POST(request: NextRequest) {
   try {
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()

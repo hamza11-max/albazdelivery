@@ -2,7 +2,7 @@
 
 A comprehensive multi-vendor delivery platform for Algeria featuring food delivery, groceries, beauty products, gifts, and package delivery services.
 
-## 🏗️ Monorepo Structure
+**Engineering docs:** release-style notes in **[CHANGELOG.md](CHANGELOG.md)**; phased audit roadmap in **[docs/TECHNICAL_PROJECT_AUDIT.md](docs/TECHNICAL_PROJECT_AUDIT.md)**; **`npm run verify:phase-c`** for the widest automated regression bundle documented there.
 
 This project uses a **Turborepo monorepo** architecture with separate apps for different user roles:
 

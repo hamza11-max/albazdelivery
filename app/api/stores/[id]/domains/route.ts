@@ -88,7 +88,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
 
@@ -153,7 +153,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
 

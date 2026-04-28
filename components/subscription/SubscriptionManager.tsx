@@ -97,7 +97,8 @@ export function SubscriptionManager() {
       const data = await res.json()
 
       if (data.success) {
-        if (data.data.clientSecret) {
+        const payload = data.data as { subscription?: unknown; clientSecret?: string | null }
+        if (payload?.clientSecret) {
           toast({
             title: "Payment required",
             description: "Please complete your payment to upgrade",

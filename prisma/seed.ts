@@ -497,6 +497,60 @@ async function main() {
   }
   console.log(`✅ Delivery zones ensured`)
 
+  // Vendor staff (for RBAC demos: cashier vs manager)
+  console.log('Creating vendor staff test users...')
+  const cashierPwd = await hashPassword('Cashier123!')
+  const managerStaffPwd = await hashPassword('ManagerStaff123!')
+  const cashier = await prisma.user.upsert({
+    where: { email: 'cashier@vendor-test.local' },
+    update: {},
+    create: {
+      name: 'POS Cashier',
+      email: 'cashier@vendor-test.local',
+      phone: '0771234568',
+      password: cashierPwd,
+      role: 'VENDOR',
+      status: 'APPROVED',
+      shopType: 'Restaurant',
+      city: 'Algiers',
+      address: 'Staff desk',
+    },
+  })
+  const managerStaff = await prisma.user.upsert({
+    where: { email: 'managerstaff@vendor-test.local' },
+    update: {},
+    create: {
+      name: 'Floor Manager',
+      email: 'managerstaff@vendor-test.local',
+      phone: '0771234569',
+      password: managerStaffPwd,
+      role: 'VENDOR',
+      status: 'APPROVED',
+      shopType: 'Restaurant',
+      city: 'Algiers',
+      address: 'Back office',
+    },
+  })
+  await prisma.vendorStaffMember.upsert({
+    where: { staffUserId: cashier.id },
+    update: { role: 'CASHIER' },
+    create: {
+      vendorOwnerId: vendor.id,
+      staffUserId: cashier.id,
+      role: 'CASHIER',
+    },
+  })
+  await prisma.vendorStaffMember.upsert({
+    where: { staffUserId: managerStaff.id },
+    update: { role: 'MANAGER' },
+    create: {
+      vendorOwnerId: vendor.id,
+      staffUserId: managerStaff.id,
+      role: 'MANAGER',
+    },
+  })
+  console.log('✅ Vendor staff linked (cashier + manager)')
+
   // Create Promo Codes
   const expiresAt = new Date()
   expiresAt.setFullYear(expiresAt.getFullYear() + 1)
@@ -528,6 +582,8 @@ async function main() {
   console.log('Admin:    admin@albazdelivery.com / Admin123!')
   console.log('Customer: customer@test.com / Customer123!')
   console.log('Vendor:   vendor@test.com / Vendor123!')
+  console.log('Vendor cashier: cashier@vendor-test.local / Cashier123!')
+  console.log('Vendor manager (staff): managerstaff@vendor-test.local / ManagerStaff123!')
   console.log('Driver:   driver@test.com / Driver123!')
   console.log('─────────────────────────────────────────')
   console.log('\n🛍  Demo storefront:')

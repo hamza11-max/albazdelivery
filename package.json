@@ -45,7 +45,17 @@
     "test:e2e:ui": "playwright test tests-e2e/ --ui",
     "test:e2e:debug": "playwright test tests-e2e/ --debug",
     "test:ci": "cross-env NODE_ENV=test jest --ci --config jest.config.ts --coverage --maxWorkers=2 && playwright test tests-e2e/",
-    "sync:customer-copy": "node scripts/sync-customer-copy-to-mobile.js"
+    "sync:customer-copy": "node scripts/sync-customer-copy-to-mobile.js",
+    "check:rate-limit": "node scripts/verify-apply-rate-limit-await.mjs .",
+    "verify:phase-a": "npm run check:rate-limit && npm run type-check && cross-env NODE_ENV=test jest --config jest.config.ts --maxWorkers=2 __tests__/api/lib/rate-limit-apply.test.ts __tests__/api/lib/api-subscriptions.test.ts __tests__/api/webhooks/stripe-idempotency.test.ts",
+    "verify:phase-b": "npm run verify:phase-a && cross-env NODE_ENV=test jest --config jest.config.ts --maxWorkers=2 __tests__/api/lib/money-path-log.test.ts",
+    "verify:phase-c": "npm run verify:phase-b && npx playwright test tests-e2e/phase-c-boundaries.spec.ts --reporter=list",
+    "verify:phase-1": "npm run verify:phase-b && cross-env NODE_ENV=test jest --config jest.config.ts --maxWorkers=2 __tests__/api/lib/stripe-webhook-order-payments.test.ts __tests__/lib/vendor-staff-access.test.ts __tests__/payment/checkout.test.tsx && npx playwright test tests-e2e/phase-c-boundaries.spec.ts tests-e2e/phase1-money-api.spec.ts --reporter=list",
+    "worker:stripe-webhook": "tsx workers/stripe-webhook-worker.ts",
+    "verify:phase-2": "npm run verify:phase-1 && cross-env NODE_ENV=test jest --config jest.config.ts --maxWorkers=2 __tests__/lib/pos-sale-stock.test.ts && npx playwright test tests-e2e/phase2-vendor-erp.spec.ts --reporter=list",
+    "verify:phase-3": "npm run verify:phase-2 && cross-env NODE_ENV=test jest --config jest.config.ts --maxWorkers=2 __tests__/lib/financial-audit.test.ts && npx playwright test tests-e2e/phase3-governance.spec.ts --reporter=list",
+    "verify:phase-4": "node scripts/verify-admin-csrf.mjs && node scripts/verify-api-parity.mjs && node scripts/verify-money-no-test-skip.mjs && npm run verify:phase-3 && npx playwright test tests-e2e/phase4-leftovers.spec.ts --reporter=list",
+    "verify:deploy-env": "node scripts/verify-deploy-env.mjs"
   },
   "dependencies": {
     "@albaz/ui": "file:./packages/ui",

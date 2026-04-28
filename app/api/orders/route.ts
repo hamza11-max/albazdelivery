@@ -6,6 +6,7 @@ import { auth } from '@/root/lib/auth'
 import { createOrderSchema } from '@/root/lib/validations/order'
 import { emitOrderCreated } from '@/root/lib/events'
 import { OrderStatus } from '@/lib/constants'
+import { resolveVendorOwnerContextId } from '@/lib/vendor-staff-access'
 
 // GET /api/orders - Get all orders or filter by customer
 export async function GET(request: NextRequest) {
@@ -41,8 +42,8 @@ export async function GET(request: NextRequest) {
       // Customers can only see their own orders
       where.customerId = session.user.id
     } else if (sessionRole === 'VENDOR') {
-      // Vendors can only see orders for their stores
-      where.vendorId = session.user.id
+      const vendorScopeId = await resolveVendorOwnerContextId(session.user.id)
+      where.vendorId = vendorScopeId
     } else if (sessionRole === 'DRIVER') {
       // Drivers can see assigned orders or available orders
       where.OR = [

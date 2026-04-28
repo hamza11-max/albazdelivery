@@ -20,7 +20,7 @@ function isPrismaServiceUnavailableError(error: unknown): error is { code: strin
 // GET - Fetch all customers who have ordered from this vendor (POS sales + delivery / WhatsApp orders)
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new customer (stub for future implementation)
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user || session.user.role !== 'VENDOR') {

@@ -11,7 +11,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Restrict to development or admin users in production
     const isDevelopment = process.env.NODE_ENV === 'development'

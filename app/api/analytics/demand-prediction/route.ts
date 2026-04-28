@@ -9,7 +9,7 @@ import { z } from 'zod';
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api);
+    await applyRateLimit(request, rateLimitConfigs.api);
 
     // Check authentication
     const session = await auth();
@@ -69,7 +69,17 @@ export async function GET(request: NextRequest) {
     return successResponse({
       demand,
       pricing,
-      timestamp: new Date().toISOString()
+      predictionMeta: {
+        basis: 'historical_orders_heuristic_v1',
+        zoneMatch: 'delivery_address_contains_zone_id_simplified',
+        externalSignals: {
+          weather: 'not_integrated',
+          localEvents: 'not_integrated',
+        },
+        disclaimer:
+          'Estimates derive from recent orders in the zone slice; weather/events are not wired to live APIs.',
+      },
+      timestamp: new Date().toISOString(),
     });
 
   } catch (error) {

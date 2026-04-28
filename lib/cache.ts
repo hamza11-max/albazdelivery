@@ -1,7 +1,7 @@
 import { Redis } from '@upstash/redis';
 import { Queue } from 'bullmq';
 
-// Skip initialization during build to prevent connection errors
+/** BullMQ / traditional Redis — see `docs/BACKGROUND_JOBS_AND_REDIS.md`. */
 const isBuildTime = () => {
   return process.env.NEXT_PHASE === 'phase-production-build' ||
          process.env.VERCEL_ENV === 'production' ||
@@ -55,23 +55,21 @@ function createQueuesProxy() {
     }
     
     if (!_queues && process.env.REDIS_HOST) {
+      const connection = {
+        host: process.env.REDIS_HOST,
+        port: parseInt(process.env.REDIS_PORT || '6379'),
+      }
       _queues = {
-        orders: new Queue('orders', {
-          connection: {
-            host: process.env.REDIS_HOST,
-            port: parseInt(process.env.REDIS_PORT || '6379'),
-          },
-        }),
-        notifications: new Queue('notifications', {
-          connection: {
-            host: process.env.REDIS_HOST,
-            port: parseInt(process.env.REDIS_PORT || '6379'),
-          },
-        }),
-        analytics: new Queue('analytics', {
-          connection: {
-            host: process.env.REDIS_HOST,
-            port: parseInt(process.env.REDIS_PORT || '6379'),
+        orders: new Queue('orders', { connection }),
+        notifications: new Queue('notifications', { connection }),
+        analytics: new Queue('analytics', { connection }),
+        /** Stripe webhook side effects — consumer: `npm run worker:stripe-webhook` */
+        stripeWebhooks: new Queue('stripe-webhooks', {
+          connection,
+          defaultJobOptions: {
+            attempts: 8,
+            backoff: { type: 'exponential', delay: 4000 },
+            removeOnFail: false,
           },
         }),
       }

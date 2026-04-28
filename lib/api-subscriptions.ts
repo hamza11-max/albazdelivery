@@ -1,7 +1,14 @@
 import { getSessionFromRequest } from "./get-session-from-request"
 import { prisma } from "./prisma"
 import { stripe, PLAN_PRICES } from "./stripe"
-import { successResponse, errorResponse, UnauthorizedError } from "./errors"
+import { errorResponse, ForbiddenError, successResponse, UnauthorizedError } from "./errors"
+
+/** When true, POST plan STARTER can activate without Stripe (intended for dev/special enterprise deals). */
+function allowStarterPlanWithoutStripe(): boolean {
+  if (process.env.NODE_ENV === "development") return true
+  const v = String(process.env.ALLOW_STARTER_PLAN_WITHOUT_STRIPE || "").trim().toLowerCase()
+  return v === "1" || v === "true" || v === "yes"
+}
 
 export async function handleSubscriptionsGet(request: Request) {
   try {
@@ -22,24 +29,12 @@ export async function handleSubscriptionsGet(request: Request) {
     })
 
     if (!subscription) {
-      subscription = await prisma.subscription.create({
-        data: {
-          userId: session.user.id,
-          plan: "STARTER",
-          status: "TRIAL",
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          trialStart: new Date(),
-          trialEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-        include: {
-          subscriptionPayments: true,
-          usage: true,
-        },
-      })
+      // Do not auto-provision a subscription on read (entitlement + billing abuse). Clients must
+      // start a trial or checkout via POST /api/subscriptions (or a dedicated onboarding flow).
+      return successResponse({ subscription: null })
     }
 
-    return successResponse(subscription)
+    return successResponse({ subscription })
   } catch (error) {
     return errorResponse(error)
   }
@@ -64,6 +59,13 @@ export async function handleSubscriptionsPost(request: Request) {
     })
 
     if (plan === "STARTER") {
+      if (!allowStarterPlanWithoutStripe()) {
+        return errorResponse(
+          new ForbiddenError(
+            "STARTER plan is not self-serve in this environment. Set ALLOW_STARTER_PLAN_WITHOUT_STRIPE=1 if intended, or choose a plan billed via Stripe."
+          )
+        )
+      }
       const updated = await prisma.subscription.upsert({
         where: { userId: session.user.id },
         update: {
@@ -80,7 +82,7 @@ export async function handleSubscriptionsPost(request: Request) {
           currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
         },
       })
-      return successResponse(updated)
+      return successResponse({ subscription: updated })
     }
 
     if (!process.env.STRIPE_SECRET_KEY) {
@@ -126,7 +128,7 @@ export async function handleSubscriptionsPost(request: Request) {
           },
         })
 
-        return successResponse(updated)
+        return successResponse({ subscription: updated })
       } catch (error) {
         console.warn("Stripe subscription not found, creating new one:", error)
       }

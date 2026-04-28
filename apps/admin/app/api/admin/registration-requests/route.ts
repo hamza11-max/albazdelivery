@@ -10,7 +10,7 @@ import { createAuditLog, AuditActions, AuditResources } from '../../../../lib/au
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()

@@ -6,7 +6,7 @@ import { prisma } from '@/root/lib/prisma'
 // GET /api/categories — active rows from CatalogCategory (see prisma/seed.ts)
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const rows = await prisma.catalogCategory.findMany({
       where: { isActive: true },

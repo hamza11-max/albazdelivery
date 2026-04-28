@@ -3,6 +3,7 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
+import { csrfProtection } from '../../../../lib/csrf'
 import { z } from 'zod'
 
 const exportSchema = z.object({
@@ -18,15 +19,19 @@ const exportSchema = z.object({
 
 // POST /api/admin/export - Export data
 export async function POST(request: NextRequest) {
+  const csrfResponse = csrfProtection(request)
+  if (csrfResponse) {
+    return csrfResponse
+  }
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can export data')
     }
 

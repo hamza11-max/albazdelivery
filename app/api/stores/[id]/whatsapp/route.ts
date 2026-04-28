@@ -69,7 +69,7 @@ export async function PATCH(
   { params }: { params: { id: string } },
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

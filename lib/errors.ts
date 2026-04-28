@@ -54,6 +54,13 @@ export class TooManyRequestsError extends AppError {
   }
 }
 
+export class ServiceUnavailableError extends AppError {
+  constructor(message: string) {
+    super(503, message)
+    Object.setPrototypeOf(this, ServiceUnavailableError.prototype)
+  }
+}
+
 // API Response types
 export interface ApiResponse<T = any> {
   success: boolean

@@ -259,26 +259,40 @@ const normalizeOptions = (
 }
 
 /**
- * Enforces the rate limit for this request. When the in-memory limiter is used
- * (no Redis ratelimit instance), a violator throws synchronously so callers that
- * omitted `await` still hit `try/catch` and cannot bypass the limit. When Upstash
- * is configured, a Promise is returned and must be `await`ed to block the handler.
+ * When `@upstash/ratelimit` is initialized, map standard `rateLimitConfigs.*` presets
+ * to distributed limiters so handlers can `await applyRateLimit(req, rateLimitConfigs.api)`.
+ * Custom `maxRequests`/`windowMs` pairs that collide with a preset are treated as that preset.
  */
-export function applyRateLimit(
+function pickDistributedRatelimitForConfig(config: RateLimitConfig, explicit: any): any {
+  if (explicit) return explicit
+  if (!config) return null
+  const { maxRequests, windowMs } = config
+  if (maxRequests === 100 && windowMs === 60 * 1000) return apiRateLimit
+  if (maxRequests === 5 && windowMs === 15 * 60 * 1000) return authRateLimit
+  if (maxRequests === 10 && windowMs === 60 * 1000) return strictRateLimit
+  if (maxRequests === 1000 && windowMs === 60 * 1000) return relaxedRateLimit
+  return null
+}
+
+/**
+ * Enforces the rate limit for this request. **Always await** in route handlers.
+ * Uses Upstash when env is configured and the input matches a known preset; otherwise in-memory.
+ */
+export async function applyRateLimit(
   req: Request,
   input?: RateLimitConfig | RateLimitOptions | any
-): void | Promise<void> {
+): Promise<void> {
   const identifier = getClientIdentifier(req)
-  const { ratelimit: ratelimitInstance, config } = normalizeOptions(input)
+  const { ratelimit: explicitRatelimit, config } = normalizeOptions(input)
+  const ratelimitInstance = pickDistributedRatelimitForConfig(config, explicitRatelimit)
 
   if (ratelimitInstance) {
-    return (async () => {
-      const result = await applyRedisRateLimit(identifier, ratelimitInstance)
-      if (!result.success) {
-        const resetIn = Math.ceil((result.reset.getTime() - Date.now()) / 1000)
-        throw new TooManyRequestsError(`Rate limit exceeded. Try again in ${resetIn} seconds.`)
-      }
-    })()
+    const result = await applyRedisRateLimit(identifier, ratelimitInstance)
+    if (!result.success) {
+      const resetIn = Math.ceil((result.reset.getTime() - Date.now()) / 1000)
+      throw new TooManyRequestsError(`Rate limit exceeded. Try again in ${resetIn} seconds.`)
+    }
+    return
   }
 
   const result = checkRateLimit(identifier, config)

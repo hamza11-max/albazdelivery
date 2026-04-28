@@ -19,7 +19,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user?.id) throw new UnauthorizedError()
 
@@ -57,7 +57,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user?.id) throw new UnauthorizedError()
 

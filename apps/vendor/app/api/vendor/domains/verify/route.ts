@@ -22,7 +22,7 @@ function canVerifyVendorDomains(session: any, targetVendorId: string): boolean {
 // POST /api/vendor/domains/verify
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const session = await getSessionFromRequest(request)
     if (!session?.user) throw new UnauthorizedError()
 

@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@albaz/ui"
-import { Download, Calendar, TrendingUp, DollarSign, ShoppingBag, Users } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@albaz/ui"
+import { TrendingUp, DollarSign, ShoppingBag, Users } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
-import { fetchWithCsrf } from "../lib/csrf-client"
 
 import {
   Bar,
@@ -94,52 +93,6 @@ export function AnalyticsDashboard() {
     fetchAnalytics()
   }, [dateRange, groupBy])
 
-  const handleExport = async (type: 'users' | 'orders' | 'audit-logs') => {
-    try {
-      const endDate = new Date()
-      const startDate = new Date()
-      startDate.setDate(endDate.getDate() - parseInt(dateRange))
-
-      const response = await fetchWithCsrf('/api/admin/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type,
-          format: 'csv',
-          filters: {
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-          },
-        }),
-      })
-
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${type}_${new Date().toISOString().split('T')[0]}.csv`
-        document.body.appendChild(a)
-        a.click()
-        window.URL.revokeObjectURL(url)
-        document.body.removeChild(a)
-
-        toast({
-          title: "Succès",
-          description: "Export réussi",
-        })
-      } else {
-        throw new Error('Export failed')
-      }
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Impossible d'exporter les données",
-        variant: "destructive",
-      })
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -228,11 +181,6 @@ export function AnalyticsDashboard() {
               <SelectItem value="month">Par mois</SelectItem>
             </SelectContent>
           </Select>
-
-          <Button variant="outline" onClick={() => handleExport('orders')}>
-            <Download className="w-4 h-4 mr-2" />
-            Exporter
-          </Button>
         </div>
       </div>
 

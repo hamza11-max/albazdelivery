@@ -14,14 +14,14 @@ const analyticsQuerySchema = z.object({
 // GET /api/admin/analytics - Get analytics data
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
       throw new ForbiddenError('Only admins can access analytics')
     }
 
@@ -172,9 +172,11 @@ export async function GET(request: NextRequest) {
     })
 
     // Summary statistics
-    const totalRevenue = orders.filter((o) => o.status === 'DELIVERED').reduce((sum, o) => sum + o.total, 0)
+    const deliveredOrders = orders.filter((o) => o.status === 'DELIVERED')
+    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0)
     const totalOrders = orders.length
-    const averageOrderValue = totalOrders > 0 ? totalRevenue / orders.filter((o) => o.status === 'DELIVERED').length : 0
+    const averageOrderValue =
+      deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0
     const totalUsers = users.length
 
     return successResponse({

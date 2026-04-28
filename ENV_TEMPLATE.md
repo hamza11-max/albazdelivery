@@ -24,9 +24,19 @@ JWT_EXPIRES_IN="7d"
 # ==============================================
 # REDIS / UPSTASH (CACHING & RATE LIMITING)
 # ==============================================
+# Upstash REST (HTTP) — used by some shared Redis helpers / rate-limit presets in code.
 UPSTASH_REDIS_REST_URL="your-upstash-url"
 UPSTASH_REDIS_REST_TOKEN="your-upstash-token"
+# Traditional redis:// URL used by lib/cache.ts when present.
 REDIS_URL="redis://localhost:6379"
+# BullMQ tcp connection (lib/cache.ts). Without REDIS_HOST, queue proxies are no-ops.
+# REDIS_HOST="127.0.0.1"
+# REDIS_PORT="6379"
+# Token for Upstash REST client in lib/cache.ts proxy (if used)
+REDIS_TOKEN=""
+# BullMQ / traditional Redis — required for real queue instances in lib/cache.ts (optional for many deployments)
+# REDIS_HOST="127.0.0.1"
+# REDIS_PORT="6379"
 
 # ==============================================
 # OAUTH PROVIDERS (OPTIONAL)
@@ -56,6 +66,19 @@ TWILIO_PHONE_NUMBER="+1234567890"
 STRIPE_PUBLIC_KEY="pk_test_your-stripe-public-key"
 STRIPE_SECRET_KEY="sk_test_your-stripe-secret-key"
 STRIPE_WEBHOOK_SECRET="whsec_your-webhook-secret"
+# When 1 and REDIS_HOST is set, webhook handler enqueues to BullMQ (`stripe-webhooks`) instead of processing inline.
+# Requires a running worker: `npm run worker:stripe-webhook`. If unset or Redis missing, processing stays inline.
+# STRIPE_WEBHOOK_USE_QUEUE="0"
+
+# Allow activating plan STARTER without Stripe in production (default: off; always allowed in development).
+# Set to 1 only if this free/legacy path is intentional for your business.
+ALLOW_STARTER_PLAN_WITHOUT_STRIPE="0"
+
+# Guest dine-in orders use local JSON files. Blocked on Vercel unless you set:
+# GUEST_ORDERS_ALLOW_ON_VERCEL=1
+# after moving storage to Postgres (or similar). Use desktop app for file-backed mode.
+# GUEST_ORDERS_ALLOW_ON_VERCEL="0"
+# GUEST_ORDERS_DISABLE="0"
 
 # ==============================================
 # MAPS & LOCATION SERVICES
@@ -72,7 +95,9 @@ CLOUDINARY_API_SECRET="your-api-secret"
 # ==============================================
 # ERROR TRACKING & MONITORING
 # ==============================================
+# When set, payment/webhook code may forward handler errors via @sentry/nextjs (see lib/observability/money-path-log.ts).
 SENTRY_DSN="your-sentry-dsn"
+# When set, Stripe webhook handler reports processing errors (see lib/observability/money-path-log.ts)
 SENTRY_ORG="your-org"
 SENTRY_PROJECT="your-project"
 SENTRY_AUTH_TOKEN="your-sentry-auth-token"
@@ -184,6 +209,7 @@ VERCEL_TEAM_ID=""
 3. Rotate secrets regularly in production
 4. Store production secrets in secure vault (Vercel, AWS Secrets Manager, etc.)
 5. Use strong, randomly generated secrets
+6. **Production deploy check:** set `REQUIRE_DEPLOY_SECRETS=1` on CI or rely on `VERCEL_ENV=production` and run `npm run verify:deploy-env` before promoting a build (validates `DATABASE_URL`, `NEXTAUTH_SECRET`, and Stripe secrets when Stripe env is detected).
 
 ## Getting API Keys
 

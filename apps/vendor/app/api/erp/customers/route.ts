@@ -14,7 +14,7 @@ function maxDate(a: Date | null | undefined, b: Date | null | undefined): Date |
 // GET - Fetch all customers who have ordered from this vendor (POS sales + delivery / WhatsApp orders)
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await getSessionFromRequest(request)
     if (!session?.user) {
@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await getSessionFromRequest(request)
     if (!session?.user || session.user.role !== 'VENDOR') {

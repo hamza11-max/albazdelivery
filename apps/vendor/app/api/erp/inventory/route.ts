@@ -5,6 +5,11 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { createInventoryProductSchema, updateInventoryProductSchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
+import {
+  resolveVendorOwnerContextId,
+  userActsAsVendorOwner,
+  assertVendorMayMutateInventoryCatalog,
+} from '@/root/lib/vendor-staff-access'
 
 // In-memory fallback storage for when database is unavailable
 const fallbackProducts: Map<string, any> = new Map()
@@ -22,7 +27,7 @@ async function isDatabaseAvailable(): Promise<boolean> {
 // GET - Fetch all inventory products
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
     const isDev = process.env.NODE_ENV === 'development'
@@ -63,7 +68,12 @@ export async function GET(request: NextRequest) {
     const lowStock = searchParams.get('lowStock')
     const category = searchParams.get('category')
 
-    let targetVendorId = isAdmin ? vendorIdParam : session?.user?.id ?? null
+    let targetVendorId = isAdmin ? vendorIdParam : null
+    if (!isAdmin && session?.user?.id) {
+      targetVendorId = await resolveVendorOwnerContextId(session.user.id)
+    } else if (!isAdmin) {
+      targetVendorId = session?.user?.id ?? null
+    }
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !targetVendorId) {
@@ -169,7 +179,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new product
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const body = await request.json()
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
@@ -232,10 +242,21 @@ export async function POST(request: NextRequest) {
     } = validatedData
 
     // In dev with no session (e.g. Electron), use vendorId from body or query
-    const vendorId = (isAdmin ? overrideVendorId ?? vendorIdParam : session?.user?.id) ?? overrideVendorId ?? vendorIdParam ?? body.vendorId
+    let vendorId: string | null = null
+    if (isAdmin) {
+      vendorId = (overrideVendorId ?? vendorIdParam ?? body.vendorId ?? null) as string | null
+    } else if (session?.user?.id) {
+      vendorId = await resolveVendorOwnerContextId(session.user.id)
+    }
+    vendorId =
+      vendorId ?? (overrideVendorId ?? vendorIdParam ?? body.vendorId ?? null)
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId is required to create a product'), 400)
+    }
+
+    if (!isLocalVendorId && session?.user?.id && !isAdmin) {
+      await assertVendorMayMutateInventoryCatalog(session.user.id, vendorId)
     }
 
     // When vendorId is a local/Electron id (no DB user), use in-memory fallback so Excel import works
@@ -332,7 +353,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update product
 export async function PUT(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const body = await request.json()
     const { id, ...updateData } = body
@@ -396,8 +417,16 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && session?.user && existing.vendorId !== session.user.id) {
+    if (
+      isVendor &&
+      session?.user &&
+      !(await userActsAsVendorOwner({ actorId: session.user.id, vendorOwnerId: existing.vendorId }))
+    ) {
       throw new ForbiddenError('You can only update your own products')
+    }
+
+    if (isVendor && session?.user) {
+      await assertVendorMayMutateInventoryCatalog(session.user.id, existing.vendorId)
     }
 
     // Verify supplier belongs to vendor if provided
@@ -463,7 +492,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete product
 export async function DELETE(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const id = request.nextUrl.searchParams.get('id')
 
@@ -518,8 +547,16 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Product not found'), 404)
     }
 
-    if (isVendor && session?.user && existing.vendorId !== session.user.id) {
+    if (
+      isVendor &&
+      session?.user &&
+      !(await userActsAsVendorOwner({ actorId: session.user.id, vendorOwnerId: existing.vendorId }))
+    ) {
       throw new ForbiddenError('You can only delete your own products')
+    }
+
+    if (isVendor && session?.user) {
+      await assertVendorMayMutateInventoryCatalog(session.user.id, existing.vendorId)
     }
 
     await prisma.inventoryProduct.delete({ where: { id } })

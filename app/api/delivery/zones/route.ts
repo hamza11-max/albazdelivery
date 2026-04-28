@@ -21,7 +21,7 @@ const createDeliveryZoneSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const searchParams = request.nextUrl.searchParams
     const city = searchParams.get('city')
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Only admins can create delivery zones
     const session = await auth()

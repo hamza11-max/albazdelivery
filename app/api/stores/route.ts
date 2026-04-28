@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting (may fail in edge runtime, so catch and continue)
     try {
-      applyRateLimit(request, rateLimitConfigs.api)
+      await applyRateLimit(request, rateLimitConfigs.api)
     } catch (rateLimitError) {
       console.warn('[Stores API] Rate limit check failed:', rateLimitError)
       // Continue execution if rate limiting fails

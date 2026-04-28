@@ -20,7 +20,7 @@ const updateSupplierSchema = createSupplierSchema.partial()
 // GET - Fetch all suppliers for a vendor
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new supplier
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update supplier
 export async function PUT(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -222,7 +222,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete supplier
 export async function DELETE(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

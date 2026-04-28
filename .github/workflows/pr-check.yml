@@ -33,5 +33,18 @@ jobs:
       - name: Typecheck (vendor app)
         run: npm run type-check:vendor
 
+      - name: Verify awaited applyRateLimit in API routes
+        run: npm run check:rate-limit
+
       - name: Run tests
         run: npm test -- --runInBand
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Phase 4 verification (parity + CSRF lint + phased E2E)
+        run: npm run verify:phase-4
+
+      - name: npm audit (critical only)
+        run: npm audit --audit-level=critical
+        continue-on-error: true

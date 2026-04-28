@@ -7,7 +7,7 @@ import { auth } from '@/lib/auth'
 // GET - Fetch all unique categories from products
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

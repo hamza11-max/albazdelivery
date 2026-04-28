@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { z } from 'zod'
+import { userActsAsVendorOwner } from '@/lib/vendor-staff-access'
 
 // POST /api/erp/inventory/[id]/post-to-delivery - Post inventory product to customer-facing Product table
 export async function POST(
@@ -11,7 +12,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -45,7 +46,13 @@ export async function POST(
     }
 
     // Verify ownership
-    if (isVendor && inventoryProduct.vendorId !== session.user.id) {
+    if (
+      isVendor &&
+      !(await userActsAsVendorOwner({
+        actorId: session.user.id,
+        vendorOwnerId: inventoryProduct.vendorId,
+      }))
+    ) {
       throw new ForbiddenError('You can only post your own products to delivery')
     }
 

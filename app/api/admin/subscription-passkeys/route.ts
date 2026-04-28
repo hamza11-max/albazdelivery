@@ -3,6 +3,7 @@ import { prisma } from '@/root/lib/prisma'
 import { auth } from '@/root/lib/auth'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { csrfProtection } from '../../../admin/lib/csrf'
 import crypto from 'crypto'
 
 function hashPasskey(passkey: string) {
@@ -26,11 +27,12 @@ function generatePasskey() {
 
 export async function POST(request: NextRequest) {
   try {
-    try {
-      await applyRateLimit(request, rateLimitConfigs.api)
-    } catch (rateLimitError) {
-      console.warn('[subscription-passkeys] Rate limit check failed:', rateLimitError)
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
     }
+
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -100,11 +102,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    try {
-      await applyRateLimit(request, rateLimitConfigs.api)
-    } catch (rateLimitError) {
-      console.warn('[subscription-passkeys] Rate limit check failed:', rateLimitError)
-    }
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

@@ -11,7 +11,7 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const storeId = params.id
     if (!storeId) {
       return errorResponse(new Error('Store ID is required'), 400)
@@ -44,7 +44,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
     const session = await getSessionFromRequest(request)
     if (!session?.user) {
       throw new UnauthorizedError()

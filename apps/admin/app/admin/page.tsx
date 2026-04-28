@@ -5,20 +5,19 @@ import nextDynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@albaz/ui"
-import { Users, Truck, Store } from "lucide-react"
+import { Users, Truck, Store, Layers, ShoppingCart, LayoutGrid, BarChart3 } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../../lib/csrf-client"
 import { AdminHeader } from "../../components/AdminHeader"
 import { DashboardView } from "../../components/DashboardView"
-import { UserListView } from "../../components/UserListView"
 import { UserListViewWithBulk } from "../../components/UserListViewWithBulk"
 import { ApprovalsView } from "../../components/ApprovalsView"
 import { AuditLogView } from "../../components/AuditLogView"
 import { AdsManagementView } from "../../components/AdsManagementView"
-const AnalyticsDashboard = nextDynamic(
+const AnalyticsReportsView = nextDynamic(
   () =>
-    import("../../components/AnalyticsDashboard").then((mod) => mod.AnalyticsDashboard),
+    import("../../components/AnalyticsReportsView").then((mod) => mod.AnalyticsReportsView),
   {
     ssr: false,
     loading: () => (
@@ -30,6 +29,9 @@ import { EditUserDialog } from "../../components/EditUserDialog"
 import { DeleteUserDialog } from "../../components/DeleteUserDialog"
 import { useAdminData } from "../../hooks/useAdminData"
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "@albaz/ui"
+import { VendorDriverOperationsView } from "../../components/VendorDriverOperationsView"
+import { OrderFinanceView } from "../../components/OrderFinanceView"
+import { ContentOperationsView } from "../../components/ContentOperationsView"
 import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
 
 export const dynamic = 'force-dynamic'
@@ -46,6 +48,7 @@ export default function AdminPanel() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
@@ -69,6 +72,7 @@ export default function AdminPanel() {
     vendors,
     registrationRequests,
     fetchUsers,
+    fetchOrders,
     fetchRegistrationRequests,
   } = useAdminData()
 
@@ -228,6 +232,46 @@ export default function AdminPanel() {
     }
   }
 
+  const handleResetPassword = async (newPassword: string) => {
+    if (!selectedUser) return
+    setIsResettingPassword(true)
+    try {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedUser.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        const extra = data.data?.notificationEmail ? ` (${data.data.notificationEmail})` : ""
+        toast({
+          title: "Mot de passe mis à jour",
+          description: `Le mot de passe a été réinitialisé.${extra}`,
+        })
+      } else {
+        toast({
+          title: "Erreur",
+          description: data.error || "Réinitialisation impossible",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      toast({
+        title: "Erreur",
+        description: "Réinitialisation impossible",
+        variant: "destructive",
+      })
+    } finally {
+      setIsResettingPassword(false)
+    }
+  }
+
+  const sessionUserId = user?.id
+  const canResetSelectedUserPassword =
+    !selectedUser ||
+    String(selectedUser.role ?? "").toUpperCase() !== "ADMIN" ||
+    (Boolean(sessionUserId) && selectedUser.id === sessionUserId)
+
   // Handle delete user
   const handleDeleteUser = async () => {
     if (!selectedUser) return
@@ -313,7 +357,7 @@ export default function AdminPanel() {
       />
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9">
+          <TabsList className="flex w-full flex-wrap gap-2 h-auto">
             <TabsTrigger value="approvals" className="relative">
               Approbations
               {registrationRequests.length > 0 && (
@@ -321,10 +365,34 @@ export default function AdminPanel() {
               )}
             </TabsTrigger>
             <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
+            <TabsTrigger value="analytics-reports">
+              <span className="inline-flex items-center gap-1.5">
+                <BarChart3 className="h-4 w-4" />
+                Analytique
+              </span>
+            </TabsTrigger>
             <TabsTrigger value="command-center">Command Center</TabsTrigger>
             <TabsTrigger value="customers">Clients</TabsTrigger>
             <TabsTrigger value="drivers">Livreurs</TabsTrigger>
             <TabsTrigger value="vendors">Vendeurs</TabsTrigger>
+            <TabsTrigger value="vendor-driver">
+              <span className="inline-flex items-center gap-1.5">
+                <Layers className="h-4 w-4" />
+                Ops V/D
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="order-finance">
+              <span className="inline-flex items-center gap-1.5">
+                <ShoppingCart className="h-4 w-4" />
+                Commandes
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="content">
+              <span className="inline-flex items-center gap-1.5">
+                <LayoutGrid className="h-4 w-4" />
+                Contenu
+              </span>
+            </TabsTrigger>
             <TabsTrigger value="ads">Publicités</TabsTrigger>
             <TabsTrigger value="audit">Journal d'audit</TabsTrigger>
             <TabsTrigger value="passkeys">Passkeys</TabsTrigger>
@@ -353,8 +421,11 @@ export default function AdminPanel() {
                 drivers={drivers}
                 vendors={vendors}
               />
-              <AnalyticsDashboard />
             </div>
+          </TabsContent>
+
+          <TabsContent value="analytics-reports">
+            <AnalyticsReportsView />
           </TabsContent>
 
           <TabsContent value="command-center">
@@ -490,6 +561,18 @@ export default function AdminPanel() {
             />
           </TabsContent>
 
+          <TabsContent value="vendor-driver">
+            <VendorDriverOperationsView drivers={drivers} orders={orders} onRefreshOrders={fetchOrders} />
+          </TabsContent>
+
+          <TabsContent value="order-finance">
+            <OrderFinanceView customers={customers} orders={orders} onRefreshOrders={fetchOrders} />
+          </TabsContent>
+
+          <TabsContent value="content">
+            <ContentOperationsView />
+          </TabsContent>
+
           <TabsContent value="ads">
             <AdsManagementView />
           </TabsContent>
@@ -512,6 +595,9 @@ export default function AdminPanel() {
         onFormChange={setEditForm}
         onSave={handleSaveUser}
         isSaving={isSaving}
+        onResetPassword={handleResetPassword}
+        isResetting={isResettingPassword}
+        canResetPassword={canResetSelectedUserPassword}
       />
 
       <DeleteUserDialog

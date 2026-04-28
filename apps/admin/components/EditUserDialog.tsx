@@ -1,8 +1,17 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@albaz/ui"
-import { Save, X } from "lucide-react"
+import { Save, X, KeyRound } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
+
+function generateSecurePassword(): string {
+  const chars =
+    "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%*"
+  const buf = new Uint8Array(16)
+  crypto.getRandomValues(buf)
+  return Array.from(buf, (b) => chars[b % chars.length]).join("")
+}
 
 interface EditUserDialogProps {
   open: boolean
@@ -20,6 +29,10 @@ interface EditUserDialogProps {
   onFormChange: (form: EditUserDialogProps["form"]) => void
   onSave: () => void
   isSaving: boolean
+  /** When false (e.g. another admin account), reset is blocked server-side — hide action. Defaults to true. */
+  canResetPassword?: boolean
+  onResetPassword?: (newPassword: string) => Promise<void>
+  isResetting?: boolean
 }
 
 export function EditUserDialog({
@@ -30,14 +43,48 @@ export function EditUserDialog({
   onFormChange,
   onSave,
   isSaving,
+  canResetPassword = true,
+  onResetPassword,
+  isResetting = false,
 }: EditUserDialogProps) {
+  const [resetPw, setResetPw] = useState("")
+  const [resetPwConfirm, setResetPwConfirm] = useState("")
+  const [resetError, setResetError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      setResetPw("")
+      setResetPwConfirm("")
+      setResetError(null)
+    }
+  }, [open])
+
+  const resetEnabled = Boolean(onResetPassword) && canResetPassword
+
+  const handleApplyPassword = async () => {
+    setResetError(null)
+    if (resetPw.length < 8) {
+      setResetError("Le mot de passe doit contenir au moins 8 caractères.")
+      return
+    }
+    if (resetPw !== resetPwConfirm) {
+      setResetError("Les mots de passe ne correspondent pas.")
+      return
+    }
+    await onResetPassword?.(resetPw)
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Modifier l'utilisateur</DialogTitle>
+          <DialogTitle>Modifier l&apos;utilisateur</DialogTitle>
           <DialogDescription>
-            Modifiez les informations de l'utilisateur
+            {user ? (
+              <>Modifiez les informations de {user.email}</>
+            ) : (
+              <>Modifiez les informations de l&apos;utilisateur</>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,6 +174,71 @@ export function EditUserDialog({
               placeholder="Ville"
             />
           </div>
+
+          {resetEnabled ? (
+            <div className="space-y-3 rounded-lg border border-border p-3 pt-3">
+              <p className="text-sm font-medium">Réinitialiser le mot de passe</p>
+              <p className="text-xs text-muted-foreground">
+                Un e-mail peut être envoyé à l&apos;utilisateur après succès (selon configuration SMTP).
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={isResetting}
+                  onClick={() => {
+                    const pwd = generateSecurePassword()
+                    setResetPw(pwd)
+                    setResetPwConfirm(pwd)
+                    setResetError(null)
+                  }}
+                >
+                  Générer
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reset-pw">Nouveau mot de passe</Label>
+                <Input
+                  id="reset-pw"
+                  type="password"
+                  autoComplete="new-password"
+                  value={resetPw}
+                  onChange={(e) => setResetPw(e.target.value)}
+                  placeholder="Min. 8 caractères"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reset-pw2">Confirmer</Label>
+                <Input
+                  id="reset-pw2"
+                  type="password"
+                  autoComplete="new-password"
+                  value={resetPwConfirm}
+                  onChange={(e) => setResetPwConfirm(e.target.value)}
+                  placeholder="Répéter le mot de passe"
+                />
+              </div>
+              {resetError ? (
+                <p className="text-sm text-destructive">{resetError}</p>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={isResetting}
+                onClick={() => void handleApplyPassword()}
+              >
+                <KeyRound className="w-4 h-4 mr-2" />
+                {isResetting ? "Application…" : "Appliquer le nouveau mot de passe"}
+              </Button>
+            </div>
+          ) : onResetPassword && !canResetPassword ? (
+            <p className="text-sm text-muted-foreground">
+              Impossible de réinitialiser le mot de passe d&apos;un autre compte administrateur.
+            </p>
+          ) : null}
         </div>
 
         <DialogFooter>

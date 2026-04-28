@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
+import { csrfProtection } from '../../../../admin/lib/csrf'
 
 // PUT /api/admin/ads/[id] - Update an ad (admin only)
 export async function PUT(
@@ -10,8 +11,12 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()
@@ -62,8 +67,12 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Check authentication
     const session = await auth()

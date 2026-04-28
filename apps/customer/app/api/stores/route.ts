@@ -8,7 +8,7 @@ import { auth } from '@/root/lib/auth'
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Get authenticated user (optional for public store listing)
     const session = await auth()

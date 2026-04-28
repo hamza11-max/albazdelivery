@@ -49,11 +49,12 @@ export default defineConfig({
     },
   ],
 
-  /* Run your local dev server before starting the tests */
+  /* Root Next app serves `app/api/*` — use `next dev` here so e2E does not wait on `turbo run dev`.
+   * `--webpack` matches next.config.js (Next 16 defaults to Turbopack and errors if only webpack is configured). */
   webServer: {
-    command: 'npm run dev',
+    command: 'npx next dev -p 3000 --webpack',
     url: 'http://localhost:3000',
-    timeout: 120 * 1000,
+    timeout: 300 * 1000,
     reuseExistingServer: !process.env.CI,
   },
 });

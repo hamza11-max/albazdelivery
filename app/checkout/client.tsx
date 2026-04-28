@@ -51,11 +51,26 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
         },
         body: JSON.stringify({
           orderId: order.id,
-          amount: order.total,
+          amount: Math.round(order.total * 100),
         }),
       })
 
-      const { clientSecret } = await response.json()
+      const payload = await response.json()
+      const clientSecret =
+        typeof payload?.data?.clientSecret === 'string'
+          ? payload.data.clientSecret
+          : typeof payload?.clientSecret === 'string'
+            ? payload.clientSecret
+            : undefined
+
+      if (!response.ok || payload?.success === false) {
+        const errObj = payload?.error
+        const message =
+          (errObj && typeof errObj === 'object' && typeof errObj.message === 'string' && errObj.message) ||
+          (typeof payload?.message === 'string' && payload.message) ||
+          'Payment failed to initialize'
+        throw new Error(message)
+      }
 
       if (!clientSecret) {
         throw new Error('Payment failed to initialize')
@@ -125,15 +140,15 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
             <div className="space-y-1.5">
               <div className="flex justify-between text-sm text-[var(--albaz-text-soft)]">
                 <span>Sous-total</span>
-                <span>{formatPrice(order.subtotal)}</span>
+                <span>{formatPrice(Math.round(order.subtotal * 100))}</span>
               </div>
               <div className="flex justify-between text-sm text-[var(--albaz-text-soft)]">
                 <span>Frais de livraison</span>
-                <span>{formatPrice(order.deliveryFee)}</span>
+                <span>{formatPrice(Math.round(order.deliveryFee * 100))}</span>
               </div>
               <div className="flex justify-between font-semibold text-[var(--albaz-text)]">
                 <span>Total</span>
-                <span>{formatPrice(order.total)}</span>
+                <span>{formatPrice(Math.round(order.total * 100))}</span>
               </div>
             </div>
           </form>
@@ -152,7 +167,7 @@ export function CheckoutPage({ order }: CheckoutPageProps) {
                 Traitement en cours...
               </>
             ) : (
-              `Payer ${formatPrice(order.total)}`
+              `Payer ${formatPrice(Math.round(order.total * 100))}`
             )}
           </Button>
         </CardFooter>

@@ -9,7 +9,7 @@ import { createOrderInternal } from '@/root/lib/orders/create-order-internal'
 
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

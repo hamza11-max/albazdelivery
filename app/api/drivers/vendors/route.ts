@@ -8,7 +8,7 @@ import { z } from 'zod'
 // GET /api/drivers/vendors - Get available vendors for driver
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 // POST /api/drivers/vendors - Request connection to a vendor
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

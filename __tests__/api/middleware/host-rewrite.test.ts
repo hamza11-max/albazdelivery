@@ -49,10 +49,11 @@ function getRewriteTarget(response: Response): string | null {
 }
 
 function restoreEnv(name: string, value: string | undefined) {
+  const env = process.env as Record<string, string | undefined>
   if (value === undefined) {
-    delete process.env[name]
+    delete env[name]
   } else {
-    process.env[name] = value
+    env[name] = value
   }
 }
 
@@ -91,6 +92,8 @@ describe('middleware storefront host rewrite', () => {
       originalVercelProjectProductionUrl
     )
     restoreEnv('ALBAZ_PLATFORM_HOSTS', originalPlatformHosts)
+    restoreEnv('NODE_ENV', originalNodeEnv)
+    restoreEnv('VENDOR_DOMAINS_DEV_UNLOCK', originalVendorDomainsDevUnlock)
   })
 
   it('rewrites vendor subdomain host to /s/{slug}{path}', async () => {
@@ -114,7 +117,7 @@ describe('middleware storefront host rewrite', () => {
   })
 
   it('rewrites {slug}.localhost to /s/{slug} when NODE_ENV is development', async () => {
-    process.env.NODE_ENV = 'development'
+    restoreEnv('NODE_ENV', 'development')
 
     const middleware = (await import('@/middleware')).default
     const request = buildRequest('demo.localhost:3000', '/menu')

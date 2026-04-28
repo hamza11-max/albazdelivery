@@ -7,7 +7,7 @@ import { prisma } from '@/root/lib/prisma'
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const rows = await prisma.catalogCategory.findMany({
       where: { isActive: true },

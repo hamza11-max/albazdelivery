@@ -14,7 +14,7 @@ const HEARTBEAT_INTERVAL = 30000 // 30 seconds
 export async function GET(request: NextRequest) {
   try {
     // Apply rate limiting
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Authenticate user
     const session = await auth()

@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { hashPassword } from '@/root/lib/password'
+import { csrfProtection } from '../../../../../../lib/csrf'
 import { notifyUserPasswordResetByAdmin } from '@/root/lib/mail/adminUserNotifications'
 import { notificationEmailStatus } from '@/root/lib/mail/sendTransactionalEmail'
 import { z } from 'zod'
@@ -13,8 +14,13 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const csrfResponse = csrfProtection(request)
+  if (csrfResponse) {
+    return csrfResponse
+  }
+
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { getSessionFromRequest } from "@/root/lib/get-session-from-request"
+import { assertGuestDineInFileStorageSupported } from "@/root/lib/guest-orders-deployment"
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from "@/root/lib/errors"
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { listGuestOrders, updateGuestOrderStatus } from "@/lib/guest-orders-store"
@@ -19,6 +20,7 @@ function assertVendor(session: Awaited<ReturnType<typeof getSessionFromRequest>>
 export async function GET(request: NextRequest) {
   try {
     await applyRateLimit(asRootRequest(request), rateLimitConfigs.api)
+    assertGuestDineInFileStorageSupported()
     const session = await getSessionFromRequest(request as never)
     assertVendor(session)
     const status = request.nextUrl.searchParams.get("status")?.trim()
@@ -40,6 +42,7 @@ const patchSchema = z.object({
 export async function PATCH(request: NextRequest) {
   try {
     await applyRateLimit(asRootRequest(request), rateLimitConfigs.api)
+    assertGuestDineInFileStorageSupported()
     const session = await getSessionFromRequest(request as never)
     assertVendor(session)
     const body = patchSchema.parse(await request.json())

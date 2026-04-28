@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, AppError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { z } from 'zod'
+import { assertPosSaleStockAvailable } from '@/root/lib/erp/pos-sale-stock'
 
 // Validation schema for sales
 const createSaleSchema = z.object({
@@ -38,7 +39,7 @@ const createSaleSchema = z.object({
 // GET - Fetch all sales (completed orders)
 export async function GET(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await getSessionFromRequest(request)
     if (!session?.user) {
@@ -159,7 +160,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new sale (POS transaction)
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await getSessionFromRequest(request)
     if (!session?.user) {
@@ -198,6 +199,11 @@ export async function POST(request: NextRequest) {
 
     // Create sale with items in a transaction
     const sale = await prisma.$transaction(async (tx: any) => {
+      const stockOk = await assertPosSaleStockAvailable(tx, vendorId, items)
+      if (!stockOk.ok) {
+        throw new AppError(stockOk.status, stockOk.message)
+      }
+
       const newSale = await tx.sale.create({
         data: {
           vendorId,

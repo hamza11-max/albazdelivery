@@ -24,7 +24,7 @@ const chatbotMessageSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     // Optional authentication - chatbot can be used by anyone, but logged-in users get priority
     const session = await auth()

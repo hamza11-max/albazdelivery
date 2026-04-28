@@ -91,10 +91,8 @@ export class DemandPredictionService {
       ];
       predictedDemand *= monthMultipliers[monthOfYear];
 
-      // TODO: Integrate with weather API for weather impact
+      // Weather/events stay neutral until live APIs exist; callers see predictionMeta.disclaimer from the API route.
       const weatherImpact = 1.0;
-
-      // TODO: Integrate with local events API for event impact
       const eventImpact = 1.0;
 
       return {

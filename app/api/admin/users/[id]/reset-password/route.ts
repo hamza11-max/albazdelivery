@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { hashPassword } from '@/lib/password'
+import { csrfProtection } from '../../../../../admin/lib/csrf'
 import { notifyUserPasswordResetByAdmin } from '@/lib/mail/adminUserNotifications'
 import { notificationEmailStatus } from '@/lib/mail/sendTransactionalEmail'
 import { z } from 'zod'
@@ -14,7 +15,11 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    applyRateLimit(request, rateLimitConfigs.api)
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
+    await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
