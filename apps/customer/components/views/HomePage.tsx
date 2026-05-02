@@ -12,7 +12,10 @@ export const HomePage = React.memo(function HomePage({
   onSearchChange,
   onCategorySelect,
   onPackageDelivery,
+  onOpenNotifications,
   selectedCity,
+  cityOptions,
+  onCityChange,
   isDarkMode,
   onToggleDarkMode,
   onGoHome,
@@ -29,25 +32,54 @@ export const HomePage = React.memo(function HomePage({
         {/* Top bar: logo (left) | location pill (center) | theme + notifications (right) */}
         <div className="flex items-center justify-between gap-3 border-b border-[var(--albaz-border)] pb-4 -mx-5 px-5">
           <div className="w-[100px] h-9 flex items-center shrink-0">
-            <img src="/logo.png" alt="ALBAZ" className="h-9 w-auto max-w-[100px] object-contain object-left animate-[fadeSlideUp_0.8s_ease]" />
+            <img
+              src="/logo.png"
+              alt={t("home-logo-alt", "AL-BAZ", "الباز", "AL-BAZ")}
+              className="h-9 w-auto max-w-[100px] object-contain object-left animate-[fadeSlideUp_0.8s_ease]"
+            />
           </div>
 
-          <button className="albaz-location-pill px-3 py-2 flex items-center gap-2 text-sm font-semibold animate-[fadeSlideUp_0.75s_ease] whitespace-nowrap rounded-full bg-[var(--albaz-orange)] text-white">
-            <MapPin className="w-4 h-4" />
-            <span>{selectedCity}</span>
-          </button>
+          <div className="relative min-w-0 max-w-[48%] sm:max-w-none flex justify-center">
+            <MapPin
+              className="pointer-events-none absolute left-3 top-1/2 z-10 w-4 h-4 -translate-y-1/2 text-white"
+              aria-hidden
+            />
+            <select
+              value={selectedCity}
+              onChange={(e) => onCityChange(e.target.value)}
+              aria-label={t(
+                'city-select-label',
+                'Ville de livraison',
+                'مدينة التوصيل',
+                'Delivery city',
+              )}
+              className="albaz-location-pill appearance-none w-full min-w-0 truncate rounded-full bg-[var(--albaz-orange)] py-2 pl-9 pr-3 text-sm font-semibold text-white shadow-sm animate-[fadeSlideUp_0.75s_ease] border-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            >
+              {cityOptions.map((c) => (
+                <option key={c} value={c} className="text-gray-900">
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={onToggleDarkMode}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-[var(--albaz-text)] dark:text-white/90"
-              aria-label={isDarkMode ? t('light-mode', 'Light mode', 'وضع النهار') : t('dark-mode', 'Dark mode', 'الوضع الليلي')}
+              aria-label={
+                isDarkMode
+                  ? t("light-mode", "Mode clair", "وضع النهار", "Light mode")
+                  : t("dark-mode", "Mode sombre", "الوضع الليلي", "Dark mode")
+              }
             >
               {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             <button
+              type="button"
+              onClick={() => onOpenNotifications?.()}
               className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-[var(--albaz-text)] dark:text-white/90"
-              aria-label={t('notifications', 'Notifications', 'الإشعارات')}
+              aria-label={t("notifications", "Notifications", "الإشعارات", "Notifications")}
             >
               <Bell className="w-5 h-5" />
             </button>
@@ -61,7 +93,7 @@ export const HomePage = React.memo(function HomePage({
             <Input
               ref={searchInputRef as React.Ref<HTMLInputElement>}
               type="text"
-              placeholder={t('search', customerCopy.search.placeholder, 'ابحث عن أي شيء...')}
+              placeholder={t("search", customerCopy.search.placeholder, "ابحث عن أي شيء...", "Search...")}
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               className="flex-1 bg-transparent outline-none text-sm font-semibold text-[var(--albaz-text)] dark:text-white placeholder:text-[var(--albaz-text-soft)] border-none shadow-none focus-visible:ring-0 min-w-0"
@@ -74,7 +106,12 @@ export const HomePage = React.memo(function HomePage({
           <div className="hidden sm:block">
             <div className="relative mx-auto h-64 w-64 sm:h-72 sm:w-72 md:h-80 md:w-80">
               {surroundingCategories.map((category, index) => {
-                const categoryName = selectedLanguage === 'ar' ? category.nameAr : category.nameFr
+                const categoryName =
+                  selectedLanguage === "ar"
+                    ? category.nameAr
+                    : selectedLanguage === "en"
+                      ? category.name
+                      : category.nameFr
                 const angle = (index / Math.max(surroundingCategories.length, 1)) * Math.PI * 2
                 const radius = 90
                 const x = 50 + Math.cos(angle) * (radius / 2)
@@ -114,11 +151,12 @@ export const HomePage = React.memo(function HomePage({
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-center text-[var(--albaz-text)] dark:text-white/90">
-                    {selectedLanguage === 'ar'
-                      ? 'توصيل الطرود'
-                      : selectedLanguage === 'fr'
-                        ? 'Livraison colis'
-                        : 'Package Delivery'}
+                    {t(
+                      "home-package-hub",
+                      "Livraison colis",
+                      "توصيل الطرود",
+                      "Package delivery",
+                    )}
                   </span>
                 </button>
               )}
@@ -129,7 +167,12 @@ export const HomePage = React.memo(function HomePage({
           <div className="sm:hidden">
             <div className="grid grid-cols-3 gap-4">
               {firstRowCategories.map((category) => {
-                const categoryName = selectedLanguage === 'ar' ? category.nameAr : category.nameFr
+                const categoryName =
+                  selectedLanguage === "ar"
+                    ? category.nameAr
+                    : selectedLanguage === "en"
+                      ? category.name
+                      : category.nameFr
                 const handleClick = () => {
                   if (category.id === 5) {
                     onPackageDelivery()
@@ -167,18 +210,22 @@ export const HomePage = React.memo(function HomePage({
       <div className="px-5 mt-auto mb-8">
         <div className="albaz-promo p-4 flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-white/15 flex items-center justify-center shadow-inner">
-            <img src="/logo.png" alt="ALBAZ bird" className="w-8 h-8 albaz-promo-bird" />
+            <img
+              src="/logo.png"
+              alt={t("home-logo-promo-alt", "AL-BAZ", "شعار الباز", "AL-BAZ")}
+              className="w-8 h-8 albaz-promo-bird"
+            />
           </div>
           <div className="flex-1 relative z-10">
             <p className="text-sm font-semibold">
-              {t('exclusive-offers', 'Exclusive Offers!', 'عروض حصرية!')}
+              {t("exclusive-offers", "Offres exclusives !", "عروض حصرية!", "Exclusive offers!")}
             </p>
             <p className="text-xs opacity-90">
-              {t('tap-to-learn', 'Tap to Learn More.', 'اضغط لمعرفة المزيد.')}
+              {t("tap-to-learn", "Appuyez pour en savoir plus.", "اضغط لمعرفة المزيد.", "Tap to learn more.")}
             </p>
           </div>
           <button className="relative z-10 px-3 py-2 rounded-full bg-white/90 text-[var(--albaz-olive)] font-semibold shadow-md hover:-translate-y-[1px] transition">
-            {t('learn-more', 'En savoir plus', 'اعرف المزيد')}
+            {t("learn-more", "En savoir plus", "اعرف المزيد", "Learn more")}
           </button>
         </div>
       </div>

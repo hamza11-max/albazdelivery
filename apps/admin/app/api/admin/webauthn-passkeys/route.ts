@@ -4,6 +4,7 @@ import { prisma } from "@/root/lib/prisma"
 import { errorResponse, ForbiddenError, UnauthorizedError, successResponse } from "@/root/lib/errors"
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { isWebAuthnPasskeysEnabled } from "@/root/lib/webauthn/feature"
+import { isFullAdmin } from "@/root/lib/admin-roles"
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
 
     const session = await auth()
     if (!session?.user?.id) throw new UnauthorizedError()
-    if (String(session.user.role).toUpperCase() !== "ADMIN") {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError("Only admins can access passkeys")
     }
 

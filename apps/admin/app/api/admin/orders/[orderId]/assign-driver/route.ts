@@ -7,6 +7,7 @@ import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../../lib/csrf'
 import { emitOrderAssigned } from '@/root/lib/events'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const bodySchema = z.object({
   driverId: z.string().cuid(),
@@ -29,7 +30,7 @@ export async function POST(
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can assign drivers from this endpoint')
     }
 

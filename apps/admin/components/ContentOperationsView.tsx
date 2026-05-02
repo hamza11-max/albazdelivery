@@ -16,10 +16,79 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Textarea,
 } from "@albaz/ui"
-import { Loader2, Megaphone, RefreshCw, Settings2, Ticket, Layers, MapPinned } from "lucide-react"
+import { Loader2, Megaphone, RefreshCw, Settings2, Ticket, Layers, MapPinned, Mail } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+
+function EmailTemplateRow({
+  template: t,
+  onSaved,
+  toast,
+}: {
+  template: {
+    id: string
+    key: string
+    labelFr: string
+    subjectFr: string
+    bodyFr: string
+    subjectAr?: string
+    bodyAr?: string
+  }
+  onSaved: () => void
+  toast: (opts: { title?: string; description?: string; variant?: "destructive" }) => void
+}) {
+  const [labelFr, setLabelFr] = useState(t.labelFr ?? "")
+  const [subjectFr, setSubjectFr] = useState(t.subjectFr ?? "")
+  const [bodyFr, setBodyFr] = useState(t.bodyFr ?? "")
+  const [busy, setBusy] = useState(false)
+
+  const save = async () => {
+    setBusy(true)
+    try {
+      const res = await fetchWithCsrf(`/api/admin/email-templates/${encodeURIComponent(t.key)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ labelFr, subjectFr, bodyFr }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast({ title: "Modèle enregistré", description: t.key })
+        onSaved()
+      } else {
+        toast({ title: "Erreur", description: data.error?.message || String(data.error), variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-xs text-muted-foreground">{t.key}</p>
+        <Button type="button" size="sm" disabled={busy} onClick={() => void save()}>
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+        </Button>
+      </div>
+      <div>
+        <Label>Libellé</Label>
+        <Input value={labelFr} onChange={(e) => setLabelFr(e.target.value)} />
+      </div>
+      <div>
+        <Label>Sujet (FR)</Label>
+        <Input value={subjectFr} onChange={(e) => setSubjectFr(e.target.value)} />
+      </div>
+      <div>
+        <Label>Corps (FR)</Label>
+        <Textarea value={bodyFr} onChange={(e) => setBodyFr(e.target.value)} rows={6} className="font-mono text-sm" />
+      </div>
+    </div>
+  )
+}
 
 export function ContentOperationsView() {
   const { toast } = useToast()
@@ -29,20 +98,24 @@ export function ContentOperationsView() {
   const [promos, setPromos] = useState<Array<Record<string, unknown>>>([])
   const [config, setConfig] = useState<Record<string, unknown> | null>(null)
 
+  const [templates, setTemplates] = useState<Array<Record<string, unknown>>>([])
+
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [z, c, p, cfg] = await Promise.all([
+      const [z, c, p, cfg, em] = await Promise.all([
         fetch("/api/admin/delivery-zones", { credentials: "include" }),
         fetch("/api/admin/catalog-categories", { credentials: "include" }),
         fetch("/api/admin/promo-codes", { credentials: "include" }),
         fetch("/api/admin/system/config", { credentials: "include" }),
+        fetch("/api/admin/email-templates", { credentials: "include" }),
       ])
-      const [zj, cj, pj, cfgj] = await Promise.all([z.json(), c.json(), p.json(), cfg.json()])
+      const [zj, cj, pj, cfgj, emj] = await Promise.all([z.json(), c.json(), p.json(), cfg.json(), em.json()])
       if (zj.success) setZones((zj.data?.zones as any) ?? [])
       if (cj.success) setCategories((cj.data?.categories as any) ?? [])
       if (pj.success) setPromos((pj.data?.promoCodes as any) ?? [])
       if (cfgj.success) setConfig((cfgj.data?.config as any) ?? null)
+      if (emj.success) setTemplates((emj.data?.templates as any) ?? [])
     } catch (e) {
       console.error(e)
       toast({ title: "Erreur chargement", variant: "destructive" })
@@ -106,6 +179,72 @@ export function ContentOperationsView() {
           <RefreshCw className="h-4 w-4 mr-1" /> Actualiser
         </Button>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-primary" />
+            Intégrations (clés d’API / env)
+          </CardTitle>
+          <CardDescription>
+            Présence des variables sur le serveur — les valeurs ne sont jamais affichées.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto text-sm">
+          {Array.isArray((config as any)?.integrationKeys) && (config as any).integrationKeys.length > 0 ? (
+            <table className="min-w-full">
+              <thead>
+                <tr className="border-b bg-muted/50 text-left">
+                  <th className="p-2">Intégration</th>
+                  <th className="p-2">Variable</th>
+                  <th className="p-2">Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(config as any).integrationKeys.map((row: any) => (
+                  <tr key={row.id} className="border-b">
+                    <td className="p-2">{row.label}</td>
+                    <td className="p-2 font-mono text-xs">{row.envVar}</td>
+                    <td className="p-2">
+                      <Badge variant={row.configured ? "default" : "secondary"}>
+                        {row.configured ? "configuré" : "absent"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-muted-foreground">Aucune donnée d’intégration.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Modèles d’e-mail
+          </CardTitle>
+          <CardDescription>
+            Textes éditables (placeholder <code className="text-xs">{"{{name}}"}</code> possible). Enregistrement via API.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {templates.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Aucun modèle.</p>
+          ) : (
+            templates.map((t: any) => (
+              <EmailTemplateRow
+                key={t.id}
+                template={t}
+                onSaved={() => void refresh()}
+                toast={toast}
+              />
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

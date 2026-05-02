@@ -6,6 +6,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const broadcastSchema = z.object({
   title: z.string().min(1).max(200),
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins can broadcast')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins can broadcast')
     const body = broadcastSchema.parse(await request.json())
     const { title, message, type, recipientRole, recipientIds, limit } = body
 

@@ -6,7 +6,7 @@ import { prisma } from './prisma'
 import { verifyPassword } from './password'
 import { consumePasskeyAuthGrant } from './webauthn/grants'
 
-export type UserRole = 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN'
+export type UserRole = 'CUSTOMER' | 'VENDOR' | 'DRIVER' | 'ADMIN' | 'SUPER_ADMIN' | 'SUPPORT'
 const algerianPhoneRegex = /^0[567]\d{8}$/
 
 declare module 'next-auth' {

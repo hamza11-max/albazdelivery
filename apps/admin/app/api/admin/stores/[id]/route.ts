@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -28,7 +29,7 @@ export async function GET(
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can view stores')
     }
 
@@ -69,7 +70,7 @@ export async function PATCH(
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can update stores')
     }
 

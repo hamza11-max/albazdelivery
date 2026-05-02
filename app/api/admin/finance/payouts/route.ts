@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Admin: vendor payout ledger rows — reconciliation list, CSV export, manual recording. */
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access payout ledger')
     }
 
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can record payouts')
     }
 

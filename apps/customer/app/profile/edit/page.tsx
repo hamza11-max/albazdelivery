@@ -8,11 +8,13 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useErrorHandler } from "../../../hooks/use-error-handler"
 import { normalizeAlgerianPhone } from "../../../lib/phone"
+import { useProfileI18n } from "../../../hooks/use-profile-i18n"
 
 export const dynamic = "force-dynamic"
 
 export default function EditProfilePage() {
   const router = useRouter()
+  const t = useProfileI18n()
   const { data: session, status } = useSession()
   const { handleError } = useErrorHandler()
   const [name, setName] = useState("")
@@ -59,7 +61,17 @@ export default function EditProfilePage() {
     e.preventDefault()
     const normalizedPhone = normalizeAlgerianPhone(phone)
     if (!/^0[567]\d{8}$/.test(normalizedPhone)) {
-      handleError(new Error("Numéro de téléphone invalide (ex: 0555000000)"), { showToast: true })
+      handleError(
+        new Error(
+          t(
+            "edit-phone-invalid",
+            "Numéro de téléphone invalide (ex: 0555000000)",
+            "رقم هاتف غير صالح (مثال: 0555000000)",
+            "Invalid phone number (e.g. 0555000000)",
+          ),
+        ),
+        { showToast: true },
+      )
       return
     }
 
@@ -80,7 +92,13 @@ export default function EditProfilePage() {
         router.push("/")
         router.refresh()
       } else {
-        handleError(new Error(data.error?.message || "Erreur lors de la mise à jour"), { showToast: true })
+        handleError(
+          new Error(
+            data.error?.message ||
+              t("edit-update-fail", "Erreur lors de la mise à jour", "خطأ أثناء التحديث", "Update failed"),
+          ),
+          { showToast: true },
+        )
       }
     } catch (err) {
       handleError(err as Error, { showToast: true })
@@ -106,54 +124,59 @@ export default function EditProfilePage() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold">Modifier le profil</h1>
+          <h1 className="text-xl font-bold">{t("edit-h1", "Modifier le profil", "تعديل الملف الشخصي", "Edit profile")}</h1>
         </div>
       </header>
 
       <div className="max-w-xl mx-auto px-4 py-6">
         <Card>
           <CardHeader>
-            <CardTitle>Informations personnelles</CardTitle>
+            <CardTitle>{t("edit-card-title", "Informations personnelles", "المعلومات الشخصية", "Personal information")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Nom</Label>
+                <Label htmlFor="name">{t("edit-name", "Nom", "الاسم", "Name")}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Votre nom"
+                  placeholder={t("edit-ph-name", "Votre nom", "اسمك", "Your name")}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Téléphone</Label>
+                <Label htmlFor="phone">{t("edit-phone", "Téléphone", "الهاتف", "Phone")}</Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0555000000"
+                  placeholder={t(
+                    'phone-example-placeholder',
+                    'Ex. 0555000000',
+                    'مثال 0555000000',
+                    'e.g. 0555000000',
+                  )}
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Adresse</Label>
+                <Label htmlFor="address">{t("edit-address", "Adresse", "العنوان", "Address")}</Label>
                 <Input
                   id="address"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Rue, numéro, quartier..."
+                  placeholder={t("edit-ph-addr", "Rue, numéro, quartier...", "الشارع، الرقم...", "Street, number...")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="city">Ville</Label>
+                <Label htmlFor="city">{t("edit-city", "Ville", "المدينة", "City")}</Label>
                 <Input
                   id="city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="Alger, Oran..."
+                  placeholder={t("edit-ph-city", "Alger, Oran...", "الجزائر، وهران...", "Algiers, Oran...")}
                 />
               </div>
               <Button
@@ -164,10 +187,10 @@ export default function EditProfilePage() {
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Enregistrement...
+                    {t("edit-saving", "Enregistrement...", "جاري الحفظ...", "Saving...")}
                   </>
                 ) : (
-                  "Enregistrer"
+                  t("edit-save", "Enregistrer", "حفظ", "Save")
                 )}
               </Button>
             </form>

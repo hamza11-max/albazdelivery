@@ -16,7 +16,7 @@ interface EditUserDialogProps {
     name: string
     email: string
     phone: string
-    role: "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN"
+    role: "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN" | "SUPPORT"
     status: "PENDING" | "APPROVED" | "REJECTED"
     address: string
     city: string
@@ -91,6 +91,7 @@ export function EditUserDialog({
                 <SelectItem value="VENDOR">Vendeur</SelectItem>
                 <SelectItem value="DRIVER">Livreur</SelectItem>
                 <SelectItem value="ADMIN">Administrateur</SelectItem>
+                <SelectItem value="SUPPORT">Support</SelectItem>
               </SelectContent>
             </Select>
           </div>

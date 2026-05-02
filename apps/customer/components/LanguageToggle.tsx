@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Globe } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getStoredLanguage, setStoredLanguage } from '@/lib/theme'
+import { getStoredLanguage, toggleLanguage as cycleAppLanguage } from '@/lib/theme'
 
 interface LanguageToggleProps {
   onLanguageChange?: (language: string) => void
@@ -23,23 +23,25 @@ export function LanguageToggle({ onLanguageChange }: LanguageToggleProps) {
     return null
   }
 
-  const toggleLanguage = () => {
-    const newLanguage = language === 'fr' ? 'ar' : 'fr'
-    setStoredLanguage(newLanguage)
+  const onToggle = () => {
+    const newLanguage = cycleAppLanguage()
     setLanguage(newLanguage)
     onLanguageChange?.(newLanguage)
   }
+
+  const nextLangTitle =
+    language === 'fr' ? 'العربية' : language === 'ar' ? 'English' : 'Français'
 
   return (
     <Button
       variant="ghost"
       size="icon"
-      onClick={toggleLanguage}
-      title={language === 'fr' ? 'العربية' : 'Français'}
+      onClick={onToggle}
+      title={nextLangTitle}
       className="w-10 h-10"
     >
       <Globe className="h-5 w-5" />
-      <span className="sr-only">Toggle language</span>
+      <span className="sr-only">{nextLangTitle}</span>
     </Button>
   )
 }

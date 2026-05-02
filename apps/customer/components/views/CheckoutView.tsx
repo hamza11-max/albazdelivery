@@ -41,12 +41,17 @@ export function CheckoutView({
   const handlePlaceOrder = async () => {
     // Validate cart
     if (cart.length === 0) {
-      handleValidationError({ errors: [{ message: t('cart-empty', customerCopy.empty.cartEmpty, 'سلتك فارغة') }] })
+      handleValidationError({
+        errors: [{ message: t('cart-empty', customerCopy.empty.cartEmpty, 'سلتك فارغة', 'Your cart is empty') }],
+      })
       return
     }
 
     // Validate payment method
-    const paymentValidation = validateRequired(paymentMethod, t('payment-method', 'Mode de paiement', 'طريقة الدفع'))
+    const paymentValidation = validateRequired(
+      paymentMethod,
+      t('payment-method', 'Mode de paiement', 'طريقة الدفع', 'Payment method'),
+    )
     if (!paymentValidation.isValid) {
       handleValidationError(paymentValidation)
       return
@@ -65,11 +70,11 @@ export function CheckoutView({
   return (
     <div className="albaz-shell container mx-auto px-4 py-6 pb-24 md:pb-6 max-w-3xl">
       <Button variant="ghost" onClick={onContinueShopping} className="mb-4">
-        ← {t('continue-shopping', customerCopy.actions.continueShopping, 'متابعة التسوق')}
+        ← {t('continue-shopping', customerCopy.actions.continueShopping, 'متابعة التسوق', 'Continue shopping')}
       </Button>
 
       <h2 className="text-2xl font-bold mb-6 text-foreground">
-        {t('my-cart', customerCopy.titles.cart, 'سلتي')}
+        {t('my-cart', customerCopy.titles.cart, 'سلتي', 'My cart')}
       </h2>
 
       {cart.length === 0 ? (
@@ -77,10 +82,10 @@ export function CheckoutView({
             <CardContent className="p-12 text-center">
             <ShoppingCart className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
             <p className="text-lg text-muted-foreground mb-4">
-              {t('empty-cart', customerCopy.empty.cartEmpty, 'سلتك فارغة')}
+              {t('empty-cart', customerCopy.empty.cartEmpty, 'سلتك فارغة', 'Your cart is empty')}
             </p>
             <Button onClick={onContinueShopping}>
-              {t('start-shopping', customerCopy.actions.continueShopping, 'ابدأ التسوق')}
+              {t('start-shopping', customerCopy.actions.continueShopping, 'ابدأ التسوق', 'Start shopping')}
             </Button>
           </CardContent>
         </Card>
@@ -122,7 +127,7 @@ export function CheckoutView({
                         size="icon" 
                         className="h-8 w-8 rounded-full bg-[#1a4d1a] hover:bg-[#1a5d1a] text-white" 
                         onClick={() => onUpdateQuantity(item.productId, 1)}
-                        aria-label={t('increase-quantity', 'Augmenter la quantité', 'زيادة الكمية')}
+                        aria-label={t('increase-quantity', 'Augmenter la quantité', 'زيادة الكمية', 'Increase quantity')}
                       >
                         <Plus className="w-4 h-4" aria-hidden="true" />
                       </Button>
@@ -133,7 +138,7 @@ export function CheckoutView({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRemoveFromCart(item.productId)}
-                        aria-label={t('remove-from-cart', 'Retirer du panier', 'إزالة من السلة')}
+                        aria-label={t('remove-from-cart', 'Retirer du panier', 'إزالة من السلة', 'Remove from cart')}
                         className="text-destructive hover:text-destructive h-auto p-1"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -148,12 +153,14 @@ export function CheckoutView({
 
           <Card className="albaz-card">
             <CardHeader>
-              <CardTitle>{t('delivery-details', 'Adresse de livraison', 'عنوان التوصيل')}</CardTitle>
+              <CardTitle>{t('delivery-details', 'Adresse de livraison', 'عنوان التوصيل', 'Delivery address')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {addresses.length > 0 && (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">{t('saved-addresses', 'Adresses enregistrées', 'العناوين المحفوظة')}</Label>
+                  <Label className="text-sm font-medium">
+                    {t('saved-addresses', 'Adresses enregistrées', 'العناوين المحفوظة', 'Saved addresses')}
+                  </Label>
                   <div className="space-y-2">
                     {addresses.map((addr) => (
                       <button
@@ -180,20 +187,27 @@ export function CheckoutView({
                         !selectedAddressId ? 'border-[#1a4d1a] bg-[#1a4d1a]/5' : 'border-border hover:border-[#1a4d1a]/50'
                       }`}
                     >
-                      <span className="font-medium">{t('other-address', 'Autre adresse', 'عنوان آخر')}</span>
+                      <span className="font-medium">
+                        {t('other-address', 'Autre adresse', 'عنوان آخر', 'Other address')}
+                      </span>
                     </button>
                   </div>
                 </div>
               )}
               <div className="space-y-2">
                 <Label htmlFor="delivery-address" className="text-sm font-medium">
-                  {t('address', 'Adresse complète', 'العنوان الكامل')}
+                  {t('address', 'Adresse complète', 'العنوان الكامل', 'Full address')}
                 </Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="delivery-address"
-                    placeholder={t('address-placeholder', 'Rue, numéro, appartement, quartier...', 'الشارع، الرقم، الشقة، الحي...')}
+                    placeholder={t(
+                      'address-placeholder',
+                      'Rue, numéro, appartement, quartier...',
+                      'الشارع، الرقم، الشقة، الحي...',
+                      'Street, number, apartment, area...',
+                    )}
                     value={deliveryAddress}
                     onChange={(e) => onDeliveryAddressChange(e.target.value)}
                     className="pl-10 min-h-[44px]"
@@ -202,14 +216,19 @@ export function CheckoutView({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="customer-phone" className="text-sm font-medium">
-                  {t('phone', 'Téléphone', 'الهاتف')}
+                  {t('phone', 'Téléphone', 'الهاتف', 'Phone')}
                 </Label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     id="customer-phone"
                     type="tel"
-                    placeholder="0555000000"
+                    placeholder={t(
+                      'phone-example-placeholder',
+                      'Ex. 0555000000',
+                      'مثال 0555000000',
+                      'e.g. 0555000000',
+                    )}
                     value={customerPhone}
                     onChange={(e) => onCustomerPhoneChange(e.target.value)}
                     className="pl-10 min-h-[44px]"
@@ -221,29 +240,29 @@ export function CheckoutView({
 
           <Card className="albaz-card">
             <CardHeader>
-              <CardTitle>{t('order-summary', 'Résumé de la commande', 'ملخص الطلب')}</CardTitle>
+              <CardTitle>{t('order-summary', 'Résumé de la commande', 'ملخص الطلب', 'Order summary')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between text-muted-foreground">
-                <span>{t('items-total', 'Total des articles', 'مجموع العناصر')}</span>
+                <span>{t('items-total', 'Total des articles', 'مجموع العناصر', 'Items total')}</span>
                 <span>{subtotal} DZD</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>{t('tax', 'Taxe', 'ضريبة')}</span>
+                <span>{t('tax', 'Taxe', 'ضريبة', 'Tax')}</span>
                 <span>0 DZD</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>{t('delivery-fee', 'Frais de livraison', 'رسوم التوصيل')}</span>
+                <span>{t('delivery-fee', 'Frais de livraison', 'رسوم التوصيل', 'Delivery fee')}</span>
                 <span>{deliveryFee} DZD</span>
               </div>
               {promoDiscount > 0 && (
                 <div className="flex justify-between text-sm text-green-700">
-                  <span>{t('discount', 'Remise', 'خصم')}</span>
+                  <span>{t('discount', 'Remise', 'خصم', 'Discount')}</span>
                   <span>-{promoDiscount} DZD</span>
                 </div>
               )}
               <div className="flex justify-between text-xl font-bold pt-3 border-t">
-                <span>{t('total', 'Total', 'المجموع')}</span>
+                <span>{t('total', 'Total', 'المجموع', 'Total')}</span>
                 <span className="text-[#1a4d1a]">{total} DZD</span>
               </div>
             </CardContent>
@@ -251,29 +270,29 @@ export function CheckoutView({
 
           <Card className="albaz-card">
             <CardHeader>
-              <CardTitle>{t('promo-code', 'Code promo', 'رمز ترويجي')}</CardTitle>
+              <CardTitle>{t('promo-code', 'Code promo', 'رمز ترويجي', 'Promo code')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   className="flex-1 border rounded-md px-3 py-2 text-sm"
-                  placeholder={t('enter-promo', 'Saisissez votre code promo', 'أدخل الرمز الترويجي')}
+                  placeholder={t('enter-promo', 'Saisissez votre code promo', 'أدخل الرمز الترويجي', 'Enter promo code')}
                   value={promoInput}
                   onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                 />
                 <Button onClick={() => onApplyPromo(promoInput.trim())} variant="default">
-                  {t('apply', 'Appliquer', 'تطبيق')}
+                  {t('apply', 'Appliquer', 'تطبيق', 'Apply')}
                 </Button>
                 {promoCode && (
                   <Button variant="outline" onClick={onClearPromo}>
-                    {t('remove', 'Retirer', 'إزالة')}
+                    {t('remove', 'Retirer', 'إزالة', 'Remove')}
                   </Button>
                 )}
               </div>
               {promoError && <p className="text-sm text-destructive">{promoError}</p>}
               {promoCode && !promoError && promoDiscount > 0 && (
                 <p className="text-sm text-green-700">
-                  {t('promo-applied', `Code ${promoCode} appliqué`, `تم تطبيق الرمز ${promoCode}`)}
+                  {t('promo-applied', `Code ${promoCode} appliqué`, `تم تطبيق الرمز ${promoCode}`, `Code ${promoCode} applied`)}
                 </p>
               )}
             </CardContent>
@@ -281,7 +300,7 @@ export function CheckoutView({
 
           <Card className="albaz-card">
             <CardHeader>
-              <CardTitle>{t('payment-method', 'Mode de paiement', 'طريقة الدفع')}</CardTitle>
+              <CardTitle>{t('payment-method', 'Mode de paiement', 'طريقة الدفع', 'Payment method')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors hover:bg-muted/50">
@@ -296,13 +315,13 @@ export function CheckoutView({
                 <Banknote className="w-5 h-5 text-muted-foreground" />
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">
-                    {t('cash-on-delivery', 'Paiement à la Livraison', 'الدفع عند الاستلام')}
+                    {t('cash-on-delivery', 'Paiement à la Livraison', 'الدفع عند الاستلام', 'Cash on delivery')}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {t('pay-cash', 'Payez en espèces lors de la réception', 'ادفع نقدًا عند الاستلام')}
+                    {t('pay-cash', 'Payez en espèces lors de la réception', 'ادفع نقدًا عند الاستلام', 'Pay cash on delivery')}
                   </p>
                 </div>
-                <Badge className="bg-[#1a4d1a] text-white">{t('recommended', 'Recommandé', 'موصى به')}</Badge>
+                <Badge className="bg-[#1a4d1a] text-white">{t('recommended', 'Recommandé', 'موصى به', 'Recommended')}</Badge>
               </label>
               {walletBalance >= total && (
                 <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors hover:bg-muted/50">
@@ -316,8 +335,10 @@ export function CheckoutView({
                   />
                   <Wallet className="w-5 h-5 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="font-semibold text-foreground">{t('wallet', 'Portefeuille', 'المحفظة')}</p>
-                    <p className="text-sm text-muted-foreground">{walletBalance} DZD {t('available', 'disponible', 'متاح')}</p>
+                    <p className="font-semibold text-foreground">{t('wallet', 'Portefeuille', 'المحفظة', 'Wallet')}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {walletBalance} DZD {t('available', 'disponible', 'متاح', 'available')}
+                    </p>
                   </div>
                 </label>
               )}
@@ -325,8 +346,12 @@ export function CheckoutView({
                 <input type="radio" name="payment" value="card" disabled className="w-4 h-4" />
                 <CreditCard className="w-5 h-5 text-muted-foreground" />
                 <div className="flex-1">
-                  <p className="font-semibold text-foreground">{t('credit-card', 'Carte Bancaire', 'بطاقة ائتمان')}</p>
-                  <p className="text-sm text-muted-foreground">{t('coming-soon', 'Bientôt disponible', 'قريبًا')}</p>
+                  <p className="font-semibold text-foreground">
+                    {t('credit-card', 'Carte Bancaire', 'بطاقة ائتمان', 'Credit card')}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {t('coming-soon', 'Bientôt disponible', 'قريبًا', 'Coming soon')}
+                  </p>
                 </div>
               </label>
             </CardContent>
@@ -341,10 +366,10 @@ export function CheckoutView({
             {isPlacingOrder ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                {t('processing', 'Traitement...', 'جاري المعالجة...')}
+                {t('processing', 'Traitement...', 'جاري المعالجة...', 'Processing...')}
               </>
             ) : (
-              `${t('pay-now', customerCopy.actions.placeOrder, 'ادفع الآن')} - ${total} DZD`
+              `${t('pay-now', customerCopy.actions.placeOrder, 'ادفع الآن', 'Pay now')} - ${total} DZD`
             )}
           </Button>
         </div>

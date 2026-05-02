@@ -229,33 +229,42 @@ export const loyaltyAPI = {
 // ============================================
 
 export const notificationsAPI = {
-  async list(params?: { page?: number; limit?: number }) {
+  async list(params?: { page?: number; limit?: number; unreadOnly?: boolean }) {
     const searchParams = new URLSearchParams()
     if (params?.page) searchParams.set('page', params.page.toString())
     if (params?.limit) searchParams.set('limit', params.limit.toString())
-    
+    if (params?.unreadOnly) searchParams.set('unreadOnly', 'true')
+
     const query = searchParams.toString()
     return fetchAPI(`/api/notifications${query ? `?${query}` : ''}`)
   },
 
-  async markAsRead(notificationIds: string[]) {
+  /** Matches `PUT /api/notifications` + `markNotificationReadSchema` (single id). */
+  async markAsRead(notificationId: string) {
     return fetchAPI('/api/notifications', {
       method: 'PUT',
-      body: JSON.stringify({ notificationIds }),
+      body: JSON.stringify({ notificationId }),
     })
   },
 
   async markAllAsRead() {
     return fetchAPI('/api/notifications', {
       method: 'PUT',
-      body: JSON.stringify({ markAll: true }),
+      body: JSON.stringify({ markAllAsRead: true }),
     })
   },
 
-  async delete(notificationIds: string[]) {
-    return fetchAPI('/api/notifications', {
+  /** `DELETE /api/notifications?id=` */
+  async deleteOne(notificationId: string) {
+    return fetchAPI(`/api/notifications?id=${encodeURIComponent(notificationId)}`, {
       method: 'DELETE',
-      body: JSON.stringify({ notificationIds }),
+    })
+  },
+
+  /** Deletes all **read** notifications for the current user. */
+  async deleteAllRead() {
+    return fetchAPI('/api/notifications?all=true', {
+      method: 'DELETE',
     })
   },
 }
@@ -437,6 +446,27 @@ export const packageDeliveryAPI = {
 // ============================================
 
 export const supportAPI = {
+  async list(params?: { page?: number; limit?: number; status?: string }) {
+    const sp = new URLSearchParams()
+    if (params?.page) sp.set('page', String(params.page))
+    if (params?.limit) sp.set('limit', String(params.limit))
+    if (params?.status) sp.set('status', params.status)
+    const q = sp.toString()
+    return fetchAPI(`/api/support/tickets${q ? `?${q}` : ''}`)
+  },
+
+  async create(data: {
+    subject: string
+    description: string
+    category?: 'ORDER' | 'DELIVERY' | 'PAYMENT' | 'ACCOUNT' | 'OTHER'
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  }) {
+    return fetchAPI('/api/support/tickets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+
   async getTicket(ticketId: string) {
     return fetchAPI(`/api/support/tickets/${ticketId}`)
   },

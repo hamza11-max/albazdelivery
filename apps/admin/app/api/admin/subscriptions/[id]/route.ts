@@ -3,6 +3,7 @@ import { auth } from '@/root/lib/auth'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
 import { SubscriptionPlan, SubscriptionStatus } from '@/generated/prisma/client'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 // PATCH /api/admin/subscriptions/[id] - Extend or update subscription (admin only)
 export async function PATCH(
@@ -12,7 +13,7 @@ export async function PATCH(
   try {
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user?.role)) {
       throw new ForbiddenError('Only admins can update subscriptions')
     }
 

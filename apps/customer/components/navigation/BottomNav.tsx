@@ -9,15 +9,22 @@ interface BottomNavProps {
   onNavigate: (page: PageView) => void
   onResetSelection: () => void
   onSearchFocusRequest?: () => void
+  /** Unread in-app notifications; shown on Orders (bell) tab. */
+  ordersBadgeCount?: number
   t: TranslationFn
 }
 
-export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelection, onSearchFocusRequest, t }: BottomNavProps) {
+export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelection, onSearchFocusRequest, ordersBadgeCount = 0, t }: BottomNavProps) {
   const handleNavigate = (page: PageView) => {
     if (page === 'home') {
       onResetSelection()
     }
     onNavigate(page)
+  }
+
+  const navIsActive = (page: PageView) => {
+    if (page === 'profile') return currentPage === 'profile' || currentPage === 'favorites'
+    return currentPage === page
   }
 
   const navButton = (
@@ -29,7 +36,7 @@ export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelec
     <button
       onClick={() => handleNavigate(page)}
       className={`flex flex-col items-center gap-1 py-2 transition-colors ${
-        currentPage === page ? 'active' : 'text-muted-foreground'
+        navIsActive(page) ? 'active' : 'text-muted-foreground'
       }`}
     >
       <div className="relative">
@@ -43,7 +50,7 @@ export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelec
   return (
     <nav className="albaz-nav fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
       <div className="flex items-center justify-around py-2 px-4">
-        {navButton('home', <Home className="w-6 h-6" />, t('home', customerCopy.nav.home, 'الرئيسية'))}
+        {navButton('home', <Home className="w-6 h-6" />, t('home', customerCopy.nav.home, 'الرئيسية', 'Home'))}
         <button
           onClick={() => {
             onResetSelection()
@@ -55,20 +62,29 @@ export function BottomNav({ currentPage, cartItemCount, onNavigate, onResetSelec
           }`}
         >
           <Search className="w-6 h-6" />
-          <span className="text-xs font-medium">{t('search', customerCopy.nav.search, 'بحث')}</span>
+          <span className="text-xs font-medium">{t('search', customerCopy.nav.search, 'بحث', 'Search')}</span>
         </button>
         {navButton(
           'checkout',
           <ShoppingCart className="w-6 h-6" />,
-          t('shop', customerCopy.nav.shop, 'تسوق'),
+          t('shop', customerCopy.nav.shop, 'تسوق', 'Cart'),
           cartItemCount > 0 ? (
             <span className="absolute -top-1 -right-2 bg-[var(--albaz-orange)] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
               {cartItemCount}
             </span>
           ) : null
         )}
-        {navButton('orders', <Bell className="w-6 h-6" />, t('dats', customerCopy.nav.dats, 'الإشعارات'))}
-        {navButton('profile', <User className="w-6 h-6" />, t('profile', customerCopy.nav.profile, 'الملف الشخصي'))}
+        {navButton(
+          'orders',
+          <Bell className="w-6 h-6" />,
+          t('dats', customerCopy.nav.dats, 'الطلبات', 'Orders'),
+          ordersBadgeCount > 0 ? (
+            <span className="absolute -top-1 -right-2 min-w-[1.25rem] h-5 px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
+              {ordersBadgeCount > 99 ? '99+' : ordersBadgeCount}
+            </span>
+          ) : null,
+        )}
+        {navButton('profile', <User className="w-6 h-6" />, t('profile', customerCopy.nav.profile, 'الملف الشخصي', 'Profile'))}
       </div>
     </nav>
   )

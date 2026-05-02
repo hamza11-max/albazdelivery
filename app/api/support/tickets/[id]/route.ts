@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { updateSupportTicketSchema } from '@/lib/validations/api'
+import { canAccessSupportTicketEscalation } from '@/lib/admin-roles'
 import { z } from 'zod'
 
 export async function GET(
@@ -45,8 +46,8 @@ export async function GET(
       throw new NotFoundError('Support ticket')
     }
 
-    // Authorization: Users can only view their own tickets (except admin)
-    if (session.user.role !== 'ADMIN' && ticket.customerId !== session.user.id) {
+    // Customers see own tickets; admin / support see any
+    if (!canAccessSupportTicketEscalation(session.user.role) && ticket.customerId !== session.user.id) {
       throw new ForbiddenError('You can only view your own tickets')
     }
 
@@ -92,9 +93,9 @@ export async function PATCH(
       throw new NotFoundError('Support ticket')
     }
 
-    // Authorization: Only admin can update tickets
-    if (session.user.role !== 'ADMIN') {
-      throw new ForbiddenError('Only admin can update ticket status')
+    // Authorization: admin or support agents can update tickets
+    if (!canAccessSupportTicketEscalation(session.user.role)) {
+      throw new ForbiddenError('Only staff can update support tickets')
     }
 
     // Validate assignedTo if provided
@@ -111,7 +112,7 @@ export async function PATCH(
         select: { id: true, role: true },
       })
 
-      if (!assignedUser || !['ADMIN', 'SUPPORT'].includes(assignedUser.role)) {
+      if (!assignedUser || !['ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(assignedUser.role)) {
         return errorResponse(new Error('Assigned user must be an admin or support staff'), 400)
       }
     }

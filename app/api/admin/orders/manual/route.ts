@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored from `apps/admin/app/api/admin/orders/manual/route.ts` for root deployment. */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
@@ -8,6 +9,7 @@ import { auth } from '@/lib/auth'
 import { csrfProtection } from '../../../../admin/lib/csrf'
 import { createOrderSchema } from '@/root/lib/validations/order'
 import { emitOrderCreated } from '@/lib/events'
+import { sendOrderPlacedCustomerEmail } from '@/lib/mail/notify-customer-transactional'
 import { z } from 'zod'
 
 const manualSchema = createOrderSchema.extend({
@@ -28,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can create manual orders')
     }
 
@@ -92,6 +94,19 @@ export async function POST(request: NextRequest) {
     })
 
     emitOrderCreated(order)
+
+    try {
+      const mailResult = await sendOrderPlacedCustomerEmail({
+        to: customer.email,
+        name: customer.name,
+        orderId: order.id,
+      })
+      if (mailResult.ok === false) {
+        console.error('[admin/manual-order] order_placed email failed', mailResult.error)
+      }
+    } catch (e) {
+      console.error('[admin/manual-order] order_placed email error', e)
+    }
 
     const pointsToAward = Math.floor(total * 0.05)
     if (pointsToAward > 0) {

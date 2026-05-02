@@ -91,17 +91,28 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
   const [manualPay, setManualPay] = useState<"CASH" | "CARD" | "WALLET">("CASH")
   const [creating, setCreating] = useState(false)
 
+  const [payoutsList, setPayoutsList] = useState<Array<Record<string, unknown>>>([])
+  const [vendorsForPayout, setVendorsForPayout] = useState<Array<{ id: string; name: string; email: string }>>([])
+  const [payoutVendorId, setPayoutVendorId] = useState("")
+  const [payoutPeriod, setPayoutPeriod] = useState("")
+  const [payoutGross, setPayoutGross] = useState("")
+  const [payoutFees, setPayoutFees] = useState("0")
+  const [payoutNet, setPayoutNet] = useState("")
+  const [payoutStatus, setPayoutStatus] = useState("RECORDED")
+  const [payoutEta, setPayoutEta] = useState("Saisie manuelle")
+  const [payoutBusy, setPayoutBusy] = useState(false)
+
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
-      const [fin, st, rf] = await Promise.all([
+      const [fin, st, rf, po, vu] = await Promise.all([
         fetch("/api/admin/financial/summary", { credentials: "include" }),
         fetch("/api/admin/stores", { credentials: "include" }),
         fetch("/api/admin/refunds?limit=30", { credentials: "include" }),
+        fetch("/api/admin/finance/payouts?limit=100", { credentials: "include" }),
+        fetch("/api/admin/users?role=VENDOR&status=APPROVED&limit=200", { credentials: "include" }),
       ])
-      const fj = await fin.json()
-      const sj = await st.json()
-      const rj = await rf.json()
+      const [fj, sj, rj, poj, vuj] = await Promise.all([fin.json(), st.json(), rf.json(), po.json(), vu.json()])
       if (fj.success && fj.data?.summary) setSummary(fj.data.summary)
       if (sj.success && sj.data?.stores)
         setStores(
@@ -112,6 +123,16 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
           })),
         )
       if (rj.success && Array.isArray(rj.data?.refunds)) setRefundsList(rj.data.refunds)
+      if (poj.success && Array.isArray(poj.data?.payouts)) setPayoutsList(poj.data.payouts)
+      if (vuj.success && Array.isArray(vuj.data?.users)) {
+        const vlist = (vuj.data.users as { id: string; name: string; email: string }[]).map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+        }))
+        setVendorsForPayout(vlist)
+        setPayoutVendorId((prev) => prev || vlist[0]?.id || "")
+      }
     } catch (e) {
       console.error("[OrderFinanceView]", e)
     } finally {
@@ -227,6 +248,76 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
   }
 
   const addLine = () => setManualLines((rows) => [...rows, { productId: "", quantity: 1, price: 0 }])
+
+  const downloadPayoutCsv = async () => {
+    try {
+      const res = await fetch("/api/admin/finance/payouts?format=csv", { credentials: "include" })
+      if (!res.ok) throw new Error("Export CSV refusé")
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `vendor-payouts-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast({ title: "CSV téléchargé" })
+    } catch {
+      toast({ title: "Export CSV impossible", variant: "destructive" })
+    }
+  }
+
+  const submitPayoutRow = async () => {
+    const gross = parseFloat(payoutGross)
+    const fees = parseFloat(payoutFees) || 0
+    const net = parseFloat(payoutNet)
+    if (!payoutVendorId || !payoutPeriod.trim()) {
+      toast({ title: "Vendeur et période obligatoires", variant: "destructive" })
+      return
+    }
+    if (Number.isNaN(gross) || gross < 0 || Number.isNaN(fees) || fees < 0 || Number.isNaN(net)) {
+      toast({ title: "Montants invalides", variant: "destructive" })
+      return
+    }
+    if (Math.abs(net - (gross - fees)) >= 0.02) {
+      toast({
+        title: "Net incohérent",
+        description: "Le net doit égaler brut − frais (tolérance 0,01).",
+        variant: "destructive",
+      })
+      return
+    }
+    setPayoutBusy(true)
+    try {
+      const res = await fetchWithCsrf("/api/admin/finance/payouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vendorId: payoutVendorId,
+          periodLabel: payoutPeriod.trim(),
+          grossAmount: gross,
+          feesAmount: fees,
+          netAmount: net,
+          status: payoutStatus,
+          etaLabel: payoutEta.trim() || "—",
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast({ title: "Ligne payout enregistrée" })
+        setPayoutPeriod("")
+        setPayoutGross("")
+        setPayoutFees("0")
+        setPayoutNet("")
+        await refresh()
+      } else toast({ title: "Erreur", description: data.error, variant: "destructive" })
+    } catch {
+      toast({ title: "Erreur enregistrement", variant: "destructive" })
+    } finally {
+      setPayoutBusy(false)
+    }
+  }
 
   const submitManualOrder = async () => {
     if (!manualCustomer || !manualStore) {
@@ -350,6 +441,124 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               </tbody>
             </table>
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-2 space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              Ledger payouts vendeurs
+            </CardTitle>
+            <CardDescription>
+              Liste `VendorPayout` — export CSV pour la compta, saisie manuelle d&apos;une ligne (audit financier).
+            </CardDescription>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => void downloadPayoutCsv()}>
+            Télécharger CSV
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {payoutsList.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune ligne de payout.</p>
+          ) : (
+            <div className="overflow-x-auto text-sm">
+              <table className="min-w-full">
+                <thead>
+                  <tr className="border-b text-left bg-muted/50">
+                    <th className="p-2">Période</th>
+                    <th className="p-2">Vendeur</th>
+                    <th className="p-2 text-right">Net</th>
+                    <th className="p-2">Statut</th>
+                    <th className="p-2">Créée</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payoutsList.slice(0, 25).map((p: any) => (
+                    <tr key={String(p.id)} className="border-b border-border">
+                      <td className="p-2 max-w-[140px] truncate">{String(p.periodLabel)}</td>
+                      <td className="p-2 text-xs">
+                        {(p.vendor as any)?.name ?? "—"} <span className="text-muted-foreground">{(p.vendor as any)?.email}</span>
+                      </td>
+                      <td className="p-2 text-right tabular-nums">{Number(p.netAmount).toFixed(2)}</td>
+                      <td className="p-2">
+                        <Badge variant="outline">{String(p.status)}</Badge>
+                      </td>
+                      <td className="p-2 text-xs text-muted-foreground">{String(p.createdAt ?? "").slice(0, 19)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="grid gap-4 md:grid-cols-2 max-w-3xl border-t pt-6">
+            <div className="space-y-2 md:col-span-2">
+              <Label>Vendeur</Label>
+              <Select value={payoutVendorId} onValueChange={setPayoutVendorId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendorsForPayout.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name} · {v.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>Libellé période</Label>
+              <Input value={payoutPeriod} onChange={(e) => setPayoutPeriod(e.target.value)} placeholder="Ex. Semaine 2026-W18" />
+            </div>
+            <div className="space-y-2">
+              <Label>Brut (DZD)</Label>
+              <Input
+                type="number"
+                value={payoutGross}
+                onChange={(e) => {
+                  const g = e.target.value
+                  setPayoutGross(g)
+                  const gf = parseFloat(g)
+                  const ff = parseFloat(payoutFees) || 0
+                  if (!Number.isNaN(gf)) setPayoutNet(String(Math.round((gf - ff) * 100) / 100))
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Frais (DZD)</Label>
+              <Input
+                type="number"
+                value={payoutFees}
+                onChange={(e) => {
+                  const f = e.target.value
+                  setPayoutFees(f)
+                  const gf = parseFloat(payoutGross)
+                  const ff = parseFloat(f) || 0
+                  if (!Number.isNaN(gf)) setPayoutNet(String(Math.round((gf - ff) * 100) / 100))
+                }}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Net (DZD)</Label>
+              <Input type="number" value={payoutNet} onChange={(e) => setPayoutNet(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Statut (libre)</Label>
+              <Input value={payoutStatus} onChange={(e) => setPayoutStatus(e.target.value)} />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label>ETA / note</Label>
+              <Input value={payoutEta} onChange={(e) => setPayoutEta(e.target.value)} />
+            </div>
+            <div className="md:col-span-2">
+              <Button type="button" disabled={payoutBusy} onClick={() => void submitPayoutRow()}>
+                {payoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer la ligne"}
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

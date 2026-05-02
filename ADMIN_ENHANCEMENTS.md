@@ -1,6 +1,6 @@
 # Admin Enhancements - Complete Implementation Plan
 
-**Date**: November 11, 2025 (updated 2026-04-27)  
+**Date**: November 11, 2025 (updated 2026-04-29)  
 **Status**: Phase A (platform foundations) **complete** — proceed with Phase 1+  
 **Related audit:** [docs/TECHNICAL_PROJECT_AUDIT.md](docs/TECHNICAL_PROJECT_AUDIT.md) — platform-wide findings; the section **Platform foundations** below pulls mandatory work from that audit so admin features ship on a sound base.
 
@@ -92,10 +92,10 @@
 - 🆕 Manage system configuration
 - 🆕 Set platform-wide settings
 - 🆕 Configure payment gateways
-- 🆕 Manage email templates
+- ✅ **Modèles d’e-mail** — table Prisma **`EmailTemplate`**, **`GET /api/admin/email-templates`** (seed automatique), **`PUT /api/admin/email-templates/[key]`**, édition dans l’onglet **Contenu** (`ContentOperationsView` / `EmailTemplateRow`). *L’envoi transactionnel ne lit pas encore ces modèles partout — branchement mail à faire au fil des flux.*
 - 🆕 Configure notification settings
 - 🆕 Set business rules (min order, delivery fees, etc.)
-- 🆕 Manage API keys and integrations
+- ✅ **Intégrations (env)** — **`GET /api/admin/system/config`** expose **`integrationKeys`** (présence **`configured`** par variable : Stripe, NextAuth, DB, Redis/Upstash, Resend). Aucune valeur secrète renvoyée.
 
 #### 10. **Support & Moderation**
 - 🆕 View all support tickets
@@ -169,7 +169,7 @@ Changelog root file, architecture snapshot, legacy status-doc index, demand API 
 - [x] View users with filters
 - [x] Edit user profile (**`EditUserDialog`** + **`PUT /api/admin/users/[id]`**)
 - [x] Suspend/unsuspend users (bulk + API: suspend / unsuspend)
-- [x] Reset passwords (**dialog** + **`POST /api/admin/users/[id]/reset-password`**; other admins’ passwords blocked unless self)
+- [x] Reset passwords (**dialog** + **`POST /api/admin/users/[id]/reset-password`**; comptes **ADMIN**/**SUPER_ADMIN** : autre admin ne peut réinitialiser que si **`SUPER_ADMIN`** ; soi-même toujours autorisé)
 - [x] Delete users with confirmation
 - [x] Bulk operations
 
@@ -194,7 +194,8 @@ Changelog root file, architecture snapshot, legacy status-doc index, demand API 
 - [x] Category management (**`GET/POST /api/admin/catalog-categories`**, **`PATCH/DELETE /api/admin/catalog-categories/[id]`** — slugs FR/AR, magasins liés)
 - [x] Promotion/coupon system (**`GET/POST /api/admin/promo-codes`**, **`PATCH /api/admin/promo-codes/[id]`**)
 - [x] Platform notifications (**`POST /api/admin/notifications/broadcast`** — rôle ou ids ciblés)
-- [x] System configuration (**`GET /api/admin/system/config`** — indicateurs sans secrets : env, URL auth, toggles connus)
+- [x] System configuration (**`GET /api/admin/system/config`** — indicateurs sans secrets : env, URL auth, toggles connus, **`integrationKeys`** pour diagnostic des clés côté serveur)
+- [x] Modèles e-mail admin (**`EmailTemplate`**, **`GET/PUT`** sous **`/api/admin/email-templates`** ; UI Contenu)
 
 *Parité déploiement : les routes Phase 4 existent aussi sous **`app/api/admin/...`** à la racine du repo (Next principal), en plus de **`apps/admin`**.*
 
@@ -206,25 +207,64 @@ Changelog root file, architecture snapshot, legacy status-doc index, demand API 
 
 *Parité déploiement : les routes ci-dessus existent aussi sous **`app/api/admin/...`** à la racine du repo (Next principal), en plus de **`apps/admin`**.*
 
+### Admin shell — Support & produits (**complété**)
+
+- [x] **Onglet Support** — liste tickets **`GET /api/support/tickets`** (les admins voient tous les tickets), mise à jour statut **`PATCH /api/support/tickets/[id]`** avec **`fetchWithCsrf`**. Composant : **`AdminSupportTicketsView`**.
+- [x] **Onglet Produits** — **`GET /api/admin/products`** (liste multi-magasins, filtres magasin / disponibilité / recherche), activation ou désactivation via **`PATCH /api/products`** existante. Composant : **`AdminProductsView`**. Route **`app/api/admin/products`** dupliquée à la racine pour parité déploiement. **Réservé aux comptes full admin** — le rôle plateforme **`SUPPORT`** n’a pas cet onglet ni cet accès API (voir **Support Admin** ci‑dessous).
+
 ---
 
-## 🔐 Permission Levels
+## 🔐 Permission Levels (implémentation actuelle)
 
-### Super Admin
-- Full access to all features
-- Can create/delete other admins
-- Access to system configuration
+Les capacités ci‑dessous sont **appliquées dans `lib/admin-roles.ts`** et les routes **`/api/admin/*`** (sessions **ADMIN** et **SUPER_ADMIN** utilisent `isFullAdmin()` pour l’accès « full admin » ; **`canMutateOpsAsFullAdmin`** = **ADMIN** ou **SUPER_ADMIN**).
 
-### Admin
-- All management features
-- Cannot delete other admins
-- Limited system configuration
+### Super Admin (`Role.SUPER_ADMIN`)
 
-### Support Admin
-- User support
-- View-only access to orders
-- Ticket management
-- Cannot modify financial data
+- Même périmètre opérationnel qu’**ADMIN** (catalogue, finance, exports, etc.).
+- **Seul** rôle autorisé à : supprimer ou suspendre des comptes **ADMIN** / **SUPER_ADMIN** (hors soi), réinitialiser le mot de passe d’un autre admin, **assigner** ou **retirer** le rôle **SUPER_ADMIN**, créer via **`POST /api/admin/users`** un compte staff (**ADMIN** / **SUPER_ADMIN** / **SUPPORT**).
+- **Promotion** : `ADMIN_PROMOTE_SUPER=1` ou `ADMIN_ROLE=SUPER_ADMIN` avec **`scripts/create-admin-user.ts`**, ou assignation dans **`EditUserDialog`** (option visible uniquement si l’utilisateur connecté est super admin).
+
+### Admin (`Role.ADMIN`)
+
+- Accès complet aux onglets et APIs **full admin** (comme super admin pour le quotidien).
+- **Ne peut pas** : supprimer / suspendre en masse ou isolément un autre **ADMIN** ou **SUPER_ADMIN**, réinitialiser le mot de passe d’un autre administrateur, promouvoir en **SUPER_ADMIN**, ni créer des comptes **ADMIN**/**SUPER_ADMIN**/**SUPPORT** via **`POST /api/admin/users`**.
+
+### Support Admin (`Role.SUPPORT`)
+
+Compte **support desk** : même entrée `/admin` que les admins (app client : redirection non‑customer vers `/admin`), mais **shell et API restreints**.
+
+**Modèle et session**
+
+- Enum Prisma **`SUPPORT`** (migration enum PostgreSQL si besoin).
+- NextAuth : **`UserRole`** inclut **`SUPPORT`** (`lib/auth.config.ts` — JWT / session typés comme le rôle en base).
+- **Création du compte** : un **super admin** crée le staff via **`POST /api/admin/users`** ou un **admin complet** assigne le rôle via **`EditUserDialog`** + **`PUT /api/admin/users/[id]`** (`role: SUPPORT` dans le schéma zod).
+
+**Logique d’accès partagée** — `lib/admin-roles.ts` (extraits utiles) :
+
+- **`canAccessAdminApp`** — ouvre le panneau admin pour **ADMIN**, **SUPER_ADMIN** et **SUPPORT**.
+- **`canViewAllOrdersAsStaff`** — liste / détail commandes en **lecture** pour staff (**ADMIN** + **SUPER_ADMIN** + **SUPPORT**).
+- **`canMutateOpsAsFullAdmin`** — mutations ops lourdes (**PATCH** commande, **GET/PATCH** catalogue admin produits, etc.) — **ADMIN** ou **SUPER_ADMIN**.
+- **`canAccessSupportTicketEscalation`** — gestion / escalade tickets côté staff (**ADMIN** + **SUPER_ADMIN** + **SUPPORT**). Assignation possible vers **ADMIN** / **SUPER_ADMIN** / **SUPPORT**.
+
+**UI (`apps/admin/app/admin/page.tsx`)**
+
+- **Déploiement racine (Vercel `vercel-build`)** : même logique dans **`app/admin/page.tsx`** — accès via **`canAccessAdminApp`**, onglets **Tableau de bord**, **Command Center** (SLA sans surveillance espèces), **Support** ; chargement **`fetchOrders`** seul, en-tête support sans Passkeys, tickets via **`AdminSupportTicketsView`** sous **`app/admin/components/`**.
+- Onglets visibles (app dédiée **`@albaz/admin`**) : **Tableau de bord**, **Command Center**, **Support** uniquement. Les autres **`TabsTrigger`** / **`TabsContent`** ne sont pas rendus pour **`SUPPORT`** (pas de contournement par URL d’onglet).
+- **`useAdminData('support')`** — charge surtout les commandes ; pas le même churn utilisateurs / approbations qu’en mode **`full`**.
+- **`DashboardView`** reçoit **`supportMode`** (masque cartes revenus / métriques sensibles selon implémentation).
+- **Command Center** : section **surveillance espèces** masquée pour le support ; texte indique la lecture seule.
+- **`AdminHeader`** : prop **`supportDesk`** — titre « Support — Administration », sous‑titre file support, lien **Passkeys** masqué.
+
+**API (résumé)**
+
+| Zone | Comportement |
+|------|----------------|
+| **`GET /api/admin/orders`**, **`GET /api/admin/orders/[orderId]`** | **ADMIN** + **SUPER_ADMIN** + **SUPPORT** (lecture). |
+| **`PATCH /api/admin/orders/[orderId]`** | **ADMIN** ou **SUPER_ADMIN**. |
+| **`GET/PATCH` tickets** (ex. **`/api/support/tickets/[id]`**) | Lecture / mise à jour staff selon règles actuelles ; escalade alignée sur **`canAccessSupportTicketEscalation`**. |
+| **`GET/PATCH /api/admin/products`** (et onglet Produits) | **Full admin** (**ADMIN** / **SUPER_ADMIN**) — **SUPPORT** exclu. |
+
+**À faire côté déploiement** : migrations Prisma pour les enums **`SUPPORT`** et **`SUPER_ADMIN`**, la table **`EmailTemplate`**, puis **`prisma generate`**.
 
 ---
 
@@ -234,23 +274,25 @@ Changelog root file, architecture snapshot, legacy status-doc index, demand API 
 0. ~~**Phase 0**~~ **(Phase A complete)** — see [TECHNICAL_PROJECT_AUDIT](docs/TECHNICAL_PROJECT_AUDIT.md) Enhancement plan; use **`npm run verify:phase-a`** for regressions  
 1. ~~Edit user information~~ (admin: edit + reset password UI; APIs in place)
 2. ~~Suspend/unsuspend users~~ (bulk UI + APIs)
-3. Manual order creation
-4. Refund processing
-5. Driver reassignment
-6. Platform analytics
+3. ~~Manual order creation~~ (API + admin)
+4. ~~Refund processing~~
+5. ~~Driver reassignment~~
+6. ~~Platform analytics~~
 
 ### Medium Priority
-1. Bulk operations
-2. Product management across vendors
-3. Financial reports
-4. Delivery zone management
-5. Promotion management
+1. ~~Bulk operations~~
+2. ~~Product management across vendors~~
+3. ~~Financial reports~~ (résumé **`/api/admin/financial/summary`**)
+4. ~~Delivery zone management~~
+5. ~~Promotion management~~
+
+*La liste ci‑dessus décrivait surtout le backlog historique ; les items barrés sont couverts par les phases 1–5 et l’onglet Produits.*
 
 ### Low Priority
-1. Custom report builder
-2. API key management
-3. Email template editor
-4. Advanced forecasting
+1. ~~Custom report builder~~ (**`ReportExportsPanel`** / exports)
+2. ~~API key management~~ (lecture **`integrationKeys`** dans config admin — pas d’édition de secrets en base)
+3. ~~Email template editor~~ (édition en base + API ; **branchement envoi** mail encore partiel)
+4. Advanced forecasting (hors **`predictionMeta`** / API demande — amélioration produit possible)
 
 ---
 
@@ -290,6 +332,10 @@ DELETE /api/admin/zones/[id]
 POST   /api/admin/promotions
 PUT    /api/admin/promotions/[id]
 DELETE /api/admin/promotions/[id]
+
+GET    /api/admin/email-templates
+PUT    /api/admin/email-templates/[key]
+GET    /api/admin/system/config
 ```
 
 ### Database Additions

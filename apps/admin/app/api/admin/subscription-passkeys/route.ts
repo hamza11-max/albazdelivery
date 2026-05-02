@@ -3,6 +3,7 @@ import { prisma } from '@/root/lib/prisma'
 import { auth } from '@/root/lib/auth'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
 import crypto from 'crypto'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 function hashPasskey(passkey: string) {
   return crypto.createHash('sha256').update(passkey).digest('hex')
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user?.role)) {
       throw new ForbiddenError('Only admins can generate passkeys')
     }
 
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user?.role)) {
       throw new ForbiddenError('Only admins can view passkeys')
     }
 

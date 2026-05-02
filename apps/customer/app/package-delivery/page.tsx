@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Button, Card, CardContent, Input, Textarea } from "@albaz/ui"
+import { getStoredLanguage, toggleLanguage as cycleAppLanguage } from "@/lib/theme"
 import {
   ArrowLeft,
   MapPin,
@@ -47,8 +48,20 @@ export default function PackageDeliveryPage() {
     }
   }, [status, router])
 
-  const t = (key: string, fr: string, ar: string) => {
+  useEffect(() => {
+    const sync = () => setSelectedLanguage(getStoredLanguage())
+    sync()
+    window.addEventListener("storage", sync)
+    window.addEventListener("albaz-language", sync)
+    return () => {
+      window.removeEventListener("storage", sync)
+      window.removeEventListener("albaz-language", sync)
+    }
+  }, [])
+
+  const t = (key: string, fr: string, ar: string, en?: string) => {
     if (selectedLanguage === "ar") return ar
+    if (selectedLanguage === "en") return en ?? fr
     return fr
   }
 
@@ -56,10 +69,18 @@ export default function PackageDeliveryPage() {
   const total = serviceFee
 
   const vehicleOptions = [
-    { id: "motorcycle", name: "Moto", nameAr: "دراجة نارية", icon: Bike },
-    { id: "minitruck", name: "Mini Camion", nameAr: "شاحنة صغيرة", icon: Truck },
-    { id: "fourgon", name: "Fourgon", nameAr: "فان", icon: Truck },
+    { id: "motorcycle", name: "Moto", nameAr: "دراجة نارية", nameEn: "Motorcycle", icon: Bike },
+    { id: "minitruck", name: "Mini Camion", nameAr: "شاحنة صغيرة", nameEn: "Mini truck", icon: Truck },
+    { id: "fourgon", name: "Fourgon", nameAr: "فان", nameEn: "Van", icon: Truck },
   ]
+
+  const vehicleLabel = (v: (typeof vehicleOptions)[number]) =>
+    selectedLanguage === "ar" ? v.nameAr : selectedLanguage === "en" ? v.nameEn : v.name
+
+  const selectedVehicle = vehicleOptions.find((v) => v.id === vehicleType)
+
+  const nextLangLabel =
+    selectedLanguage === "fr" ? "العربية" : selectedLanguage === "ar" ? "English" : "Français"
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -72,16 +93,20 @@ export default function PackageDeliveryPage() {
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <h1 className="text-xl font-bold text-foreground">
-                {t("checkout", "Commande de Livraison", "طلب التوصيل")}
+                {t("checkout", "Commande de Livraison", "طلب التوصيل", "Delivery order")}
               </h1>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setSelectedLanguage(selectedLanguage === "fr" ? "ar" : "fr")}
+              onClick={() => {
+                cycleAppLanguage()
+                setSelectedLanguage(getStoredLanguage())
+              }}
               className="text-xs"
+              title={nextLangLabel}
             >
-              {selectedLanguage === "fr" ? "العربية" : "Français"}
+              {nextLangLabel}
             </Button>
           </div>
         </div>
@@ -97,6 +122,7 @@ export default function PackageDeliveryPage() {
                   "pricing-info",
                   "Vous serez facturé 50 DZD pour chaque 5 minutes d'attente supplémentaires à votre arrivée. Le prix du service est de 500 DZD.",
                   "سيتم فرض رسوم عليك بمبلغ 50 دج لكل 5 دقائق انتظار إضافية عند وصول السائق. سعر الخدمة هو 500 دج.",
+                  "You will be charged 50 DZD for each extra 5 minutes of waiting at pickup. The service price is 500 DZD.",
                 )}
               </p>
             </div>
@@ -105,8 +131,10 @@ export default function PackageDeliveryPage() {
 
         {/* Your Order Section */}
         <div>
-          <h2 className="text-xl font-bold text-foreground mb-4">{t("your-order", "Votre commande", "طلبك")}</h2>
-          <p className="text-sm font-semibold text-muted-foreground mb-3">{t("courier", "Coursier", "السائق")}</p>
+          <h2 className="text-xl font-bold text-foreground mb-4">{t("your-order", "Votre commande", "طلبك", "Your order")}</h2>
+          <p className="text-sm font-semibold text-muted-foreground mb-3">
+            {t("courier", "Coursier", "السائق", "Courier")}
+          </p>
 
           <Card className="border-border hover:border-primary/50 transition-colors cursor-pointer">
             <CardContent className="p-4">
@@ -116,10 +144,10 @@ export default function PackageDeliveryPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground">
-                    {t("what-transporting", "Que devez-vous transporter?", "ماذا تحتاج لنقله؟")}
+                    {t("what-transporting", "Que devez-vous transporter?", "ماذا تحتاج لنقله؟", "What are you sending?")}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {t("purchases-not-allowed", "Les achats ne sont pas autorisés", "المشتريات غير مسموح بها")}
+                    {t("purchases-not-allowed", "Les achats ne sont pas autorisés", "المشتريات غير مسموح بها", "Purchases are not allowed")}
                   </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -129,6 +157,7 @@ export default function PackageDeliveryPage() {
                   "describe-package",
                   "Décrivez votre colis (ex: documents, vêtements, etc.)",
                   "صف طردك (مثل: مستندات، ملابس، إلخ)",
+                  "Describe your package (e.g. documents, clothes)",
                 )}
                 value={packageDescription}
                 onChange={(e) => setPackageDescription(e.target.value)}
@@ -141,7 +170,7 @@ export default function PackageDeliveryPage() {
         {/* Delivery Details Section */}
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4">
-            {t("delivery-details", "Détails de livraison", "تفاصيل التوصيل")}
+            {t("delivery-details", "Détails de livraison", "تفاصيل التوصيل", "Delivery details")}
           </h2>
 
           {/* Map Placeholder */}
@@ -168,7 +197,7 @@ export default function PackageDeliveryPage() {
                     <div className="w-3 h-3 rounded-full bg-white"></div>
                   </div>
                   <Input
-                    placeholder={t("where-from", "D'où?", "من أين؟")}
+                    placeholder={t("where-from", "D'où?", "من أين؟", "From where?")}
                     value={fromLocation}
                     onChange={(e) => setFromLocation(e.target.value)}
                     className="border-none bg-transparent text-base focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -185,7 +214,7 @@ export default function PackageDeliveryPage() {
                     <div className="w-3 h-3 rounded-full bg-white"></div>
                   </div>
                   <Input
-                    placeholder={t("where-to", "Où?", "إلى أين؟")}
+                    placeholder={t("where-to", "Où?", "إلى أين؟", "To where?")}
                     value={toLocation}
                     onChange={(e) => setToLocation(e.target.value)}
                     className="border-none bg-transparent text-base focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -205,13 +234,14 @@ export default function PackageDeliveryPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground">
-                    {t("sending-someone-else", "Envoi à quelqu'un d'autre?", "إرسال لشخص آخر؟")}
+                    {t("sending-someone-else", "Envoi à quelqu'un d'autre?", "إرسال لشخص آخر؟", "Sending to someone else?")}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {t(
                       "add-details-courier",
                       "Ajoutez leurs coordonnées pour aider le coursier",
                       "أضف تفاصيلهم لمساعدة السائق",
+                      "Add their details to help the courier",
                     )}
                   </p>
                 </div>
@@ -219,13 +249,13 @@ export default function PackageDeliveryPage() {
               </div>
               <div className="mt-3 space-y-2">
                 <Input
-                  placeholder={t("recipient-name", "Nom du destinataire", "اسم المستلم")}
+                  placeholder={t("recipient-name", "Nom du destinataire", "اسم المستلم", "Recipient name")}
                   value={recipientName}
                   onChange={(e) => setRecipientName(e.target.value)}
                   className="bg-background"
                 />
                 <Input
-                  placeholder={t("recipient-phone", "Téléphone du destinataire", "هاتف المستلم")}
+                  placeholder={t("recipient-phone", "Téléphone du destinataire", "هاتف المستلم", "Recipient phone")}
                   value={recipientPhone}
                   onChange={(e) => setRecipientPhone(e.target.value)}
                   className="bg-background"
@@ -243,20 +273,21 @@ export default function PackageDeliveryPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-foreground">
-                    {t("add-phone", "Ajoutez votre numéro de téléphone", "أضف رقم هاتفك")}
+                    {t("add-phone", "Ajoutez votre numéro de téléphone", "أضف رقم هاتفك", "Add your phone number")}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {t(
                       "validate-message",
                       "Nous vous enverrons un message pour le valider",
                       "سنرسل لك رسالة للتحقق منه",
+                      "We will send you a message to verify it",
                     )}
                   </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
               </div>
               <Input
-                placeholder={t("phone-number", "Numéro de téléphone", "رقم الهاتف")}
+                placeholder={t("phone-number", "Numéro de téléphone", "رقم الهاتف", "Phone number")}
                 value={senderPhone}
                 onChange={(e) => setSenderPhone(e.target.value)}
                 className="mt-3 bg-background"
@@ -266,7 +297,7 @@ export default function PackageDeliveryPage() {
         </div>
 
         <div>
-          <h2 className="text-xl font-bold text-foreground mb-4">{t("who-pays", "Qui paie?", "من يدفع؟")}</h2>
+          <h2 className="text-xl font-bold text-foreground mb-4">{t("who-pays", "Qui paie?", "من يدفع؟", "Who pays?")}</h2>
 
           <Card className="border-border">
             <CardContent className="p-4">
@@ -277,8 +308,8 @@ export default function PackageDeliveryPage() {
                 <div className="text-left">
                   <p className="font-semibold text-foreground">
                     {whoPays === "sender"
-                      ? t("sender-pays", "L'expéditeur paie", "المرسل يدفع")
-                      : t("receiver-pays", "Le destinataire paie", "المستقبل يدفع")}
+                      ? t("sender-pays", "L'expéditeur paie", "المرسل يدفع", "Sender pays")
+                      : t("receiver-pays", "Le destinataire paie", "المستقبل يدفع", "Recipient pays")}
                   </p>
                 </div>
                 <ChevronDown
@@ -298,10 +329,10 @@ export default function PackageDeliveryPage() {
                     }`}
                   >
                     <p className="font-semibold text-foreground">
-                      {t("sender-pays", "L'expéditeur paie", "المرسل يدفع")}
+                      {t("sender-pays", "L'expéditeur paie", "المرسل يدفع", "Sender pays")}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {t("sender-pays-desc", "Vous payez les frais de livraison", "أنت تدفع رسوم التوصيل")}
+                      {t("sender-pays-desc", "Vous payez les frais de livraison", "أنت تدفع رسوم التوصيل", "You pay the delivery fee")}
                     </p>
                   </button>
 
@@ -315,10 +346,15 @@ export default function PackageDeliveryPage() {
                     }`}
                   >
                     <p className="font-semibold text-foreground">
-                      {t("receiver-pays", "Le destinataire paie", "المستقبل يدفع")}
+                      {t("receiver-pays", "Le destinataire paie", "المستقبل يدفع", "Recipient pays")}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {t("receiver-pays-desc", "Le destinataire paie à la livraison", "المستقبل يدفع عند الاستلام")}
+                      {t(
+                        "receiver-pays-desc",
+                        "Le destinataire paie à la livraison",
+                        "المستقبل يدفع عند الاستلام",
+                        "Recipient pays on delivery",
+                      )}
                     </p>
                   </button>
                 </div>
@@ -329,7 +365,7 @@ export default function PackageDeliveryPage() {
 
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4">
-            {t("vehicle-type", "Type de véhicule", "نوع المركبة")}
+            {t("vehicle-type", "Type de véhicule", "نوع المركبة", "Vehicle type")}
           </h2>
 
           <Card className="border-border">
@@ -340,7 +376,7 @@ export default function PackageDeliveryPage() {
               >
                 <div className="text-left">
                   <p className="font-semibold text-foreground">
-                    {vehicleOptions.find((v) => v.id === vehicleType)?.[selectedLanguage === "ar" ? "nameAr" : "name"]}
+                    {selectedVehicle ? vehicleLabel(selectedVehicle) : ""}
                   </p>
                 </div>
                 <ChevronDown
@@ -366,9 +402,7 @@ export default function PackageDeliveryPage() {
                         }`}
                       >
                         <VehicleIcon className="w-5 h-5" />
-                        <p className="font-semibold text-foreground">
-                          {vehicle[selectedLanguage === "ar" ? "nameAr" : "name"]}
-                        </p>
+                        <p className="font-semibold text-foreground">{vehicleLabel(vehicle)}</p>
                       </button>
                     )
                   })}
@@ -381,7 +415,7 @@ export default function PackageDeliveryPage() {
         {/* Delivery Options */}
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-            {t("delivery-options", "Options de livraison", "خيارات التوصيل")}
+            {t("delivery-options", "Options de livraison", "خيارات التوصيل", "Delivery options")}
             <button className="w-5 h-5 rounded-full border-2 border-muted-foreground flex items-center justify-center">
               <span className="text-xs text-muted-foreground">i</span>
             </button>
@@ -396,13 +430,13 @@ export default function PackageDeliveryPage() {
                 <div className="text-left">
                   <p className="font-semibold text-foreground">
                     {deliveryOption === "standard"
-                      ? t("standard", "Standard", "عادي")
-                      : t("schedule", "Programmer", "جدولة")}
+                      ? t("standard", "Standard", "عادي", "Standard")
+                      : t("schedule", "Programmer", "جدولة", "Schedule")}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {deliveryOption === "standard"
-                      ? t("asap", "Dès que possible", "في أقرب وقت ممكن")
-                      : t("select-time", "Sélectionner l'heure", "اختر الوقت")}
+                      ? t("asap", "Dès que possible", "في أقرب وقت ممكن", "As soon as possible")
+                      : t("select-time", "Sélectionner l'heure", "اختر الوقت", "Select a time")}
                   </p>
                 </div>
                 <ChevronDown
@@ -423,8 +457,10 @@ export default function PackageDeliveryPage() {
                         : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <p className="font-semibold text-foreground">{t("standard", "Standard", "عادي")}</p>
-                    <p className="text-sm text-muted-foreground">{t("asap", "Dès que possible", "في أقرب وقت ممكن")}</p>
+                    <p className="font-semibold text-foreground">{t("standard", "Standard", "عادي", "Standard")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t("asap", "Dès que possible", "في أقرب وقت ممكن", "As soon as possible")}
+                    </p>
                   </button>
 
                   <button
@@ -438,9 +474,9 @@ export default function PackageDeliveryPage() {
                         : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <p className="font-semibold text-foreground">{t("schedule", "Programmer", "جدولة")}</p>
+                    <p className="font-semibold text-foreground">{t("schedule", "Programmer", "جدولة", "Schedule")}</p>
                     <p className="text-sm text-muted-foreground">
-                      {t("select-time", "Sélectionner l'heure", "اختر الوقت")}
+                      {t("select-time", "Sélectionner l'heure", "اختر الوقت", "Select a time")}
                     </p>
                   </button>
                 </div>
@@ -452,7 +488,7 @@ export default function PackageDeliveryPage() {
         {/* Payment Method */}
         <div>
           <h2 className="text-xl font-bold text-foreground mb-4">
-            {t("payment-method", "Mode de paiement", "طريقة الدفع")}
+            {t("payment-method", "Mode de paiement", "طريقة الدفع", "Payment method")}
           </h2>
 
           <Card className="border-border">
@@ -465,8 +501,8 @@ export default function PackageDeliveryPage() {
                   <CreditCard className="w-5 h-5 text-muted-foreground" />
                   <span className="font-semibold text-foreground">
                     {paymentMethod === "cash"
-                      ? t("cash", "Espèces", "نقدي")
-                      : t("google-pay", "Google Pay", "Google Pay")}
+                      ? t("cash", "Espèces", "نقدي", "Cash")
+                      : t("google-pay", "Google Pay", "Google Pay", "Google Pay")}
                   </span>
                 </div>
                 <ChevronDown
@@ -485,7 +521,7 @@ export default function PackageDeliveryPage() {
                       paymentMethod === "cash" ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <p className="font-semibold text-foreground">{t("cash", "Espèces", "نقدي")}</p>
+                    <p className="font-semibold text-foreground">{t("cash", "Espèces", "نقدي", "Cash")}</p>
                   </button>
 
                   <button
@@ -499,7 +535,7 @@ export default function PackageDeliveryPage() {
                         : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <p className="font-semibold text-foreground">{t("google-pay", "Google Pay", "Google Pay")}</p>
+                    <p className="font-semibold text-foreground">{t("google-pay", "Google Pay", "Google Pay", "Google Pay")}</p>
                   </button>
                 </div>
               )}
@@ -517,7 +553,7 @@ export default function PackageDeliveryPage() {
               <div className="flex items-center gap-3">
                 <Tag className="w-5 h-5 text-muted-foreground" />
                 <span className="font-semibold text-foreground">
-                  {t("promo-code", "Vous avez un code promo?", "هل لديك رمز ترويجي؟")}
+                  {t("promo-code", "Vous avez un code promo?", "هل لديك رمز ترويجي؟", "Have a promo code?")}
                 </span>
               </div>
               <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -526,12 +562,12 @@ export default function PackageDeliveryPage() {
             {showPromoCode && (
               <div className="mt-3 flex gap-2">
                 <Input
-                  placeholder={t("enter-code", "Entrez le code", "أدخل الرمز")}
+                  placeholder={t("enter-code", "Entrez le code", "أدخل الرمز", "Enter code")}
                   value={promoCode}
                   onChange={(e) => setPromoCode(e.target.value)}
                   className="bg-background"
                 />
-                <Button variant="outline">{t("apply", "Appliquer", "تطبيق")}</Button>
+                <Button variant="outline">{t("apply", "Appliquer", "تطبيق", "Apply")}</Button>
               </div>
             )}
           </CardContent>
@@ -539,13 +575,13 @@ export default function PackageDeliveryPage() {
 
         {/* Summary */}
         <div>
-          <h2 className="text-xl font-bold text-foreground mb-4">{t("summary", "Résumé", "الملخص")}</h2>
+          <h2 className="text-xl font-bold text-foreground mb-4">{t("summary", "Résumé", "الملخص", "Summary")}</h2>
 
           <Card className="border-border">
             <CardContent className="p-4 space-y-3">
               <div className="flex justify-between text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">{t("services", "Services", "الخدمات")}</span>
+                  <span className="text-muted-foreground">{t("services", "Services", "الخدمات", "Services")}</span>
                   <button className="w-4 h-4 rounded-full border-2 border-muted-foreground flex items-center justify-center">
                     <span className="text-xs text-muted-foreground">i</span>
                   </button>
@@ -554,7 +590,7 @@ export default function PackageDeliveryPage() {
               </div>
 
               <div className="flex justify-between text-xl font-bold pt-3 border-t border-border">
-                <span className="text-foreground">TOTAL</span>
+                <span className="text-foreground">{t("total-label", "TOTAL", "المجموع", "TOTAL")}</span>
                 <span className="text-foreground">{total} DZD</span>
               </div>
             </CardContent>
@@ -568,11 +604,18 @@ export default function PackageDeliveryPage() {
           disabled={status !== "authenticated" || !session?.user}
           onClick={async () => {
             if (!fromLocation || !toLocation || !recipientPhone || !senderPhone) {
-              alert(t("fill-all", "Veuillez remplir tous les champs", "يرجى ملء جميع الحقول"))
+              alert(t("fill-all", "Veuillez remplir tous les champs", "يرجى ملء جميع الحقول", "Please fill in all fields"))
               return
             }
             if (!packageDescription || packageDescription.trim().length < 5) {
-              alert(t("describe-package", "Décrivez votre colis (au moins 5 caractères)", "صف طردك (5 أحرف على الأقل)"))
+              alert(
+                t(
+                  "describe-package",
+                  "Décrivez votre colis (au moins 5 caractères)",
+                  "صف طردك (5 أحرف على الأقل)",
+                  "Describe your package (at least 5 characters)",
+                ),
+              )
               return
             }
 
@@ -600,27 +643,27 @@ export default function PackageDeliveryPage() {
 
               const data = await response.json()
               if (data.success) {
-                alert(t("delivery-created", "Livraison créée avec succès!", "تم إنشاء التوصيل بنجاح!"))
+                alert(t("delivery-created", "Livraison créée avec succès!", "تم إنشاء التوصيل بنجاح!", "Delivery created successfully!"))
                 router.push("/")
               } else {
-                alert(data.error?.message || t("error", "Erreur lors de la création", "خطأ في الإنشاء"))
+                alert(data.error?.message || t("error", "Erreur lors de la création", "خطأ في الإنشاء", "Error creating delivery"))
               }
             } catch (error) {
               if (process.env.NODE_ENV === "development") {
                 console.error("[PackageDelivery] Error:", error)
               }
-              alert(t("error", "Erreur lors de la création", "خطأ في الإنشاء"))
+              alert(t("error", "Erreur lors de la création", "خطأ في الإنشاء", "Error creating delivery"))
             }
           }}
         >
           {paymentMethod === "google-pay" ? (
             <div className="flex items-center gap-2">
-              <span>{t("pay-with", "Payer avec", "ادفع مع")}</span>
+              <span>{t("pay-with", "Payer avec", "ادفع مع", "Pay with")}</span>
               <span className="text-white">G</span>
               <span className="text-white">Pay</span>
             </div>
           ) : (
-            t("confirm-order", "Confirmer la commande", "تأكيد الطلب")
+            t("confirm-order", "Confirmer la commande", "تأكيد الطلب", "Confirm order")
           )}
         </Button>
       </div>

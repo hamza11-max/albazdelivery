@@ -21,7 +21,7 @@ interface EditUserDialogProps {
     name: string
     email: string
     phone: string
-    role: "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN"
+    role: "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT"
     status: "PENDING" | "APPROVED" | "REJECTED"
     address: string
     city: string
@@ -33,6 +33,8 @@ interface EditUserDialogProps {
   canResetPassword?: boolean
   onResetPassword?: (newPassword: string) => Promise<void>
   isResetting?: boolean
+  /** Show “Super administrateur” in role list — only super admins should pass true. */
+  allowSuperAdminRole?: boolean
 }
 
 export function EditUserDialog({
@@ -46,6 +48,7 @@ export function EditUserDialog({
   canResetPassword = true,
   onResetPassword,
   isResetting = false,
+  allowSuperAdminRole = false,
 }: EditUserDialogProps) {
   const [resetPw, setResetPw] = useState("")
   const [resetPwConfirm, setResetPwConfirm] = useState("")
@@ -134,6 +137,10 @@ export function EditUserDialog({
                 <SelectItem value="VENDOR">Vendeur</SelectItem>
                 <SelectItem value="DRIVER">Livreur</SelectItem>
                 <SelectItem value="ADMIN">Administrateur</SelectItem>
+                {allowSuperAdminRole ? (
+                  <SelectItem value="SUPER_ADMIN">Super administrateur</SelectItem>
+                ) : null}
+                <SelectItem value="SUPPORT">Support</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -236,7 +243,7 @@ export function EditUserDialog({
             </div>
           ) : onResetPassword && !canResetPassword ? (
             <p className="text-sm text-muted-foreground">
-              Impossible de réinitialiser le mot de passe d&apos;un autre compte administrateur.
+              Impossible de réinitialiser le mot de passe d&apos;un autre compte administrateur (super admin requis).
             </p>
           ) : null}
         </div>

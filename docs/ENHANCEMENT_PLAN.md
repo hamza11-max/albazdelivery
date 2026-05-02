@@ -2,6 +2,7 @@
 
 **Role:** Senior Product Architect, Technical Delivery Strategist, Production Readiness Consultant  
 **Basis:** Findings in [TECHNICAL_PROJECT_AUDIT.md](./TECHNICAL_PROJECT_AUDIT.md) (Phases A–C closed; broad-launch gaps explicit)  
+**Customer UI debt (screens & copy):** [CUSTOMER_UI_BACKLOG.md](./CUSTOMER_UI_BACKLOG.md)  
 **Last updated:** 2026-04-28  
 **Implementation status (2026-04-28):** Phases 1–3 are **implemented in code** with `npm run verify:phase-3`. **Phase 4 (leftovers closure)** adds: inventory **MANAGER vs CASHIER** enforcement (`assertVendorMayMutateInventoryCatalog`), seeded vendor staff users, admin **ops metrics** (`GET /api/admin/ops/metrics`), **account anonymize** (`POST /api/user/account/anonymize`), notification **channel plan logging** on order create, **admin/webauthn** root mirrors, CI scripts (`verify-admin-csrf`, `verify-api-parity`, `verify-money-no-test-skip`), `npm run verify:phase-4`, and policy backlogs (`docs/GUEST_ORDERS_POLICY.md`, `docs/SECURITY_PROGRAM.md`, `docs/POSTGRES_RLS_BACKLOG.md`, `docs/PAYOUT_PROVIDER_BACKLOG.md`).  
 

@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/er
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { emitOrderCreated, emitNotificationSent } from '@/root/lib/events'
+import { sendOrderPlacedCustomerEmail } from '@/root/lib/mail/notify-customer-transactional'
 import { createOrderSchema } from '@/root/lib/validations/order'
 import { OrderStatus } from '@/root/lib/constants'
 
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         items: { include: { product: true } },
-        customer: { select: { id: true, name: true, phone: true } },
+        customer: { select: { id: true, name: true, phone: true, email: true } },
         store: { select: { id: true, name: true, address: true } },
       },
     })
@@ -90,6 +91,19 @@ export async function POST(request: NextRequest) {
       },
     })
     emitNotificationSent(vendorNotification)
+
+    try {
+      const mailResult = await sendOrderPlacedCustomerEmail({
+        to: order.customer.email,
+        name: order.customer.name,
+        orderId: order.id,
+      })
+      if (mailResult.ok === false) {
+        console.error('[orders/create] order_placed email failed', mailResult.error)
+      }
+    } catch (e) {
+      console.error('[orders/create] order_placed email error', e)
+    }
 
     // Increment promo code usage if applied
     if (promoCode && promoCode.trim()) {

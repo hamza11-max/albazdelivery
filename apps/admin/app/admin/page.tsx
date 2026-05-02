@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import nextDynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@albaz/ui"
-import { Users, Truck, Store, Layers, ShoppingCart, LayoutGrid, BarChart3 } from "lucide-react"
+import { Users, Truck, Store, Layers, ShoppingCart, LayoutGrid, BarChart3, LifeBuoy, Boxes } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../../lib/csrf-client"
@@ -32,7 +32,12 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label } from "
 import { VendorDriverOperationsView } from "../../components/VendorDriverOperationsView"
 import { OrderFinanceView } from "../../components/OrderFinanceView"
 import { ContentOperationsView } from "../../components/ContentOperationsView"
+import { AdminSupportTicketsView } from "../../components/AdminSupportTicketsView"
+import { AdminProductsView } from "../../components/AdminProductsView"
 import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
+import { canAccessAdminApp, isFullAdmin as isFullAdminRole, isSuperAdmin as isSuperAdminRole } from "@/root/lib/admin-roles"
+
+type EditRole = "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT"
 
 export const dynamic = 'force-dynamic'
 
@@ -53,7 +58,7 @@ export default function AdminPanel() {
     name: "",
     email: "",
     phone: "",
-    role: "CUSTOMER" as "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN",
+    role: "CUSTOMER" as EditRole,
     status: "APPROVED" as "PENDING" | "APPROVED" | "REJECTED",
     address: "",
     city: "",
@@ -62,9 +67,18 @@ export default function AdminPanel() {
   // Registration requests state
   const [selectedRequest, setSelectedRequest] = useState<any>(null)
   const [showRequestDialog, setShowRequestDialog] = useState(false)
-  const [activeTab, setActiveTab] = useState("approvals")
+  const [activeTab, setActiveTab] = useState("dashboard")
 
-  // Data fetching
+  const sessionResult = useSession()
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "loading"
+  const user = session?.user ?? null
+  const isAuthenticated = status === "authenticated"
+
+  const isSupportAgentUser = String(user?.role ?? "").toUpperCase() === "SUPPORT"
+  const isFullAdminUser = isFullAdminRole(user?.role)
+  const isSuperAdminUser = isSuperAdminRole(user?.role)
+
   const {
     orders,
     customers,
@@ -74,18 +88,19 @@ export default function AdminPanel() {
     fetchUsers,
     fetchOrders,
     fetchRegistrationRequests,
-  } = useAdminData()
+  } = useAdminData(isSupportAgentUser ? "support" : "full")
 
-  // Session handling
-  const sessionResult = useSession()
-  const session = sessionResult?.data ?? null
-  const status = sessionResult?.status ?? "loading"
-  const user = session?.user ?? null
-  const isAuthenticated = status === "authenticated"
+  const adminNavInitialized = useRef(false)
+  useEffect(() => {
+    if (status !== "authenticated" || !user || adminNavInitialized.current) return
+    adminNavInitialized.current = true
+    if (isSupportAgentUser) setActiveTab("support")
+    else setActiveTab("approvals")
+  }, [status, user, isSupportAgentUser])
 
   useEffect(() => {
     if (status === "loading") return
-    if (!isAuthenticated || user?.role !== "ADMIN") {
+    if (!isAuthenticated || !canAccessAdminApp(user?.role)) {
       router.push("/login")
     }
   }, [status, isAuthenticated, user, router])
@@ -184,7 +199,7 @@ export default function AdminPanel() {
       name: user.name || "",
       email: user.email || "",
       phone: user.phone || "",
-      role: (user.role?.toUpperCase() as "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN") || "CUSTOMER",
+      role: (user.role?.toUpperCase() as EditRole) || "CUSTOMER",
       status: (userWithStatus.status?.toUpperCase() as "PENDING" | "APPROVED" | "REJECTED") || "APPROVED",
       address: userWithStatus.address || "",
       city: userWithStatus.city || "",
@@ -267,10 +282,12 @@ export default function AdminPanel() {
   }
 
   const sessionUserId = user?.id
+  const selectedRoleUpper = selectedUser ? String(selectedUser.role ?? "").toUpperCase() : ""
   const canResetSelectedUserPassword =
     !selectedUser ||
-    String(selectedUser.role ?? "").toUpperCase() !== "ADMIN" ||
-    (Boolean(sessionUserId) && selectedUser.id === sessionUserId)
+    Boolean(sessionUserId && selectedUser.id === sessionUserId) ||
+    isSuperAdminUser ||
+    (isFullAdminUser && !["ADMIN", "SUPER_ADMIN"].includes(selectedRoleUpper))
 
   // Handle delete user
   const handleDeleteUser = async () => {
@@ -354,64 +371,105 @@ export default function AdminPanel() {
         setLanguage={setLanguage}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
+        supportDesk={isSupportAgentUser}
       />
       <main className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            if (
+              isSupportAgentUser &&
+              !["dashboard", "support", "command-center"].includes(v)
+            ) {
+              return
+            }
+            setActiveTab(v)
+          }}
+          className="space-y-6"
+        >
           <TabsList className="flex w-full flex-wrap gap-2 h-auto">
-            <TabsTrigger value="approvals" className="relative">
-              Approbations
-              {registrationRequests.length > 0 && (
-                <Badge className="ml-2 bg-red-500 text-white">{registrationRequests.length}</Badge>
-              )}
-            </TabsTrigger>
+            {isFullAdminUser && (
+              <TabsTrigger value="approvals" className="relative">
+                Approbations
+                {registrationRequests.length > 0 && (
+                  <Badge className="ml-2 bg-red-500 text-white">{registrationRequests.length}</Badge>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
-            <TabsTrigger value="analytics-reports">
-              <span className="inline-flex items-center gap-1.5">
-                <BarChart3 className="h-4 w-4" />
-                Analytique
-              </span>
-            </TabsTrigger>
+            {isFullAdminUser && (
+              <TabsTrigger value="analytics-reports">
+                <span className="inline-flex items-center gap-1.5">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytique
+                </span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="command-center">Command Center</TabsTrigger>
-            <TabsTrigger value="customers">Clients</TabsTrigger>
-            <TabsTrigger value="drivers">Livreurs</TabsTrigger>
-            <TabsTrigger value="vendors">Vendeurs</TabsTrigger>
-            <TabsTrigger value="vendor-driver">
+            {isFullAdminUser && (
+              <>
+                <TabsTrigger value="customers">Clients</TabsTrigger>
+                <TabsTrigger value="drivers">Livreurs</TabsTrigger>
+                <TabsTrigger value="vendors">Vendeurs</TabsTrigger>
+                <TabsTrigger value="vendor-driver">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Layers className="h-4 w-4" />
+                    Ops V/D
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="order-finance">
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShoppingCart className="h-4 w-4" />
+                    Commandes
+                  </span>
+                </TabsTrigger>
+              </>
+            )}
+            <TabsTrigger value="support">
               <span className="inline-flex items-center gap-1.5">
-                <Layers className="h-4 w-4" />
-                Ops V/D
+                <LifeBuoy className="h-4 w-4" />
+                Support
               </span>
             </TabsTrigger>
-            <TabsTrigger value="order-finance">
-              <span className="inline-flex items-center gap-1.5">
-                <ShoppingCart className="h-4 w-4" />
-                Commandes
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="content">
-              <span className="inline-flex items-center gap-1.5">
-                <LayoutGrid className="h-4 w-4" />
-                Contenu
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="ads">Publicités</TabsTrigger>
-            <TabsTrigger value="audit">Journal d'audit</TabsTrigger>
-            <TabsTrigger value="passkeys">Passkeys</TabsTrigger>
+            {isFullAdminUser && (
+              <TabsTrigger value="products">
+                <span className="inline-flex items-center gap-1.5">
+                  <Boxes className="h-4 w-4" />
+                  Produits
+                </span>
+              </TabsTrigger>
+            )}
+            {isFullAdminUser && (
+              <>
+                <TabsTrigger value="content">
+                  <span className="inline-flex items-center gap-1.5">
+                    <LayoutGrid className="h-4 w-4" />
+                    Contenu
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="ads">Publicités</TabsTrigger>
+                <TabsTrigger value="audit">Journal d'audit</TabsTrigger>
+                <TabsTrigger value="passkeys">Passkeys</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
-          <TabsContent value="approvals">
-            <ApprovalsView
-              requests={registrationRequests}
-              selectedRequest={selectedRequest}
-              showDialog={showRequestDialog}
-              onRequestClick={(request) => {
-                setSelectedRequest(request)
-                setShowRequestDialog(true)
-              }}
-              onDialogChange={setShowRequestDialog}
-              onApprove={handleApproveRequest}
-              onReject={handleRejectRequest}
-            />
-          </TabsContent>
+          {isFullAdminUser && (
+            <TabsContent value="approvals">
+              <ApprovalsView
+                requests={registrationRequests}
+                selectedRequest={selectedRequest}
+                showDialog={showRequestDialog}
+                onRequestClick={(request) => {
+                  setSelectedRequest(request)
+                  setShowRequestDialog(true)
+                }}
+                onDialogChange={setShowRequestDialog}
+                onApprove={handleApproveRequest}
+                onReject={handleRejectRequest}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="dashboard">
             <div className="space-y-6">
@@ -420,13 +478,16 @@ export default function AdminPanel() {
                 customers={customers}
                 drivers={drivers}
                 vendors={vendors}
+                supportMode={isSupportAgentUser}
               />
             </div>
           </TabsContent>
 
-          <TabsContent value="analytics-reports">
-            <AnalyticsReportsView />
-          </TabsContent>
+          {isFullAdminUser && (
+            <TabsContent value="analytics-reports">
+              <AnalyticsReportsView />
+            </TabsContent>
+          )}
 
           <TabsContent value="command-center">
             <div className="space-y-6">
@@ -437,7 +498,11 @@ export default function AdminPanel() {
                     Command Center
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Vue rapide des commandes à risque (SLA & espèces). Actions pourront être branchées sur l’API plus tard.
+                    Vue rapide des commandes à risque (SLA
+                    {!isSupportAgentUser && " & espèces"}).{" "}
+                    {isSupportAgentUser
+                      ? "Lecture seule — pas d’actions financières."
+                      : "Actions pourront être branchées sur l’API plus tard."}
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -478,6 +543,7 @@ export default function AdminPanel() {
                     )}
                   </div>
 
+                  {!isSupportAgentUser && (
                   <div className="space-y-3">
                     <h4 className="font-semibold">Surveillance espèces (&gt; 10k DZD)</h4>
                     {orders
@@ -507,83 +573,100 @@ export default function AdminPanel() {
                       <p className="text-sm text-muted-foreground">Aucune alerte espèces</p>
                     )}
                   </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="customers">
-            <UserListViewWithBulk
-              users={customers}
-              title="Gestion des Clients"
-              icon={<Users className="w-6 h-6 text-primary" />}
-              emptyMessage="Aucun client"
-              searchPlaceholder="Rechercher un client..."
-              onEdit={handleEditUser}
-              onDelete={(user) => {
-                setSelectedUser(user)
-                setShowDeleteDialog(true)
-              }}
-              onBulkAction={handleBulkAction}
-            />
+          {isFullAdminUser && (
+            <>
+              <TabsContent value="customers">
+                <UserListViewWithBulk
+                  users={customers}
+                  title="Gestion des Clients"
+                  icon={<Users className="w-6 h-6 text-primary" />}
+                  emptyMessage="Aucun client"
+                  searchPlaceholder="Rechercher un client..."
+                  onEdit={handleEditUser}
+                  onDelete={(user) => {
+                    setSelectedUser(user)
+                    setShowDeleteDialog(true)
+                  }}
+                  onBulkAction={handleBulkAction}
+                />
+              </TabsContent>
+
+              <TabsContent value="drivers">
+                <UserListViewWithBulk
+                  users={drivers}
+                  title="Gestion des Livreurs"
+                  icon={<Truck className="w-6 h-6 text-primary" />}
+                  emptyMessage="Aucun livreur"
+                  searchPlaceholder="Rechercher un livreur..."
+                  onEdit={handleEditUser}
+                  onDelete={(user) => {
+                    setSelectedUser(user)
+                    setShowDeleteDialog(true)
+                  }}
+                  onBulkAction={handleBulkAction}
+                />
+              </TabsContent>
+
+              <TabsContent value="vendors">
+                <UserListViewWithBulk
+                  users={vendors}
+                  title="Gestion des Vendeurs"
+                  icon={<Store className="w-6 h-6 text-primary" />}
+                  emptyMessage="Aucun vendeur"
+                  searchPlaceholder="Rechercher un vendeur..."
+                  onEdit={handleEditUser}
+                  onDelete={(user) => {
+                    setSelectedUser(user)
+                    setShowDeleteDialog(true)
+                  }}
+                  onBulkAction={handleBulkAction}
+                  showActionLabels
+                />
+              </TabsContent>
+
+              <TabsContent value="vendor-driver">
+                <VendorDriverOperationsView drivers={drivers} orders={orders} onRefreshOrders={fetchOrders} />
+              </TabsContent>
+
+              <TabsContent value="order-finance">
+                <OrderFinanceView customers={customers} orders={orders} onRefreshOrders={fetchOrders} />
+              </TabsContent>
+            </>
+          )}
+
+          <TabsContent value="support">
+            <AdminSupportTicketsView />
           </TabsContent>
 
-          <TabsContent value="drivers">
-            <UserListViewWithBulk
-              users={drivers}
-              title="Gestion des Livreurs"
-              icon={<Truck className="w-6 h-6 text-primary" />}
-              emptyMessage="Aucun livreur"
-              searchPlaceholder="Rechercher un livreur..."
-              onEdit={handleEditUser}
-              onDelete={(user) => {
-                setSelectedUser(user)
-                setShowDeleteDialog(true)
-              }}
-              onBulkAction={handleBulkAction}
-            />
-          </TabsContent>
+          {isFullAdminUser && (
+            <>
+              <TabsContent value="products">
+                <AdminProductsView />
+              </TabsContent>
 
-          <TabsContent value="vendors">
-            <UserListViewWithBulk
-              users={vendors}
-              title="Gestion des Vendeurs"
-              icon={<Store className="w-6 h-6 text-primary" />}
-              emptyMessage="Aucun vendeur"
-              searchPlaceholder="Rechercher un vendeur..."
-              onEdit={handleEditUser}
-              onDelete={(user) => {
-                setSelectedUser(user)
-                setShowDeleteDialog(true)
-              }}
-              onBulkAction={handleBulkAction}
-              showActionLabels
-            />
-          </TabsContent>
+              <TabsContent value="content">
+                <ContentOperationsView />
+              </TabsContent>
 
-          <TabsContent value="vendor-driver">
-            <VendorDriverOperationsView drivers={drivers} orders={orders} onRefreshOrders={fetchOrders} />
-          </TabsContent>
+              <TabsContent value="ads">
+                <AdsManagementView />
+              </TabsContent>
 
-          <TabsContent value="order-finance">
-            <OrderFinanceView customers={customers} orders={orders} onRefreshOrders={fetchOrders} />
-          </TabsContent>
+              <TabsContent value="audit">
+                <AuditLogView />
+              </TabsContent>
 
-          <TabsContent value="content">
-            <ContentOperationsView />
-          </TabsContent>
-
-          <TabsContent value="ads">
-            <AdsManagementView />
-          </TabsContent>
-
-          <TabsContent value="audit">
-            <AuditLogView />
-          </TabsContent>
-
-          <TabsContent value="passkeys">
-            <PasskeysTab vendors={vendors} onRefresh={fetchUsers} />
-          </TabsContent>
+              <TabsContent value="passkeys">
+                <PasskeysTab vendors={vendors} onRefresh={fetchUsers} />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
       </main>
 
@@ -598,6 +681,7 @@ export default function AdminPanel() {
         onResetPassword={handleResetPassword}
         isResetting={isResettingPassword}
         canResetPassword={canResetSelectedUserPassword}
+        allowSuperAdminRole={isSuperAdminUser}
       />
 
       <DeleteUserDialog

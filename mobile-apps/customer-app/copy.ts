@@ -4,11 +4,11 @@
  */
 const copy = {
   "nav": {
-    "home": "Home",
-    "search": "Search",
-    "shop": "Shop",
-    "dats": "Dats",
-    "profile": "Profile"
+    "home": "Accueil",
+    "search": "Recherche",
+    "shop": "Panier",
+    "dats": "Commandes",
+    "profile": "Profil"
   },
   "sections": {
     "categories": "Catégories",

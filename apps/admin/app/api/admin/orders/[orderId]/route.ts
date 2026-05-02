@@ -11,6 +11,7 @@ import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { emitOrderUpdated } from '@/root/lib/events'
 import { z } from 'zod'
+import { canViewAllOrdersAsStaff, canMutateOpsAsFullAdmin } from '@/root/lib/admin-roles'
 
 const patchBodySchema = z.object({
   status: z.enum([
@@ -44,8 +45,8 @@ export async function GET(
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') {
-      throw new ForbiddenError('Only admins can view order detail')
+    if (!session?.user || !canViewAllOrdersAsStaff(session.user.role)) {
+      throw new ForbiddenError('Only staff can view order detail')
     }
 
     const { orderId } = await context.params
@@ -77,8 +78,8 @@ export async function PATCH(
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') {
-      throw new ForbiddenError('Only admins can update orders here')
+    if (!session?.user || !canMutateOpsAsFullAdmin(session.user.role)) {
+      throw new ForbiddenError('Only full admins can update orders here')
     }
 
     const { orderId } = await context.params

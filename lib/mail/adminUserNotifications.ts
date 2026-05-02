@@ -2,6 +2,8 @@ import {
   sendTransactionalEmail,
   type SendTransactionalEmailResult,
 } from "./sendTransactionalEmail"
+import { EMAIL_TEMPLATE_KEYS } from "./default-email-templates"
+import { buildTransactionalEmailContent } from "./transactional-email-from-db"
 
 function skipNoEmail(): Promise<SendTransactionalEmailResult> {
   return Promise.resolve({
@@ -12,55 +14,45 @@ function skipNoEmail(): Promise<SendTransactionalEmailResult> {
 }
 
 /** Password was changed by admin; never include the new password in email. */
-export function notifyUserPasswordResetByAdmin(params: {
+export async function notifyUserPasswordResetByAdmin(params: {
   to: string | null | undefined
   name: string | null
-}) {
+}): Promise<SendTransactionalEmailResult> {
   if (!params.to?.trim()) return skipNoEmail()
-  const subject = "Your Albaz account password was updated"
-  const text = [
-    `Hello${params.name ? ` ${params.name}` : ""},`,
-    "",
-    "An administrator has reset the password on your Albaz account.",
-    "",
-    "For your security, we do not send the new password by email. Use the credentials your administrator gives you to sign in.",
-    "",
-    "If you did not expect this change, contact support immediately.",
-  ].join("\n")
+  const namePart = params.name?.trim() ? ` ${params.name.trim()}` : ""
+  const { subject, text } = await buildTransactionalEmailContent({
+    key: EMAIL_TEMPLATE_KEYS.admin_password_reset,
+    vars: { namePart },
+  })
   return sendTransactionalEmail({ to: params.to.trim(), subject, text })
 }
 
-export function notifyUserSuspended(params: {
+export async function notifyUserSuspended(params: {
   to: string | null | undefined
   name: string | null
   reason?: string | null
-}) {
+}): Promise<SendTransactionalEmailResult> {
   if (!params.to?.trim()) return skipNoEmail()
-  const subject = "Your Albaz account has been suspended"
-  const lines = [
-    `Hello${params.name ? ` ${params.name}` : ""},`,
-    "",
-    "Your Albaz account has been suspended.",
-  ]
-  if (params.reason?.trim()) {
-    lines.push("", `Reason: ${params.reason.trim()}`)
-  }
-  lines.push("", "If you believe this is a mistake, contact support.")
-  return sendTransactionalEmail({ to: params.to.trim(), subject, text: lines.join("\n") })
+  const namePart = params.name?.trim() ? ` ${params.name.trim()}` : ""
+  const reasonBlock = params.reason?.trim()
+    ? `\n\nMotif : ${params.reason.trim()}\n`
+    : "\n"
+  const { subject, text } = await buildTransactionalEmailContent({
+    key: EMAIL_TEMPLATE_KEYS.admin_account_suspended,
+    vars: { namePart, reasonBlock },
+  })
+  return sendTransactionalEmail({ to: params.to.trim(), subject, text })
 }
 
-export function notifyUserUnsuspended(params: {
+export async function notifyUserUnsuspended(params: {
   to: string | null | undefined
   name: string | null
-}) {
+}): Promise<SendTransactionalEmailResult> {
   if (!params.to?.trim()) return skipNoEmail()
-  const subject = "Your Albaz account is active again"
-  const text = [
-    `Hello${params.name ? ` ${params.name}` : ""},`,
-    "",
-    "Your Albaz account has been reactivated. You can sign in again.",
-    "",
-    "If you did not expect this message, contact support.",
-  ].join("\n")
+  const namePart = params.name?.trim() ? ` ${params.name.trim()}` : ""
+  const { subject, text } = await buildTransactionalEmailContent({
+    key: EMAIL_TEMPLATE_KEYS.admin_account_unsuspended,
+    vars: { namePart },
+  })
   return sendTransactionalEmail({ to: params.to.trim(), subject, text })
 }

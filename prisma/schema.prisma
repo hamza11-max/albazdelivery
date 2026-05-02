@@ -125,6 +125,20 @@ model PromoCode {
   @@index([expiresAt])
 }
 
+/// Editable transactional email copies (admin Content UI). Sending code must load by `key`.
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  labelFr     String
+  subjectFr   String
+  bodyFr      String   @db.Text
+  subjectAr   String   @default("")
+  bodyAr      String   @db.Text @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+}
+
 model RegistrationRequest {
   id            String   @id @default(cuid())
   email         String   @unique
@@ -150,6 +164,8 @@ enum Role {
   VENDOR
   DRIVER
   ADMIN
+  SUPER_ADMIN
+  SUPPORT
 }
 
 enum ApprovalStatus {

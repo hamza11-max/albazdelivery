@@ -3,6 +3,8 @@
 import { LiveMetricsStrip } from "./LiveMetricsStrip"
 import { ReportExportsPanel } from "./ReportExportsPanel"
 import { AnalyticsDashboard } from "./AnalyticsDashboard"
+import { AdminOpsMetricsCard } from "./AdminOpsMetricsCard"
+import { AdminAdvancedAnalyticsPanel } from "./AdminAdvancedAnalyticsPanel"
 
 export function AnalyticsReportsView() {
   return (
@@ -13,7 +15,9 @@ export function AnalyticsReportsView() {
         </p>
         <LiveMetricsStrip />
       </div>
+      <AdminOpsMetricsCard />
       <AnalyticsDashboard />
+      <AdminAdvancedAnalyticsPanel />
       <ReportExportsPanel />
     </div>
   )

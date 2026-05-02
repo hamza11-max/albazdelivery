@@ -3,6 +3,7 @@ import { registerSchema } from '@/root/lib/validations/auth'
 import { hashPassword } from '@/root/lib/password'
 import { successResponse, errorResponse, ConflictError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { sendWelcomeCustomerEmail } from '@/root/lib/mail/notify-customer-transactional'
 
 export async function POST(request: Request) {
   try {
@@ -84,6 +85,18 @@ export async function POST(request: Request) {
           customerId: user.id,
         },
       })
+
+      try {
+        const mailResult = await sendWelcomeCustomerEmail({
+          to: user.email,
+          name: user.name,
+        })
+        if (mailResult.ok === false) {
+          console.error('[auth/register] welcome email failed', mailResult.error)
+        }
+      } catch (e) {
+        console.error('[auth/register] welcome email error', e)
+      }
 
       return successResponse(
         {

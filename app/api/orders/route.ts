@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { createOrderSchema } from '@/root/lib/validations/order'
 import { emitOrderCreated } from '@/root/lib/events'
+import { sendOrderPlacedCustomerEmail } from '@/root/lib/mail/notify-customer-transactional'
 import { OrderStatus } from '@/lib/constants'
 import { resolveVendorOwnerContextId } from '@/lib/vendor-staff-access'
 
@@ -217,6 +218,7 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             phone: true,
+            email: true,
           },
         },
         store: {
@@ -233,6 +235,19 @@ export async function POST(request: NextRequest) {
 
   // Emit order created event for SSE
   emitOrderCreated(order)
+
+    try {
+      const mailResult = await sendOrderPlacedCustomerEmail({
+        to: order.customer.email,
+        name: order.customer.name,
+        orderId: order.id,
+      })
+      if (mailResult.ok === false) {
+        console.error('[POST /api/orders] order_placed email failed', mailResult.error)
+      }
+    } catch (e) {
+      console.error('[POST /api/orders] order_placed email error', e)
+    }
 
     // Award loyalty points (5% of total)
     const pointsToAward = Math.floor(total * 0.05)

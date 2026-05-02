@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored admin notification broadcast (`apps/admin`). */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can broadcast')
     }
     const body = broadcastSchema.parse(await request.json())

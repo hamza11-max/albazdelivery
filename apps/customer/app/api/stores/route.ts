@@ -58,6 +58,9 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
+              storefrontHeroUrl: true,
+              storefrontLogoUrl: true,
+              photoUrl: true,
             },
           },
           category: {

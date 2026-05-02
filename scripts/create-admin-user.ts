@@ -121,11 +121,15 @@ async function createAdminUser() {
   const name = process.env.ADMIN_NAME || 'Admin User'
   const phone = process.env.ADMIN_PHONE || '0551234567'
 
+  const promoteSuper = process.env.ADMIN_PROMOTE_SUPER === '1' || process.env.ADMIN_ROLE === 'SUPER_ADMIN'
+
   try {
     // Check if admin user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
     })
+
+    const targetRole = promoteSuper ? ('SUPER_ADMIN' as const) : ('ADMIN' as const)
 
     if (existingUser) {
       // Update existing user to admin
@@ -133,12 +137,12 @@ async function createAdminUser() {
       const updatedUser = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
-          role: 'ADMIN',
+          role: targetRole,
           status: 'APPROVED',
           password: hashedPassword,
         },
       })
-      console.log('✅ Updated existing user to ADMIN:', {
+      console.log(`✅ Updated existing user to ${updatedUser.role}:`, {
         id: updatedUser.id,
         email: updatedUser.email,
         role: updatedUser.role,
@@ -154,7 +158,7 @@ async function createAdminUser() {
         name,
         phone,
         password: hashedPassword,
-        role: 'ADMIN',
+        role: targetRole,
         status: 'APPROVED',
       },
     })
@@ -169,6 +173,9 @@ async function createAdminUser() {
     console.log('\n📝 Login credentials:')
     console.log(`   Email: ${email}`)
     console.log(`   Password: ${password}`)
+    if (promoteSuper) {
+      console.log('\n⭐ SUPER_ADMIN role (set ADMIN_PROMOTE_SUPER=1 or ADMIN_ROLE=SUPER_ADMIN)')
+    }
   } catch (error) {
     console.error('❌ Error creating admin user:', error)
     process.exit(1)

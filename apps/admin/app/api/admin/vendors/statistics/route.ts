@@ -4,6 +4,7 @@ import { Role } from '@/root/generated/prisma/client'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 /** Aggregate order & store counts per vendor (ADMIN). */
 export async function GET(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can view vendor statistics')
     }
 

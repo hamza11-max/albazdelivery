@@ -8,11 +8,13 @@ import { ArrowLeft, MapPin, Plus, Loader2, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { useAddressesQuery, useCreateAddress, useUpdateAddress, useDeleteAddress } from "../../../hooks/use-addresses-query"
 import { useErrorHandler } from "../../../hooks/use-error-handler"
+import { useProfileI18n } from "../../../hooks/use-profile-i18n"
 
 export const dynamic = "force-dynamic"
 
 export default function AddressesPage() {
   const router = useRouter()
+  const t = useProfileI18n()
   const { data: session, status } = useSession()
   const { handleError } = useErrorHandler()
   const { data: addresses = [], isLoading } = useAddressesQuery()
@@ -43,7 +45,17 @@ export default function AddressesPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formLabel.trim() || !formAddress.trim() || formAddress.length < 10 || !formCity.trim()) {
-      handleError(new Error("Veuillez remplir tous les champs (adresse min 10 caractères)"), { showToast: true })
+      handleError(
+        new Error(
+          t(
+            "addr-fields",
+            "Veuillez remplir tous les champs (adresse min 10 caractères)",
+            "يرجى ملء جميع الحقول (العنوان 10 أحرف على الأقل)",
+            "Please fill all fields (address at least 10 characters)",
+          ),
+        ),
+        { showToast: true },
+      )
       return
     }
     try {
@@ -76,7 +88,7 @@ export default function AddressesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer cette adresse ?")) return
+    if (!confirm(t("addr-del-confirm", "Supprimer cette adresse ?", "حذف هذا العنوان؟", "Delete this address?"))) return
     try {
       await deleteAddr.mutateAsync(id)
       if (editingId === id) resetForm()
@@ -102,7 +114,7 @@ export default function AddressesPage() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold">Mes adresses</h1>
+          <h1 className="text-xl font-bold">{t("addr-h1", "Mes adresses", "عناويني", "My addresses")}</h1>
         </div>
       </header>
 
@@ -116,13 +128,15 @@ export default function AddressesPage() {
                   <p className="font-semibold">{addr.label}</p>
                   <p className="text-sm text-muted-foreground">{addr.address}, {addr.city}</p>
                   {addr.isDefault && (
-                    <span className="text-xs text-[#1a4d1a] font-medium">Par défaut</span>
+                    <span className="text-xs text-[#1a4d1a] font-medium">
+                      {t("addr-default", "Par défaut", "افتراضي", "Default")}
+                    </span>
                   )}
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
                 <Button variant="ghost" size="sm" onClick={() => handleEdit(addr)}>
-                  Modifier
+                  {t("addr-edit", "Modifier", "تعديل", "Edit")}
                 </Button>
                 <Button variant="ghost" size="icon" onClick={() => handleDelete(addr.id)} className="text-destructive">
                   <Trash2 className="w-4 h-4" />
@@ -135,35 +149,39 @@ export default function AddressesPage() {
         {showForm && (
           <Card>
             <CardHeader>
-              <CardTitle>{editingId ? "Modifier l'adresse" : "Nouvelle adresse"}</CardTitle>
+              <CardTitle>
+                {editingId
+                  ? t("addr-form-edit", "Modifier l'adresse", "تعديل العنوان", "Edit address")
+                  : t("addr-form-new", "Nouvelle adresse", "عنوان جديد", "New address")}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Nom (ex: Maison, Travail)</Label>
+                  <Label>{t("addr-label", "Nom (ex: Maison, Travail)", "الاسم (مثال: المنزل، العمل)", "Name (e.g. Home, Work)")}</Label>
                   <Input
                     value={formLabel}
                     onChange={(e) => setFormLabel(e.target.value)}
-                    placeholder="Maison"
+                    placeholder={t("addr-ph-label", "Maison", "المنزل", "Home")}
                     required
                   />
                 </div>
                 <div>
-                  <Label>Adresse complète</Label>
+                  <Label>{t("addr-full", "Adresse complète", "العنوان الكامل", "Full address")}</Label>
                   <Input
                     value={formAddress}
                     onChange={(e) => setFormAddress(e.target.value)}
-                    placeholder="Rue, numéro, quartier..."
+                    placeholder={t("addr-ph-street", "Rue, numéro, quartier...", "الشارع، الرقم، الحي...", "Street, number, area...")}
                     required
                     minLength={10}
                   />
                 </div>
                 <div>
-                  <Label>Ville</Label>
+                  <Label>{t("addr-city", "Ville", "المدينة", "City")}</Label>
                   <Input
                     value={formCity}
                     onChange={(e) => setFormCity(e.target.value)}
-                    placeholder="Alger"
+                    placeholder={t("addr-ph-city", "Alger", "الجزائر", "Algiers")}
                     required
                   />
                 </div>
@@ -173,18 +191,20 @@ export default function AddressesPage() {
                     checked={formDefault}
                     onChange={(e) => setFormDefault(e.target.checked)}
                   />
-                  <span>Définir comme adresse par défaut</span>
+                  <span>{t("addr-set-default", "Définir comme adresse par défaut", "تعيين كعنوان افتراضي", "Set as default address")}</span>
                 </label>
                 <div className="flex gap-2">
                   <Button type="submit" disabled={createAddr.isPending || updateAddr.isPending}>
                     {(createAddr.isPending || updateAddr.isPending) ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      editingId ? "Enregistrer" : "Ajouter"
+                      editingId
+                        ? t("addr-save", "Enregistrer", "حفظ", "Save")
+                        : t("addr-add-btn", "Ajouter", "إضافة", "Add")
                     )}
                   </Button>
                   <Button type="button" variant="outline" onClick={resetForm}>
-                    Annuler
+                    {t("addr-cancel", "Annuler", "إلغاء", "Cancel")}
                   </Button>
                 </div>
               </form>
@@ -202,7 +222,7 @@ export default function AddressesPage() {
             }}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Ajouter une adresse
+            {t("addr-add-link", "Ajouter une adresse", "إضافة عنوان", "Add an address")}
           </Button>
         )}
       </div>

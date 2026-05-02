@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored admin delivery zones `[id]` (`apps/admin`). */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
@@ -27,7 +28,7 @@ export async function PATCH(
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can update zones')
     }
     const { id } = await context.params
@@ -64,7 +65,7 @@ export async function DELETE(
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can delete zones')
     }
     const { id } = await context.params

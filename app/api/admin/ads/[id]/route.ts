@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { csrfProtection } from '../../../../admin/lib/csrf'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 // PUT /api/admin/ads/[id] - Update an ad (admin only)
 export async function PUT(
@@ -25,7 +26,7 @@ export async function PUT(
     }
 
     // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can update ads')
     }
 
@@ -81,7 +82,7 @@ export async function DELETE(
     }
 
     // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can delete ads')
     }
 

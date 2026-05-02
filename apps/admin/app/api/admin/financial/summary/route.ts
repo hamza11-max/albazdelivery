@@ -3,6 +3,7 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 /** High-level totals for admin dashboard. */
 export async function GET(request: NextRequest) {
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can view financial summary')
     }
 

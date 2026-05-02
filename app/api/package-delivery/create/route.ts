@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { createPackageDeliverySchema } from '@/lib/validations/order'
 import { emitOrderCreated } from '@/lib/events'
+import { sendOrderPlacedCustomerEmail } from '@/lib/mail/notify-customer-transactional'
 
 export async function POST(request: NextRequest) {
   try {
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
               id: true,
               name: true,
               phone: true,
+              email: true,
             },
           },
         },
@@ -129,6 +131,22 @@ export async function POST(request: NextRequest) {
         actionUrl: `/tracking?orderId=${order.id}`,
       },
     })
+
+    try {
+      const o = order as typeof order & {
+        customer?: { email?: string | null; name?: string | null } | null
+      }
+      const mailResult = await sendOrderPlacedCustomerEmail({
+        to: o.customer?.email,
+        name: o.customer?.name,
+        orderId: String(o.id),
+      })
+      if (mailResult.ok === false) {
+        console.error('[package-delivery] order_placed email failed', mailResult.error)
+      }
+    } catch (e) {
+      console.error('[package-delivery] order_placed email error', e)
+    }
 
     return successResponse({ order, message: 'Package delivery created successfully' }, 201)
   } catch (error) {

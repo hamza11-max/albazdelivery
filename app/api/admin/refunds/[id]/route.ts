@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Admin: complete or reject a refund (execute Stripe refund for card + PaymentIntent). */
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
@@ -31,7 +32,7 @@ export async function PATCH(
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can update refunds')
     }
 

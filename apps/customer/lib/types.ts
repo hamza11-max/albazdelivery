@@ -1,7 +1,7 @@
 import type { Order } from '@albaz/shared'
 import type { ProductDefinition, CategoryDefinition, StoreDefinition } from './mock-data'
 
-export type PageView = 'home' | 'category' | 'store' | 'checkout' | 'tracking' | 'orders' | 'profile'
+export type PageView = 'home' | 'category' | 'store' | 'checkout' | 'tracking' | 'orders' | 'profile' | 'favorites'
 
 export interface CartItem {
   productId: string
@@ -9,7 +9,8 @@ export interface CartItem {
 }
 
 export interface TranslationFn {
-  (key: string, fr: string, ar: string): string
+  /** Optional `en` falls back to French when omitted (e.g. legacy call sites). */
+  (key: string, fr: string, ar: string, en?: string): string
 }
 
 export interface HomePageProps {
@@ -19,7 +20,12 @@ export interface HomePageProps {
   onSearchChange: (value: string) => void
   onCategorySelect: (categoryId: number) => void
   onPackageDelivery: () => void
+  /** Opens activity relevant to notifications (e.g. orders). */
+  onOpenNotifications?: () => void
   selectedCity: string
+  /** Supported delivery cities + current selection if not in list (e.g. profile city). */
+  cityOptions: string[]
+  onCityChange: (city: string) => void
   isDarkMode: boolean
   onToggleDarkMode: () => void
   onGoHome: () => void
@@ -107,6 +113,15 @@ export interface ProfileViewProps {
   onSelectLanguage: (lang: string) => void
   onBackHome: () => void
   onSignOut: () => void
+  /** Open in-shell favorites list (local storage). */
+  onOpenFavorites?: () => void
+  t: TranslationFn
+}
+
+export interface FavoritesViewProps {
+  onBack: () => void
+  /** Jump to store in shell; category restores back navigation. */
+  onGoToStore: (storeId: string, categoryId: number) => void
   t: TranslationFn
 }
 
@@ -115,6 +130,8 @@ export interface MyOrdersViewProps {
   onBack: () => void
   onOrderSelect: (order: Order) => void
   t: TranslationFn
+  /** When set from home bell, opens the notifications tab first. */
+  ordersEntry?: 'default' | 'notifications'
 }
 // API types
 export interface ApiResponse<T> {

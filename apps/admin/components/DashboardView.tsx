@@ -10,9 +10,11 @@ interface DashboardViewProps {
   customers: UserType[]
   drivers: UserType[]
   vendors: UserType[]
+  /** Support desk: operational counts and SLA only (no revenue / high-cash / user-directory totals). */
+  supportMode?: boolean
 }
 
-export function DashboardView({ orders, customers, drivers, vendors }: DashboardViewProps) {
+export function DashboardView({ orders, customers, drivers, vendors, supportMode = false }: DashboardViewProps) {
   const totalOrders = orders.length
   const pendingOrders = orders.filter((o) => o.status === OrderStatus.PENDING).length 
   const completedOrders = orders.filter((o) => o.status === OrderStatus.DELIVERED).length
@@ -28,7 +30,7 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${supportMode ? "md:grid-cols-3" : "md:grid-cols-2 lg:grid-cols-4"}`}>
         <Card className="albaz-card">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -43,20 +45,22 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
           </CardContent>
         </Card>
 
-        <Card className="albaz-card">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[var(--albaz-text-soft)] mb-1">Revenu Total</p>
-                <p className="text-3xl font-bold text-[var(--albaz-text)]">{totalRevenue}</p>
-                <p className="text-xs text-[var(--albaz-text-soft)]">DZD</p>
+        {!supportMode && (
+          <Card className="albaz-card">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[var(--albaz-text-soft)] mb-1">Revenu Total</p>
+                  <p className="text-3xl font-bold text-[var(--albaz-text)]">{totalRevenue}</p>
+                  <p className="text-xs text-[var(--albaz-text-soft)]">DZD</p>
+                </div>
+                <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
+                  <TrendingUp className="w-6 h-6" />
+                </div>
               </div>
-              <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
-                <TrendingUp className="w-6 h-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="albaz-card">
           <CardContent className="p-6">
@@ -87,6 +91,7 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
         </Card>
       </div>
 
+      {!supportMode && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="albaz-card">
           <CardHeader className="pb-3">
@@ -127,8 +132,9 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
           </CardContent>
         </Card>
       </div>
+      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${supportMode ? "" : "md:grid-cols-2"}`}>
         <Card className="albaz-card border-amber-300/70">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2 text-amber-700">
@@ -155,6 +161,7 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
           </CardContent>
         </Card>
 
+        {!supportMode && (
         <Card className="albaz-card border-emerald-300/70">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2 text-emerald-700">
@@ -180,6 +187,7 @@ export function DashboardView({ orders, customers, drivers, vendors }: Dashboard
             </div>
           </CardContent>
         </Card>
+        )}
       </div>
 
       <Card>

@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored admin promo codes (`apps/admin`). */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
   try {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
-    if (!session?.user || String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can list promo codes')
     }
     const activeOnly = request.nextUrl.searchParams.get('active')
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') throw new ForbiddenError('Only admins')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins')
     const data = promoPost.parse(await request.json())
     const codeUpper = data.code.trim().toUpperCase()
     const dup = await prisma.promoCode.findUnique({ where: { code: codeUpper } })

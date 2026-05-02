@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { signOut } from "next-auth/react"
 import { Sun, Moon, LogOut, Globe, RefreshCw } from "lucide-react"
 import { toggleTheme, getStoredTheme, toggleLanguage, getStoredLanguage } from "@/lib/theme"
+import { useProfileI18n } from "@/hooks/use-profile-i18n"
 
 interface HeaderProps {
   title?: string
@@ -27,6 +28,7 @@ export default function Header({
   isDarkMode: externalIsDarkMode,
   setIsDarkMode: externalSetIsDarkMode,
 }: HeaderProps) {
+  const t = useProfileI18n()
   const [theme, setTheme] = useState(getStoredTheme())
   const [language, setLanguage] = useState(getStoredLanguage())
   const [mounted, setMounted] = useState(false)
@@ -62,7 +64,11 @@ export default function Header({
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="AL-baz" className="h-10 w-auto" />
+            <img
+              src="/logo.png"
+              alt={t("header-logo-alt", "AL-baz", "الباز", "AL-baz")}
+              className="h-10 w-auto"
+            />
             <div>
               <h1 className="text-lg font-bold">{title}</h1>
               <p className="text-xs text-white/80">{subtitle}</p>
@@ -75,7 +81,7 @@ export default function Header({
                 size="icon" 
                 className="text-white hover:bg-white/20 transition-colors" 
                 onClick={onRefresh}
-                title="Refresh"
+                title={t("header-refresh", "Actualiser", "تحديث", "Refresh")}
               >
                 <RefreshCw className="w-5 h-5" />
               </Button>
@@ -85,7 +91,13 @@ export default function Header({
               size="icon"
               className="text-white hover:bg-white/20 transition-colors"
               onClick={handleLanguageToggle}
-              title={language === "fr" ? "العربية" : "Français"}
+              title={
+                language === "fr"
+                  ? t("header-lang-switch-to-ar", "العربية", "العربية", "Arabic")
+                  : language === "ar"
+                    ? t("header-lang-switch-to-en", "English", "English", "English")
+                    : t("header-lang-switch-to-fr", "Français", "Français", "French")
+              }
             >
               <Globe className="w-5 h-5" />
             </Button>
@@ -94,7 +106,11 @@ export default function Header({
               size="icon"
               className="text-white hover:bg-white/20 transition-colors"
               onClick={handleThemeToggle}
-              title={isDark ? "Light mode" : "Dark mode"}
+              title={
+                isDark
+                  ? t("light-mode", "Mode clair", "وضع النهار", "Light mode")
+                  : t("dark-mode", "Mode sombre", "الوضع الليلي", "Dark mode")
+              }
             >
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
@@ -103,7 +119,7 @@ export default function Header({
               size="icon" 
               className="text-white hover:bg-white/20 transition-colors" 
               onClick={() => signOut({ callbackUrl: "/login" })}
-              title="Sign out"
+              title={t("header-sign-out", "Déconnexion", "تسجيل الخروج", "Sign out")}
             >
               <LogOut className="w-5 h-5" />
             </Button>

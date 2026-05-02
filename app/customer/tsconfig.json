@@ -11,6 +11,6 @@
       "@albaz/auth": ["../../packages/auth/src"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "../../lib/**/*", "../../components/**/*", "../../hooks/**/*"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "../../lib/**/*", "../../components/**/*", "../../hooks/**/*", "../../apps/customer/hooks/**/*"],
   "exclude": ["node_modules", "**/.next/**"]
 }

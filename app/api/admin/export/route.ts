@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../admin/lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const exportSchema = z.object({
   type: z.enum(['users', 'orders', 'audit-logs']),
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can export data')
     }
 

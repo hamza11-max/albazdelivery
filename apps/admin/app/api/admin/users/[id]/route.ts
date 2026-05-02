@@ -8,6 +8,7 @@ import { createAuditLog, AuditActions, AuditResources } from '../../../../../lib
 import { csrfProtection } from '../../../../../lib/csrf'
 import { deleteUserRelatedData } from '@/root/lib/admin/cascade-delete-user'
 import { z } from 'zod'
+import { isFullAdmin, isSuperAdmin, isProtectedAdminAccount } from '@/root/lib/admin-roles'
 
 // GET /api/admin/users/[id] - Get specific user details
 export async function GET(
@@ -22,7 +23,7 @@ export async function GET(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
@@ -74,7 +75,7 @@ export async function PUT(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -87,7 +88,7 @@ export async function PUT(
       name: z.string().min(1).optional(),
       email: z.string().email().optional(),
       phone: z.string().optional(),
-      role: z.enum(['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN']).optional(),
+      role: z.enum(['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN', 'SUPER_ADMIN', 'SUPPORT']).optional(),
       status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
       address: z.string().optional(),
       city: z.string().optional(),
@@ -104,9 +105,22 @@ export async function PUT(
       throw new NotFoundError('User')
     }
 
-    // Don't allow modifying super admins
-    if (user.role === 'ADMIN' && session.user.id !== user.id) {
+    const sessionIsSuper = isSuperAdmin(session.user.role)
+    const editingOther = session.user.id !== user.id
+
+    if (editingOther && isProtectedAdminAccount(user.role) && !sessionIsSuper) {
       throw new ForbiddenError('Cannot modify other admin accounts')
+    }
+
+    if (validatedData.role !== undefined) {
+      const newRole = String(validatedData.role).toUpperCase()
+      if (newRole === 'SUPER_ADMIN' && !sessionIsSuper) {
+        throw new ForbiddenError('Only super admins can assign the super admin role')
+      }
+      const prev = String(user.role ?? '').toUpperCase()
+      if (prev === 'SUPER_ADMIN' && newRole !== 'SUPER_ADMIN' && !sessionIsSuper) {
+        throw new ForbiddenError('Cannot demote super admin')
+      }
     }
 
     // Normalize email and phone if provided
@@ -182,7 +196,7 @@ export async function DELETE(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -198,13 +212,12 @@ export async function DELETE(
       throw new NotFoundError('User')
     }
 
-    // Don't allow deleting admins or self
-    if (user.role === 'ADMIN') {
-      throw new ForbiddenError('Cannot delete admin accounts')
-    }
-
     if (user.id === session.user.id) {
       throw new ForbiddenError('Cannot delete your own account')
+    }
+
+    if (isProtectedAdminAccount(user.role) && !isSuperAdmin(session.user.role)) {
+      throw new ForbiddenError('Cannot delete admin accounts')
     }
 
     await prisma.$transaction(async (tx) => {

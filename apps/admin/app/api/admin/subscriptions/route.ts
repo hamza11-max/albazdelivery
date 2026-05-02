@@ -2,13 +2,14 @@ import { NextRequest } from 'next/server'
 import { auth } from '@/root/lib/auth'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, ValidationError } from '@/root/lib/errors'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 // POST /api/admin/subscriptions - Create subscription for a vendor (admin only)
 export async function POST(request: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user?.role)) {
       throw new ForbiddenError('Only admins can create subscriptions')
     }
 
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user?.role)) {
       throw new ForbiddenError('Only admins can access subscription data')
     }
 

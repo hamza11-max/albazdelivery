@@ -8,6 +8,7 @@ import { csrfProtection } from '../../../../../../lib/csrf'
 import { notifyUserPasswordResetByAdmin } from '@/root/lib/mail/adminUserNotifications'
 import { notificationEmailStatus } from '@/root/lib/mail/sendTransactionalEmail'
 import { z } from 'zod'
+import { isFullAdmin, isSuperAdmin, isProtectedAdminAccount } from '@/root/lib/admin-roles'
 
 // POST /api/admin/users/[id]/reset-password - Reset user password
 export async function POST(
@@ -27,7 +28,7 @@ export async function POST(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -51,8 +52,11 @@ export async function POST(
       throw new NotFoundError('User')
     }
 
-    // Don't allow resetting admin passwords
-    if (user.role === 'ADMIN' && session.user.id !== user.id) {
+    if (
+      isProtectedAdminAccount(user.role) &&
+      session.user.id !== user.id &&
+      !isSuperAdmin(session.user.role)
+    ) {
       throw new ForbiddenError('Cannot reset other admin passwords')
     }
 

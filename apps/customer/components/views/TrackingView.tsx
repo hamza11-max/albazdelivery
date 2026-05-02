@@ -32,10 +32,10 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
   const currentStep = currentOrder ? getStepFromStatus(currentOrder.status) : 1
 
   const stepDefinitions = [
-    { id: 1, label: t('order-accepted', 'Commande Acceptée', 'تم قبول الطلب'), icon: CheckCircle2 },
-    { id: 2, label: t('preparing', 'En Préparation', 'قيد التحضير'), icon: Package },
-    { id: 3, label: t('in-delivery', 'En Livraison', 'قيد التوصيل'), icon: Truck },
-    { id: 4, label: t('delivered', 'Livrée', 'تم التوصيل'), icon: CheckCircle2 },
+    { id: 1, label: t('order-accepted', 'Commande Acceptée', 'تم قبول الطلب', 'Order accepted'), icon: CheckCircle2 },
+    { id: 2, label: t('preparing', 'En Préparation', 'قيد التحضير', 'Preparing'), icon: Package },
+    { id: 3, label: t('in-delivery', 'En Livraison', 'قيد التوصيل', 'Out for delivery'), icon: Truck },
+    { id: 4, label: t('delivered', 'Livrée', 'تم التوصيل', 'Delivered'), icon: CheckCircle2 },
   ]
 
   if (!orderId) {
@@ -44,9 +44,11 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
         <Card className="w-full">
           <CardContent className="p-8 text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">{t('no-order', 'Aucune commande', 'لا يوجد طلب')}</h2>
-            <p className="text-muted-foreground mb-4">{t('no-order-desc', 'Aucun numéro de commande fourni', 'لم يتم توفير رقم الطلب')}</p>
-            <Button onClick={onBackHome}>{t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية')}</Button>
+            <h2 className="text-xl font-bold mb-2">{t('no-order', 'Aucune commande', 'لا يوجد طلب', 'No order')}</h2>
+            <p className="text-muted-foreground mb-4">
+              {t('no-order-desc', 'Aucun numéro de commande fourni', 'لم يتم توفير رقم الطلب', 'No order number provided')}
+            </p>
+            <Button onClick={onBackHome}>{t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية', 'Back to home')}</Button>
           </CardContent>
         </Card>
       </div>
@@ -88,13 +90,20 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
         <Card className="w-full">
           <CardContent className="p-8 text-center">
             <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">{t('order-not-found', 'Commande non trouvée', 'الطلب غير موجود')}</h2>
+            <h2 className="text-xl font-bold mb-2">{t('order-not-found', 'Commande non trouvée', 'الطلب غير موجود', 'Order not found')}</h2>
             <p className="text-muted-foreground mb-4">
-              {t('order-not-found-desc', 'Impossible de trouver la commande avec cet identifiant', 'تعذر العثور على الطلب بهذا المعرف')}
+              {t(
+                'order-not-found-desc',
+                'Impossible de trouver la commande avec cet identifiant',
+                'تعذر العثور على الطلب بهذا المعرف',
+                'We could not find an order with this ID',
+              )}
             </p>
             <div className="flex gap-2 justify-center">
-              <Button onClick={onBackHome} variant="outline">{t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية')}</Button>
-              <Button onClick={() => window.location.reload()}>{t('retry', 'Réessayer', 'إعادة المحاولة')}</Button>
+              <Button onClick={onBackHome} variant="outline">
+                {t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية', 'Back to home')}
+              </Button>
+              <Button onClick={() => window.location.reload()}>{t('retry', 'Réessayer', 'إعادة المحاولة', 'Retry')}</Button>
             </div>
           </CardContent>
         </Card>
@@ -111,11 +120,11 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
           </div>
           <CardTitle className="text-2xl mb-2 text-foreground">
             {currentOrder?.status === 'DELIVERED'
-              ? t('order-delivered', 'Commande Livrée!', 'تم توصيل الطلب!')
-              : t('order-confirmed', 'Commande Confirmée!', 'تم تأكيد الطلب!')}
+              ? t('order-delivered', 'Commande Livrée!', 'تم توصيل الطلب!', 'Order delivered!')
+              : t('order-confirmed', 'Commande Confirmée!', 'تم تأكيد الطلب!', 'Order confirmed!')}
           </CardTitle>
           <CardDescription className="text-base">
-            {t('order-number', 'Numéro de commande', 'رقم الطلب')}: <span className="font-mono font-semibold">{orderId}</span>
+            {t('order-number', 'Numéro de commande', 'رقم الطلب', 'Order number')}: <span className="font-mono font-semibold">{orderId}</span>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
@@ -146,7 +155,7 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
                       <p className={`font-semibold ${isActive ? 'text-foreground' : 'text-muted-foreground'} ${isCurrent ? 'text-[#1a4d1a]' : ''}`}>
                         {step.label}
                       </p>
-                      {isCurrent && <p className="text-xs text-muted-foreground mt-1">{t('in-progress', 'En cours...', 'جاري...')}</p>}
+                      {isCurrent && <p className="text-xs text-muted-foreground mt-1">{t('in-progress', 'En cours...', 'جاري...', 'In progress...')}</p>}
                     </div>
                   </div>
                   {!isLast && <div className={`absolute left-6 top-12 w-0.5 h-6 transition-all ${isActive ? 'bg-[#1a4d1a]' : 'bg-border'}`} />}
@@ -157,20 +166,20 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
 
           {currentOrder && (
             <div className="bg-muted rounded-lg p-6">
-              <h3 className="font-semibold mb-3 text-foreground">{t('order-details', 'Détails de la commande', 'تفاصيل الطلب')}</h3>
+              <h3 className="font-semibold mb-3 text-foreground">{t('order-details', 'Détails de la commande', 'تفاصيل الطلب', 'Order details')}</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t('total', 'Total', 'المجموع')}</span>
+                  <span className="text-muted-foreground">{t('total', 'Total', 'المجموع', 'Total')}</span>
                   <span className="font-semibold text-foreground">{currentOrder.total} DZD</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t('payment', 'Paiement', 'الدفع')}</span>
+                  <span className="text-muted-foreground">{t('payment', 'Paiement', 'الدفع', 'Payment')}</span>
                   <span className="font-semibold text-foreground">
-                    {currentOrder.paymentMethod === 'CASH' ? t('cash', 'Espèces', 'نقدي') : t('card', 'Carte', 'بطاقة')}
+                    {currentOrder.paymentMethod === 'CASH' ? t('cash', 'Espèces', 'نقدي', 'Cash') : t('card', 'Carte', 'بطاقة', 'Card')}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t('delivery', 'Livraison', 'التوصيل')}</span>
+                  <span className="text-muted-foreground">{t('delivery', 'Livraison', 'التوصيل', 'Delivery')}</span>
                   <span className="font-semibold text-foreground">{currentOrder.city}</span>
                 </div>
               </div>
@@ -178,19 +187,20 @@ export function TrackingView({ currentOrder: initialOrder, orderId, onBackHome, 
           )}
 
           <div className="bg-muted rounded-lg p-6 text-center">
-            <p className="text-lg font-semibold mb-2 text-foreground">{t('thank-you', 'Merci pour votre commande!', 'شكرا لطلبك!')}</p>
+            <p className="text-lg font-semibold mb-2 text-foreground">{t('thank-you', 'Merci pour votre commande!', 'شكرا لطلبك!', 'Thank you for your order!')}</p>
             <p className="text-muted-foreground">
               {t(
                 'delivery-message',
                 'Votre commande sera livrée dans les plus brefs délais. Vous pouvez payer en espèces à la livraison.',
-                'سيتم توصيل طلبك في أقرب وقت ممكن. يمكنك الدفع نقدًا عند الاستلام.'
+                'سيتم توصيل طلبك في أقرب وقت ممكن. يمكنك الدفع نقدًا عند الاستلام.',
+                'Your order will be delivered as soon as possible. You can pay cash on delivery.',
               )}
             </p>
           </div>
 
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1 bg-transparent" onClick={onBackHome}>
-              {t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية')}
+              {t('back-home', "Retour à l'accueil", 'العودة إلى الصفحة الرئيسية', 'Back to home')}
             </Button>
           </div>
         </CardContent>
@@ -203,23 +213,23 @@ function getStatusText(status: string, t: TrackingViewProps['t']) {
   const s = String(status).toUpperCase()
   switch (s) {
     case 'PENDING':
-      return t('status-pending', "En attente d'acceptation par le restaurant", 'في انتظار قبول المطعم')
+      return t('status-pending', "En attente d'acceptation par le restaurant", 'في انتظار قبول المطعم', 'Waiting for merchant to accept')
     case 'ACCEPTED':
-      return t('status-accepted', 'Commande acceptée par le restaurant', 'تم قبول الطلب من قبل المطعم')
+      return t('status-accepted', 'Commande acceptée par le restaurant', 'تم قبول الطلب من قبل المطعم', 'Order accepted by merchant')
     case 'PREPARING':
-      return t('status-preparing', 'Votre commande est en cours de préparation', 'طلبك قيد التحضير')
+      return t('status-preparing', 'Votre commande est en cours de préparation', 'طلبك قيد التحضير', 'Your order is being prepared')
     case 'READY':
-      return t('status-ready', 'Commande prête, en attente d’un livreur', 'الطلب جاهز، في انتظار السائق')
+      return t('status-ready', 'Commande prête, en attente d’un livreur', 'الطلب جاهز، في انتظار السائق', 'Ready, waiting for a driver')
     case 'ASSIGNED':
-      return t('status-assigned', 'Un livreur a été assigné à votre commande', 'تم تعيين سائق لطلبك')
+      return t('status-assigned', 'Un livreur a été assigné à votre commande', 'تم تعيين سائق لطلبك', 'A driver has been assigned')
     case 'IN_DELIVERY':
-      return t('status-in-delivery', 'Votre commande est en cours de livraison', 'طلبك قيد التوصيل')
+      return t('status-in-delivery', 'Votre commande est en cours de livraison', 'طلبك قيد التوصيل', 'Your order is on the way')
     case 'DELIVERED':
-      return t('status-delivered', 'Commande livrée avec succès', 'تم توصيل الطلب بنجاح')
+      return t('status-delivered', 'Commande livrée avec succès', 'تم توصيل الطلب بنجاح', 'Order delivered successfully')
     case 'CANCELLED':
-      return t('status-cancelled', 'Commande annulée', 'تم إلغاء الطلب')
+      return t('status-cancelled', 'Commande annulée', 'تم إلغاء الطلب', 'Order cancelled')
     default:
-      return t('status-unknown', 'Statut inconnu', 'حالة غير معروفة')
+      return t('status-unknown', 'Statut inconnu', 'حالة غير معروفة', 'Unknown status')
   }
 }
 

@@ -7,6 +7,7 @@ import { csrfProtection } from '../../../../admin/lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../admin/lib/audit'
 import { deleteUserRelatedData } from '@/root/lib/admin/cascade-delete-user'
 import { z } from 'zod'
+import { isFullAdmin, isSuperAdmin, isProtectedAdminAccount } from '@/root/lib/admin-roles'
 
 const bulkActionSchema = z.object({
   userIds: z.array(z.string()).min(1, 'At least one user ID is required'),
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can perform bulk actions')
     }
 
@@ -47,20 +48,29 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('Some users were not found'), 404)
     }
 
-    // Don't allow modifying admins
-    const adminUsers = users.filter((u) => u.role === 'ADMIN')
-    if (adminUsers.length > 0) {
+    const sessionIsSuper = isSuperAdmin(session.user.role)
+
+    if (userIds.includes(session.user.id)) {
+      return errorResponse(new Error('Cannot bulk modify your own account'), 400)
+    }
+
+    const protectedTargets = users.filter((u) => isProtectedAdminAccount(u.role))
+    if (protectedTargets.length > 0 && !sessionIsSuper) {
       return errorResponse(new Error('Cannot modify admin accounts'), 400)
     }
 
     let result: any = { affected: 0 }
 
+    const staffRoleFilter =
+      sessionIsSuper
+        ? undefined
+        : { notIn: ['ADMIN', 'SUPER_ADMIN'] as const }
+
     if (action === 'suspend') {
       result = await prisma.user.updateMany({
-        where: {
-          id: { in: userIds },
-          role: { not: 'ADMIN' },
-        },
+        where: staffRoleFilter
+          ? { id: { in: userIds }, role: staffRoleFilter }
+          : { id: { in: userIds } },
         data: {
           status: 'REJECTED',
         },
@@ -81,10 +91,9 @@ export async function POST(request: NextRequest) {
       }, request)
     } else if (action === 'unsuspend') {
       result = await prisma.user.updateMany({
-        where: {
-          id: { in: userIds },
-          role: { not: 'ADMIN' },
-        },
+        where: staffRoleFilter
+          ? { id: { in: userIds }, role: staffRoleFilter }
+          : { id: { in: userIds } },
         data: {
           status: 'APPROVED',
         },
@@ -109,7 +118,9 @@ export async function POST(request: NextRequest) {
 
         for (const userId of userIds) {
           const u = await tx.user.findUnique({ where: { id: userId } })
-          if (!u || u.role === 'ADMIN') continue
+          if (!u) continue
+          if (u.id === session.user.id) continue
+          if (isProtectedAdminAccount(u.role) && !sessionIsSuper) continue
 
           await deleteUserRelatedData(tx, userId)
           await tx.user.delete({ where: { id: userId } })

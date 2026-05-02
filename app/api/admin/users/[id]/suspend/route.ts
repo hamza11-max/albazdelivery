@@ -7,6 +7,7 @@ import { csrfProtection } from '../../../../../admin/lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../../admin/lib/audit'
 import { notifyUserSuspended } from '@/lib/mail/adminUserNotifications'
 import { notificationEmailStatus } from '@/lib/mail/sendTransactionalEmail'
+import { isFullAdmin, isSuperAdmin, isProtectedAdminAccount } from '@/root/lib/admin-roles'
 
 // POST /api/admin/users/[id]/suspend - Suspend user account
 export async function POST(
@@ -27,7 +28,7 @@ export async function POST(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -45,9 +46,13 @@ export async function POST(
       throw new NotFoundError('User')
     }
 
-    // Don't allow suspending admins
-    if (user.role === 'ADMIN') {
-      throw new ForbiddenError('Cannot suspend admin accounts')
+    if (isProtectedAdminAccount(user.role)) {
+      if (!isSuperAdmin(session.user.role)) {
+        throw new ForbiddenError('Cannot suspend admin accounts')
+      }
+      if (user.id === session.user.id) {
+        throw new ForbiddenError('Cannot suspend your own account')
+      }
     }
 
     if (user.status === 'REJECTED') {

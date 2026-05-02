@@ -14,7 +14,8 @@ import { CheckoutView } from '../components/views/CheckoutView'
 import { MyOrdersView } from '../components/views/MyOrdersView'
 import { TrackingView } from '../components/views/TrackingView'
 import { ProfileView } from '../components/views/ProfileView'
-import { cities } from '../lib/mock-data'
+import { FavoritesView } from '../components/views/FavoritesView'
+import { cities } from '../lib/cities'
 import type { CartItem, PageView, TranslationFn } from '../lib/types'
 import { useCategoriesQuery } from '../hooks/use-categories-query'
 import { useStoresQuery } from '../hooks/use-stores-query'
@@ -24,6 +25,7 @@ import { useCreateOrder } from '../hooks/use-orders-mutation'
 import { useAddressesQuery } from '../hooks/use-addresses-query'
 import { useDeliveryFeeQuery } from '../hooks/use-delivery-fee-query'
 import { useWalletBalanceQuery } from '../hooks/use-wallet-query'
+import { useNotificationUnreadQuery } from '../hooks/use-notifications-query'
 import { getStoredTheme, setStoredTheme, applyTheme, getStoredLanguage, setStoredLanguage, applyLanguage } from '../lib/theme'
 import { normalizeAlgerianPhone } from '../lib/phone'
 
@@ -57,8 +59,11 @@ export default function AlBazApp() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [searchFocusRequested, setSearchFocusRequested] = useState(false)
+  const [ordersEntry, setOrdersEntry] = useState<'default' | 'notifications'>('default')
 
   const customerId = user?.id || 'customer-1'
+
+  const { data: ordersUnreadBadge = 0 } = useNotificationUnreadQuery(status === 'authenticated', customerId)
 
   const { data: addresses = [] } = useAddressesQuery()
   const { data: deliveryFeeData } = useDeliveryFeeQuery(selectedCity)
@@ -134,6 +139,12 @@ export default function AlBazApp() {
 
   // Fetch products for selected store with React Query
   const { data: apiProducts = [], isLoading: productsLoading } = useProductsQuery(selectedStore)
+
+  const cityOptions = useMemo(() => {
+    const next = [...cities]
+    if (selectedCity && !next.includes(selectedCity)) next.unshift(selectedCity)
+    return next
+  }, [selectedCity])
 
   // Load vendor profile when store changes
   useEffect(() => {
@@ -216,7 +227,7 @@ export default function AlBazApp() {
     if (status === 'loading' || status === 'unauthenticated') return
     if (status === 'authenticated' && user?.role && user.role !== 'CUSTOMER') {
       const dest =
-        user.role === 'ADMIN'
+        user.role === 'ADMIN' || user.role === 'SUPER_ADMIN' || user.role === 'SUPPORT'
           ? '/admin'
           : user.role === 'VENDOR'
             ? '/vendor'
@@ -242,14 +253,33 @@ export default function AlBazApp() {
 
   // Transform API stores to match expected format (using string IDs directly)
   const filteredStores = useMemo(() => {
-    return apiStores.map((store: { id: string; name: string; type: string; rating: number; deliveryTime?: string; categoryId: number }) => ({
-      id: store.id, // Use string ID directly
-      name: store.name,
-      type: store.type,
-      rating: store.rating,
-      deliveryTime: store.deliveryTime || '30-45 min',
-      categoryId: store.categoryId,
-    }))
+    return apiStores.map(
+      (store: {
+        id: string
+        name: string
+        type: string
+        rating: number
+        deliveryTime?: string
+        categoryId: number
+        vendor?: {
+          storefrontHeroUrl?: string | null
+          storefrontLogoUrl?: string | null
+          photoUrl?: string | null
+        } | null
+      }) => {
+        const v = store.vendor
+        const cover = v?.storefrontHeroUrl || v?.storefrontLogoUrl || v?.photoUrl || null
+        return {
+          id: store.id,
+          name: store.name,
+          type: store.type,
+          rating: store.rating,
+          deliveryTime: store.deliveryTime || '30-45 min',
+          categoryId: store.categoryId,
+          coverImage: cover,
+        }
+      },
+    )
   }, [apiStores])
 
   // Transform API products to match expected format (using string IDs directly)
@@ -290,7 +320,8 @@ export default function AlBazApp() {
     return null
   }
 
-  const t: TranslationFn = (_key, fr, ar) => (selectedLanguage === 'ar' ? ar : fr)
+  const t: TranslationFn = (_key, fr, ar, en) =>
+    selectedLanguage === 'ar' ? ar : selectedLanguage === 'en' ? (en ?? fr) : fr
 
   // Memoized cart handlers to prevent unnecessary re-renders
   const addToCart = useCallback((productId: string) => {
@@ -330,7 +361,7 @@ export default function AlBazApp() {
     async (codeRaw: string) => {
       const code = codeRaw.trim().toUpperCase()
       if (!code) {
-        setPromoError(t('promo-required', 'Entrez un code promo', 'أدخل رمزاً ترويجياً'))
+        setPromoError(t('promo-required', 'Entrez un code promo', 'أدخل رمزاً ترويجياً', 'Enter a promo code'))
         return
       }
       try {
@@ -341,14 +372,14 @@ export default function AlBazApp() {
         })
         const data = await res.json()
         if (!data.success) {
-          setPromoError(data.error?.message || t('promo-invalid', 'Code promo invalide', 'رمز غير صالح'))
+          setPromoError(data.error?.message || t('promo-invalid', 'Code promo invalide', 'رمز غير صالح', 'Invalid promo code'))
           setPromoCode(code)
           setPromoDiscount(0)
           return
         }
         const { valid, discount: d, error: err } = data.data || {}
         if (!valid || err) {
-          setPromoError(err || t('promo-invalid', 'Code promo invalide', 'رمز غير صالح'))
+          setPromoError(err || t('promo-invalid', 'Code promo invalide', 'رمز غير صالح', 'Invalid promo code'))
           setPromoCode(code)
           setPromoDiscount(0)
           return
@@ -357,7 +388,7 @@ export default function AlBazApp() {
         setPromoDiscount(d ?? 0)
         setPromoError(null)
       } catch {
-        setPromoError(t('promo-invalid', 'Code promo invalide', 'رمز غير صالح'))
+        setPromoError(t('promo-invalid', 'Code promo invalide', 'رمز غير صالح', 'Invalid promo code'))
         setPromoCode(code)
         setPromoDiscount(0)
       }
@@ -377,29 +408,43 @@ export default function AlBazApp() {
 
   const placeOrder = useCallback(async () => {
     if (cart.length === 0) {
-      alert(t('cart-empty', 'Votre panier est vide', 'سلتك فارغة'))
+      alert(t('cart-empty', 'Votre panier est vide', 'سلتك فارغة', 'Your cart is empty'))
       return
     }
 
     if (!selectedStore) {
-      alert(t('store-required', 'Veuillez sélectionner un magasin', 'يرجى اختيار متجر'))
+      alert(t('store-required', 'Veuillez sélectionner un magasin', 'يرجى اختيار متجر', 'Please select a store'))
       return
     }
 
     const normalizedPhone = normalizeAlgerianPhone(customerPhone)
     if (!/^0[567]\d{8}$/.test(normalizedPhone)) {
-      alert(t('phone-invalid', 'Veuillez entrer un numéro de téléphone algérien valide (ex: 0555000000)', 'يرجى إدخال رقم هاتف جزائري صالح'))
+      alert(
+        t(
+          'phone-invalid',
+          'Veuillez entrer un numéro de téléphone algérien valide (ex: 0555000000)',
+          'يرجى إدخال رقم هاتف جزائري صالح',
+          'Please enter a valid Algerian phone number (e.g. 0555000000)',
+        ),
+      )
       return
     }
 
     if (!deliveryAddress || deliveryAddress.trim().length < 10) {
-      alert(t('address-required', 'Veuillez entrer une adresse de livraison (au moins 10 caractères)', 'يرجى إدخال عنوان التوصيل (10 أحرف على الأقل)'))
+      alert(
+        t(
+          'address-required',
+          'Veuillez entrer une adresse de livraison (au moins 10 caractères)',
+          'يرجى إدخال عنوان التوصيل (10 أحرف على الأقل)',
+          'Please enter a delivery address (at least 10 characters)',
+        ),
+      )
       return
     }
 
     const normalizedPaymentMethod = paymentMethod === 'wallet' ? 'WALLET' : paymentMethod === 'card' ? 'CARD' : 'CASH'
     if (normalizedPaymentMethod === 'WALLET' && walletBalance < total) {
-      alert(t('insufficient-balance', 'Solde insuffisant dans votre portefeuille', 'رصيد غير كافٍ في محفظتك'))
+      alert(t('insufficient-balance', 'Solde insuffisant dans votre portefeuille', 'رصيد غير كافٍ في محفظتك', 'Insufficient wallet balance'))
       return
     }
 
@@ -453,6 +498,11 @@ export default function AlBazApp() {
     handleResetSelections()
   }
 
+  const navigateTo = useCallback((page: PageView) => {
+    if (page === 'orders') setOrdersEntry('default')
+    setCurrentPage(page)
+  }, [])
+
   const handleOrderSelect = (order: Order) => {
     setOrderId(order.id)
     setCurrentOrder(order)
@@ -468,6 +518,9 @@ export default function AlBazApp() {
       if (e.key === 'Escape' && currentPage !== 'home') {
         if (currentPage === 'store' || currentPage === 'category') {
           handleGoHome()
+        }
+        if (currentPage === 'favorites') {
+          setCurrentPage('profile')
         }
       }
       // Ctrl/Cmd + K for search focus (if on home page)
@@ -485,7 +538,7 @@ export default function AlBazApp() {
     <div className="min-h-screen bg-background">
       {/* Skip link for keyboard navigation */}
       <a href="#main-content" className="skip-link">
-        {t('skip-to-content', 'Aller au contenu principal', 'انتقل إلى المحتوى الرئيسي')}
+        {t('skip-to-content', 'Aller au contenu principal', 'انتقل إلى المحتوى الرئيسي', 'Skip to main content')}
       </a>
       <main id="main-content">
         {currentPage === 'home' && (
@@ -499,7 +552,13 @@ export default function AlBazApp() {
               setCurrentPage('category')
             }}
             onPackageDelivery={() => router.push('/package-delivery')}
+            onOpenNotifications={() => {
+              setOrdersEntry('notifications')
+              setCurrentPage('orders')
+            }}
             selectedCity={selectedCity}
+            cityOptions={cityOptions}
+            onCityChange={setSelectedCity}
             isDarkMode={isDarkMode}
             onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
             onGoHome={handleGoHome}
@@ -533,6 +592,7 @@ export default function AlBazApp() {
             onBack={() => setCurrentPage('category')}
             addToCart={addToCart}
             t={t}
+            vendorProfile={vendorProfile}
           />
         )}
 
@@ -567,7 +627,13 @@ export default function AlBazApp() {
         )}
 
         {currentPage === 'orders' && (
-          <MyOrdersView customerId={customerId} onBack={handleGoHome} onOrderSelect={handleOrderSelect} t={t} />
+          <MyOrdersView
+            customerId={customerId}
+            onBack={handleGoHome}
+            onOrderSelect={handleOrderSelect}
+            ordersEntry={ordersEntry}
+            t={t}
+          />
         )}
 
         {currentPage === 'tracking' && (
@@ -581,6 +647,19 @@ export default function AlBazApp() {
             onSelectLanguage={setSelectedLanguage}
             onBackHome={handleGoHome}
             onSignOut={handleSignOut}
+            onOpenFavorites={() => setCurrentPage('favorites')}
+            t={t}
+          />
+        )}
+
+        {currentPage === 'favorites' && (
+          <FavoritesView
+            onBack={() => setCurrentPage('profile')}
+            onGoToStore={(storeId, categoryId) => {
+              setSelectedStore(storeId)
+              setSelectedCategory(categoryId)
+              setCurrentPage('store')
+            }}
             t={t}
           />
         )}
@@ -589,9 +668,10 @@ export default function AlBazApp() {
       <BottomNav
         currentPage={currentPage}
         cartItemCount={cartItemCount}
-        onNavigate={setCurrentPage}
+        onNavigate={navigateTo}
         onResetSelection={handleResetSelections}
         onSearchFocusRequest={() => setSearchFocusRequested(true)}
+        ordersBadgeCount={ordersUnreadBadge}
         t={t}
       />
     </div>

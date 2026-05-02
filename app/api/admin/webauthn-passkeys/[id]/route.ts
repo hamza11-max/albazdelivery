@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored from `apps/admin/app/api/admin/webauthn-passkeys/[id]/route.ts` for root deployment. */
 import { NextRequest } from 'next/server'
 import { auth } from '@/lib/auth'
@@ -31,7 +32,7 @@ export async function PATCH(
 
     const session = await auth()
     if (!session?.user?.id) throw new UnauthorizedError()
-    if (String(session.user.role).toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can moderate passkeys')
     }
 

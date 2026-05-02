@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored from `apps/admin/app/api/admin/refunds/route.ts` for root deployment. */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can list refunds')
     }
 
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can create refunds here')
     }
 

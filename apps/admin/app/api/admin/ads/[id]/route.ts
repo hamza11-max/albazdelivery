@@ -6,6 +6,7 @@ import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../../lib/audit'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const updateAdSchema = z.object({
   title: z.string().min(1).optional(),
@@ -33,7 +34,7 @@ export async function GET(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access ads')
     }
 
@@ -73,7 +74,7 @@ export async function PUT(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can update ads')
     }
 
@@ -162,7 +163,7 @@ export async function DELETE(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can delete ads')
     }
 

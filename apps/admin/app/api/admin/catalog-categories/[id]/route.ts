@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const patchCat = z.object({
   name: z.string().min(1).optional(),
@@ -27,7 +28,7 @@ export async function PATCH(
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins')
     const { id } = await context.params
     const nid = parseInt(id, 10)
     if (Number.isNaN(nid)) return errorResponse(new Error('Invalid id'), 400)
@@ -69,7 +70,7 @@ export async function DELETE(
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins')
     const { id } = await context.params
     const nid = parseInt(id, 10)
     if (Number.isNaN(nid)) return errorResponse(new Error('Invalid id'), 400)

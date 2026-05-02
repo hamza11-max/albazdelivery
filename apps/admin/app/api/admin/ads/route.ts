@@ -6,6 +6,7 @@ import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../lib/audit'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const adSchema = z.object({
   title: z.string().min(1, 'Title is required').optional(),
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access ads')
     }
 
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can create ads')
     }
 

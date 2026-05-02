@@ -5,6 +5,7 @@ import { RefundStatus } from '@/root/generated/prisma/client'
 import { successResponse, errorResponse, ForbiddenError, NotFoundError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { createRefundSchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can list refunds')
     }
 
@@ -92,7 +93,7 @@ export async function POST(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can create refunds here')
     }
 

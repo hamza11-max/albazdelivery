@@ -1,4 +1,4 @@
-# Cross-Platform UI Primitives
+npm# Cross-Platform UI Primitives
 
 Reusable components that mirror the **web design system** (apps/customer) so Expo UI matches the web while staying React Native–compatible.
 

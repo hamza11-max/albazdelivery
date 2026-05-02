@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /**
  * Admin read-only operational snapshot derived from DB + env (lightweight “dashboard feed”).
  */
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can view ops metrics')
     }
 

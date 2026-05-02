@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored from `apps/admin/.../orders/[orderId]/assign-driver/route.ts` for root deployment. */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
@@ -30,7 +31,7 @@ export async function POST(
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can assign drivers from this endpoint')
     }
 

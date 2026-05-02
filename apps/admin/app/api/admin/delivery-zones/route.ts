@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const zoneBodySchema = z.object({
   name: z.string().min(2).max(150),
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
   try {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can list zones')
     }
     const city = request.nextUrl.searchParams.get('city')
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins can create zones')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins can create zones')
     const data = zoneBodySchema.parse(await request.json())
     const zone = await prisma.deliveryZone.create({
       data: {

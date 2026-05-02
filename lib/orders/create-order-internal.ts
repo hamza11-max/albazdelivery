@@ -1,6 +1,7 @@
 import { prisma } from '@/root/lib/prisma'
 import { emitOrderCreated, emitNotificationSent } from '@/root/lib/events'
 import { logNotificationChannelPlan } from '@/lib/notifications/log-channel-plan'
+import { sendOrderPlacedCustomerEmail } from '@/root/lib/mail/notify-customer-transactional'
 import { OrderStatus } from '@/lib/constants'
 import type { OrderSource, PaymentMethod } from '@/generated/prisma/client'
 
@@ -90,7 +91,7 @@ export async function createOrderInternal(params: CreateOrderInternalInput) {
     },
     include: {
       items: { include: { product: true } },
-      customer: { select: { id: true, name: true, phone: true } },
+      customer: { select: { id: true, name: true, phone: true, email: true } },
       store: { select: { id: true, name: true, address: true } },
     },
   })
@@ -114,6 +115,19 @@ export async function createOrderInternal(params: CreateOrderInternalInput) {
     orderId: order.id,
     notificationId: vendorNotification.id,
   })
+
+  try {
+    const mailResult = await sendOrderPlacedCustomerEmail({
+      to: order.customer.email,
+      name: order.customer.name,
+      orderId: order.id,
+    })
+    if (mailResult.ok === false) {
+      console.error('[createOrderInternal] order_placed email failed', mailResult.error)
+    }
+  } catch (e) {
+    console.error('[createOrderInternal] order_placed email error', e)
+  }
 
   if (params.paymentMethod !== 'CASH') {
     await prisma.payment.create({

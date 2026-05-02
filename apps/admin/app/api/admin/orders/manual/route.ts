@@ -7,7 +7,9 @@ import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../../lib/csrf'
 import { createOrderSchema } from '@/root/lib/validations/order'
 import { emitOrderCreated } from '@/root/lib/events'
+import { sendOrderPlacedCustomerEmail } from '@/root/lib/mail/notify-customer-transactional'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const manualSchema = createOrderSchema.extend({
   customerId: z.string().cuid('Invalid customer ID'),
@@ -27,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can create manual orders')
     }
 
@@ -91,6 +93,19 @@ export async function POST(request: NextRequest) {
     })
 
     emitOrderCreated(order)
+
+    try {
+      const mailResult = await sendOrderPlacedCustomerEmail({
+        to: customer.email,
+        name: customer.name,
+        orderId: order.id,
+      })
+      if (mailResult.ok === false) {
+        console.error('[admin/manual-order] order_placed email failed', mailResult.error)
+      }
+    } catch (e) {
+      console.error('[admin/manual-order] order_placed email error', e)
+    }
 
     const pointsToAward = Math.floor(total * 0.05)
     if (pointsToAward > 0) {

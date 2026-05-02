@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { OrderStatus } from '@/root/generated/prisma/client'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const ACTIVE_ORDER_STATUSES: OrderStatus[] = [
   OrderStatus.PENDING,
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access analytics')
     }
 

@@ -29,7 +29,7 @@ export interface QueryResult<T> {
 }
 
 // Common types
-export type UserRole = "customer" | "vendor" | "driver" | "admin"
+export type UserRole = "customer" | "vendor" | "driver" | "admin" | "super_admin" | "support"
 import { OrderStatus } from './types/order'
 export type { OrderStatus }
 export type PaymentMethod = "cash" | "card" | "wallet"
@@ -38,7 +38,7 @@ export type ApprovalStatus = "pending" | "approved" | "rejected"
 
 export type MembershipTier = "bronze" | "silver" | "gold" | "platinum"
 
-export type ChatParticipantRole = "customer" | "vendor" | "driver" | "admin"
+export type ChatParticipantRole = "customer" | "vendor" | "driver" | "admin" | "super_admin" | "support"
 export type TicketStatus = "open" | "in_progress" | "resolved" | "closed"
 export type TicketPriority = "low" | "medium" | "high" | "urgent"
 

@@ -29,7 +29,10 @@ import {
   UserX,
   Globe,
   KeyRound,
+  LifeBuoy,
 } from "lucide-react"
+import { canAccessAdminApp, isSupportAgent } from "@/lib/admin-roles"
+import { AdminSupportTicketsView } from "./components/AdminSupportTicketsView"
 import type { Order, User as UserType, RegistrationRequest } from "@/lib/types"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { SubscriptionsView } from "./components/SubscriptionsView"
@@ -51,6 +54,7 @@ export default function AdminPanel() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const user = session?.user
+  const isSupportAgentUser = isSupportAgent(user?.role)
   const isAuthenticated = status === "authenticated"
   const [language, setLanguage] = useState("fr")
   const [mounted, setMounted] = useState(false)
@@ -106,7 +110,7 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (status === "loading") return
-    if (!isAuthenticated || user?.role !== "ADMIN") {
+    if (!isAuthenticated || !canAccessAdminApp(user?.role)) {
       router.push("/login")
     }
   }, [status, isAuthenticated, user, router])
@@ -145,11 +149,16 @@ export default function AdminPanel() {
   }, [language, mounted])
 
   useEffect(() => {
+    if (status === "loading" || !isAuthenticated || !user) return
+    if (isSupportAgentUser) {
+      fetchOrders()
+      return
+    }
     fetchOrders()
     fetchUsers()
     fetchRegistrationRequests()
     fetchAds()
-  }, [])
+  }, [status, isAuthenticated, user, isSupportAgentUser])
 
   const fetchAds = async () => {
     try {
@@ -363,11 +372,16 @@ export default function AdminPanel() {
               }}
             />
             <div>
-              <h1 className="text-lg font-bold">Panneau d'Administration</h1>
-              <p className="text-xs text-white/80">AL-baz Delivery</p>
+              <h1 className="text-lg font-bold">
+                {isSupportAgentUser ? "Support — Administration" : "Panneau d'Administration"}
+              </h1>
+              <p className="text-xs text-white/80">
+                {isSupportAgentUser ? "AL-baz · file support" : "AL-baz Delivery"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!isSupportAgentUser ? (
             <Button
               variant="ghost"
               size="sm"
@@ -378,6 +392,7 @@ export default function AdminPanel() {
               <KeyRound className="w-4 h-4 mr-1" />
               Passkeys
             </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
@@ -404,9 +419,11 @@ export default function AdminPanel() {
     </header>
   )
 
-  const DashboardView = () => (
+  const DashboardView = ({ supportMode = false }: { supportMode?: boolean } = {}) => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${supportMode ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}
+      >
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -421,6 +438,7 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
 
+        {!supportMode ? (
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -435,6 +453,7 @@ export default function AdminPanel() {
             </div>
           </CardContent>
         </Card>
+        ) : null}
 
         <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
           <CardContent className="p-6">
@@ -465,6 +484,7 @@ export default function AdminPanel() {
         </Card>
       </div>
 
+      {!supportMode ? (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-3">
@@ -505,10 +525,11 @@ export default function AdminPanel() {
           </CardContent>
         </Card>
       </div>
+      ) : null}
 
       <Card>
         <CardHeader>
-          <CardTitle>Commandes Récentes</CardTitle>
+          <CardTitle>{supportMode ? "Commandes récentes (lecture seule)" : "Commandes Récentes"}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -544,6 +565,96 @@ export default function AdminPanel() {
       </Card>
     </div>
   )
+
+  /** Support desk only — same SLA triage as `apps/admin`; no cash surveillance. */
+  const SupportCommandCenterView = () => (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Badge variant="secondary">SLA</Badge>
+            Command Center
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Vue rapide des commandes à risque (SLA). Lecture seule — pas d&apos;actions financières.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-3">
+            <h4 className="font-semibold">Commandes en risque SLA (&gt; 30 min)</h4>
+            {orders
+              .filter((o) => {
+                const riskyStatus = ["PENDING", "ACCEPTED", "PREPARING"]
+                const age = Date.now() - new Date(o.createdAt || Date.now()).getTime()
+                return riskyStatus.includes((o.status || "").toUpperCase()) && age > 30 * 60 * 1000
+              })
+              .slice(0, 12)
+              .map((o) => (
+                <div
+                  key={o.id}
+                  className="flex items-center justify-between rounded-lg border border-amber-200/70 bg-amber-50 px-3 py-2 text-amber-900"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm">#{o.id}</span>
+                      <Badge variant="outline">{o.status}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Client: {(o as any).customer?.name || "N/A"} • Tel:{" "}
+                      {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Créé: {new Date(o.createdAt || Date.now()).toLocaleString("fr-FR")}
+                    </p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="text-sm font-semibold">{o.total} DZD</p>
+                    <p className="text-xs text-muted-foreground">Ville: {(o as any).city || "N/A"}</p>
+                  </div>
+                </div>
+              ))}
+            {orders.length === 0 && (
+              <p className="text-sm text-muted-foreground">Aucune commande disponible</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+
+  if (isSupportAgentUser) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <Tabs defaultValue="dashboard" className="space-y-6">
+            <TabsList className="grid w-full max-w-2xl grid-cols-3">
+              <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
+              <TabsTrigger value="command-center">Command Center</TabsTrigger>
+              <TabsTrigger value="support">
+                <span className="inline-flex items-center gap-1.5">
+                  <LifeBuoy className="h-4 w-4 shrink-0" />
+                  Support
+                </span>
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="dashboard">
+              <DashboardView supportMode />
+            </TabsContent>
+
+            <TabsContent value="command-center">
+              <SupportCommandCenterView />
+            </TabsContent>
+
+            <TabsContent value="support">
+              <AdminSupportTicketsView />
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+    )
+  }
 
   const CustomersView = () => (
     <div className="space-y-4">

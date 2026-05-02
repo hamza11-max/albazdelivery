@@ -16,6 +16,8 @@ export interface StoreDefinition {
   rating: number
   deliveryTime: string
   categoryId: number
+  /** Vendor storefront hero / logo (from API), optional */
+  coverImage?: string | null
 }
 
 export interface ProductDefinition {
@@ -176,5 +178,5 @@ export const products: ProductDefinition[] = [
   },
 ]
 
-export const cities = ['Alger', 'Ouargla', 'Ghardaïa', 'Tamanrasset']
+export { cities, CUSTOMER_DELIVERY_CITIES } from './cities'
 

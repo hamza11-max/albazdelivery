@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const patchSchema = z.object({
   name: z.string().min(2).max(150).optional(),
@@ -29,7 +30,7 @@ export async function PATCH(
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins can update zones')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins can update zones')
     const { id } = await context.params
     const parsed = patchSchema.safeParse(await request.json())
     if (!parsed.success) return errorResponse(new Error(parsed.error.message), 400)
@@ -64,7 +65,7 @@ export async function DELETE(
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins can delete zones')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins can delete zones')
     const { id } = await context.params
     const zone = await prisma.deliveryZone.findUnique({ where: { id } })
     if (!zone) throw new NotFoundError('Delivery zone')

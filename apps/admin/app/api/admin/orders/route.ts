@@ -3,7 +3,7 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
-import { adminOrdersSchema } from '@/root/lib/validations/api'
+import { canViewAllOrdersAsStaff } from '@/root/lib/admin-roles'
 import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
-      throw new ForbiddenError('Only admins can access all orders')
+    if (!canViewAllOrdersAsStaff(session.user.role)) {
+      throw new ForbiddenError('Only staff can access all orders')
     }
 
     const searchParams = request.nextUrl.searchParams

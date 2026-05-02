@@ -7,6 +7,7 @@ import { csrfProtection } from '../../../../../../lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../../../lib/audit'
 import { notifyUserUnsuspended } from '@/root/lib/mail/adminUserNotifications'
 import { notificationEmailStatus } from '@/root/lib/mail/sendTransactionalEmail'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 // POST /api/admin/users/[id]/unsuspend - Unsuspend/activate user account
 export async function POST(
@@ -27,7 +28,7 @@ export async function POST(
       throw new UnauthorizedError()
     }
 
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can perform this action')
     }
 

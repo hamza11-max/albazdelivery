@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const analyticsQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access analytics')
     }
 

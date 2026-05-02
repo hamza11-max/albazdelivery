@@ -10,9 +10,17 @@ interface AdminHeaderProps {
   setLanguage: (lang: string) => void
   isDarkMode: boolean
   setIsDarkMode: (dark: boolean) => void
+  /** Support desk agents use a restricted shell — lighter chrome; no passkeys shortcut. */
+  supportDesk?: boolean
 }
 
-export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }: AdminHeaderProps) {
+export function AdminHeader({
+  language,
+  setLanguage,
+  isDarkMode,
+  setIsDarkMode,
+  supportDesk = false,
+}: AdminHeaderProps) {
   return (
     <header className="sticky top-0 z-50 albaz-nav">
       <div className="container mx-auto px-4 py-4">
@@ -22,17 +30,23 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }
               (e.target as HTMLImageElement).style.display = 'none'
             }} />
             <div>
-              <h1 className="text-lg font-bold text-[var(--albaz-text)] dark:text-white">Panneau d'Administration</h1>
-              <p className="text-xs text-[var(--albaz-text-soft)] dark:text-white/80">AL-baz Delivery</p>
+              <h1 className="text-lg font-bold text-[var(--albaz-text)] dark:text-white">
+                {supportDesk ? "Support — Administration" : "Panneau d'Administration"}
+              </h1>
+              <p className="text-xs text-[var(--albaz-text-soft)] dark:text-white/80">
+                {supportDesk ? "AL-baz · file support" : "AL-baz Delivery"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" asChild>
-              <Link href="/admin/passkeys" title="Passkeys générées">
-                <KeyRound className="w-4 h-4 mr-1.5" />
-                Passkeys
-              </Link>
-            </Button>
+            {!supportDesk ? (
+              <Button variant="ghost" size="sm" className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" asChild>
+                <Link href="/admin/passkeys" title="Passkeys générées">
+                  <KeyRound className="w-4 h-4 mr-1.5" />
+                  Passkeys
+                </Link>
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"

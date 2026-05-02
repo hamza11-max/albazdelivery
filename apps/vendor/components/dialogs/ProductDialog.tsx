@@ -125,7 +125,7 @@ export function ProductDialog({
               ) : (
                 <Input
                   type="url"
-                  placeholder="https://exemple.com/produit.jpg ou /placeholder.jpg"
+                  placeholder="https://exemple.com/produit.jpg ou /placeholder.svg"
                   value={productForm.image}
                   onChange={(e) => onFormChange({ ...productForm, image: e.target.value })}
                 />
@@ -156,7 +156,7 @@ export function ProductDialog({
                   alt={translate("Aperçu", "معاينة")}
                   className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/placeholder.jpg'
+                    (e.target as HTMLImageElement).src = '/placeholder.svg'
                   }}
                 />
               </div>

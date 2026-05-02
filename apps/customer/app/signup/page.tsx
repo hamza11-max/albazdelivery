@@ -4,17 +4,34 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, useToast } from "@albaz/ui"
+import {
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useToast,
+} from "@albaz/ui"
 import { Users, Truck, Store, ArrowLeft } from "lucide-react"
+import { useProfileI18n } from "../../hooks/use-profile-i18n"
 
 // Force dynamic rendering to avoid static generation issues
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
 type UserRole = "customer" | "driver" | "vendor"
 
 export default function SignUpPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const t = useProfileI18n()
   const [step, setStep] = useState<"role" | "form">("role")
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null)
 
@@ -29,6 +46,13 @@ export default function SignUpPage() {
   const [photoUrl, setPhotoUrl] = useState("")
   const [shopType, setShopType] = useState("")
 
+  const roleLabel =
+    selectedRole === "customer"
+      ? t("signup-role-customer", "Client", "عميل", "Customer")
+      : selectedRole === "driver"
+        ? t("signup-role-driver", "Livreur", "سائق توصيل", "Driver")
+        : t("signup-role-vendor", "Vendeur", "بائع", "Vendor")
+
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role)
     setStep("form")
@@ -37,11 +61,15 @@ export default function SignUpPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation
     if (password !== confirmPassword) {
       toast({
-        title: "Erreur",
-        description: "Les mots de passe ne correspondent pas",
+        title: t("signup-toast-error-title", "Erreur", "خطأ", "Error"),
+        description: t(
+          "signup-password-mismatch",
+          "Les mots de passe ne correspondent pas",
+          "كلمتا المرور غير متطابقتين",
+          "Passwords do not match",
+        ),
         variant: "destructive",
       })
       return
@@ -49,14 +77,18 @@ export default function SignUpPage() {
 
     if (selectedRole === "vendor" && !shopType) {
       toast({
-        title: "Erreur",
-        description: "Veuillez sélectionner un type de magasin",
+        title: t("signup-toast-error-title", "Erreur", "خطأ", "Error"),
+        description: t(
+          "signup-shop-type-required",
+          "Veuillez sélectionner un type de magasin",
+          "يُرجى اختيار نوع المتجر",
+          "Please select a store type",
+        ),
         variant: "destructive",
       })
       return
     }
 
-    // Normalize payload for API
     const normalizePhone = (p: string) => {
       const digits = p.replace(/\D/g, "")
       if (digits.startsWith("213")) {
@@ -66,7 +98,6 @@ export default function SignUpPage() {
       return digits.startsWith("0") ? digits : p
     }
 
-    // Submit registration request
     try {
       const response = await fetch("/api/auth/register", {
         method: "POST",
@@ -88,19 +119,41 @@ export default function SignUpPage() {
 
       if (data.success) {
         toast({
-          title: "Demande envoyée",
-          description:
+          title: t("signup-toast-sent-title", "Demande envoyée", "تم إرسال الطلب", "Request sent"),
+          description: t(
+            "signup-toast-sent-desc",
             "Votre demande d'inscription est en cours d'examen. Vous recevrez une notification une fois approuvée.",
+            "طلب التسجيل قيد المراجعة. سيتم إشعارك عند الموافقة.",
+            "Your registration is under review. You will be notified once it is approved.",
+          ),
         })
         router.push("/login")
       } else {
-        const message = typeof data.error === "string" ? data.error : data.error?.message || "Une erreur s'est produite"
-        toast({ title: "Erreur", description: message, variant: "destructive" })
+        const message =
+          typeof data.error === "string"
+            ? data.error
+            : data.error?.message ||
+              t(
+                "signup-generic-error",
+                "Une erreur s'est produite",
+                "حدث خطأ",
+                "Something went wrong",
+              )
+        toast({
+          title: t("signup-toast-error-title", "Erreur", "خطأ", "Error"),
+          description: message,
+          variant: "destructive",
+        })
       }
     } catch {
       toast({
-        title: "Erreur",
-        description: "Impossible de soumettre la demande",
+        title: t("signup-toast-error-title", "Erreur", "خطأ", "Error"),
+        description: t(
+          "signup-submit-failed",
+          "Impossible de soumettre la demande",
+          "تعذّر إرسال الطلب",
+          "Could not submit the request",
+        ),
         variant: "destructive",
       })
     }
@@ -111,22 +164,33 @@ export default function SignUpPage() {
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <img src="/logo.png" alt="ALBAZ FAST DELIVERY" className="h-32 w-auto" />
+            <img
+              src="/logo.png"
+              alt={t("signup-logo-alt", "ALBAZ FAST DELIVERY", "اللباز توصيل سريع", "ALBAZ FAST DELIVERY")}
+              className="h-32 w-auto"
+            />
           </div>
           <CardTitle className="text-2xl font-bold">
-            {step === "role" ? "Choisissez votre rôle" : "Créer un compte"}
+            {step === "role"
+              ? t("signup-title-role", "Choisissez votre rôle", "اختر دورك", "Choose your role")
+              : t("signup-title-form", "Créer un compte", "إنشاء حساب", "Create an account")}
           </CardTitle>
           <CardDescription>
             {step === "role"
-              ? "Sélectionnez le type de compte que vous souhaitez créer"
-              : `Inscription en tant que ${selectedRole === "customer" ? "Client" : selectedRole === "driver" ? "Livreur" : "Vendeur"}`}
+              ? t(
+                  "signup-desc-role",
+                  "Sélectionnez le type de compte que vous souhaitez créer",
+                  "اختر نوع الحساب الذي تريد إنشاءه",
+                  "Select the account type you want to create",
+                )
+              : `${t("signup-registering-as", "Inscription en tant que", "التسجيل كـ", "Registering as")} ${roleLabel}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {step === "role" ? (
-            // Role selection
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button
+                type="button"
                 onClick={() => handleRoleSelect("customer")}
                 className="p-6 border-2 border-muted rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
               >
@@ -134,12 +198,22 @@ export default function SignUpPage() {
                   <div className="w-16 h-16 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
                     <Users className="w-8 h-8 text-primary" />
                   </div>
-                  <h3 className="font-bold text-lg">Client</h3>
-                  <p className="text-sm text-muted-foreground text-center">Commander des produits et services</p>
+                  <h3 className="font-bold text-lg">
+                    {t("signup-role-customer", "Client", "عميل", "Customer")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground text-center">
+                    {t(
+                      "signup-role-customer-desc",
+                      "Commander des produits et services",
+                      "طلب المنتجات والخدمات",
+                      "Order products and services",
+                    )}
+                  </p>
                 </div>
               </button>
 
               <button
+                type="button"
                 onClick={() => handleRoleSelect("driver")}
                 className="p-6 border-2 border-muted rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
               >
@@ -147,12 +221,22 @@ export default function SignUpPage() {
                   <div className="w-16 h-16 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
                     <Truck className="w-8 h-8 text-primary" />
                   </div>
-                  <h3 className="font-bold text-lg">Livreur</h3>
-                  <p className="text-sm text-muted-foreground text-center">Livrer des commandes aux clients</p>
+                  <h3 className="font-bold text-lg">
+                    {t("signup-role-driver", "Livreur", "سائق توصيل", "Driver")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground text-center">
+                    {t(
+                      "signup-role-driver-desc",
+                      "Livrer des commandes aux clients",
+                      "توصيل الطلبات للعملاء",
+                      "Deliver orders to customers",
+                    )}
+                  </p>
                 </div>
               </button>
 
               <button
+                type="button"
                 onClick={() => handleRoleSelect("vendor")}
                 className="p-6 border-2 border-muted rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
               >
@@ -160,27 +244,42 @@ export default function SignUpPage() {
                   <div className="w-16 h-16 rounded-full bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors">
                     <Store className="w-8 h-8 text-primary" />
                   </div>
-                  <h3 className="font-bold text-lg">Vendeur</h3>
-                  <p className="text-sm text-muted-foreground text-center">Vendre vos produits en ligne</p>
+                  <h3 className="font-bold text-lg">
+                    {t("signup-role-vendor", "Vendeur", "بائع", "Vendor")}
+                  </h3>
+                  <p className="text-sm text-muted-foreground text-center">
+                    {t(
+                      "signup-role-vendor-desc",
+                      "Vendre vos produits en ligne",
+                      "بيع منتجاتك عبر الإنترنت",
+                      "Sell your products online",
+                    )}
+                  </p>
                 </div>
               </button>
             </div>
           ) : (
-            // Registration form
             <form onSubmit={handleSubmit} className="space-y-4">
               <Button type="button" variant="ghost" onClick={() => setStep("role")} className="mb-4">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour
+                {t("signup-back", "Retour", "رجوع", "Back")}
               </Button>
 
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  {selectedRole === "vendor" ? "Nom complet / Nom de l'entreprise" : "Nom complet"}
+                  {selectedRole === "vendor"
+                    ? t(
+                        "signup-label-name-vendor",
+                        "Nom complet / Nom de l'entreprise",
+                        "الاسم الكامل / اسم الشركة",
+                        "Full name / Business name",
+                      )
+                    : t("signup-label-name", "Nom complet", "الاسم الكامل", "Full name")}
                 </Label>
                 <Input
                   id="name"
                   type="text"
-                  placeholder="Votre nom"
+                  placeholder={t("signup-ph-name", "Votre nom", "اسمك", "Your name")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -188,11 +287,18 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Numéro de téléphone</Label>
+                <Label htmlFor="phone">
+                  {t("signup-label-phone", "Numéro de téléphone", "رقم الهاتف", "Phone number")}
+                </Label>
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="+213 555 123 456"
+                  placeholder={t(
+                    "signup-ph-phone",
+                    "+213 555 123 456",
+                    "+213 555 123 456",
+                    "+213 555 123 456",
+                  )}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   required
@@ -200,11 +306,18 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Adresse email</Label>
+                <Label htmlFor="email">
+                  {t("signup-label-email", "Adresse email", "البريد الإلكتروني", "Email address")}
+                </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="votre@email.com"
+                  placeholder={t(
+                    "signup-ph-email",
+                    "votre@email.com",
+                    "بريدك@example.com",
+                    "you@example.com",
+                  )}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -212,11 +325,13 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
+                <Label htmlFor="password">
+                  {t("signup-label-password", "Mot de passe", "كلمة المرور", "Password")}
+                </Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t("signup-ph-password", "••••••••", "••••••••", "••••••••")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -224,11 +339,13 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                <Label htmlFor="confirmPassword">
+                  {t("signup-label-confirm-password", "Confirmer le mot de passe", "تأكيد كلمة المرور", "Confirm password")}
+                </Label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder={t("signup-ph-password", "••••••••", "••••••••", "••••••••")}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -238,11 +355,13 @@ export default function SignUpPage() {
               {selectedRole === "driver" && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="license">Numéro de permis de conduire</Label>
+                    <Label htmlFor="license">
+                      {t("signup-label-license", "Numéro de permis de conduire", "رقم رخصة القيادة", "Driver license number")}
+                    </Label>
                     <Input
                       id="license"
                       type="text"
-                      placeholder="ABC123456"
+                      placeholder={t("signup-ph-license", "ABC123456", "ABC123456", "ABC123456")}
                       value={licenseNumber}
                       onChange={(e) => setLicenseNumber(e.target.value)}
                       required
@@ -250,30 +369,61 @@ export default function SignUpPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="vehicleType">Type de véhicule</Label>
+                    <Label htmlFor="vehicleType">
+                      {t("signup-label-vehicle", "Type de véhicule", "نوع المركبة", "Vehicle type")}
+                    </Label>
                     <Select value={vehicleType} onValueChange={setVehicleType} required>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez un type" />
+                        <SelectValue
+                          placeholder={t(
+                            "signup-select-vehicle-placeholder",
+                            "Sélectionnez un type",
+                            "اختر النوع",
+                            "Select a type",
+                          )}
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="motorcycle">Moto / Scooter</SelectItem>
-                        <SelectItem value="car">Voiture</SelectItem>
-                        <SelectItem value="van">Camionnette</SelectItem>
-                        <SelectItem value="bicycle">Vélo</SelectItem>
+                        <SelectItem value="motorcycle">
+                          {t("signup-vehicle-motorcycle", "Moto / Scooter", "دراجة نارية / سكوتر", "Motorcycle / Scooter")}
+                        </SelectItem>
+                        <SelectItem value="car">
+                          {t("signup-vehicle-car", "Voiture", "سيارة", "Car")}
+                        </SelectItem>
+                        <SelectItem value="van">
+                          {t("signup-vehicle-van", "Camionnette", "شاحنة صغيرة", "Van")}
+                        </SelectItem>
+                        <SelectItem value="bicycle">
+                          {t("signup-vehicle-bicycle", "Vélo", "دراجة", "Bicycle")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="photo">Photo du véhicule (URL)</Label>
+                    <Label htmlFor="photo">
+                      {t("signup-label-photo-vehicle", "Photo du véhicule (URL)", "صورة المركبة (رابط)", "Vehicle photo (URL)")}
+                    </Label>
                     <Input
                       id="photo"
                       type="url"
-                      placeholder="https://exemple.com/photo-vehicule.jpg"
+                      placeholder={t(
+                        "signup-ph-photo-url",
+                        "https://exemple.com/photo-vehicule.jpg",
+                        "https://example.com/vehicle.jpg",
+                        "https://example.com/vehicle.jpg",
+                      )}
                       value={photoUrl}
                       onChange={(e) => setPhotoUrl(e.target.value)}
                     />
-                    <p className="text-xs text-muted-foreground">Fournissez une URL de votre véhicule (optionnel)</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        "signup-hint-photo-vehicle",
+                        "Fournissez une URL de votre véhicule (optionnel)",
+                        "أدخل رابط صورة مركبتك (اختياري)",
+                        "Provide a URL of your vehicle (optional)",
+                      )}
+                    </p>
                   </div>
                 </>
               )}
@@ -281,40 +431,86 @@ export default function SignUpPage() {
               {selectedRole === "vendor" && (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="shopType">Type de magasin</Label>
+                    <Label htmlFor="shopType">
+                      {t("signup-label-shop-type", "Type de magasin", "نوع المتجر", "Store type")}
+                    </Label>
                     <Select value={shopType} onValueChange={setShopType} required>
                       <SelectTrigger>
-                        <SelectValue placeholder="Sélectionnez un type" />
+                        <SelectValue
+                          placeholder={t(
+                            "signup-select-shop-placeholder",
+                            "Sélectionnez un type",
+                            "اختر النوع",
+                            "Select a type",
+                          )}
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Restaurant">Restaurant / Plats préparés</SelectItem>
-                        <SelectItem value="Épicerie">Épicerie</SelectItem>
-                        <SelectItem value="Parapharmacie">Parapharmacie & Beauté</SelectItem>
-                        <SelectItem value="Cadeaux">Boutique de cadeaux</SelectItem>
-                        <SelectItem value="Boulangerie">Boulangerie / Pâtisserie</SelectItem>
-                        <SelectItem value="Café">Café / Salon de thé</SelectItem>
-                        <SelectItem value="Fast-food">Fast-food</SelectItem>
-                        <SelectItem value="Autre">Autre</SelectItem>
+                        <SelectItem value="Restaurant">
+                          {t("signup-shop-restaurant", "Restaurant / Plats préparés", "مطعم / وجبات جاهزة", "Restaurant / Prepared food")}
+                        </SelectItem>
+                        <SelectItem value="Épicerie">
+                          {t("signup-shop-grocery", "Épicerie", "بقالة", "Grocery")}
+                        </SelectItem>
+                        <SelectItem value="Parapharmacie">
+                          {t("signup-shop-parapharmacy", "Parapharmacie & Beauté", "مستحضرات تجميل وعناية", "Parapharmacy & beauty")}
+                        </SelectItem>
+                        <SelectItem value="Cadeaux">
+                          {t("signup-shop-gifts", "Boutique de cadeaux", "هدايا", "Gift shop")}
+                        </SelectItem>
+                        <SelectItem value="Boulangerie">
+                          {t("signup-shop-bakery", "Boulangerie / Pâtisserie", "مخبزة / حلويات", "Bakery / Pastry")}
+                        </SelectItem>
+                        <SelectItem value="Café">
+                          {t("signup-shop-cafe", "Café / Salon de thé", "مقهى / صالون شاي", "Café / Tea room")}
+                        </SelectItem>
+                        <SelectItem value="Fast-food">
+                          {t("signup-shop-fastfood", "Fast-food", "وجبات سريعة", "Fast food")}
+                        </SelectItem>
+                        <SelectItem value="Autre">
+                          {t("signup-shop-other", "Autre", "أخرى", "Other")}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="photo">Logo du magasin (URL)</Label>
+                    <Label htmlFor="photo-vendor">
+                      {t("signup-label-logo", "Logo du magasin (URL)", "شعار المتجر (رابط)", "Store logo (URL)")}
+                    </Label>
                     <Input
-                      id="photo"
+                      id="photo-vendor"
                       type="url"
-                      placeholder="https://exemple.com/logo-magasin.jpg"
+                      placeholder={t(
+                        "signup-ph-logo-url",
+                        "https://exemple.com/logo-magasin.jpg",
+                        "https://example.com/logo.jpg",
+                        "https://example.com/logo.jpg",
+                      )}
                       value={photoUrl}
                       onChange={(e) => setPhotoUrl(e.target.value)}
                     />
-                    <p className="text-xs text-muted-foreground">Fournissez une URL du logo de votre magasin (optionnel)</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t(
+                        "signup-hint-logo",
+                        "Fournissez une URL du logo de votre magasin (optionnel)",
+                        "أدخل رابط شعار متجرك (اختياري)",
+                        "Provide a URL for your store logo (optional)",
+                      )}
+                    </p>
                   </div>
                 </>
               )}
 
               <Button type="submit" className="w-full bg-gradient-to-r from-primary to-orange-500 text-white">
-                {selectedRole === "customer" ? "Créer un compte" : "Soumettre pour approbation"}
+                {selectedRole === "customer"
+                  ? t("signup-submit-customer", "Créer un compte", "إنشاء حساب", "Create account")
+                  : t(
+                      "signup-submit-approval",
+                      "Soumettre pour approbation",
+                      "إرسال للمراجعة",
+                      "Submit for approval",
+                    )}
               </Button>
             </form>
           )}
@@ -325,7 +521,12 @@ export default function SignUpPage() {
               onClick={() => router.push("/login")}
               className="text-sm text-primary hover:underline"
             >
-              Vous avez déjà un compte? Se connecter
+              {t(
+                "signup-has-account",
+                "Vous avez déjà un compte? Se connecter",
+                "لديك حساب بالفعل؟ تسجيل الدخول",
+                "Already have an account? Sign in",
+              )}
             </button>
           </div>
         </CardContent>

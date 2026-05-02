@@ -3,6 +3,7 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 // GET /api/admin/users - Get all users (admin only)
 export async function GET(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
@@ -33,7 +34,10 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100) // Max 100 per page
 
     // Validate role if provided
-    if (role && !['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN'].includes(role.toUpperCase())) {
+    if (
+      role &&
+      !['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(role.toUpperCase())
+    ) {
       return errorResponse(new Error('Invalid role'), 400)
     }
 

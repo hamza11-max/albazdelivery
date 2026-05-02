@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { csrfProtection } from '../../../admin/lib/csrf'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 // GET /api/admin/ads - Get all ads (admin only)
 export async function GET(request: NextRequest) {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can create ads')
     }
 

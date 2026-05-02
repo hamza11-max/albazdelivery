@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { hashPassword } from '@/lib/password'
 import { csrfProtection } from '../../../admin/lib/csrf'
+import { isFullAdmin, isSuperAdmin } from '@/root/lib/admin-roles'
 
 // GET /api/admin/users - Get all users (admin only)
 export async function GET(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
@@ -33,7 +34,10 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100) // Max 100 per page
 
     // Validate role if provided
-    if (role && !['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN'].includes(role.toUpperCase())) {
+    if (
+      role &&
+      !['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(role.toUpperCase())
+    ) {
       return errorResponse(new Error('Invalid role'), 400)
     }
 
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user) {
       throw new UnauthorizedError()
     }
-    if (String(session.user?.role || '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user?.role)) {
       throw new ForbiddenError('Only admins can create users')
     }
 
@@ -114,6 +118,11 @@ export async function POST(request: NextRequest) {
 
     if (!name || !email || !phone || !password) {
       throw new ValidationError('name, email, phone and password are required')
+    }
+
+    const reqRole = String(role || 'VENDOR').toUpperCase()
+    if (['ADMIN', 'SUPER_ADMIN', 'SUPPORT'].includes(reqRole) && !isSuperAdmin(session.user?.role)) {
+      throw new ForbiddenError('Only super admins can create platform staff accounts')
     }
 
     const emailLower = String(email).toLowerCase().trim()
@@ -138,7 +147,7 @@ export async function POST(request: NextRequest) {
           email: emailLower,
           phone: phoneTrim,
           password: hashedPassword,
-          role: (String(role).toUpperCase() || 'VENDOR') as 'VENDOR',
+          role: reqRole as any,
           status: 'APPROVED',
           shopType: shopType || null,
           address: address || null,

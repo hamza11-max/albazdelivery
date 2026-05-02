@@ -4,6 +4,7 @@ import { prisma } from "@/root/lib/prisma"
 import { errorResponse, ForbiddenError, UnauthorizedError, ValidationError, successResponse } from "@/root/lib/errors"
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { isWebAuthnPasskeysEnabled } from "@/root/lib/webauthn/feature"
+import { isFullAdmin } from "@/root/lib/admin-roles"
 import { csrfProtection } from "@/lib/csrf"
 import { logPasskeyAuditEvent } from "@/root/lib/webauthn/audit"
 
@@ -24,7 +25,7 @@ export async function PATCH(
 
     const session = await auth()
     if (!session?.user?.id) throw new UnauthorizedError()
-    if (String(session.user.role).toUpperCase() !== "ADMIN") {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError("Only admins can moderate passkeys")
     }
 

@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const patchPromo = z.object({
   discountType: z.enum(['percent', 'fixed']).optional(),
@@ -27,7 +28,7 @@ export async function PATCH(
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins')
     const { id } = await context.params
     const parsed = patchPromo.safeParse(await request.json())
     if (!parsed.success) return errorResponse(new Error(parsed.error.message), 400)

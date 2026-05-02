@@ -5,7 +5,7 @@
 - Harden quality, security, and observability to reduce launch risk.
 - Enable early growth levers (promos, referrals, lifecycle messaging) without compromising stability.
 
-## Now (Weeks 1-2) — Launch-Blocking Must-Haves
+## Now (Weeks 1-2) —Launch-Blocking Must-Haves 
 - **Customer**
   - Stripe checkout with 3DS/SCA, decline handling, and retry surface.
   - Address validation + delivery-area enforcement; clear ETA and live status.

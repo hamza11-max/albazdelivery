@@ -5,6 +5,7 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../lib/csrf'
 import { z } from 'zod'
+import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const promoPost = z.object({
   code: z.string().min(2).max(40).regex(/^[A-Z0-9\-]+$/i),
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest) {
   try {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
-    if (!session?.user || session.user.role !== 'ADMIN') {
+    if (!session?.user || !isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can list promo codes')
     }
     const activeOnly = request.nextUrl.searchParams.get('active')
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
     await applyRateLimit(request, rateLimitConfigs.api)
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()
-    if (session.user.role !== 'ADMIN') throw new ForbiddenError('Only admins')
+    if (!isFullAdmin(session.user.role)) throw new ForbiddenError('Only admins')
     const data = promoPost.parse(await request.json())
     const codeUpper = data.code.trim().toUpperCase()
     const dup = await prisma.promoCode.findUnique({ where: { code: codeUpper } })

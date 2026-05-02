@@ -5,6 +5,13 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../admin/lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../admin/lib/audit'
+import { isFullAdmin } from '@/root/lib/admin-roles'
+import { Role } from '@/generated/prisma/client'
+import {
+  sendWelcomeCustomerEmail,
+  sendWelcomeVendorEmail,
+  sendWelcomeDriverEmail,
+} from '@/lib/mail/notify-customer-transactional'
 
 // GET /api/admin/registration-requests - Get pending registration requests
 export async function GET(request: NextRequest) {
@@ -19,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
@@ -64,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check authorization (admin only)
-    if (session.user.role !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -170,6 +177,43 @@ export async function POST(request: NextRequest) {
         },
         status: 'SUCCESS',
       }, request)
+
+      const sendWelcomeForRole = async () => {
+        try {
+          if (user.role === Role.CUSTOMER) {
+            const mailResult = await sendWelcomeCustomerEmail({
+              to: user.email,
+              name: user.name,
+            })
+            if (mailResult.ok === false) {
+              console.error('[registration-requests] welcome email failed', mailResult.error)
+            }
+            return
+          }
+          if (user.role === Role.VENDOR) {
+            const mailResult = await sendWelcomeVendorEmail({
+              to: user.email,
+              name: user.name,
+            })
+            if (mailResult.ok === false) {
+              console.error('[registration-requests] welcome vendor email failed', mailResult.error)
+            }
+            return
+          }
+          if (user.role === Role.DRIVER) {
+            const mailResult = await sendWelcomeDriverEmail({
+              to: user.email,
+              name: user.name,
+            })
+            if (mailResult.ok === false) {
+              console.error('[registration-requests] welcome driver email failed', mailResult.error)
+            }
+          }
+        } catch (e) {
+          console.error('[registration-requests] welcome email error', e)
+        }
+      }
+      await sendWelcomeForRole()
 
       return successResponse(
         {

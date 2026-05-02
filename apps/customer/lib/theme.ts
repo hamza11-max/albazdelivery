@@ -69,6 +69,7 @@ export function setStoredLanguage(language: string): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(LANG_STORAGE_KEY, language)
   applyLanguage(language)
+  window.dispatchEvent(new CustomEvent('albaz-language'))
 }
 
 export function applyLanguage(language: string): void {
@@ -86,9 +87,13 @@ export function applyLanguage(language: string): void {
   }
 }
 
+const LANG_CYCLE = ['fr', 'ar', 'en'] as const
+
 export function toggleLanguage(): string {
   const current = getStoredLanguage()
-  const next = current === 'fr' ? 'ar' : 'fr'
+  const idx = LANG_CYCLE.indexOf(current as (typeof LANG_CYCLE)[number])
+  const i = idx === -1 ? 0 : (idx + 1) % LANG_CYCLE.length
+  const next = LANG_CYCLE[i]
   setStoredLanguage(next)
   return next
 }

@@ -31,22 +31,25 @@ export const CategoryView = React.memo(function CategoryView({
       <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-muted-foreground">{t('category-not-found', 'Catégorie non trouvée', 'الفئة غير موجودة')}</p>
+          <p className="text-muted-foreground">
+            {t("category-not-found", "Catégorie non trouvée", "الفئة غير موجودة", "Category not found")}
+          </p>
           <Button onClick={onBack} className="mt-4">
-            {t('back', 'Retour', 'رجوع')}
+            {t("back", "Retour", "رجوع", "Back")}
           </Button>
         </div>
       </div>
     )
   }
 
-  const categoryName = selectedLanguage === 'ar' ? category.nameAr : category.nameFr
+  const categoryName =
+    selectedLanguage === "ar" ? category.nameAr : selectedLanguage === "en" ? category.name : category.nameFr
 
   return (
     <div className="albaz-shell min-h-screen pb-20">
       <div className="sticky top-[57px] z-40 bg-[var(--albaz-surface)] border-b border-border px-4 py-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted" aria-label="Back">
+          <Button variant="ghost" size="icon" onClick={onBack} className="hover:bg-muted" aria-label={t("back", "Retour", "رجوع", "Back")}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">{categoryName}</h1>
@@ -57,7 +60,7 @@ export const CategoryView = React.memo(function CategoryView({
         <div className="relative z-10">
           <h1 className="text-2xl font-bold mb-1 text-[var(--albaz-text)] dark:text-white">{categoryName}</h1>
           <p className="text-[var(--albaz-text-soft)] dark:text-white/80 text-sm">
-            {t('fast-delivery', 'Livraison rapide à votre porte', 'توصيل سريع إلى بابك')}
+            {t("fast-delivery", "Livraison rapide à votre porte", "توصيل سريع إلى بابك", "Fast delivery to your door")}
           </p>
         </div>
         <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-20">
@@ -67,7 +70,7 @@ export const CategoryView = React.memo(function CategoryView({
 
       <div className="px-4 py-6">
         <h2 className="text-lg font-bold mb-4 text-foreground">
-          {t('available-stores', customerCopy.sections.availableStores, 'المتاجر المتاحة')}
+          {t("available-stores", customerCopy.sections.availableStores, "المتاجر المتاحة", "Available stores")}
         </h2>
         {isLoading ? (
           <StoreListSkeleton />
@@ -75,7 +78,7 @@ export const CategoryView = React.memo(function CategoryView({
           <Card>
             <CardContent className="p-8 text-center">
               <p className="text-muted-foreground">
-                {t('no-stores', customerCopy.empty.noStores, 'لا توجد متاجر متاحة')}
+                {t("no-stores", customerCopy.empty.noStores, "لا توجد متاجر متاحة", "No stores available")}
               </p>
             </CardContent>
           </Card>
@@ -94,12 +97,24 @@ export const CategoryView = React.memo(function CategoryView({
               }}
               tabIndex={0}
               role="button"
-              aria-label={t('view-store', 'Voir le magasin', 'عرض المتجر') + ': ' + store.name}
+              aria-label={t("view-store", "Voir le magasin", "عرض المتجر", "View store") + ": " + store.name}
             >
               <div className="relative h-40 bg-muted">
-                <NextImage src="/placeholder.jpg" alt={store.name} width={400} height={160} className="w-full h-full object-cover" />
+                <NextImage
+                  src={
+                    store.coverImage && store.coverImage.trim().length > 0 ? store.coverImage : '/placeholder.svg'
+                  }
+                  alt={store.name}
+                  width={400}
+                  height={160}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement
+                    if (el) el.src = '/placeholder.svg'
+                  }}
+                />
                 <Badge className="absolute top-2 left-2 bg-[var(--albaz-orange)] text-white text-xs px-2 py-1">
-                  {t('free', 'Gratuit', 'مجاني')}
+                  {t("free", "Gratuit", "مجاني", "Free")}
                 </Badge>
               </div>
 

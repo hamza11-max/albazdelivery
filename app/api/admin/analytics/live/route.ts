@@ -1,3 +1,4 @@
+import { isFullAdmin } from '@/root/lib/admin-roles'
 /** Mirrored admin analytics live (`apps/admin`). */
 import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
       throw new UnauthorizedError()
     }
 
-    if (String(session.user.role ?? '').toUpperCase() !== 'ADMIN') {
+    if (!isFullAdmin(session.user.role)) {
       throw new ForbiddenError('Only admins can access analytics')
     }
 
