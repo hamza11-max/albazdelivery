@@ -5,6 +5,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input, Select,
 import { Plus, Edit, Trash2, Eye, EyeOff, Search, Image as ImageIcon, ExternalLink } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { apiErrorMessage } from "../lib/api-error-message"
 
 const SELECT_ALL = "__all__"
 
@@ -150,7 +151,7 @@ export function AdsManagementView() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Impossible de sauvegarder",
+          description: apiErrorMessage(data.error, "Impossible de sauvegarder"),
           variant: "destructive",
         })
       }
@@ -187,7 +188,7 @@ export function AdsManagementView() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Impossible de supprimer",
+          description: apiErrorMessage(data.error, "Impossible de supprimer"),
           variant: "destructive",
         })
       }

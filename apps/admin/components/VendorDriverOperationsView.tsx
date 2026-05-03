@@ -28,6 +28,7 @@ import {
 import { Loader2, MapPin, PieChart, Store, Truck } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { apiErrorMessage } from "../lib/api-error-message"
 
 interface OrderLike {
   id: string
@@ -157,7 +158,7 @@ export function VendorDriverOperationsView({
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Mise à jour impossible",
+          description: apiErrorMessage(data.error, "Mise à jour impossible"),
           variant: "destructive",
         })
       }
@@ -190,7 +191,7 @@ export function VendorDriverOperationsView({
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Assignation impossible",
+          description: apiErrorMessage(data.error, "Assignation impossible"),
           variant: "destructive",
         })
       }

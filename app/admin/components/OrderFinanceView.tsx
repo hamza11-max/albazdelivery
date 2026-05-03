@@ -27,6 +27,7 @@ import {
 import { Loader2, Plus, RefreshCw, Wallet } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { apiErrorMessage } from "../lib/api-error-message"
 
 const STATUSES = [
   "PENDING",
@@ -203,7 +204,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
         await onRefreshOrders()
         await openDetail(detailId)
         await refresh()
-      } else toast({ title: "Erreur", description: data.error, variant: "destructive" })
+      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
     } catch {
       toast({ title: "Erreur", variant: "destructive" })
     } finally {
@@ -239,7 +240,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
         setRefundReason("")
         setRefundAmount("")
         await refresh()
-      } else toast({ title: "Erreur", description: data.error, variant: "destructive" })
+      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
     } catch {
       toast({ title: "Erreur", variant: "destructive" })
     } finally {
@@ -311,7 +312,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
         setPayoutFees("0")
         setPayoutNet("")
         await refresh()
-      } else toast({ title: "Erreur", description: data.error, variant: "destructive" })
+      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
     } catch {
       toast({ title: "Erreur enregistrement", variant: "destructive" })
     } finally {
@@ -361,7 +362,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
         setManualLines([{ productId: "", quantity: 1, price: 0 }])
         await onRefreshOrders()
         await refresh()
-      } else toast({ title: "Erreur", description: data.error, variant: "destructive" })
+      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
     } catch {
       toast({ title: "Erreur création commande", variant: "destructive" })
     } finally {

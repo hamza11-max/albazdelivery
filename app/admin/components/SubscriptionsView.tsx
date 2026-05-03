@@ -33,6 +33,7 @@ import type { User as UserType } from "@/lib/types"
 import { EditUserDialog } from "./EditUserDialog"
 import { DeleteUserDialog } from "./DeleteUserDialog"
 import { fetchWithCsrf } from "@/app/admin/lib/csrf-client"
+import { apiErrorMessage } from "@/app/admin/lib/api-error-message"
 
 interface Subscription {
   id: string
@@ -131,7 +132,7 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
       } else {
         t({
           title: "Erreur",
-          description: data.error?.message || data.error || "Mise à jour impossible",
+          description: apiErrorMessage(data.error, "Mise à jour impossible"),
           variant: "destructive",
         })
       }
@@ -159,7 +160,7 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
       } else {
         t({
           title: "Erreur",
-          description: data.error?.message || data.error || "Suppression impossible",
+          description: apiErrorMessage(data.error, "Suppression impossible"),
           variant: "destructive",
         })
       }
@@ -194,7 +195,7 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
         setSubscriptions(data.data.subscriptions || [])
         setStats(data.data.stats || stats)
       } else {
-        throw new Error(data.error || "Failed to fetch subscriptions")
+        throw new Error(apiErrorMessage(data.error, "Failed to fetch subscriptions"))
       }
     } catch (error: any) {
       t({
@@ -217,7 +218,7 @@ export function SubscriptionsView(props: SubscriptionsViewProps) {
         body: JSON.stringify({ extendDays: days }),
       })
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error?.message || "Échec")
+      if (!res.ok || !data.success) throw new Error(apiErrorMessage(data.error, "Échec"))
       t({ title: "Succès", description: `Abonnement prolongé de ${days} jours` })
       fetchSubscriptions()
     } catch (error: any) {

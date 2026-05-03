@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from "@albaz/ui"
 import { Activity, Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
+import { apiErrorMessage } from "../lib/api-error-message"
 
 type OpsPayloadSuccess = {
   ops?: {
@@ -36,7 +37,11 @@ export function AdminOpsMetricsCard() {
       if (json.success && json.data?.ops) {
         setOps(json.data.ops)
       } else {
-        toast({ title: "Métriques ops", description: json.error ?? "Réponse invalide", variant: "destructive" })
+        toast({
+          title: "Métriques ops",
+          description: apiErrorMessage(json.error, "Réponse invalide"),
+          variant: "destructive",
+        })
         setOps(null)
       }
     } catch {

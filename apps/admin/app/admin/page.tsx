@@ -9,6 +9,7 @@ import { Users, Truck, Store, Layers, ShoppingCart, LayoutGrid, BarChart3, LifeB
 import type { User as UserType } from "@/root/lib/types"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../../lib/csrf-client"
+import { apiErrorMessage } from "../../lib/api-error-message"
 import { AdminHeader } from "../../components/AdminHeader"
 import { DashboardView } from "../../components/DashboardView"
 import { UserListViewWithBulk } from "../../components/UserListViewWithBulk"
@@ -139,7 +140,7 @@ export default function AdminPanel() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error,
+          description: apiErrorMessage(data.error, "Impossible d'approuver la demande"),
           variant: "destructive",
         })
       }
@@ -176,7 +177,7 @@ export default function AdminPanel() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error,
+          description: apiErrorMessage(data.error, "Impossible de rejeter la demande"),
           variant: "destructive",
         })
       }
@@ -232,7 +233,7 @@ export default function AdminPanel() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Impossible de mettre à jour l'utilisateur",
+          description: apiErrorMessage(data.error, "Impossible de mettre à jour l'utilisateur"),
           variant: "destructive",
         })
       }
@@ -266,7 +267,7 @@ export default function AdminPanel() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Réinitialisation impossible",
+          description: apiErrorMessage(data.error, "Réinitialisation impossible"),
           variant: "destructive",
         })
       }
@@ -312,7 +313,7 @@ export default function AdminPanel() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Impossible de supprimer l'utilisateur",
+          description: apiErrorMessage(data.error, "Impossible de supprimer l'utilisateur"),
           variant: "destructive",
         })
       }
@@ -350,7 +351,7 @@ export default function AdminPanel() {
       } else {
         toast({
           title: "Erreur",
-          description: data.error || "Impossible d'effectuer l'action en masse",
+          description: apiErrorMessage(data.error, "Impossible d'effectuer l'action en masse"),
           variant: "destructive",
         })
       }

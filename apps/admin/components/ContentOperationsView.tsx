@@ -21,6 +21,7 @@ import {
 import { Loader2, Megaphone, RefreshCw, Settings2, Ticket, Layers, MapPinned, Mail } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { apiErrorMessage } from "../lib/api-error-message"
 
 function EmailTemplateRow({
   template: t,
@@ -57,7 +58,7 @@ function EmailTemplateRow({
         toast({ title: "Modèle enregistré", description: t.key })
         onSaved()
       } else {
-        toast({ title: "Erreur", description: data.error?.message || String(data.error), variant: "destructive" })
+        toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
       }
     } catch {
       toast({ title: "Erreur réseau", variant: "destructive" })
@@ -154,7 +155,7 @@ export function ContentOperationsView() {
       if (data.success) {
         toast({ title: "Notifications envoyées", description: `Créées : ${data.data?.created ?? 0}` })
         setBcMsg("")
-      } else toast({ title: "Erreur", description: data.error, variant: "destructive" })
+      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
     } catch {
       toast({ title: "Erreur réseau", variant: "destructive" })
     } finally {

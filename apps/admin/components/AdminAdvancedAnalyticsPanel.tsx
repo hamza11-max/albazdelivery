@@ -17,6 +17,7 @@ import {
 } from "@albaz/ui"
 import { LineChart as LineChartIcon, Loader2 } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
+import { apiErrorMessage } from "../lib/api-error-message"
 import {
   ResponsiveContainer,
   BarChart,
@@ -129,7 +130,11 @@ export function AdminAdvancedAnalyticsPanel() {
       const json = await res.json()
       setRawDemand(JSON.stringify(json, null, 2))
       if (!json.success) {
-        toast({ title: "Demande prédiction", description: String(json.error), variant: "destructive" })
+        toast({
+          title: "Demande prédiction",
+          description: apiErrorMessage(json.error, "Réponse invalide"),
+          variant: "destructive",
+        })
         return
       }
       const d = json.data?.demand as DemandBlock | undefined
@@ -160,7 +165,11 @@ export function AdminAdvancedAnalyticsPanel() {
       const json = await res.json()
       setRawInsights(JSON.stringify(json, null, 2))
       if (!json.success) {
-        toast({ title: "Insights clients", description: String(json.error), variant: "destructive" })
+        toast({
+          title: "Insights clients",
+          description: apiErrorMessage(json.error, "Réponse invalide"),
+          variant: "destructive",
+        })
         return
       }
       setInsights((json.data?.insights as InsightsBlock) ?? null)
@@ -185,7 +194,11 @@ export function AdminAdvancedAnalyticsPanel() {
       const json = await res.json()
       setRawForecast(JSON.stringify(json, null, 2))
       if (!json.success) {
-        toast({ title: "Prévision ventes", description: String(json.error), variant: "destructive" })
+        toast({
+          title: "Prévision ventes",
+          description: apiErrorMessage(json.error, "Réponse invalide"),
+          variant: "destructive",
+        })
         return
       }
       setForecast((json.data?.forecast as ForecastBlock) ?? null)
