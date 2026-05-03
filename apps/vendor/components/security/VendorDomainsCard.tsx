@@ -26,6 +26,10 @@ import {
 interface VendorDomainsCardProps {
   translate?: (fr: string, ar: string) => string
   /**
+   * When an admin manages another vendor, pass that vendor's user id so GET/POST target the right account.
+   */
+  managedVendorId?: string | null
+  /**
    * Apex domain used to construct the preview link for subdomains. Defaults
    * to `NEXT_PUBLIC_BASE_DOMAIN` or `al-baz.app`.
    */
@@ -64,6 +68,7 @@ const defaultT = (fr: string, _ar: string) => fr
 
 export function VendorDomainsCard({
   translate,
+  managedVendorId,
   baseDomain,
 }: VendorDomainsCardProps) {
   const t = translate || defaultT
@@ -86,11 +91,15 @@ export function VendorDomainsCard({
   const [verifying, setVerifying] = useState(false)
   const [copiedValue, setCopiedValue] = useState<string | null>(null)
 
+  const vendorQuery = managedVendorId
+    ? `?vendorId=${encodeURIComponent(managedVendorId)}`
+    : ""
+
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/vendor/domains", {
+      const res = await fetch(`/api/vendor/domains${vendorQuery}`, {
         credentials: "include",
       })
       if (!res.ok) {
@@ -109,7 +118,7 @@ export function VendorDomainsCard({
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [t, vendorQuery])
 
   useEffect(() => {
     load()
@@ -126,6 +135,7 @@ export function VendorDomainsCard({
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ...(managedVendorId ? { vendorId: managedVendorId } : {}),
           vendorSubdomain: subdomainInput.trim() || null,
           vendorCustomDomain: customDomainInput.trim() || null,
         }),
@@ -157,7 +167,9 @@ export function VendorDomainsCard({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          ...(managedVendorId ? { vendorId: managedVendorId } : {}),
+        }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => null)
@@ -491,7 +503,7 @@ function DomainPreviewTile({
   )
 }
 
-function StatusBanner({
+export function StatusBanner({
   status,
   t,
 }: {
@@ -529,7 +541,7 @@ function StatusBanner({
   )
 }
 
-function DnsInstructions({
+export function DnsInstructions({
   records,
   copiedValue,
   onCopy,

@@ -3,6 +3,14 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
+import { isFullAdmin, normalizeUserRole } from '@/root/lib/admin-roles'
+
+/** Prisma codes that mean DB down / schema mismatch — must not be masked as generic 500 */
+function isDbInfraPrisma(err: unknown): boolean {
+  if (!err || typeof err !== 'object' || !('code' in err)) return false
+  const code = (err as { code: string }).code
+  return ['P1001', 'P1002', 'P1012', 'P2021', 'P2022'].includes(code)
+}
 
 // GET /api/stores - Get all stores with optional filters
 export async function GET(request: NextRequest) {
@@ -48,8 +56,8 @@ export async function GET(request: NextRequest) {
         throw new UnauthorizedError()
       }
 
-      const isAdmin = session.user.role === 'ADMIN'
-      const isVendor = session.user.role === 'VENDOR'
+      const isAdmin = isFullAdmin(session.user.role)
+      const isVendor = normalizeUserRole(session.user.role) === 'VENDOR'
       const isSelf = session.user.id === vendorIdParam
 
       if (!isAdmin && !(isVendor && isSelf)) {
@@ -85,7 +93,7 @@ export async function GET(request: NextRequest) {
       total = await prisma.store.count({ where })
     } catch (countError) {
       console.error('[Stores API] Count query failed:', countError)
-      throw new Error('Failed to count stores')
+      throw countError
     }
     
     try {
@@ -108,7 +116,8 @@ export async function GET(request: NextRequest) {
       })
     } catch (findError) {
       console.error('[Stores API] FindMany query failed:', findError)
-      // Try without include to see if vendor relation is the issue
+      if (isDbInfraPrisma(findError)) throw findError
+      // Try without include if relation/select shape is the issue (not DB down)
       try {
         stores = await prisma.store.findMany({
           where,
@@ -121,7 +130,7 @@ export async function GET(request: NextRequest) {
         console.warn('[Stores API] Fallback query succeeded without vendor include')
       } catch (fallbackError) {
         console.error('[Stores API] Fallback query also failed:', fallbackError)
-        throw new Error('Failed to fetch stores')
+        throw fallbackError
       }
     }
 

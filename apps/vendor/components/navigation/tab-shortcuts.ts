@@ -12,6 +12,7 @@ export const VENDOR_TAB_SHORTCUTS: Record<string, string> = {
   coupons: "Ctrl+Shift+C",
   "sync-save": "Ctrl+Shift+Y",
   email: "Ctrl+Shift+E",
+  storefront: "Ctrl+Shift+Z",
   "staff-permissions": "Ctrl+Shift+F",
   "clients-loyalty": "Ctrl+Shift+L",
   drivers: "Ctrl+Shift+V",

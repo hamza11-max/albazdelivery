@@ -1,24 +1,17 @@
-import { Suspense } from "react"
-import { VendorDomainsCard } from "../../../../components/security/VendorDomainsCard"
+"use client"
 
-export const dynamic = "force-dynamic"
+import { useMemo } from "react"
+import { useSession } from "next-auth/react"
+import { VendorStorefrontWebPanel } from "../../../../components/VendorStorefrontWebPanel"
 
 export default function VendorDomainsPage() {
-  return (
-    <main className="mx-auto w-full max-w-3xl space-y-4 p-4 md:p-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Vitrine publique
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Choisissez votre sous-domaine et (optionnellement) un domaine
-          personnalisé pour votre page de commande en ligne.
-        </p>
-      </header>
+  const { data } = useSession()
+  const vendorId = (data?.user?.id as string | undefined) ?? null
+  const translate = useMemo(() => (fr: string, _ar: string) => fr, [])
 
-      <Suspense fallback={null}>
-        <VendorDomainsCard />
-      </Suspense>
+  return (
+    <main className="mx-auto w-full max-w-4xl p-4 md:p-6">
+      <VendorStorefrontWebPanel translate={translate} vendorId={vendorId} />
     </main>
   )
 }

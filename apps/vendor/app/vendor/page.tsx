@@ -122,6 +122,7 @@ import { VendorTopbar } from "../../components/navigation/VendorTopbar"
 import { VendorMenuGrid } from "../../components/navigation/VendorMenuGrid"
 import { WebAuthnPasskeysCard } from "../../components/security/WebAuthnPasskeysCard"
 import { VendorDomainsCard } from "../../components/security/VendorDomainsCard"
+import { VendorStorefrontWebPanel } from "../../components/VendorStorefrontWebPanel"
 import { vendorMenuItems } from "../../components/navigation/vendor-menu-items"
 import { NotificationsPanel, type VendorNotificationItem } from "../../components/navigation/NotificationsPanel"
 import { StaffSwitchDialog } from "../../components/navigation/StaffSwitchDialog"
@@ -302,6 +303,7 @@ function VendorDashboardContent() {
         "coupons",
         "sync-save",
         "email",
+        "storefront",
         "staff-permissions",
         "clients-loyalty",
         "suppliers",
@@ -379,15 +381,24 @@ function VendorDashboardContent() {
     }).catch(() => {})
   }, [isElectronRuntime])
 
+  const domainVendorId = useMemo(
+    () =>
+      isAdmin
+        ? selectedVendorId ?? null
+        : (effectiveUser?.id as string | undefined) ?? null,
+    [isAdmin, selectedVendorId, effectiveUser?.id]
+  )
+
   const vendorFeatures = useMemo(() => getVendorFeatureFlags(shopType), [shopType])
   const allowedTabIds = useMemo(() => {
     return getTabsForShopType(shopType).filter((id) => {
       if (id === "dine-qr") return vendorFeatures.dineTablesUi
       if (id === "accounting") return vendorFeatures.accountingModule
       if (id === "kitchen") return vendorFeatures.kitchenBoard
+      if (id === "storefront") return !isElectronRuntime
       return true
     })
-  }, [shopType, vendorFeatures])
+  }, [shopType, vendorFeatures, isElectronRuntime])
   const shortcutItems = useMemo(() => {
     const menuEntry = { id: "menu", labelFr: "Menu rapide", labelAr: "القائمة السريعة" }
     const tabEntries = vendorMenuItems
@@ -2745,6 +2756,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             </Card>
           </TabsContent>
 
+          {/* Web-only: public storefront domains (vendor + per-store) */}
+          <TabsContent value="storefront" className="space-y-6 pb-8">
+            <VendorStorefrontWebPanel translate={translate} vendorId={domainVendorId} />
+          </TabsContent>
+
           {/* Settings Tab — nested sub-tabs */}
           <TabsContent value="settings" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
@@ -3504,13 +3520,18 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
               <TabsContent value="security" className="mt-4 space-y-6 outline-none">
                 <p className="text-sm text-muted-foreground max-w-2xl">
-                  {translate(
-                    "Gérez les passkeys (connexion sans mot de passe) et l’adresse web publique de votre vitrine (sous-domaine ou domaine personnalisé).",
-                    "أدِر مفاتيح التحقق (تسجيل دخول بدون كلمة مرور) وعنوان واجهتك العامة (نطاق فرعي أو نطاق مخصّص).",
-                  )}
+                  {isElectronRuntime
+                    ? translate(
+                        "Gérez les passkeys (connexion sans mot de passe) et l’adresse web publique de votre vitrine (sous-domaine ou domaine personnalisé).",
+                        "أدِر مفاتيح التحقق (تسجيل دخول بدون كلمة مرور) وعنوان واجهتك العامة (نطاق فرعي أو نطاق مخصّص).",
+                      )
+                    : translate(
+                        "Gérez les passkeys (connexion sans mot de passe). Le sous-domaine et le domaine personnalisé se configurent dans l’onglet « Vitrine en ligne ».",
+                        "أدِر مفاتيح التحقق (تسجيل دخول بدون كلمة مرور). أضبط النطاق الفرعي والنطاق المخصّص من تبويب «واجهة الويب العامة».",
+                      )}
                 </p>
                 <WebAuthnPasskeysCard translate={translate} />
-                <VendorDomainsCard translate={translate} />
+                {isElectronRuntime ? <VendorDomainsCard translate={translate} /> : null}
               </TabsContent>
             </Tabs>
           </TabsContent>
