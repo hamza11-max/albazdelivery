@@ -1,16 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Button, Card, CardContent, CardHeader, CardTitle, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Label, Textarea } from "@albaz/ui"
 import { Plus, Edit, Trash2, Eye, EyeOff, Search, Image as ImageIcon, ExternalLink } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
 interface Ad {
@@ -385,10 +378,13 @@ export function AdsManagementView() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          aria-describedby="ad-dialog-description"
+        >
           <DialogHeader>
             <DialogTitle>{selectedAd ? "Modifier la publicité" : "Nouvelle publicité"}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="ad-dialog-description">
               {selectedAd ? "Modifiez les informations de la publicité" : "Créez une nouvelle publicité"}
             </DialogDescription>
           </DialogHeader>
@@ -517,10 +513,10 @@ export function AdsManagementView() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby="ad-delete-description">
           <DialogHeader>
             <DialogTitle>Confirmer la suppression</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="ad-delete-description">
               Êtes-vous sûr de vouloir supprimer cette publicité ? Cette action est irréversible.
             </DialogDescription>
           </DialogHeader>

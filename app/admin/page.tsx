@@ -1,112 +1,103 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { OrderStatus } from "@/lib/constants"
+import { useState, useEffect, useRef } from "react"
+import nextDynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
-import { useSession, signOut } from "next-auth/react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Users,
-  Truck,
-  Store,
-  ShoppingBag,
-  TrendingUp,
-  Search,
-  Plus,
-  Edit,
-  Trash2,
-  LogOut,
-  Sun,
-  Moon,
-  Package,
-  CheckCircle2,
-  Clock,
-  UserCheck,
-  UserX,
-  Globe,
-  KeyRound,
-  LifeBuoy,
-} from "lucide-react"
-import { canAccessAdminApp, isSupportAgent } from "@/lib/admin-roles"
+import { useSession } from "next-auth/react"
+import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@albaz/ui"
+import { Users, Truck, Store, Layers, ShoppingCart, LayoutGrid, BarChart3, LifeBuoy, Boxes } from "lucide-react"
+import type { User as UserType } from "@/root/lib/types"
+import { useToast } from "@/root/hooks/use-toast"
+import { fetchWithCsrf } from "./lib/csrf-client"
+import { AdminHeader } from "./components/AdminHeader"
+import { DashboardView } from "./components/DashboardView"
+import { UserListViewWithBulk } from "./components/UserListViewWithBulk"
+import { ApprovalsView } from "./components/ApprovalsView"
+import { AuditLogView } from "./components/AuditLogView"
+import { AdsManagementView } from "./components/AdsManagementView"
+import { EditUserDialog } from "./components/EditUserDialog"
+import { DeleteUserDialog } from "./components/DeleteUserDialog"
+import { useAdminData } from "./hooks/useAdminData"
+import { Card, CardContent, CardHeader, CardTitle } from "@albaz/ui"
+import { VendorDriverOperationsView } from "./components/VendorDriverOperationsView"
+import { OrderFinanceView } from "./components/OrderFinanceView"
+import { ContentOperationsView } from "./components/ContentOperationsView"
 import { AdminSupportTicketsView } from "./components/AdminSupportTicketsView"
-import type { Order, User as UserType, RegistrationRequest } from "@/lib/types"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { SubscriptionsView } from "./components/SubscriptionsView"
-import { useToast } from "@/hooks/use-toast"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { AdminProductsView } from "./components/AdminProductsView"
+import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
+import { canAccessAdminApp, isFullAdmin as isFullAdminRole, isSuperAdmin as isSuperAdminRole } from "@/root/lib/admin-roles"
 
-// Force dynamic rendering to avoid static generation issues
+const AnalyticsReportsView = nextDynamic(
+  () =>
+    import("./components/AnalyticsReportsView").then((mod) => mod.AnalyticsReportsView),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="text-sm text-muted-foreground py-8 text-center">Chargement des graphiques…</p>
+    ),
+  }
+)
+
+type EditRole = "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT"
+
 export const dynamic = 'force-dynamic'
 
 export default function AdminPanel() {
   const router = useRouter()
-  const { data: session, status } = useSession()
-  const user = session?.user
-  const isSupportAgentUser = isSupportAgent(user?.role)
-  const isAuthenticated = status === "authenticated"
-  const [language, setLanguage] = useState("fr")
-  const [mounted, setMounted] = useState(false)
   const { toast } = useToast()
+  const [language, setLanguage] = useState("fr")
   const [isDarkMode, setIsDarkMode] = useState(false)
-
-  // Initialize theme and language from storage
-  useEffect(() => {
-    setMounted(true)
-    if (typeof window !== 'undefined') {
-      const storedTheme = localStorage.getItem('albaz-theme') || 'system'
-      const storedLang = localStorage.getItem('albaz-language') || 'fr'
-      
-      setLanguage(storedLang)
-      
-      const isDark = storedTheme === 'dark' || 
-        (storedTheme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-      setIsDarkMode(isDark)
-    }
-  }, [])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [orders, setOrders] = useState<Order[]>([])
-  const [customers, setCustomers] = useState<UserType[]>([])
-  const [drivers, setDrivers] = useState<UserType[]>([])
-  const [vendors, setVendors] = useState<UserType[]>([])
-  const [registrationRequests, setRegistrationRequests] = useState<RegistrationRequest[]>([])
-  const [selectedRequest, setSelectedRequest] = useState<RegistrationRequest | null>(null)
-  const [showRequestDialog, setShowRequestDialog] = useState(false)
-  const [ads, setAds] = useState<any[]>([])
-  const [showAdDialog, setShowAdDialog] = useState(false)
-  const [selectedAd, setSelectedAd] = useState<any | null>(null)
-  const [adForm, setAdForm] = useState({
-    titleFr: "",
-    titleAr: "",
-    descriptionFr: "",
-    descriptionAr: "",
-    imageUrl: "",
-    linkUrl: "",
-    isActive: true,
-    displayOrder: 0,
-  })
-  const [showVendorDialog, setShowVendorDialog] = useState(false)
-  const [isCreatingVendor, setIsCreatingVendor] = useState(false)
-  const [vendorForm, setVendorForm] = useState({
+  
+  // Edit/Delete state
+  const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
+  const [editForm, setEditForm] = useState({
     name: "",
     email: "",
     phone: "",
-    password: "",
-    shopType: "restaurant",
-    subscriptionPlan: "STARTER",
-    subscriptionDurationDays: "30",
+    role: "CUSTOMER" as EditRole,
+    status: "APPROVED" as "PENDING" | "APPROVED" | "REJECTED",
+    address: "",
+    city: "",
   })
+
+  // Registration requests state
+  const [selectedRequest, setSelectedRequest] = useState<any>(null)
+  const [showRequestDialog, setShowRequestDialog] = useState(false)
+  const [activeTab, setActiveTab] = useState("dashboard")
+
+  const sessionResult = useSession()
+  const session = sessionResult?.data ?? null
+  const status = sessionResult?.status ?? "loading"
+  const user = session?.user ?? null
+  const isAuthenticated = status === "authenticated"
+
+  const isSupportAgentUser = String(user?.role ?? "").toUpperCase() === "SUPPORT"
+  const isFullAdminUser = isFullAdminRole(user?.role)
+  const isSuperAdminUser = isSuperAdminRole(user?.role)
+
+  const {
+    orders,
+    customers,
+    drivers,
+    vendors,
+    registrationRequests,
+    fetchUsers,
+    fetchOrders,
+    fetchRegistrationRequests,
+  } = useAdminData(isSupportAgentUser ? "support" : "full")
+
+  const adminNavInitialized = useRef(false)
+  useEffect(() => {
+    if (status !== "authenticated" || !user || adminNavInitialized.current) return
+    adminNavInitialized.current = true
+    if (isSupportAgentUser) setActiveTab("support")
+    else setActiveTab("approvals")
+  }, [status, user, isSupportAgentUser])
 
   useEffect(() => {
     if (status === "loading") return
@@ -116,168 +107,17 @@ export default function AdminPanel() {
   }, [status, isAuthenticated, user, router])
 
   useEffect(() => {
-    if (!mounted) return
-    
     if (isDarkMode) {
       document.documentElement.classList.add("dark")
-      document.documentElement.classList.remove("light")
-      document.documentElement.style.colorScheme = 'dark'
     } else {
-      document.documentElement.classList.add("light")
       document.documentElement.classList.remove("dark")
-      document.documentElement.style.colorScheme = 'light'
     }
-  }, [isDarkMode, mounted])
+  }, [isDarkMode])
 
-  // Apply language
-  useEffect(() => {
-    if (!mounted) return
-    
-    document.documentElement.lang = language
-    document.documentElement.dir = language === "ar" ? "rtl" : "ltr"
-    
-    if (language === "ar") {
-      document.documentElement.classList.add("rtl")
-    } else {
-      document.documentElement.classList.remove("rtl")
-    }
-    
-    // Save to localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('albaz-language', language)
-    }
-  }, [language, mounted])
-
-  useEffect(() => {
-    if (status === "loading" || !isAuthenticated || !user) return
-    if (isSupportAgentUser) {
-      fetchOrders()
-      return
-    }
-    fetchOrders()
-    fetchUsers()
-    fetchRegistrationRequests()
-    fetchAds()
-  }, [status, isAuthenticated, user, isSupportAgentUser])
-
-  const fetchAds = async () => {
-    try {
-      const response = await fetch("/api/admin/ads")
-      const data = await response.json()
-      if (data.success && data.ads) {
-        setAds(data.ads)
-      }
-    } catch (error) {
-      console.error("Error fetching ads:", error)
-      setAds([])
-    }
-  }
-
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch("/api/admin/orders", { credentials: "include" })
-      const data = await response.json()
-      
-      console.log("[Admin] Fetched orders data:", data)
-      
-      const orders = data?.data?.orders ?? []
-      setOrders(orders)
-    } catch (error) {
-      console.error("[v0] Error fetching orders:", error)
-      setOrders([])
-    }
-  }
-
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch("/api/admin/users")
-      const data = await response.json()
-      
-      console.log("[Admin] Fetched users data:", data)
-      
-      // Safely handle undefined with fallback
-      const users = data?.data?.users ?? []
-      
-      setCustomers(users.filter((u: UserType) => u.role.toLowerCase() === "customer"))
-      setDrivers(users.filter((u: UserType) => u.role.toLowerCase() === "driver"))
-      setVendors(users.filter((u: UserType) => u.role.toLowerCase() === "vendor"))
-    } catch (error) {
-      console.error("[v0] Error fetching users:", error)
-      // Set empty arrays on error
-      setCustomers([])
-      setDrivers([])
-      setVendors([])
-    }
-  }
-
-  const handleCreateVendor = async () => {
-    if (!vendorForm.name || !vendorForm.email || !vendorForm.phone || !vendorForm.password) {
-      toast({
-        title: "Erreur",
-        description: "Tous les champs sont requis",
-        variant: "destructive",
-      })
-      return
-    }
-    setIsCreatingVendor(true)
-    try {
-      const response = await fetch("/api/admin/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          name: vendorForm.name,
-          email: vendorForm.email,
-          phone: vendorForm.phone,
-          password: vendorForm.password,
-          role: "VENDOR",
-          shopType: vendorForm.shopType,
-          subscriptionPlan: vendorForm.subscriptionPlan,
-          subscriptionDurationDays: parseInt(vendorForm.subscriptionDurationDays) || 30,
-        }),
-      })
-      const data = await response.json()
-      if (data.success) {
-        toast({
-          title: "Succès",
-          description: "Le vendeur a été créé avec succès",
-        })
-        setShowVendorDialog(false)
-        setVendorForm({ name: "", email: "", phone: "", password: "", shopType: "restaurant", subscriptionPlan: "STARTER", subscriptionDurationDays: "30" })
-        fetchUsers()
-      } else {
-        const errMsg = data?.error?.message ?? (typeof data?.error === "string" ? data.error : null) ?? "Erreur lors de la création"
-        throw new Error(errMsg)
-      }
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Impossible de créer le vendeur",
-        variant: "destructive",
-      })
-    } finally {
-      setIsCreatingVendor(false)
-    }
-  }
-
-  const fetchRegistrationRequests = async () => {
-    try {
-      const response = await fetch("/api/admin/registration-requests")
-      const data = await response.json()
-      
-      console.log("[Admin] Fetched registration requests:", data)
-      
-      const requests = data?.data?.requests ?? []
-      setRegistrationRequests(requests)
-    } catch (error) {
-      console.error("[v0] Error fetching registration requests:", error)
-      setRegistrationRequests([])
-    }
-  }
-
+  // Handle approve/reject registration request
   const handleApproveRequest = async (requestId: string) => {
     try {
-      const response = await fetch("/api/admin/registration-requests", {
+      const response = await fetchWithCsrf("/api/admin/registration-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -291,8 +131,8 @@ export default function AdminPanel() {
 
       if (data.success) {
         toast({
-          title: "Approuvé",
-          description: "L'utilisateur a été approuvé avec succès",
+          title: "ApprouvÃ©",
+          description: "L'utilisateur a Ã©tÃ© approuvÃ© avec succÃ¨s",
         })
         fetchRegistrationRequests()
         fetchUsers()
@@ -315,7 +155,7 @@ export default function AdminPanel() {
 
   const handleRejectRequest = async (requestId: string) => {
     try {
-      const response = await fetch("/api/admin/registration-requests", {
+      const response = await fetchWithCsrf("/api/admin/registration-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -329,8 +169,8 @@ export default function AdminPanel() {
 
       if (data.success) {
         toast({
-          title: "Rejeté",
-          description: "La demande a été rejetée",
+          title: "RejetÃ©",
+          description: "La demande a Ã©tÃ© rejetÃ©e",
         })
         fetchRegistrationRequests()
         setShowRequestDialog(false)
@@ -350,935 +190,508 @@ export default function AdminPanel() {
     }
   }
 
-  const totalOrders = orders.length
-  const pendingOrders = orders.filter((o) => o.status === OrderStatus.PENDING).length 
-  const completedOrders = orders.filter((o) => o.status === OrderStatus.DELIVERED).length
-  const totalRevenue = orders.filter((o) => o.status === OrderStatus.DELIVERED).reduce((sum, o) => sum + o.total, 0)
+  // Passkeys are loaded inside PasskeysTab when the tab mounts
 
-  const Header = () => (
-    <header className="sticky top-0 z-50 bg-gradient-to-r from-primary to-orange-500 text-white shadow-lg">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img
-              src="/logo.png"
-              alt="AL-baz"
-              className="h-7 w-auto"
-              onError={(e) => {
-                const target = e.currentTarget
-                target.onerror = null
-                target.src =
-                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' rx='10' fill='%232f5b2f'/%3E%3Ctext x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Inter,Arial' font-size='12' font-weight='700'%3EALBAZ%3C/text%3E%3C/svg%3E"
-              }}
-            />
-            <div>
-              <h1 className="text-lg font-bold">
-                {isSupportAgentUser ? "Support — Administration" : "Panneau d'Administration"}
-              </h1>
-              <p className="text-xs text-white/80">
-                {isSupportAgentUser ? "AL-baz · file support" : "AL-baz Delivery"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!isSupportAgentUser ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-              onClick={() => router.push("/admin/passkeys")}
-              title="Passkeys"
-            >
-              <KeyRound className="w-4 h-4 mr-1" />
-              Passkeys
-            </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20"
-              onClick={() => setLanguage(language === "fr" ? "ar" : "fr")}
-              title={language === "fr" ? "العربية" : "Français"}
-            >
-              <Globe className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-white hover:bg-white/20"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-            >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20" onClick={() => signOut({ callbackUrl: "/login" })}>
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </header>
-  )
-
-  const DashboardView = ({ supportMode = false }: { supportMode?: boolean } = {}) => (
-    <div className="space-y-6">
-      <div
-        className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${supportMode ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}
-      >
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-700 mb-1">Total Commandes</p>
-                <p className="text-3xl font-bold text-blue-900">{totalOrders}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <ShoppingBag className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {!supportMode ? (
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-green-700 mb-1">Revenu Total</p>
-                <p className="text-3xl font-bold text-green-900">{totalRevenue}</p>
-                <p className="text-xs text-green-700">DZD</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        ) : null}
-
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-orange-700 mb-1">En Attente</p>
-                <p className="text-3xl font-bold text-orange-900">{pendingOrders}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-purple-700 mb-1">Complétées</p>
-                <p className="text-3xl font-bold text-purple-900">{completedOrders}</p>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-white" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {!supportMode ? (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              Clients
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{customers.length}</p>
-            <p className="text-sm text-muted-foreground">Utilisateurs actifs</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Truck className="w-5 h-5 text-primary" />
-              Livreurs
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{drivers.length}</p>
-            <p className="text-sm text-muted-foreground">Personnel de livraison</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Store className="w-5 h-5 text-primary" />
-              Vendeurs
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">{vendors.length}</p>
-            <p className="text-sm text-muted-foreground">Magasins partenaires</p>
-          </CardContent>
-        </Card>
-      </div>
-      ) : null}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{supportMode ? "Commandes récentes (lecture seule)" : "Commandes Récentes"}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {orders.slice(0, 5).map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">#{order.id}</p>
-                    <p className="text-sm text-muted-foreground">{new Date(order.createdAt).toLocaleString("fr-DZ")}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold">{order.total} DZD</p>
-                  <Badge
-                    variant={
-                      order.status === OrderStatus.DELIVERED
-                        ? "default"
-                        : order.status === OrderStatus.CANCELLED
-                          ? "destructive"
-                          : "secondary"
-                    }
-                  >
-                    {order.status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-
-  /** Support desk only — same SLA triage as `apps/admin`; no cash surveillance. */
-  const SupportCommandCenterView = () => (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Badge variant="secondary">SLA</Badge>
-            Command Center
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Vue rapide des commandes à risque (SLA). Lecture seule — pas d&apos;actions financières.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-3">
-            <h4 className="font-semibold">Commandes en risque SLA (&gt; 30 min)</h4>
-            {orders
-              .filter((o) => {
-                const riskyStatus = ["PENDING", "ACCEPTED", "PREPARING"]
-                const age = Date.now() - new Date(o.createdAt || Date.now()).getTime()
-                return riskyStatus.includes((o.status || "").toUpperCase()) && age > 30 * 60 * 1000
-              })
-              .slice(0, 12)
-              .map((o) => (
-                <div
-                  key={o.id}
-                  className="flex items-center justify-between rounded-lg border border-amber-200/70 bg-amber-50 px-3 py-2 text-amber-900"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">#{o.id}</span>
-                      <Badge variant="outline">{o.status}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Client: {(o as any).customer?.name || "N/A"} • Tel:{" "}
-                      {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Créé: {new Date(o.createdAt || Date.now()).toLocaleString("fr-FR")}
-                    </p>
-                  </div>
-                  <div className="text-right space-y-1">
-                    <p className="text-sm font-semibold">{o.total} DZD</p>
-                    <p className="text-xs text-muted-foreground">Ville: {(o as any).city || "N/A"}</p>
-                  </div>
-                </div>
-              ))}
-            {orders.length === 0 && (
-              <p className="text-sm text-muted-foreground">Aucune commande disponible</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-
-  if (isSupportAgentUser) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="container mx-auto px-4 py-6">
-          <Tabs defaultValue="dashboard" className="space-y-6">
-            <TabsList className="grid w-full max-w-2xl grid-cols-3">
-              <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
-              <TabsTrigger value="command-center">Command Center</TabsTrigger>
-              <TabsTrigger value="support">
-                <span className="inline-flex items-center gap-1.5">
-                  <LifeBuoy className="h-4 w-4 shrink-0" />
-                  Support
-                </span>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="dashboard">
-              <DashboardView supportMode />
-            </TabsContent>
-
-            <TabsContent value="command-center">
-              <SupportCommandCenterView />
-            </TabsContent>
-
-            <TabsContent value="support">
-              <AdminSupportTicketsView />
-            </TabsContent>
-          </Tabs>
-        </main>
-      </div>
-    )
+  // Handle edit user
+  const handleEditUser = (user: UserType) => {
+    setSelectedUser(user)
+    const userWithStatus = user as UserType & { status?: string; address?: string; city?: string }
+    setEditForm({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      role: (user.role?.toUpperCase() as EditRole) || "CUSTOMER",
+      status: (userWithStatus.status?.toUpperCase() as "PENDING" | "APPROVED" | "REJECTED") || "APPROVED",
+      address: userWithStatus.address || "",
+      city: userWithStatus.city || "",
+    })
+    setShowEditDialog(true)
   }
 
-  const CustomersView = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Gestion des Clients</h2>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Ajouter Client
-        </Button>
-      </div>
+  // Handle save user
+  const handleSaveUser = async () => {
+    if (!selectedUser) return
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Rechercher un client..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+    setIsSaving(true)
+    try {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      })
 
-      <div className="grid gap-4">
-        {customers.map((customer) => (
-          <Card key={customer.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Users className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{customer.name}</p>
-                    <p className="text-sm text-muted-foreground">{customer.email}</p>
-                    <p className="text-sm text-muted-foreground">{customer.phone}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="icon">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" className="text-red-600 hover:text-red-700 bg-transparent">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
+      const data = await response.json()
 
-  const DriversView = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Gestion des Livreurs</h2>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Ajouter Livreur
-        </Button>
-      </div>
+      if (data.success) {
+        toast({
+          title: "SuccÃ¨s",
+          description: "L'utilisateur a Ã©tÃ© mis Ã  jour avec succÃ¨s",
+        })
+        setShowEditDialog(false)
+        setSelectedUser(null)
+        fetchUsers()
+      } else {
+        toast({
+          title: "Erreur",
+          description: data.error || "Impossible de mettre Ã  jour l'utilisateur",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de mettre Ã  jour l'utilisateur",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Rechercher un livreur..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+  const handleResetPassword = async (newPassword: string) => {
+    if (!selectedUser) return
+    setIsResettingPassword(true)
+    try {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedUser.id}/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newPassword }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        const extra = data.data?.notificationEmail ? ` (${data.data.notificationEmail})` : ""
+        toast({
+          title: "Mot de passe mis Ã  jour",
+          description: `Le mot de passe a Ã©tÃ© rÃ©initialisÃ©.${extra}`,
+        })
+      } else {
+        toast({
+          title: "Erreur",
+          description: data.error || "RÃ©initialisation impossible",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      toast({
+        title: "Erreur",
+        description: "RÃ©initialisation impossible",
+        variant: "destructive",
+      })
+    } finally {
+      setIsResettingPassword(false)
+    }
+  }
 
-      <div className="grid gap-4">
-        {drivers.map((driver) => (
-          <Card key={driver.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Truck className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">{driver.name}</p>
-                    <p className="text-sm text-muted-foreground">{driver.email}</p>
-                    <p className="text-sm text-muted-foreground">{driver.phone}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="icon">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" size="icon" className="text-red-600 hover:text-red-700 bg-transparent">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
-  )
+  const sessionUserId = user?.id
+  const selectedRoleUpper = selectedUser ? String(selectedUser.role ?? "").toUpperCase() : ""
+  const canResetSelectedUserPassword =
+    !selectedUser ||
+    Boolean(sessionUserId && selectedUser.id === sessionUserId) ||
+    isSuperAdminUser ||
+    (isFullAdminUser && !["ADMIN", "SUPER_ADMIN"].includes(selectedRoleUpper))
 
-  const VendorsView = ({ vendors: vendorsProp, searchQuery: sq, setSearchQuery: setSq, setShowVendorDialog: setSvd, fetchUsers: fetchU, toast: t }: {
-    vendors: UserType[]
-    searchQuery: string
-    setSearchQuery: (v: string) => void
-    setShowVendorDialog: (v: boolean) => void
-    fetchUsers: () => void
-    toast: ReturnType<typeof useToast>["toast"]
-  }) => (
-    <SubscriptionsView
-      vendors={vendorsProp}
-      searchQuery={sq}
-      setSearchQuery={setSq}
-      setShowVendorDialog={setSvd}
-      fetchUsers={fetchU}
-      toast={t}
-    />
-  )
+  // Handle delete user
+  const handleDeleteUser = async () => {
+    if (!selectedUser) return
 
-  const ApprovalsView = () => (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Demandes d'inscription en attente</h2>
-        <Badge variant="secondary" className="text-lg px-3 py-1">
-          {registrationRequests.length} en attente
-        </Badge>
-      </div>
+    setIsDeleting(true)
+    try {
+      const response = await fetchWithCsrf(`/api/admin/users/${selectedUser.id}`, {
+        method: "DELETE",
+      })
 
-      {registrationRequests.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <UserCheck className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg text-muted-foreground">Aucune demande en attente</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4">
-          {registrationRequests.map((request) => (
-            <Card key={request.id} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                      {request.role === "driver" ? (
-                        <Truck className="w-7 h-7 text-primary" />
-                      ) : (
-                        <Store className="w-7 h-7 text-primary" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-bold text-lg">{request.name}</p>
-                        <Badge variant="outline">{request.role === "driver" ? "Livreur" : "Vendeur"}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{request.email}</p>
-                      <p className="text-sm text-muted-foreground">{request.phone}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Demandé le {new Date(request.createdAt).toLocaleDateString("fr-DZ")}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => {
-                      setSelectedRequest(request)
-                      setShowRequestDialog(true)
-                    }}
-                  >
-                    Examiner
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      const data = await response.json()
 
-      <Dialog open={showRequestDialog} onOpenChange={setShowRequestDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Détails de la demande</DialogTitle>
-            <DialogDescription>Examinez les informations et approuvez ou rejetez la demande</DialogDescription>
-          </DialogHeader>
+      if (data.success) {
+        toast({
+          title: "SuccÃ¨s",
+          description: "L'utilisateur a Ã©tÃ© supprimÃ© avec succÃ¨s",
+        })
+        setShowDeleteDialog(false)
+        setSelectedUser(null)
+        fetchUsers()
+      } else {
+        toast({
+          title: "Erreur",
+          description: data.error || "Impossible de supprimer l'utilisateur",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer l'utilisateur",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
-          {selectedRequest && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground">Rôle</p>
-                <p className="text-lg">{selectedRequest.role === "driver" ? "Livreur" : "Vendeur"}</p>
-              </div>
+  // Handle bulk actions
+  const handleBulkAction = async (action: string, userIds: string[]) => {
+    try {
+      const response = await fetchWithCsrf("/api/admin/users/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIds,
+          action,
+        }),
+      })
 
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground">Nom</p>
-                <p className="text-lg">{selectedRequest.name}</p>
-              </div>
+      const data = await response.json()
 
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground">Email</p>
-                <p className="text-lg">{selectedRequest.email}</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground">Téléphone</p>
-                <p className="text-lg">{selectedRequest.phone}</p>
-              </div>
-
-              {selectedRequest.licenseNumber && (
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Permis de conduire</p>
-                  <p className="text-lg">{selectedRequest.licenseNumber}</p>
-                </div>
-              )}
-
-              {selectedRequest.shopType && (
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">Type de magasin</p>
-                  <p className="text-lg">
-                    {selectedRequest.shopType === "restaurant"
-                      ? "Restaurant / Plats préparés"
-                      : selectedRequest.shopType === "grocery"
-                        ? "Épicerie"
-                        : selectedRequest.shopType === "parapharmacy"
-                          ? "Parapharmacie & Beauté"
-                          : "Boutique de cadeaux"}
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => selectedRequest && handleRejectRequest(selectedRequest.id)}
-              className="flex-1"
-            >
-              <UserX className="w-4 h-4 mr-2" />
-              Rejeter
-            </Button>
-            <Button
-              onClick={() => selectedRequest && handleApproveRequest(selectedRequest.id)}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-            >
-              <UserCheck className="w-4 h-4 mr-2" />
-              Approuver
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+      if (data.success) {
+        toast({
+          title: "SuccÃ¨s",
+          description: `${data.affected} utilisateur(s) ${action === 'suspend' ? 'suspendu(s)' : action === 'unsuspend' ? 'activÃ©(s)' : 'supprimÃ©(s)'} avec succÃ¨s`,
+        })
+        fetchUsers()
+      } else {
+        toast({
+          title: "Erreur",
+          description: data.error || "Impossible d'effectuer l'action en masse",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'effectuer l'action en masse",
+        variant: "destructive",
+      })
+      throw error
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      <AdminHeader
+        language={language}
+        setLanguage={setLanguage}
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
+        supportDesk={isSupportAgentUser}
+      />
       <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="approvals" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="approvals" className="relative">
-              Approbations
-              {registrationRequests.length > 0 && (
-                <Badge className="ml-2 bg-red-500 text-white">{registrationRequests.length}</Badge>
-              )}
-            </TabsTrigger>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            if (
+              isSupportAgentUser &&
+              !["dashboard", "support", "command-center"].includes(v)
+            ) {
+              return
+            }
+            setActiveTab(v)
+          }}
+          className="space-y-6"
+        >
+          <TabsList className="flex w-full flex-wrap gap-2 h-auto">
+            {isFullAdminUser && (
+              <TabsTrigger value="approvals" className="relative">
+                Approbations
+                {registrationRequests.length > 0 && (
+                  <Badge className="ml-2 bg-red-500 text-white">{registrationRequests.length}</Badge>
+                )}
+              </TabsTrigger>
+            )}
             <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
-            <TabsTrigger value="vendors">Vendeurs & Abonnements</TabsTrigger>
-            <TabsTrigger value="ads">Publicités</TabsTrigger>
-            <TabsTrigger value="customers">Clients</TabsTrigger>
-            <TabsTrigger value="drivers">Livreurs</TabsTrigger>
+            {isFullAdminUser && (
+              <TabsTrigger value="analytics-reports">
+                <span className="inline-flex items-center gap-1.5">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytique
+                </span>
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="command-center">Command Center</TabsTrigger>
+            {isFullAdminUser && (
+              <>
+                <TabsTrigger value="customers">Clients</TabsTrigger>
+                <TabsTrigger value="drivers">Livreurs</TabsTrigger>
+                <TabsTrigger value="vendors">Vendeurs</TabsTrigger>
+                <TabsTrigger value="vendor-driver">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Layers className="h-4 w-4" />
+                    Ops V/D
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="order-finance">
+                  <span className="inline-flex items-center gap-1.5">
+                    <ShoppingCart className="h-4 w-4" />
+                    Commandes
+                  </span>
+                </TabsTrigger>
+              </>
+            )}
+            <TabsTrigger value="support">
+              <span className="inline-flex items-center gap-1.5">
+                <LifeBuoy className="h-4 w-4" />
+                Support
+              </span>
+            </TabsTrigger>
+            {isFullAdminUser && (
+              <TabsTrigger value="products">
+                <span className="inline-flex items-center gap-1.5">
+                  <Boxes className="h-4 w-4" />
+                  Produits
+                </span>
+              </TabsTrigger>
+            )}
+            {isFullAdminUser && (
+              <>
+                <TabsTrigger value="content">
+                  <span className="inline-flex items-center gap-1.5">
+                    <LayoutGrid className="h-4 w-4" />
+                    Contenu
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="ads">PublicitÃ©s</TabsTrigger>
+                <TabsTrigger value="audit">Journal d'audit</TabsTrigger>
+                <TabsTrigger value="passkeys">Passkeys</TabsTrigger>
+              </>
+            )}
           </TabsList>
 
-          <TabsContent value="approvals">
-            <ApprovalsView />
-          </TabsContent>
+          {isFullAdminUser && (
+            <TabsContent value="approvals">
+              <ApprovalsView
+                requests={registrationRequests}
+                selectedRequest={selectedRequest}
+                showDialog={showRequestDialog}
+                onRequestClick={(request) => {
+                  setSelectedRequest(request)
+                  setShowRequestDialog(true)
+                }}
+                onDialogChange={setShowRequestDialog}
+                onApprove={handleApproveRequest}
+                onReject={handleRejectRequest}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="dashboard">
-            <DashboardView />
+            <div className="space-y-6">
+              <DashboardView
+                orders={orders}
+                customers={customers}
+                drivers={drivers}
+                vendors={vendors}
+                supportMode={isSupportAgentUser}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="customers">
-            <CustomersView />
-          </TabsContent>
+          {isFullAdminUser && (
+            <TabsContent value="analytics-reports">
+              <AnalyticsReportsView />
+            </TabsContent>
+          )}
 
-          <TabsContent value="drivers">
-            <DriversView />
-          </TabsContent>
-
-          <TabsContent value="vendors">
-            <VendorsView
-              vendors={vendors}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              setShowVendorDialog={setShowVendorDialog}
-              fetchUsers={fetchUsers}
-              toast={toast}
-            />
-          </TabsContent>
-
-          <TabsContent value="ads">
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold">Gestion des Publicités</h2>
-                <Button onClick={() => {
-                  setSelectedAd(null)
-                  setAdForm({
-                    titleFr: "",
-                    titleAr: "",
-                    descriptionFr: "",
-                    descriptionAr: "",
-                    imageUrl: "",
-                    linkUrl: "",
-                    isActive: true,
-                    displayOrder: ads.length,
-                  })
-                  setShowAdDialog(true)
-                }}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvelle Publicité
-                </Button>
-              </div>
-
-              <div className="grid gap-4">
-                {ads.map((ad) => (
-                  <Card key={ad.id}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-bold">{ad.titleFr}</h3>
-                            <Badge variant={ad.isActive ? "default" : "secondary"}>
-                              {ad.isActive ? "Actif" : "Inactif"}
-                            </Badge>
+          <TabsContent value="command-center">
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Badge variant="secondary">SLA</Badge>
+                    Command Center
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Vue rapide des commandes Ã  risque (SLA
+                    {!isSupportAgentUser && " & espÃ¨ces"}).{" "}
+                    {isSupportAgentUser
+                      ? "Lecture seule â€” pas dâ€™actions financiÃ¨res."
+                      : "Actions pourront Ãªtre branchÃ©es sur lâ€™API plus tard."}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Commandes en risque SLA (&gt; 30 min)</h4>
+                    {orders
+                      .filter((o) => {
+                        const riskyStatus = ["PENDING", "ACCEPTED", "PREPARING"]
+                        const age = Date.now() - new Date(o.createdAt || Date.now()).getTime()
+                        return riskyStatus.includes((o.status || "").toUpperCase()) && age > 30 * 60 * 1000
+                      })
+                      .slice(0, 12)
+                      .map((o) => (
+                        <div
+                          key={o.id}
+                          className="flex items-center justify-between rounded-lg border border-amber-200/70 bg-amber-50 px-3 py-2 text-amber-900"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm">#{o.id}</span>
+                              <Badge variant="outline">{o.status}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Client: {(o as any).customer?.name || "N/A"} â€¢ Tel: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              CrÃ©Ã©: {new Date(o.createdAt || Date.now()).toLocaleString("fr-FR")}
+                            </p>
                           </div>
-                          <p className="text-sm text-muted-foreground mb-2">{ad.descriptionFr}</p>
-                          <p className="text-xs text-muted-foreground">Ordre: {ad.displayOrder}</p>
+                          <div className="text-right space-y-1">
+                            <p className="text-sm font-semibold">{o.total} DZD</p>
+                            <p className="text-xs text-muted-foreground">Ville: {(o as any).city || "N/A"}</p>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedAd(ad)
-                              setAdForm({
-                                titleFr: ad.titleFr,
-                                titleAr: ad.titleAr,
-                                descriptionFr: ad.descriptionFr,
-                                descriptionAr: ad.descriptionAr,
-                                imageUrl: ad.imageUrl || "",
-                                linkUrl: ad.linkUrl || "",
-                                isActive: ad.isActive,
-                                displayOrder: ad.displayOrder,
-                              })
-                              setShowAdDialog(true)
-                            }}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              if (confirm("Êtes-vous sûr de vouloir supprimer cette publicité?")) {
-                                try {
-                                  const response = await fetch(`/api/admin/ads/${ad.id}`, {
-                                    method: "DELETE",
-                                  })
-                                  const data = await response.json()
-                                  if (data.success) {
-                                    toast({
-                                      title: "Succès",
-                                      description: "Publicité supprimée",
-                                    })
-                                    fetchAds()
-                                  }
-                                } catch (error) {
-                                  toast({
-                                    title: "Erreur",
-                                    description: "Erreur lors de la suppression",
-                                    variant: "destructive",
-                                  })
-                                }
-                              }
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                      ))}
+                    {orders.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Aucune commande disponible</p>
+                    )}
+                  </div>
+
+                  {!isSupportAgentUser && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold">Surveillance espÃ¨ces (&gt; 10k DZD)</h4>
+                    {orders
+                      .filter((o) => ((o as any).paymentMethod || "").toLowerCase() === "cash" && o.total > 10000)
+                      .slice(0, 12)
+                      .map((o) => (
+                        <div
+                          key={o.id}
+                          className="flex items-center justify-between rounded-lg border border-emerald-200/70 bg-emerald-50 px-3 py-2 text-emerald-900"
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-sm">#{o.id}</span>
+                              <Badge variant="outline">{o.status}</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Client: {(o as any).customer?.name || "N/A"} â€¢ Tel: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
+                            </p>
+                          </div>
+                          <div className="text-right space-y-1">
+                            <p className="text-sm font-semibold">{o.total} DZD</p>
+                            <p className="text-xs text-muted-foreground">Mode: {(o as any).paymentMethod || "cash"}</p>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      ))}
+                    {orders.filter((o) => ((o as any).paymentMethod || "").toLowerCase() === "cash" && o.total > 10000).length === 0 && (
+                      <p className="text-sm text-muted-foreground">Aucune alerte espÃ¨ces</p>
+                    )}
+                  </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
+
+          {isFullAdminUser && (
+            <>
+              <TabsContent value="customers">
+                <UserListViewWithBulk
+                  users={customers}
+                  title="Gestion des Clients"
+                  icon={<Users className="w-6 h-6 text-primary" />}
+                  emptyMessage="Aucun client"
+                  searchPlaceholder="Rechercher un client..."
+                  onEdit={handleEditUser}
+                  onDelete={(user) => {
+                    setSelectedUser(user)
+                    setShowDeleteDialog(true)
+                  }}
+                  onBulkAction={handleBulkAction}
+                />
+              </TabsContent>
+
+              <TabsContent value="drivers">
+                <UserListViewWithBulk
+                  users={drivers}
+                  title="Gestion des Livreurs"
+                  icon={<Truck className="w-6 h-6 text-primary" />}
+                  emptyMessage="Aucun livreur"
+                  searchPlaceholder="Rechercher un livreur..."
+                  onEdit={handleEditUser}
+                  onDelete={(user) => {
+                    setSelectedUser(user)
+                    setShowDeleteDialog(true)
+                  }}
+                  onBulkAction={handleBulkAction}
+                />
+              </TabsContent>
+
+              <TabsContent value="vendors">
+                <UserListViewWithBulk
+                  users={vendors}
+                  title="Gestion des Vendeurs"
+                  icon={<Store className="w-6 h-6 text-primary" />}
+                  emptyMessage="Aucun vendeur"
+                  searchPlaceholder="Rechercher un vendeur..."
+                  onEdit={handleEditUser}
+                  onDelete={(user) => {
+                    setSelectedUser(user)
+                    setShowDeleteDialog(true)
+                  }}
+                  onBulkAction={handleBulkAction}
+                  showActionLabels
+                />
+              </TabsContent>
+
+              <TabsContent value="vendor-driver">
+                <VendorDriverOperationsView drivers={drivers} orders={orders} onRefreshOrders={fetchOrders} />
+              </TabsContent>
+
+              <TabsContent value="order-finance">
+                <OrderFinanceView customers={customers} orders={orders} onRefreshOrders={fetchOrders} />
+              </TabsContent>
+            </>
+          )}
+
+          <TabsContent value="support">
+            <AdminSupportTicketsView />
+          </TabsContent>
+
+          {isFullAdminUser && (
+            <>
+              <TabsContent value="products">
+                <AdminProductsView />
+              </TabsContent>
+
+              <TabsContent value="content">
+                <ContentOperationsView />
+              </TabsContent>
+
+              <TabsContent value="ads">
+                <AdsManagementView />
+              </TabsContent>
+
+              <TabsContent value="audit">
+                <AuditLogView />
+              </TabsContent>
+
+              <TabsContent value="passkeys">
+                <PasskeysTab vendors={vendors} onRefresh={fetchUsers} />
+              </TabsContent>
+            </>
+          )}
         </Tabs>
-
-        {/* Ad Dialog */}
-        <Dialog open={showAdDialog} onOpenChange={setShowAdDialog}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{selectedAd ? "Modifier la Publicité" : "Nouvelle Publicité"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Titre (Français)</Label>
-                  <Input
-                    value={adForm.titleFr}
-                    onChange={(e) => setAdForm({ ...adForm, titleFr: e.target.value })}
-                    placeholder="Titre en français"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Titre (Arabe)</Label>
-                  <Input
-                    value={adForm.titleAr}
-                    onChange={(e) => setAdForm({ ...adForm, titleAr: e.target.value })}
-                    placeholder="العنوان بالعربية"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Description (Français)</Label>
-                  <Input
-                    value={adForm.descriptionFr}
-                    onChange={(e) => setAdForm({ ...adForm, descriptionFr: e.target.value })}
-                    placeholder="Description en français"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Description (Arabe)</Label>
-                  <Input
-                    value={adForm.descriptionAr}
-                    onChange={(e) => setAdForm({ ...adForm, descriptionAr: e.target.value })}
-                    placeholder="الوصف بالعربية"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>URL de l'image</Label>
-                <Input
-                  value={adForm.imageUrl}
-                  onChange={(e) => setAdForm({ ...adForm, imageUrl: e.target.value })}
-                  placeholder="https://example.com/image.jpg"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>URL du lien (optionnel)</Label>
-                <Input
-                  value={adForm.linkUrl}
-                  onChange={(e) => setAdForm({ ...adForm, linkUrl: e.target.value })}
-                  placeholder="https://example.com"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Ordre d'affichage</Label>
-                  <Input
-                    type="number"
-                    value={adForm.displayOrder}
-                    onChange={(e) => setAdForm({ ...adForm, displayOrder: parseInt(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="flex items-center gap-2 pt-8">
-                  <input
-                    type="checkbox"
-                    id="isActive"
-                    checked={adForm.isActive}
-                    onChange={(e) => setAdForm({ ...adForm, isActive: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <Label htmlFor="isActive">Actif</Label>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAdDialog(false)}>
-                Annuler
-              </Button>
-              <Button
-                onClick={async () => {
-                  try {
-                    const url = selectedAd ? `/api/admin/ads/${selectedAd.id}` : "/api/admin/ads"
-                    const method = selectedAd ? "PUT" : "POST"
-                    const response = await fetch(url, {
-                      method,
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify(adForm),
-                    })
-                    const data = await response.json()
-                    if (data.success) {
-                      toast({
-                        title: "Succès",
-                        description: selectedAd ? "Publicité modifiée" : "Publicité créée",
-                      })
-                      setShowAdDialog(false)
-                      fetchAds()
-                    } else {
-                      toast({
-                        title: "Erreur",
-                        description: data.error || "Une erreur s'est produite",
-                        variant: "destructive",
-                      })
-                    }
-                  } catch (error) {
-                    toast({
-                      title: "Erreur",
-                      description: "Une erreur s'est produite",
-                      variant: "destructive",
-                    })
-                  }
-                }}
-              >
-                {selectedAd ? "Modifier" : "Créer"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Add Vendor Dialog */}
-        <Dialog open={showVendorDialog} onOpenChange={setShowVendorDialog}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Ajouter un vendeur</DialogTitle>
-              <DialogDescription>Créez un compte vendeur. L&apos;email doit être unique.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nom</Label>
-                <Input
-                  value={vendorForm.name}
-                  onChange={(e) => setVendorForm({ ...vendorForm, name: e.target.value })}
-                  placeholder="Nom du vendeur"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={vendorForm.email}
-                  onChange={(e) => setVendorForm({ ...vendorForm, email: e.target.value })}
-                  placeholder="vendeur@example.com"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Téléphone</Label>
-                <Input
-                  value={vendorForm.phone}
-                  onChange={(e) => setVendorForm({ ...vendorForm, phone: e.target.value })}
-                  placeholder="+213 XXX XXX XXX"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Mot de passe</Label>
-                <Input
-                  type="password"
-                  value={vendorForm.password}
-                  onChange={(e) => setVendorForm({ ...vendorForm, password: e.target.value })}
-                  placeholder="Mot de passe de connexion"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Type de magasin</Label>
-                <Select value={vendorForm.shopType} onValueChange={(v) => setVendorForm({ ...vendorForm, shopType: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="restaurant">Restaurant / Plats préparés</SelectItem>
-                    <SelectItem value="grocery">Épicerie</SelectItem>
-                    <SelectItem value="parapharmacy">Parapharmacie & Beauté</SelectItem>
-                    <SelectItem value="gifts">Boutique de cadeaux</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="border-t pt-4 mt-2 space-y-3">
-                <p className="text-sm font-medium text-muted-foreground">Abonnement (optionnel)</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Type d&apos;abonnement</Label>
-                    <Select value={vendorForm.subscriptionPlan} onValueChange={(v) => setVendorForm({ ...vendorForm, subscriptionPlan: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="STARTER">Starter</SelectItem>
-                        <SelectItem value="PROFESSIONAL">Professional</SelectItem>
-                        <SelectItem value="BUSINESS">Business</SelectItem>
-                        <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Durée (jours)</Label>
-                    <Select value={vendorForm.subscriptionDurationDays} onValueChange={(v) => setVendorForm({ ...vendorForm, subscriptionDurationDays: v })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">7 jours</SelectItem>
-                        <SelectItem value="30">30 jours</SelectItem>
-                        <SelectItem value="90">90 jours</SelectItem>
-                        <SelectItem value="365">1 an</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowVendorDialog(false)}>
-                Annuler
-              </Button>
-              <Button onClick={handleCreateVendor} disabled={isCreatingVendor}>
-                {isCreatingVendor ? "Création..." : "Créer le vendeur"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </main>
+
+      <EditUserDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        user={selectedUser}
+        form={editForm}
+        onFormChange={setEditForm}
+        onSave={handleSaveUser}
+        isSaving={isSaving}
+        onResetPassword={handleResetPassword}
+        isResetting={isResettingPassword}
+        canResetPassword={canResetSelectedUserPassword}
+        allowSuperAdminRole={isSuperAdminUser}
+      />
+
+      <DeleteUserDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        user={selectedUser}
+        onConfirm={handleDeleteUser}
+        isDeleting={isDeleting}
+      />
     </div>
   )
 }

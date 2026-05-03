@@ -1,7 +1,8 @@
 "use client"
 
+import Link from "next/link"
 import { Button } from "@albaz/ui"
-import { LogOut, Sun, Moon, Globe } from "lucide-react"
+import { LogOut, Sun, Moon, Globe, KeyRound } from "lucide-react"
 import { signOut } from "next-auth/react"
 
 interface AdminHeaderProps {
@@ -9,35 +10,47 @@ interface AdminHeaderProps {
   setLanguage: (lang: string) => void
   isDarkMode: boolean
   setIsDarkMode: (dark: boolean) => void
+  /** Support desk agents use a restricted shell — lighter chrome; no passkeys shortcut. */
+  supportDesk?: boolean
 }
 
-export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }: AdminHeaderProps) {
+export function AdminHeader({
+  language,
+  setLanguage,
+  isDarkMode,
+  setIsDarkMode,
+  supportDesk = false,
+}: AdminHeaderProps) {
   return (
     <header className="sticky top-0 z-50 albaz-nav">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img
-              src="/logo.png"
-              alt="AL-baz"
-              className="h-7 w-auto"
-              onError={(e) => {
-                const target = e.currentTarget
-                target.onerror = null
-                target.src =
-                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='36' viewBox='0 0 120 36'%3E%3Crect width='120' height='36' rx='10' fill='%232f5b2f'/%3E%3Ctext x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Inter,Arial' font-size='12' font-weight='700'%3EALBAZ%3C/text%3E%3C/svg%3E"
-              }}
-            />
+            <img src="/logo.png" alt="AL-baz" className="h-10 w-auto" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none'
+            }} />
             <div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white">Panneau d'Administration</h1>
-              <p className="text-xs text-gray-600 dark:text-white/80">AL-baz Delivery</p>
+              <h1 className="text-lg font-bold text-[var(--albaz-text)] dark:text-white">
+                {supportDesk ? "Support — Administration" : "Panneau d'Administration"}
+              </h1>
+              <p className="text-xs text-[var(--albaz-text-soft)] dark:text-white/80">
+                {supportDesk ? "AL-baz · file support" : "AL-baz Delivery"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {!supportDesk ? (
+              <Button variant="ghost" size="sm" className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" asChild>
+                <Link href="/admin/passkeys" title="Passkeys générées">
+                  <KeyRound className="w-4 h-4 mr-1.5" />
+                  Passkeys
+                </Link>
+              </Button>
+            ) : null}
             <Button
               variant="ghost"
               size="icon"
-              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
               onClick={() => setLanguage(language === "fr" ? "ar" : "fr")}
               title={language === "fr" ? "العربية" : "Français"}
             >
@@ -46,7 +59,7 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }
             <Button
               variant="ghost"
               size="icon"
-              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10"
               onClick={() => setIsDarkMode(!isDarkMode)}
             >
               {isDarkMode ? (
@@ -58,7 +71,7 @@ export function AdminHeader({ language, setLanguage, isDarkMode, setIsDarkMode }
             <Button 
               variant="ghost" 
               size="icon" 
-              className="text-gray-700 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10" 
+              className="text-[var(--albaz-text)] dark:text-white hover:bg-white/10" 
               onClick={() => signOut({ callbackUrl: "/login" })}
             >
               <LogOut className="w-5 h-5" />

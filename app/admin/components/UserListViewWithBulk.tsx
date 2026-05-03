@@ -1,11 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Button, Card, CardContent, Input, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@albaz/ui"
 import { Checkbox } from "@/root/components/ui/checkbox"
 import { Search, Plus, Edit, Trash2, MoreVertical, Ban, CheckCircle2 } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
@@ -21,6 +17,8 @@ interface UserListViewWithBulkProps {
   onDelete: (user: UserType) => void
   onBulkAction: (action: string, userIds: string[]) => Promise<void>
   onAdd?: () => void
+  /** Show text labels next to edit/delete (clearer for vendor management). */
+  showActionLabels?: boolean
 }
 
 export function UserListViewWithBulk({
@@ -33,6 +31,7 @@ export function UserListViewWithBulk({
   onDelete,
   onBulkAction,
   onAdd,
+  showActionLabels = false,
 }: UserListViewWithBulkProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
@@ -234,17 +233,23 @@ export function UserListViewWithBulk({
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="icon" onClick={() => onEdit(user)}>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size={showActionLabels ? "sm" : "icon"}
+                        onClick={() => onEdit(user)}
+                      >
                         <Edit className="w-4 h-4" />
+                        {showActionLabels ? <span className="ml-1">Modifier</span> : null}
                       </Button>
                       <Button
                         variant="outline"
-                        size="icon"
+                        size={showActionLabels ? "sm" : "icon"}
                         className="text-red-600 hover:text-red-700 bg-transparent"
                         onClick={() => onDelete(user)}
                       >
                         <Trash2 className="w-4 h-4" />
+                        {showActionLabels ? <span className="ml-1">Supprimer</span> : null}
                       </Button>
                     </div>
                   </div>

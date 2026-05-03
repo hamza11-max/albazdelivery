@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import { auth } from '@/root/lib/auth'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotFoundError } from '@/root/lib/errors'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { csrfProtection } from '@/lib/csrf'
 import crypto from 'crypto'
 import { isFullAdmin } from '@/root/lib/admin-roles'
 
@@ -26,6 +28,13 @@ function generatePasskey() {
 
 export async function POST(request: NextRequest) {
   try {
+    const csrfResponse = csrfProtection(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
+
+    await applyRateLimit(request, rateLimitConfigs.api)
+
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
@@ -34,7 +43,7 @@ export async function POST(request: NextRequest) {
       throw new ForbiddenError('Only admins can generate passkeys')
     }
 
-    const body = await request.json().catch(() => ({}))
+    const body = await request.json()
     const { subscriptionId, vendorEmail, expiresInDays = 7 } = body || {}
 
     let targetSubscriptionId = subscriptionId
@@ -94,6 +103,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    await applyRateLimit(request, rateLimitConfigs.api)
+
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()

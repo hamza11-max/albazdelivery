@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { Order, User as UserType, RegistrationRequest } from "@/root/lib/types"
 
-export function useAdminData() {
+export type AdminDataMode = "full" | "support"
+
+export function useAdminData(mode: AdminDataMode = "full") {
   const [orders, setOrders] = useState<Order[]>([])
   const [customers, setCustomers] = useState<UserType[]>([])
   const [drivers, setDrivers] = useState<UserType[]>([])
@@ -14,7 +16,7 @@ export function useAdminData() {
   const fetchOrders = async () => {
     try {
       const response = await fetch("/api/admin/orders", {
-        credentials: 'include',
+        credentials: "include",
       })
       const data = await response.json()
       const orders = data?.data?.orders ?? []
@@ -28,11 +30,11 @@ export function useAdminData() {
   const fetchUsers = async () => {
     try {
       const response = await fetch("/api/admin/users", {
-        credentials: 'include',
+        credentials: "include",
       })
       const data = await response.json()
       const users = data?.data?.users ?? []
-      
+
       setCustomers(users.filter((u: UserType) => u.role.toLowerCase() === "customer"))
       setDrivers(users.filter((u: UserType) => u.role.toLowerCase() === "driver"))
       setVendors(users.filter((u: UserType) => u.role.toLowerCase() === "vendor"))
@@ -47,7 +49,7 @@ export function useAdminData() {
   const fetchRegistrationRequests = async () => {
     try {
       const response = await fetch("/api/admin/registration-requests", {
-        credentials: 'include',
+        credentials: "include",
       })
       const data = await response.json()
       const requests = data?.data?.requests ?? []
@@ -58,19 +60,19 @@ export function useAdminData() {
     }
   }
 
-  const refreshAll = async () => {
+  const refreshAll = useCallback(async () => {
     setIsLoading(true)
-    await Promise.all([
-      fetchOrders(),
-      fetchUsers(),
-      fetchRegistrationRequests(),
-    ])
+    if (mode === "support") {
+      await fetchOrders()
+    } else {
+      await Promise.all([fetchOrders(), fetchUsers(), fetchRegistrationRequests()])
+    }
     setIsLoading(false)
-  }
+  }, [mode])
 
   useEffect(() => {
-    refreshAll()
-  }, [])
+    void refreshAll()
+  }, [refreshAll])
 
   return {
     orders,
@@ -85,4 +87,3 @@ export function useAdminData() {
     fetchRegistrationRequests,
   }
 }
-

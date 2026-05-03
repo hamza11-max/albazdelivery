@@ -1,12 +1,21 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@albaz/ui"
 import { LifeBuoy, Loader2, RefreshCw } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
 type TicketRow = {
@@ -139,7 +148,9 @@ export function AdminSupportTicketsView() {
                     </div>
                     <p className="line-clamp-4 whitespace-pre-wrap text-sm text-muted-foreground">{t.description}</p>
                     <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                      <span>Client: {t.customer?.name || t.customer?.email || t.customer?.id}</span>
+                      <span>
+                        Client: {t.customer?.name || t.customer?.email || t.customer?.id}
+                      </span>
                       <span>• {t.category}</span>
                       <span>• {new Date(t.createdAt).toLocaleString("fr-FR")}</span>
                     </div>
