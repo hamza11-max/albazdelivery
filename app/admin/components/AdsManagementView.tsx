@@ -6,6 +6,8 @@ import { Plus, Edit, Trash2, Eye, EyeOff, Search, Image as ImageIcon, ExternalLi
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
+const SELECT_ALL = "__all__"
+
 interface Ad {
   id: string
   title: string
@@ -263,12 +265,17 @@ export function AdsManagementView() {
               />
             </div>
 
-            <Select value={filters.position} onValueChange={(value) => setFilters({ ...filters, position: value })}>
+            <Select
+              value={filters.position === "" ? SELECT_ALL : filters.position}
+              onValueChange={(value) =>
+                setFilters({ ...filters, position: value === SELECT_ALL ? "" : value })
+              }
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Toutes les positions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Toutes les positions</SelectItem>
+                <SelectItem value={SELECT_ALL}>Toutes les positions</SelectItem>
                 <SelectItem value="HOME_BANNER">Bannière principale</SelectItem>
                 <SelectItem value="HOME_SIDEBAR">Barre latérale</SelectItem>
                 <SelectItem value="CATEGORY_TOP">Haut de catégorie</SelectItem>
@@ -279,12 +286,17 @@ export function AdsManagementView() {
               </SelectContent>
             </Select>
 
-            <Select value={filters.isActive} onValueChange={(value) => setFilters({ ...filters, isActive: value })}>
+            <Select
+              value={filters.isActive === "" ? SELECT_ALL : filters.isActive}
+              onValueChange={(value) =>
+                setFilters({ ...filters, isActive: value === SELECT_ALL ? "" : value })
+              }
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Tous les statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les statuts</SelectItem>
+                <SelectItem value={SELECT_ALL}>Tous les statuts</SelectItem>
                 <SelectItem value="true">Actives</SelectItem>
                 <SelectItem value="false">Inactives</SelectItem>
               </SelectContent>

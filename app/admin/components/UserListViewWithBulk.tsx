@@ -7,6 +7,9 @@ import { Search, Plus, Edit, Trash2, MoreVertical, Ban, CheckCircle2 } from "luc
 import type { User as UserType } from "@/root/lib/types"
 // DropdownMenu not available, using Button instead
 
+/** Radix Select forbids SelectItem value=""; use this sentinel for "no filter". */
+const SELECT_ALL = "__all__"
+
 interface UserListViewWithBulkProps {
   users: UserType[]
   title: string
@@ -112,24 +115,30 @@ export function UserListViewWithBulk({
               />
             </div>
 
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <Select
+              value={roleFilter === "" ? SELECT_ALL : roleFilter}
+              onValueChange={(v) => setRoleFilter(v === SELECT_ALL ? "" : v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Tous les rôles" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les rôles</SelectItem>
+                <SelectItem value={SELECT_ALL}>Tous les rôles</SelectItem>
                 <SelectItem value="CUSTOMER">Client</SelectItem>
                 <SelectItem value="VENDOR">Vendeur</SelectItem>
                 <SelectItem value="DRIVER">Livreur</SelectItem>
               </SelectContent>
             </Select>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select
+              value={statusFilter === "" ? SELECT_ALL : statusFilter}
+              onValueChange={(v) => setStatusFilter(v === SELECT_ALL ? "" : v)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Tous les statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous les statuts</SelectItem>
+                <SelectItem value={SELECT_ALL}>Tous les statuts</SelectItem>
                 <SelectItem value="PENDING">En attente</SelectItem>
                 <SelectItem value="APPROVED">Approuvé</SelectItem>
                 <SelectItem value="REJECTED">Rejeté</SelectItem>

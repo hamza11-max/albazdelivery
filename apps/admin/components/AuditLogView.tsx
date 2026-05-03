@@ -6,6 +6,8 @@ import { Search, Filter, Calendar, Download } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 
+const SELECT_ALL = "__all__"
+
 interface AuditLog {
   id: string
   userId?: string
@@ -135,12 +137,17 @@ export function AuditLogView() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="text-sm font-medium mb-2 block">Action</label>
-              <Select value={filters.action} onValueChange={(value) => setFilters({ ...filters, action: value })}>
+              <Select
+                value={filters.action === "" ? SELECT_ALL : filters.action}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, action: value === SELECT_ALL ? "" : value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Toutes les actions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Toutes les actions</SelectItem>
+                  <SelectItem value={SELECT_ALL}>Toutes les actions</SelectItem>
                   <SelectItem value="USER_CREATED">Création d'utilisateur</SelectItem>
                   <SelectItem value="USER_UPDATED">Modification d'utilisateur</SelectItem>
                   <SelectItem value="USER_DELETED">Suppression d'utilisateur</SelectItem>
@@ -156,12 +163,17 @@ export function AuditLogView() {
 
             <div>
               <label className="text-sm font-medium mb-2 block">Ressource</label>
-              <Select value={filters.resource} onValueChange={(value) => setFilters({ ...filters, resource: value })}>
+              <Select
+                value={filters.resource === "" ? SELECT_ALL : filters.resource}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, resource: value === SELECT_ALL ? "" : value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Toutes les ressources" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Toutes les ressources</SelectItem>
+                  <SelectItem value={SELECT_ALL}>Toutes les ressources</SelectItem>
                   <SelectItem value="USER">Utilisateur</SelectItem>
                   <SelectItem value="REGISTRATION_REQUEST">Demande d'inscription</SelectItem>
                   <SelectItem value="AD">Publicité</SelectItem>
@@ -171,12 +183,17 @@ export function AuditLogView() {
 
             <div>
               <label className="text-sm font-medium mb-2 block">Statut</label>
-              <Select value={filters.status} onValueChange={(value) => setFilters({ ...filters, status: value })}>
+              <Select
+                value={filters.status === "" ? SELECT_ALL : filters.status}
+                onValueChange={(value) =>
+                  setFilters({ ...filters, status: value === SELECT_ALL ? "" : value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Tous les statuts" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tous les statuts</SelectItem>
+                  <SelectItem value={SELECT_ALL}>Tous les statuts</SelectItem>
                   <SelectItem value="SUCCESS">Succès</SelectItem>
                   <SelectItem value="FAILURE">Échec</SelectItem>
                 </SelectContent>
