@@ -246,7 +246,16 @@ export function errorResponse(
           success: false,
           error: {
             code: 'SERVICE_UNAVAILABLE',
-            message: 'Database configuration error. Ensure migrations are run and the database is reachable.',
+            message:
+              'Database unreachable or schema mismatch. On Vercel + Neon, use the pooled `DATABASE_URL` from the dashboard; run `prisma migrate deploy` against production; confirm env is set for Production (not only Preview).',
+            details: {
+              prismaCode: prismaError.code,
+              hint: String(
+                (prismaError as unknown as { message?: string }).message ?? ''
+              )
+                .split('\n')[0]
+                .slice(0, 280),
+            },
           },
           meta: {
             timestamp: new Date().toISOString(),
