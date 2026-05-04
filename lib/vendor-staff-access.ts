@@ -1,5 +1,5 @@
-import { prisma } from '@/lib/prisma'
-import { ForbiddenError } from '@/lib/errors'
+import { prisma } from '@/root/lib/prisma'
+import { ForbiddenError } from '@/root/lib/errors'
 
 /**
  * Resolves the vendor **owner** user id for scoped data (orders, ERP inventory).
