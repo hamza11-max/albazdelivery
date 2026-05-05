@@ -8,12 +8,12 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "lang": "fr",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#121b26",
+  "theme_color": "#121b26",
   "icons": [
     {
       "src": "/logo.png",
-      "sizes": "1024x1024",
+      "sizes": "1024x682",
       "type": "image/png",
       "purpose": "any"
     }

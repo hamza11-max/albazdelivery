@@ -371,11 +371,23 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md overflow-hidden rounded-3xl border border-transparent bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-[#0c1118] via-[#121b26] to-[#0a0e14] p-4">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage:
+            "repeating-linear-gradient(-36deg, transparent, transparent 22px, rgba(56, 189, 248, 0.45) 22px, rgba(56, 189, 248, 0.45) 23px)",
+        }}
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-gradient-to-tr from-orange-600/10 via-transparent to-transparent"
+        aria-hidden
+      />
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-white/95 shadow-2xl shadow-orange-900/20 backdrop-blur-sm dark:border-white/10 dark:bg-[#141c28]/95">
         {/* Logo Section */}
-        <div className="flex flex-col items-center justify-center bg-black p-6 text-center dark:bg-gray-900 sm:p-8">
-          <img src={BRAND_MARK_SRC} alt="AlBaz" className="h-16 w-auto object-contain mb-2" />
+        <div className="flex flex-col items-center justify-center bg-gradient-to-b from-[#0c1118] to-[#121b26] p-6 text-center sm:p-8">
+          <img src={BRAND_MARK_SRC} alt="AlBaz" className="mb-2 h-20 w-auto max-w-[min(100%,280px)] object-contain drop-shadow-[0_0_20px_rgba(251,146,60,0.35)]" />
           <p className="text-gray-300 text-sm">Vendor Dashboard</p>
         </div>
 

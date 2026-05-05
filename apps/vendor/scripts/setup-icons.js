@@ -26,16 +26,45 @@ function tryGenerateIco() {
   }
 }
 
+/** Large HD marks can hang png-to-ico; downscale for ICO only. */
+async function resolveIcoSourcePng() {
+  try {
+    const sharp = require('sharp')
+    const tmp = path.join(assetsDir, '.logo-256-for-ico.png')
+    await sharp(logoPath)
+      .resize(256, 256, {
+        fit: 'contain',
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      })
+      .png()
+      .toFile(tmp)
+    return tmp
+  } catch (e) {
+    console.warn('   sharp resize for ico skipped:', e.message)
+    return logoPath
+  }
+}
+
 async function run() {
   const pngToIco = tryGenerateIco()
-  if (fs.existsSync(logoPath) && pngToIco && !fs.existsSync(logoIcoPath)) {
+  if (fs.existsSync(logoPath) && pngToIco) {
     console.log('   Generating logo.ico from logo.png...')
+    let icoSource = logoPath
     try {
-      const buf = await pngToIco(logoPath)
+      icoSource = await resolveIcoSourcePng()
+      const buf = await pngToIco(icoSource)
       fs.writeFileSync(logoIcoPath, buf)
       console.log('✅ Created logo.ico (Windows)')
     } catch (err) {
       console.warn('   Could not generate logo.ico:', err.message)
+    } finally {
+      if (icoSource !== logoPath && fs.existsSync(icoSource)) {
+        try {
+          fs.unlinkSync(icoSource)
+        } catch (_) {
+          /* ignore */
+        }
+      }
     }
   }
 

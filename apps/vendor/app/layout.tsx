@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#3f5f2a",
+  themeColor: "#121b26",
 }
 
 export default function VendorLayout({

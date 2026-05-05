@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { BRAND_MARK_SRC } from '../apps/vendor/lib/brand-mark'
 import { Button } from '@/root/components/ui/button'
 import { Input } from '@/root/components/ui/input'
 import { Label } from '@/root/components/ui/label'
@@ -91,7 +92,7 @@ export default function ElectronLogin({ onLoginSuccess }: ElectronLoginProps) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-teal-500 via-cyan-500 to-orange-500 hover:from-teal-600 hover:via-cyan-600 hover:to-orange-600 text-white"
+              className="w-full bg-gradient-to-r from-orange-600 via-amber-500 to-yellow-400 text-white hover:from-orange-700 hover:via-amber-600 hover:to-yellow-500"
             >
               {loading ? (
                 <>

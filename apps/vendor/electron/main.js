@@ -466,7 +466,7 @@ function createWindow() {
   mainWindow.on('leave-full-screen', sendFullscreenState)
 
   // Show a loading page immediately so the user always sees a window (packaged app)
-  const loadingHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AlBaz Vendor</title></head><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#1e293b;"><div style="text-align:center;color:#e2e8f0;"><p style="font-size:18px;">Starting AlBaz Vendor...</p><p style="color:#94a3b8;">Waiting for server</p><p style="font-size:12px;color:#64748b;margin-top:1rem;">If this stays or the app does not open, open this log in Notepad:</p><p style="font-size:11px;color:#94a3b8;margin-top:0.5rem;word-break:break-all;">%APPDATA%\\AlBaz Vendor\\vendor-startup.log</p></div></body></html>'
+  const loadingHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AlBaz Vendor</title></head><body style="font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:linear-gradient(145deg,#0c1118 0%,#121b26 50%,#0a0e14 100%);"><div style="text-align:center;color:#e8edf5;"><p style="font-size:18px;font-weight:600;">Starting AlBaz Vendor...</p><p style="color:#94a3b8;">Waiting for server</p><p style="font-size:12px;color:#64748b;margin-top:1rem;">If this stays or the app does not open, open this log in Notepad:</p><p style="font-size:11px;color:#94a3b8;margin-top:0.5rem;word-break:break-all;">%APPDATA%\\AlBaz Vendor\\vendor-startup.log</p></div></body></html>'
   mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(loadingHtml))
 
   // Always show window when ready so user sees loading or error (not a blank screen)

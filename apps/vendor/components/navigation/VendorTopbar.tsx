@@ -18,8 +18,8 @@ import { Badge } from "@/root/components/ui/badge"
 import { cn } from "@/root/lib/utils"
 import { BRAND_MARK_SRC } from "@/lib/brand-mark"
 
-/** Primary green (wordmark) — Lucide uses currentColor for stroke. */
-const iconGreen = "text-albaz-green-700 dark:text-albaz-green-300"
+/** Toolbar icons — Lucide uses currentColor for stroke. */
+const iconNav = "text-albaz-navy-700 dark:text-slate-200"
 
 /** Accent orange (bird / alerts) */
 const iconOrange = "text-albaz-orange-600 dark:text-albaz-orange-400"
@@ -63,7 +63,7 @@ function TopIconButton({
       size="icon"
       className={cn(
         "neu-button relative h-10 w-10 shrink-0 rounded-full border-transparent bg-transparent sm:h-11 sm:w-11",
-        iconGreen,
+        iconNav,
         className,
       )}
       onClick={onClick}
@@ -110,7 +110,7 @@ export function VendorTopbar({
             href="/vendor"
             className={cn(
               "flex shrink-0 items-center rounded-sm p-2",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-albaz-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-albaz-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             )}
             aria-label="ALBAZ"
           >
@@ -123,8 +123,8 @@ export function VendorTopbar({
               fetchPriority="high"
               className={cn(
                 "h-7 w-auto max-h-8 object-contain object-left",
-                "drop-shadow-[0_1px_1px_rgba(0,0,0,0.12)]",
-                "dark:drop-shadow-[0_0_1px_rgba(255,255,255,0.35),0_1px_3px_rgba(0,0,0,0.45)]",
+                "drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]",
+                "dark:drop-shadow-[0_0_12px_rgba(251,146,60,0.25),0_1px_3px_rgba(0,0,0,0.5)]",
               )}
             />
           </Link>
@@ -147,7 +147,7 @@ export function VendorTopbar({
                 : translate("Thème sombre", "الوضع الداكن")
             }
             onClick={onToggleTheme}
-            className={cn(isDarkMode ? iconOrange : iconGreen)}
+            className={cn(isDarkMode ? iconOrange : iconNav)}
           >
             {isDarkMode ? (
               <Sun className={navIconSize} strokeWidth={strokeNav} />
