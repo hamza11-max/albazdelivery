@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from "react"
 import { apiFetch } from "@/root/lib/api-fetch"
-import { PLAN_FEATURES, subscriptionStatusGrantsPlanFeatures, type PlanFeatures } from "@/root/lib/subscription-plans"
+import {
+  PLAN_FEATURES,
+  subscriptionStatusGrantsPlanFeatures,
+  type PlanFeatures,
+} from "@/root/lib/subscription-plans"
 
 interface Subscription {
   id: string
@@ -24,6 +28,7 @@ function subscriptionGrantsPlanFeatures(subscription: Subscription | null): bool
 
 export function useSubscription() {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [entitlements, setEntitlements] = useState<PlanFeatures | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,11 +43,18 @@ export function useSubscription() {
       const res = await apiFetch("/api/subscriptions")
       const data = await res.json()
       if (data.success) {
-        const d = data.data as { subscription?: Subscription | null } | Subscription | null
+        const d = data.data as
+          | { subscription?: Subscription | null; entitlements?: PlanFeatures | null }
+          | Subscription
+          | null
         if (d && typeof d === "object" && "subscription" in d) {
           setSubscription(d.subscription ?? null)
+          setEntitlements(
+            "entitlements" in d ? (d as { entitlements?: PlanFeatures | null }).entitlements ?? null : null
+          )
         } else {
           setSubscription((d as Subscription) ?? null)
+          setEntitlements(null)
         }
       } else {
         setError(data.error || "Failed to fetch subscription")
@@ -55,9 +67,18 @@ export function useSubscription() {
   }
 
   const hasFeature = (feature: keyof PlanFeatures): boolean => {
+    if (!subscription) return false
+
+    if (entitlements) {
+      const value = entitlements[feature] as boolean | number | string | undefined
+      if (typeof value === "boolean") return value
+      if (typeof value === "number") return value === -1
+      return false
+    }
+
     if (!subscriptionGrantsPlanFeatures(subscription)) return false
 
-    const planFeatures = PLAN_FEATURES[subscription!.plan as keyof typeof PLAN_FEATURES]
+    const planFeatures = PLAN_FEATURES[subscription.plan as keyof typeof PLAN_FEATURES]
     if (!planFeatures) return false
 
     const value = planFeatures[feature]
@@ -66,9 +87,16 @@ export function useSubscription() {
   }
 
   const getLimit = (feature: keyof PlanFeatures): number => {
+    if (!subscription) return 0
+
+    if (entitlements) {
+      const value = entitlements[feature]
+      return typeof value === "number" ? value : 0
+    }
+
     if (!subscriptionGrantsPlanFeatures(subscription)) return 0
 
-    const planFeatures = PLAN_FEATURES[subscription!.plan as keyof typeof PLAN_FEATURES]
+    const planFeatures = PLAN_FEATURES[subscription.plan as keyof typeof PLAN_FEATURES]
     if (!planFeatures) return 0
 
     const value = planFeatures[feature]
@@ -89,6 +117,7 @@ export function useSubscription() {
 
   return {
     subscription,
+    entitlements,
     loading,
     error,
     hasFeature,

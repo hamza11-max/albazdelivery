@@ -1066,6 +1066,8 @@ model Subscription {
   userId            String                      @unique
   plan              SubscriptionPlan            @default(STARTER)
   status            SubscriptionStatus          @default(TRIAL)
+  /// Admin-managed per-vendor overrides merged with PLAN_FEATURES baseline (see resolveVendorEntitlements).
+  featureOverrides  Json?
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean                    @default(false)

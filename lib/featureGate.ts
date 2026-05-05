@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma"
-import { PLAN_FEATURES, subscriptionStatusGrantsPlanFeatures, type PlanFeatures } from "./subscription-plans"
+import type { PlanFeatures } from "./subscription-plans"
+import { resolveVendorEntitlements } from "./subscriptions/resolve-entitlements"
 
 export async function checkFeatureAccess(
   userId: string,
@@ -7,18 +8,21 @@ export async function checkFeatureAccess(
 ): Promise<boolean> {
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
+    select: {
+      plan: true,
+      status: true,
+      featureOverrides: true,
+    },
   })
 
-  if (!subscription || !subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)) {
-    return false
-  }
+  if (!subscription) return false
 
-  const planFeatures = PLAN_FEATURES[subscription.plan]
-  if (!planFeatures) return false
+  const entitlements = resolveVendorEntitlements(subscription)
 
-  const value = planFeatures[feature]
+  const value = entitlements[feature] as boolean | number | string | undefined
   if (typeof value === "boolean") return value
-  return value === -1
+  if (typeof value === "number") return value === -1
+  return false
 }
 
 export async function checkUsageLimit(
@@ -31,18 +35,23 @@ export async function checkUsageLimit(
     include: { usage: true },
   })
 
-  if (!subscription || !subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)) {
-    return false
-  }
+  if (!subscription) return false
 
-  const limit = PLAN_FEATURES[subscription.plan]?.[feature as keyof PlanFeatures]
-  if (limit === -1) return true // unlimited
+  const fk = feature as keyof PlanFeatures
+  const entitlements = resolveVendorEntitlements({
+    plan: subscription.plan,
+    status: subscription.status,
+    featureOverrides: subscription.featureOverrides,
+  })
 
-  // Check usage from database
+  const limit = entitlements[fk]
+  if (limit === undefined || typeof limit !== "number") return false
+  if (limit === -1) return true
+
   const usage = subscription.usage.find((u) => u.feature === feature)
-  const actualUsage = usage?.currentUsage || currentUsage
+  const actualUsage = usage?.currentUsage ?? currentUsage
 
-  return actualUsage < (limit as number)
+  return actualUsage < limit
 }
 
 export async function getFeatureLimit(
@@ -51,13 +60,13 @@ export async function getFeatureLimit(
 ): Promise<number> {
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
+    select: { plan: true, status: true, featureOverrides: true },
   })
 
-  if (!subscription || !subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)) {
-    return 0
-  }
+  if (!subscription) return 0
 
-  const limit = PLAN_FEATURES[subscription.plan]?.[feature]
-  return (limit as number) || 0
+  const entitlements = resolveVendorEntitlements(subscription)
+  const limit = entitlements[feature]
+  return typeof limit === "number" ? limit : 0
 }
 

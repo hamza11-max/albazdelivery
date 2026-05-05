@@ -3,9 +3,13 @@ import { auth } from '@/root/lib/auth'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, ValidationError } from '@/root/lib/errors'
 import { isFullAdmin } from '@/root/lib/admin-roles'
+import { csrfProtection } from '../../../../lib/csrf'
 
 // POST /api/admin/subscriptions - Create subscription for a vendor (admin only)
 export async function POST(request: NextRequest) {
+  const csrfResponse = csrfProtection(request)
+  if (csrfResponse) return csrfResponse
+
   try {
     const session = await auth()
     if (!session?.user) throw new UnauthorizedError()

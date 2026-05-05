@@ -5,7 +5,7 @@ import nextDynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Badge, Tabs, TabsContent, TabsList, TabsTrigger } from "@albaz/ui"
-import { Users, Truck, Store, Layers, ShoppingCart, LayoutGrid, BarChart3, LifeBuoy, Boxes } from "lucide-react"
+import { Users, Truck, Store, Layers, ShoppingCart, LayoutGrid, BarChart3, LifeBuoy, Boxes, CreditCard } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../../lib/csrf-client"
@@ -36,6 +36,7 @@ import { ContentOperationsView } from "../../components/ContentOperationsView"
 import { AdminSupportTicketsView } from "../../components/AdminSupportTicketsView"
 import { AdminProductsView } from "../../components/AdminProductsView"
 import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
+import { SubscriptionsManageView } from "../../components/SubscriptionsManageView"
 import { canAccessAdminApp, isFullAdmin as isFullAdminRole, isSuperAdmin as isSuperAdminRole } from "@/root/lib/admin-roles"
 
 type EditRole = "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT"
@@ -451,6 +452,12 @@ export default function AdminPanel() {
                 <TabsTrigger value="ads">Publicités</TabsTrigger>
                 <TabsTrigger value="audit">Journal d'audit</TabsTrigger>
                 <TabsTrigger value="passkeys">Passkeys</TabsTrigger>
+                <TabsTrigger value="subscriptions-admin">
+                  <span className="inline-flex items-center gap-1.5">
+                    <CreditCard className="h-4 w-4" />
+                    Abonnements
+                  </span>
+                </TabsTrigger>
               </>
             )}
           </TabsList>
@@ -665,6 +672,10 @@ export default function AdminPanel() {
 
               <TabsContent value="passkeys">
                 <PasskeysTab vendors={vendors} onRefresh={fetchUsers} />
+              </TabsContent>
+
+              <TabsContent value="subscriptions-admin">
+                <SubscriptionsManageView vendors={vendors} />
               </TabsContent>
             </>
           )}

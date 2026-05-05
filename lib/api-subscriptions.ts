@@ -2,6 +2,7 @@ import { getSessionFromRequest } from "./get-session-from-request"
 import { prisma } from "./prisma"
 import { stripe, PLAN_PRICES } from "./stripe"
 import { errorResponse, ForbiddenError, successResponse, UnauthorizedError } from "./errors"
+import { resolveVendorEntitlements } from "./subscriptions/resolve-entitlements"
 
 /** When true, POST plan STARTER can activate without Stripe (intended for dev/special enterprise deals). */
 function allowStarterPlanWithoutStripe(): boolean {
@@ -31,10 +32,16 @@ export async function handleSubscriptionsGet(request: Request) {
     if (!subscription) {
       // Do not auto-provision a subscription on read (entitlement + billing abuse). Clients must
       // start a trial or checkout via POST /api/subscriptions (or a dedicated onboarding flow).
-      return successResponse({ subscription: null })
+      return successResponse({ subscription: null, entitlements: null })
     }
 
-    return successResponse({ subscription })
+    const entitlements = resolveVendorEntitlements({
+      plan: subscription.plan,
+      status: subscription.status,
+      featureOverrides: subscription.featureOverrides,
+    })
+
+    return successResponse({ subscription, entitlements })
   } catch (error) {
     return errorResponse(error)
   }
