@@ -33,6 +33,7 @@ import type { User as UserType } from "@/root/lib/types"
 import type { PlanFeatures } from "@/root/lib/subscription-plans"
 import { fetchWithCsrf } from "../lib/csrf-client"
 import { apiErrorMessage } from "../lib/api-error-message"
+import { createAdminT, getInitialAdminLanguage } from "../lib/i18n-admin"
 import {
   CreditCard,
   Download,
@@ -82,6 +83,7 @@ interface SubscriptionsManageViewProps {
 
 export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProps) {
   const { toast } = useToast()
+  const t = useMemo(() => createAdminT(getInitialAdminLanguage()), [])
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([])
   const [stats, setStats] = useState<SubscriptionStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -125,8 +127,9 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       }
     } catch (e: unknown) {
       toast({
-        title: "Erreur",
-        description: e instanceof Error ? e.message : "Chargement impossible",
+        title: t("common.error", "Erreur", "خطأ"),
+        description:
+          e instanceof Error ? e.message : t("common.loading", "Chargement impossible", "تعذر التحميل"),
         variant: "destructive",
       })
     } finally {
@@ -166,8 +169,9 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
         setSelSupport(typeof raw.support === "string" ? (raw.support as string) : "")
       } catch (e: unknown) {
         toast({
-          title: "Erreur",
-          description: e instanceof Error ? e.message : "Détail impossible",
+        title: t("common.error", "Erreur", "خطأ"),
+        description:
+          e instanceof Error ? e.message : t("admin.detailUnavailable", "Détail impossible", "تعذر عرض التفاصيل"),
           variant: "destructive",
         })
         setDetailId(null)
@@ -222,7 +226,10 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
     if (!detailId) return
     const body = buildEntitlementsPatch()
     if (Object.keys(body).length === 0) {
-      toast({ title: "Rien à enregistrer", description: "Modifiez au moins un champ." })
+      toast({
+        title: t("admin.nothingToSave", "Rien à enregistrer", "لا يوجد ما يُحفظ"),
+        description: t("admin.changeAtLeastOne", "Modifiez au moins un champ.", "عدّل حقلاً واحداً على الأقل."),
+      })
       return
     }
     setSavingEnt(true)
@@ -236,12 +243,15 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       if (!res.ok || !data.success) {
         throw new Error(apiErrorMessage(data.error, "Enregistrement impossible"))
       }
-      toast({ title: "Succès", description: "Fonctionnalités mises à jour." })
+      toast({
+        title: t("common.success", "Succès", "نجح"),
+        description: t("admin.featuresUpdated", "Fonctionnalités mises à jour.", "تم تحديث الميزات."),
+      })
       await fetchSubscriptions()
       await loadDetail(detailId)
     } catch (e: unknown) {
       toast({
-        title: "Erreur",
+        title: t("common.error", "Erreur", "خطأ"),
         description: e instanceof Error ? e.message : "Échec",
         variant: "destructive",
       })
@@ -262,11 +272,14 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       if (!res.ok || !data.success) {
         throw new Error(apiErrorMessage(data.error, "Échec prolongation"))
       }
-      toast({ title: "Prolongé", description: `+${days} jours` })
+      toast({
+        title: t("admin.extended", "Prolongé", "تم التمديد"),
+        description: `+${days} ` + t("admin.days", "jours", "يوماً"),
+      })
       await fetchSubscriptions()
     } catch (e: unknown) {
       toast({
-        title: "Erreur",
+        title: t("common.error", "Erreur", "خطأ"),
         description: e instanceof Error ? e.message : "Impossible",
         variant: "destructive",
       })
@@ -286,11 +299,11 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       if (!res.ok || !data.success) {
         throw new Error(apiErrorMessage(data.error, "Mise à jour impossible"))
       }
-      toast({ title: "Mis à jour" })
+      toast({ title: t("admin.updated", "Mis à jour", "تم التحديث") })
       await fetchSubscriptions()
     } catch (e: unknown) {
       toast({
-        title: "Erreur",
+        title: t("common.error", "Erreur", "خطأ"),
         description: e instanceof Error ? e.message : "Échec",
         variant: "destructive",
       })
@@ -299,7 +312,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
 
   const handleCreate = async () => {
     if (!createUserId) {
-      toast({ title: "Choisir un vendeur", variant: "destructive" })
+      toast({ title: t("admin.pickVendor", "Choisir un vendeur", "اختر بائعاً"), variant: "destructive" })
       return
     }
     setCreating(true)
@@ -317,13 +330,13 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       if (!res.ok || !data.success) {
         throw new Error(apiErrorMessage(data.error, "Création impossible"))
       }
-      toast({ title: "Abonnement créé" })
+      toast({ title: t("admin.subscriptionCreated", "Abonnement créé", "تم إنشاء الاشتراك") })
       setCreateOpen(false)
       setCreateUserId("")
       await fetchSubscriptions()
     } catch (e: unknown) {
       toast({
-        title: "Erreur",
+        title: t("common.error", "Erreur", "خطأ"),
         description: e instanceof Error ? e.message : "Échec",
         variant: "destructive",
       })
@@ -355,10 +368,14 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <CreditCard className="h-7 w-7" />
-            Abonnements &amp; fonctionnalités
+            {t("admin.subscriptionsAndFeatures", "Abonnements & fonctionnalités", "الاشتراكات والميزات")}
           </h2>
           <p className="text-sm text-muted-foreground">
-            Gérer les plans, durées et sélections de fonctionnalités par vendeur (overrides).
+            {t(
+              "admin.subscriptionsHelp",
+              "Gérer les plans, durées et sélections de fonctionnalités par vendeur (overrides).",
+              "إدارة الخطط والمدد واختيارات الميزات لكل بائع (تجاوزات)."
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

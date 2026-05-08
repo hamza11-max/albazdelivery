@@ -9,6 +9,13 @@ import { AdminHeader } from "../../../components/AdminHeader"
 import { Button } from "@albaz/ui"
 import { ArrowLeft } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
+import {
+  applyAdminLanguageToDocument,
+  createAdminT,
+  getInitialAdminLanguage,
+  persistAdminLanguage,
+  type AdminLanguage,
+} from "../../../lib/i18n-admin"
 
 export default function AdminPasskeysPage() {
   const router = useRouter()
@@ -18,9 +25,10 @@ export default function AdminPasskeysPage() {
   const user = session?.user ?? null
   const isAuthenticated = status === "authenticated"
 
-  const [language, setLanguage] = useState("fr")
+  const [language, setLanguage] = useState<AdminLanguage>(() => getInitialAdminLanguage())
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [vendors, setVendors] = useState<UserType[]>([])
+  const t = createAdminT(language)
 
   useEffect(() => {
     if (status === "loading") return
@@ -36,6 +44,11 @@ export default function AdminPasskeysPage() {
       document.documentElement.classList.remove("dark")
     }
   }, [isDarkMode])
+
+  useEffect(() => {
+    persistAdminLanguage(language)
+    applyAdminLanguageToDocument(language)
+  }, [language])
 
   const fetchVendors = async () => {
     try {
@@ -66,9 +79,11 @@ export default function AdminPasskeysPage() {
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Button type="button" variant="outline" size="sm" onClick={() => router.push("/admin")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Retour au panneau
+            {t("admin.backToPanel", "Retour au panneau", "العودة للوحة")}
           </Button>
-          <h2 className="text-xl font-semibold">Passkeys d&apos;abonnement</h2>
+          <h2 className="text-xl font-semibold">
+            {t("admin.subscriptionPasskeys", "Passkeys d'abonnement", "مفاتيح مرور الاشتراك")}
+          </h2>
         </div>
         <div className="mb-6">
           <WebAuthnPasskeysTab />

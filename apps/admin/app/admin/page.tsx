@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import nextDynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -38,6 +38,13 @@ import { AdminProductsView } from "../../components/AdminProductsView"
 import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
 import { SubscriptionsManageView } from "../../components/SubscriptionsManageView"
 import { canAccessAdminApp, isFullAdmin as isFullAdminRole, isSuperAdmin as isSuperAdminRole } from "@/root/lib/admin-roles"
+import {
+  applyAdminLanguageToDocument,
+  createAdminT,
+  getInitialAdminLanguage,
+  persistAdminLanguage,
+  type AdminLanguage,
+} from "../../lib/i18n-admin"
 
 type EditRole = "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT"
 
@@ -46,8 +53,9 @@ export const dynamic = 'force-dynamic'
 export default function AdminPanel() {
   const router = useRouter()
   const { toast } = useToast()
-  const [language, setLanguage] = useState("fr")
+  const [language, setLanguage] = useState<AdminLanguage>(() => getInitialAdminLanguage())
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const t = useMemo(() => createAdminT(language), [language])
   
   // Edit/Delete state
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
@@ -106,6 +114,11 @@ export default function AdminPanel() {
       router.push("/login")
     }
   }, [status, isAuthenticated, user, router])
+
+  useEffect(() => {
+    persistAdminLanguage(language)
+    applyAdminLanguageToDocument(language)
+  }, [language])
 
   useEffect(() => {
     if (isDarkMode) {
@@ -392,37 +405,41 @@ export default function AdminPanel() {
           <TabsList className="flex w-full flex-wrap gap-2 h-auto">
             {isFullAdminUser && (
               <TabsTrigger value="approvals" className="relative">
-                Approbations
+                {t("admin.approvals", "Approbations", "الموافقات")}
                 {registrationRequests.length > 0 && (
                   <Badge className="ml-2 bg-red-500 text-white">{registrationRequests.length}</Badge>
                 )}
               </TabsTrigger>
             )}
-            <TabsTrigger value="dashboard">Tableau de Bord</TabsTrigger>
+            <TabsTrigger value="dashboard">
+              {t("admin.dashboard", "Tableau de Bord", "لوحة التحكم")}
+            </TabsTrigger>
             {isFullAdminUser && (
               <TabsTrigger value="analytics-reports">
                 <span className="inline-flex items-center gap-1.5">
                   <BarChart3 className="h-4 w-4" />
-                  Analytique
+                  {t("admin.analytics", "Analytique", "تحليلات")}
                 </span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="command-center">Command Center</TabsTrigger>
+            <TabsTrigger value="command-center">
+              {t("admin.commandCenter", "Command Center", "مركز التحكم")}
+            </TabsTrigger>
             {isFullAdminUser && (
               <>
-                <TabsTrigger value="customers">Clients</TabsTrigger>
-                <TabsTrigger value="drivers">Livreurs</TabsTrigger>
-                <TabsTrigger value="vendors">Vendeurs</TabsTrigger>
+                <TabsTrigger value="customers">{t("admin.customers", "Clients", "العملاء")}</TabsTrigger>
+                <TabsTrigger value="drivers">{t("admin.drivers", "Livreurs", "السائقون")}</TabsTrigger>
+                <TabsTrigger value="vendors">{t("admin.vendors", "Vendeurs", "البائعون")}</TabsTrigger>
                 <TabsTrigger value="vendor-driver">
                   <span className="inline-flex items-center gap-1.5">
                     <Layers className="h-4 w-4" />
-                    Ops V/D
+                    {t("admin.opsVD", "Ops V/D", "عمليات بائع/سائق")}
                   </span>
                 </TabsTrigger>
                 <TabsTrigger value="order-finance">
                   <span className="inline-flex items-center gap-1.5">
                     <ShoppingCart className="h-4 w-4" />
-                    Commandes
+                    {t("admin.orders", "Commandes", "الطلبات")}
                   </span>
                 </TabsTrigger>
               </>
@@ -430,14 +447,14 @@ export default function AdminPanel() {
             <TabsTrigger value="support">
               <span className="inline-flex items-center gap-1.5">
                 <LifeBuoy className="h-4 w-4" />
-                Support
+                {t("admin.support", "Support", "الدعم")}
               </span>
             </TabsTrigger>
             {isFullAdminUser && (
               <TabsTrigger value="products">
                 <span className="inline-flex items-center gap-1.5">
                   <Boxes className="h-4 w-4" />
-                  Produits
+                  {t("admin.products", "Produits", "المنتجات")}
                 </span>
               </TabsTrigger>
             )}
@@ -446,16 +463,16 @@ export default function AdminPanel() {
                 <TabsTrigger value="content">
                   <span className="inline-flex items-center gap-1.5">
                     <LayoutGrid className="h-4 w-4" />
-                    Contenu
+                    {t("admin.content", "Contenu", "المحتوى")}
                   </span>
                 </TabsTrigger>
-                <TabsTrigger value="ads">Publicités</TabsTrigger>
-                <TabsTrigger value="audit">Journal d'audit</TabsTrigger>
-                <TabsTrigger value="passkeys">Passkeys</TabsTrigger>
+                <TabsTrigger value="ads">{t("admin.ads", "Publicités", "الإعلانات")}</TabsTrigger>
+                <TabsTrigger value="audit">{t("admin.audit", "Journal d'audit", "سجل التدقيق")}</TabsTrigger>
+                <TabsTrigger value="passkeys">{t("admin.passkeys", "Passkeys", "مفاتيح المرور")}</TabsTrigger>
                 <TabsTrigger value="subscriptions-admin">
                   <span className="inline-flex items-center gap-1.5">
                     <CreditCard className="h-4 w-4" />
-                    Abonnements
+                    {t("admin.subscriptions", "Abonnements", "الاشتراكات")}
                   </span>
                 </TabsTrigger>
               </>
