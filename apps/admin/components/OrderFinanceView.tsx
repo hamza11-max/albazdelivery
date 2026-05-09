@@ -28,6 +28,7 @@ import { Loader2, Plus, RefreshCw, Wallet } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 import { apiErrorMessage } from "../lib/api-error-message"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 const STATUSES = [
   "PENDING",
@@ -60,6 +61,8 @@ type Line = { productId: string; quantity: number; price: number }
 
 export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFinanceViewProps) {
   const { toast } = useToast()
+  const { t, language } = useAdminI18n()
+  const dateLocale = language === "ar" ? "ar-DZ" : "fr-FR"
   const [summary, setSummary] = useState<{
     totalOrders: number
     deliveredOrders: number
@@ -100,7 +103,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
   const [payoutFees, setPayoutFees] = useState("0")
   const [payoutNet, setPayoutNet] = useState("")
   const [payoutStatus, setPayoutStatus] = useState("RECORDED")
-  const [payoutEta, setPayoutEta] = useState("Saisie manuelle")
+  const [payoutEta, setPayoutEta] = useState("")
   const [payoutBusy, setPayoutBusy] = useState(false)
 
   const refresh = useCallback(async () => {
@@ -200,13 +203,18 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Statut mis à jour" })
+        toast({ title: t("finance.statusUpdated") })
         await onRefreshOrders()
         await openDetail(detailId)
         await refresh()
-      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
+      } else
+        toast({
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("common.error")),
+          variant: "destructive",
+        })
     } catch {
-      toast({ title: "Erreur", variant: "destructive" })
+      toast({ title: t("common.error"), variant: "destructive" })
     } finally {
       setPatching(false)
     }
@@ -215,8 +223,8 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
   const submitRefund = async () => {
     if (!refundOrderId.trim() || refundReason.trim().length < 10) {
       toast({
-        title: "Champs requis",
-        description: "orderId + motif (≥10 caractères)",
+        title: t("finance.requiredFields"),
+        description: t("finance.refundFieldsHint"),
         variant: "destructive",
       })
       return
@@ -236,13 +244,23 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Remboursement créé", description: `Statut ${(data.data as any)?.refund?.status ?? "PENDING"}` })
+        toast({
+          title: t("common.success"),
+          description: t("finance.refundCreated", undefined, undefined, {
+            status: String((data.data as any)?.refund?.status ?? "PENDING"),
+          }),
+        })
         setRefundReason("")
         setRefundAmount("")
         await refresh()
-      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
+      } else
+        toast({
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("common.error")),
+          variant: "destructive",
+        })
     } catch {
-      toast({ title: "Erreur", variant: "destructive" })
+      toast({ title: t("common.error"), variant: "destructive" })
     } finally {
       setRefunding(false)
     }
@@ -253,7 +271,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
   const downloadPayoutCsv = async () => {
     try {
       const res = await fetch("/api/admin/finance/payouts?format=csv", { credentials: "include" })
-      if (!res.ok) throw new Error("Export CSV refusé")
+      if (!res.ok) throw new Error("csv")
       const blob = await res.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -263,9 +281,9 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
-      toast({ title: "CSV téléchargé" })
+      toast({ title: t("finance.csvDownloaded") })
     } catch {
-      toast({ title: "Export CSV impossible", variant: "destructive" })
+      toast({ title: t("finance.csvExportFail"), variant: "destructive" })
     }
   }
 
@@ -274,17 +292,17 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
     const fees = parseFloat(payoutFees) || 0
     const net = parseFloat(payoutNet)
     if (!payoutVendorId || !payoutPeriod.trim()) {
-      toast({ title: "Vendeur et période obligatoires", variant: "destructive" })
+      toast({ title: t("finance.vendorPeriodRequired"), variant: "destructive" })
       return
     }
     if (Number.isNaN(gross) || gross < 0 || Number.isNaN(fees) || fees < 0 || Number.isNaN(net)) {
-      toast({ title: "Montants invalides", variant: "destructive" })
+      toast({ title: t("finance.invalidAmounts"), variant: "destructive" })
       return
     }
     if (Math.abs(net - (gross - fees)) >= 0.02) {
       toast({
-        title: "Net incohérent",
-        description: "Le net doit égaler brut − frais (tolérance 0,01).",
+        title: t("finance.netMismatch"),
+        description: t("finance.netMismatchDesc"),
         variant: "destructive",
       })
       return
@@ -306,15 +324,20 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Ligne payout enregistrée" })
+        toast({ title: t("finance.payoutRowSaved") })
         setPayoutPeriod("")
         setPayoutGross("")
         setPayoutFees("0")
         setPayoutNet("")
         await refresh()
-      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
+      } else
+        toast({
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("common.error")),
+          variant: "destructive",
+        })
     } catch {
-      toast({ title: "Erreur enregistrement", variant: "destructive" })
+      toast({ title: t("finance.savePayoutError"), variant: "destructive" })
     } finally {
       setPayoutBusy(false)
     }
@@ -322,20 +345,28 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
 
   const submitManualOrder = async () => {
     if (!manualCustomer || !manualStore) {
-      toast({ title: "Client et magasin obligatoires", variant: "destructive" })
+      toast({ title: t("finance.customerStoreRequired"), variant: "destructive" })
       return
     }
     const filled = manualLines.filter((l) => l.productId && l.quantity >= 1 && l.price > 0)
     if (filled.length === 0) {
-      toast({ title: "Ajoutez au moins une ligne article valide", variant: "destructive" })
+      toast({ title: t("finance.addValidLine"), variant: "destructive" })
       return
     }
     if (manualAddress.trim().length < 10) {
-      toast({ title: "Adresse trop courte", description: "Au moins 10 caractères.", variant: "destructive" })
+      toast({
+        title: t("finance.addressShort"),
+        description: t("finance.addressShortDesc"),
+        variant: "destructive",
+      })
       return
     }
     if (!manualPhone.match(/^0[567]\d{8}$/)) {
-      toast({ title: "Téléphone DZ invalide", description: "Format 0[567…] 10 ch.", variant: "destructive" })
+      toast({
+        title: t("finance.phoneDzInvalid"),
+        description: t("finance.phoneDzHint"),
+        variant: "destructive",
+      })
       return
     }
     setCreating(true)
@@ -358,13 +389,21 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Commande créée", description: (data.data as any)?.order?.id?.slice?.(0, 12) ?? "" })
+        toast({
+          title: t("finance.orderCreated"),
+          description: (data.data as any)?.order?.id?.slice?.(0, 12) ?? "",
+        })
         setManualLines([{ productId: "", quantity: 1, price: 0 }])
         await onRefreshOrders()
         await refresh()
-      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
+      } else
+        toast({
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("common.error")),
+          variant: "destructive",
+        })
     } catch {
-      toast({ title: "Erreur création commande", variant: "destructive" })
+      toast({ title: t("finance.createOrderError"), variant: "destructive" })
     } finally {
       setCreating(false)
     }
@@ -384,18 +423,18 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
     <div className="space-y-8">
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
-          <RefreshCw className="h-4 w-4 mr-1" /> Actualiser
+          <RefreshCw className="h-4 w-4 mr-1" /> {t("common.refresh")}
         </Button>
       </div>
 
       {summary && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {[
-            ["Commandes", String(summary.totalOrders)],
-            ["Livrées", String(summary.deliveredOrders)],
-            ["CA livré (DZD)", Math.round(summary.revenueDelivered).toString()],
-            ["Remb. en attente", String(summary.pendingRefundsCount)],
-            ["Remb. (DZD agr.)", Math.round(summary.refundsAmountApprovedOrCompleted).toString()],
+            [t("finance.summaryOrders"), String(summary.totalOrders)],
+            [t("finance.summaryDelivered"), String(summary.deliveredOrders)],
+            [t("finance.summaryRevenue"), Math.round(summary.revenueDelivered).toString()],
+            [t("finance.summaryPendingRefunds"), String(summary.pendingRefundsCount)],
+            [t("finance.summaryRefundsAgg"), Math.round(summary.refundsAmountApprovedOrCompleted).toString()],
           ].map(([k, v]) => (
             <Card key={k}>
               <CardContent className="p-4">
@@ -411,21 +450,21 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            Remboursements récents
+            {t("finance.refundsRecentTitle")}
           </CardTitle>
-          <CardDescription>Liste des derniers dossiers créés sous /api/admin/refunds.</CardDescription>
+          <CardDescription>{t("finance.refundsRecentDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto text-sm">
           {refundsList.length === 0 ? (
-            <p className="text-muted-foreground">Aucun remboursement</p>
+            <p className="text-muted-foreground">{t("finance.noRefunds")}</p>
           ) : (
             <table className="min-w-full">
               <thead>
                 <tr className="border-b text-left bg-muted/50">
-                  <th className="p-2">Commande</th>
-                  <th className="p-2">Montant</th>
-                  <th className="p-2">Statut</th>
-                  <th className="p-2">Motif</th>
+                  <th className="p-2">{t("finance.thOrder")}</th>
+                  <th className="p-2">{t("finance.thAmount")}</th>
+                  <th className="p-2">{t("common.status")}</th>
+                  <th className="p-2">{t("finance.thReason")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -450,29 +489,27 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
           <div>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
-              Ledger payouts vendeurs
+              {t("finance.payoutsLedgerTitle")}
             </CardTitle>
-            <CardDescription>
-              Liste `VendorPayout` — export CSV pour la compta, saisie manuelle d&apos;une ligne (audit financier).
-            </CardDescription>
+            <CardDescription>{t("finance.payoutsLedgerDesc")}</CardDescription>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => void downloadPayoutCsv()}>
-            Télécharger CSV
+            {t("finance.downloadCsv")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-6">
           {payoutsList.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune ligne de payout.</p>
+            <p className="text-sm text-muted-foreground">{t("finance.noPayoutRows")}</p>
           ) : (
             <div className="overflow-x-auto text-sm">
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b text-left bg-muted/50">
-                    <th className="p-2">Période</th>
-                    <th className="p-2">Vendeur</th>
-                    <th className="p-2 text-right">Net</th>
-                    <th className="p-2">Statut</th>
-                    <th className="p-2">Créée</th>
+                    <th className="p-2">{t("finance.thPeriod")}</th>
+                    <th className="p-2">{t("finance.labelVendor")}</th>
+                    <th className="p-2 text-right">{t("finance.thNet")}</th>
+                    <th className="p-2">{t("common.status")}</th>
+                    <th className="p-2">{t("finance.thCreated")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -486,7 +523,17 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
                       <td className="p-2">
                         <Badge variant="outline">{String(p.status)}</Badge>
                       </td>
-                      <td className="p-2 text-xs text-muted-foreground">{String(p.createdAt ?? "").slice(0, 19)}</td>
+                      <td className="p-2 text-xs text-muted-foreground">
+                        {p.createdAt
+                          ? new Date(String(p.createdAt)).toLocaleString(dateLocale, {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -496,10 +543,10 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
 
           <div className="grid gap-4 md:grid-cols-2 max-w-3xl border-t pt-6">
             <div className="space-y-2 md:col-span-2">
-              <Label>Vendeur</Label>
+              <Label>{t("finance.labelVendor")}</Label>
               <Select value={payoutVendorId} onValueChange={setPayoutVendorId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choisir…" />
+                  <SelectValue placeholder={t("finance.placeholderChoose")} />
                 </SelectTrigger>
                 <SelectContent>
                   {vendorsForPayout.map((v) => (
@@ -511,11 +558,15 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               </Select>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>Libellé période</Label>
-              <Input value={payoutPeriod} onChange={(e) => setPayoutPeriod(e.target.value)} placeholder="Ex. Semaine 2026-W18" />
+              <Label>{t("finance.labelPeriod")}</Label>
+              <Input
+                value={payoutPeriod}
+                onChange={(e) => setPayoutPeriod(e.target.value)}
+                placeholder={t("finance.periodExamplePh")}
+              />
             </div>
             <div className="space-y-2">
-              <Label>Brut (DZD)</Label>
+              <Label>{t("finance.labelGross")}</Label>
               <Input
                 type="number"
                 value={payoutGross}
@@ -529,7 +580,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               />
             </div>
             <div className="space-y-2">
-              <Label>Frais (DZD)</Label>
+              <Label>{t("finance.labelFees")}</Label>
               <Input
                 type="number"
                 value={payoutFees}
@@ -543,20 +594,24 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               />
             </div>
             <div className="space-y-2">
-              <Label>Net (DZD)</Label>
+              <Label>{t("finance.labelNet")}</Label>
               <Input type="number" value={payoutNet} onChange={(e) => setPayoutNet(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label>Statut (libre)</Label>
+              <Label>{t("finance.labelStatusFree")}</Label>
               <Input value={payoutStatus} onChange={(e) => setPayoutStatus(e.target.value)} />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label>ETA / note</Label>
-              <Input value={payoutEta} onChange={(e) => setPayoutEta(e.target.value)} />
+              <Label>{t("finance.labelEtaNote")}</Label>
+              <Input
+                value={payoutEta}
+                onChange={(e) => setPayoutEta(e.target.value)}
+                placeholder={t("finance.etaPlaceholder")}
+              />
             </div>
             <div className="md:col-span-2">
               <Button type="button" disabled={payoutBusy} onClick={() => void submitPayoutRow()}>
-                {payoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer la ligne"}
+                {payoutBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("finance.savePayoutRow")}
               </Button>
             </div>
           </div>
@@ -565,45 +620,45 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
 
       <Card>
         <CardHeader>
-          <CardTitle>Demandes de remboursement</CardTitle>
-          <CardDescription>Commande avec enregistrement paiement uniquement.</CardDescription>
+          <CardTitle>{t("finance.refundRequestsTitle")}</CardTitle>
+          <CardDescription>{t("finance.refundRequestsDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 max-w-xl">
           <div>
-            <Label>ID commande</Label>
-            <Input value={refundOrderId} onChange={(e) => setRefundOrderId(e.target.value)} placeholder="cuid…" />
+            <Label>{t("finance.labelOrderId")}</Label>
+            <Input value={refundOrderId} onChange={(e) => setRefundOrderId(e.target.value)} placeholder={t("finance.phOrderCuid")} />
           </div>
           <div>
-            <Label>Montant partiel (optionnel)</Label>
+            <Label>{t("finance.labelPartialAmount")}</Label>
             <Input
               type="number"
               value={refundAmount}
               onChange={(e) => setRefundAmount(e.target.value)}
-              placeholder="Vide = total paiement"
+              placeholder={t("finance.phFullPayment")}
             />
           </div>
           <div>
-            <Label>Motif (≥10)</Label>
+            <Label>{t("finance.labelReason10")}</Label>
             <Input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} />
           </div>
           <Button disabled={refunding} onClick={() => void submitRefund()} type="button">
-            {refunding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Soumettre remboursement"}
+            {refunding ? <Loader2 className="h-4 w-4 animate-spin" /> : t("finance.submitRefund")}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Création manuelle</CardTitle>
-          <CardDescription>Commande créée comme PENDING avec client choisi.</CardDescription>
+          <CardTitle>{t("finance.manualCreateTitle")}</CardTitle>
+          <CardDescription>{t("finance.manualCreateDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 max-w-3xl">
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Client</Label>
+              <Label>{t("finance.labelCustomer")}</Label>
               <Select value={manualCustomer} onValueChange={setManualCustomer}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner…" />
+                  <SelectValue placeholder={t("finance.placeholderSelect")} />
                 </SelectTrigger>
                 <SelectContent>
                   {customers.map((c) => (
@@ -615,10 +670,10 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Magasin</Label>
+              <Label>{t("finance.labelStore")}</Label>
               <Select value={manualStore} onValueChange={(v) => setManualStore(v)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner…" />
+                  <SelectValue placeholder={t("finance.placeholderSelect")} />
                 </SelectTrigger>
                 <SelectContent>
                   {stores.map((s) => (
@@ -631,7 +686,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
             </div>
           </div>
           <div className="space-y-3">
-            <Label>Lignes</Label>
+            <Label>{t("finance.labelLines")}</Label>
             {manualLines.map((line, idx) => (
               <div key={`line-${idx}`} className="flex flex-wrap gap-2 items-end border rounded-lg p-3">
                 <Select
@@ -645,7 +700,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
                   }}
                 >
                   <SelectTrigger className="min-w-[200px]">
-                    <SelectValue placeholder="Produit…" />
+                    <SelectValue placeholder={t("finance.placeholderProduct")} />
                   </SelectTrigger>
                   <SelectContent>
                     {products.map((p) => (
@@ -671,26 +726,26 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               </div>
             ))}
             <Button type="button" variant="secondary" size="sm" onClick={addLine}>
-              <Plus className="w-4 h-4 mr-1" /> Ligne article
+              <Plus className="w-4 h-4 mr-1" /> {t("finance.addLine")}
             </Button>
           </div>
           <div className="grid md:grid-cols-3 gap-3">
             <div>
-              <Label>Adresse livraison (≥10 car.)</Label>
+              <Label>{t("finance.labelAddress")}</Label>
               <Input value={manualAddress} onChange={(e) => setManualAddress(e.target.value)} />
             </div>
             <div>
-              <Label>Ville</Label>
+              <Label>{t("common.city")}</Label>
               <Input value={manualCity} onChange={(e) => setManualCity(e.target.value)} />
             </div>
             <div>
-              <Label>Téléphone client (0…)</Label>
+              <Label>{t("finance.labelPhone")}</Label>
               <Input value={manualPhone} onChange={(e) => setManualPhone(e.target.value)} />
             </div>
           </div>
           <div className="flex flex-wrap gap-4 items-end">
             <div>
-              <Label>Frais livraison (DZD)</Label>
+              <Label>{t("finance.labelDeliveryFee")}</Label>
               <Input
                 type="number"
                 value={manualFee}
@@ -698,42 +753,44 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               />
             </div>
             <div>
-              <Label>Paiement</Label>
+              <Label>{t("finance.labelPayment")}</Label>
               <Select value={manualPay} onValueChange={(v: "CASH" | "CARD" | "WALLET") => setManualPay(v)}>
                 <SelectTrigger className="w-[140px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="CASH">Espèces</SelectItem>
-                  <SelectItem value="CARD">Carte</SelectItem>
-                  <SelectItem value="WALLET">Portefeuille</SelectItem>
+                  <SelectItem value="CASH">{t("finance.payCash")}</SelectItem>
+                  <SelectItem value="CARD">{t("finance.payCard")}</SelectItem>
+                  <SelectItem value="WALLET">{t("finance.payWallet")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <p className="text-sm pb-2">
-              Sous-total : <strong>{totals.subtotal.toFixed(0)}</strong> · Total{" "}
-              <strong>{totals.total.toFixed(0)} DZD</strong>
+              {t("finance.totalsLine", undefined, undefined, {
+                sub: totals.subtotal.toFixed(0),
+                total: totals.total.toFixed(0),
+              })}
             </p>
           </div>
           <Button disabled={creating} type="button" onClick={() => void submitManualOrder()}>
-            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Créer la commande"}
+            {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : t("finance.createOrder")}
           </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Gestion commandes</CardTitle>
-          <CardDescription>Cliquez sur une commande pour ouvrir le détail et modifier le statut.</CardDescription>
+          <CardTitle>{t("finance.orderMgmtTitle")}</CardTitle>
+          <CardDescription>{t("finance.orderMgmtDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-left p-2">ID</th>
-                <th className="text-left p-2">Statut</th>
-                <th className="text-right p-2">Total</th>
-                <th className="text-left p-2">Créée</th>
+                <th className="text-left p-2">{t("finance.thId")}</th>
+                <th className="text-left p-2">{t("common.status")}</th>
+                <th className="text-right p-2">{t("finance.thTotal")}</th>
+                <th className="text-left p-2">{t("finance.thCreated")}</th>
               </tr>
             </thead>
             <tbody>
@@ -746,7 +803,17 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
                   <td className="p-2 font-mono">{o.id.slice(0, 12)}…</td>
                   <td className="p-2">{o.status && <Badge variant="outline">{o.status}</Badge>}</td>
                   <td className="text-right p-2 tabular-nums">{o.total ?? "—"}</td>
-                  <td className="p-2 text-muted-foreground text-xs">{String(o.createdAt ?? "")}</td>
+                  <td className="p-2 text-muted-foreground text-xs">
+                    {o.createdAt
+                      ? new Date(o.createdAt as string | Date).toLocaleString(dateLocale, {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -757,31 +824,37 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
       <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Détail commande</DialogTitle>
-            <DialogDescription>Outils admin — PATCH statut uniquement depuis ce panneau.</DialogDescription>
+            <DialogTitle>{t("finance.detailTitle")}</DialogTitle>
+            <DialogDescription>{t("finance.detailDesc")}</DialogDescription>
           </DialogHeader>
           {detailLoading ? (
             <Loader2 className="animate-spin mx-auto h-8 w-8" />
           ) : detail ? (
             <div className="space-y-3 text-sm">
               <p>
-                ID : <span className="font-mono text-xs">{detail.id}</span>
+                {t("finance.lblId")} : <span className="font-mono text-xs">{detail.id}</span>
               </p>
-              <p>Client : {(detail.customer as any)?.name}</p>
-              <p>Livraison : {detail.city} — {(detail.customer as any)?.phone}</p>
+              <p>
+                {t("common.client")} : {(detail.customer as any)?.name}
+              </p>
+              <p>
+                {t("finance.lblDelivery")} : {detail.city} — {(detail.customer as any)?.phone}
+              </p>
               {detail.payment ? (
                 <p>
-                  Paiement : {(detail.payment as any).amount} DZD · {(detail.payment as any).status}
+                  {t("finance.lblPayment")} : {(detail.payment as any).amount} DZD · {(detail.payment as any).status}
                 </p>
               ) : (
-                <p className="text-muted-foreground">Pas encore de paiement enregistré</p>
+                <p className="text-muted-foreground">{t("finance.noPaymentYet")}</p>
               )}
               {detail.refund ? (
-                <p className="text-amber-700">Remboursement : {(detail.refund as any).status}</p>
+                <p className="text-amber-700">
+                  {t("finance.refundStatus")} : {(detail.refund as any).status}
+                </p>
               ) : null}
 
               <div className="flex gap-2 items-center pt-2">
-                <Label>Statut</Label>
+                <Label>{t("common.status")}</Label>
                 <Select value={patchStatus || String(detail.status)} onValueChange={setPatchStatus}>
                   <SelectTrigger className="w-[200px]">
                     <SelectValue />
@@ -797,7 +870,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
               </div>
               <DialogFooter className="pt-4 gap-2 sm:gap-0">
                 <Button type="button" variant="outline" onClick={() => setDetailId(null)}>
-                  Fermer
+                  {t("common.close")}
                 </Button>
                 <Button
                   type="button"
@@ -805,7 +878,7 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
                   onClick={() => void applyPatch()}
                   className="gap-2"
                 >
-                  {patching ? <Loader2 className="animate-spin h-4 w-4" /> : "Enregistrer statut"}
+                  {patching ? <Loader2 className="animate-spin h-4 w-4" /> : t("finance.saveStatus")}
                 </Button>
                 <Button
                   type="button"
@@ -815,12 +888,12 @@ export function OrderFinanceView({ customers, orders, onRefreshOrders }: OrderFi
                     setDetailId(null)
                   }}
                 >
-                  Pré-remplacer remboursement
+                  {t("finance.prefillRefund")}
                 </Button>
               </DialogFooter>
             </div>
           ) : (
-            <p className="text-destructive">Commande introuvable</p>
+            <p className="text-destructive">{t("finance.orderNotFound")}</p>
           )}
         </DialogContent>
       </Dialog>

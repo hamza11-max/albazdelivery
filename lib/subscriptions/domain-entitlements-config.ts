@@ -5,18 +5,12 @@ export interface DomainEntitlements {
   currentPlan: SupportedPlan
   currentStatus: SupportedSubscriptionStatus | string
   allowDomainWrites: boolean
+  /** Platform branded subdomain on vendor profile */
+  allowVendorBrandedSubdomain: boolean
+  /** Bring-your-own hostname for vendor portal */
   allowVendorCustomDomain: boolean
-  maxStoreCustomDomains: number // -1 means unlimited
-}
-
-export const DOMAIN_ENTITLEMENTS_BY_PLAN: Record<
-  SupportedPlan,
-  { allowVendorCustomDomain: boolean; maxStoreCustomDomains: number }
-> = {
-  STARTER: { allowVendorCustomDomain: false, maxStoreCustomDomains: 0 },
-  PROFESSIONAL: { allowVendorCustomDomain: true, maxStoreCustomDomains: 1 },
-  BUSINESS: { allowVendorCustomDomain: true, maxStoreCustomDomains: 5 },
-  ENTERPRISE: { allowVendorCustomDomain: true, maxStoreCustomDomains: -1 },
+  /** Store-level custom domains (-1 unlimited) */
+  maxStoreCustomDomains: number
 }
 
 export function isDomainWriteStatusAllowed(status: string | null | undefined): boolean {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import nextDynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
@@ -10,20 +10,28 @@ import type { User as UserType } from "@/root/lib/types"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../../lib/csrf-client"
 import { apiErrorMessage } from "../../lib/api-error-message"
+import { useAdminI18n } from "../../lib/AdminI18nProvider"
 import { AdminHeader } from "../../components/AdminHeader"
 import { DashboardView } from "../../components/DashboardView"
 import { UserListViewWithBulk } from "../../components/UserListViewWithBulk"
 import { ApprovalsView } from "../../components/ApprovalsView"
 import { AuditLogView } from "../../components/AuditLogView"
 import { AdsManagementView } from "../../components/AdsManagementView"
+function AnalyticsReportsLoading() {
+  const { t } = useAdminI18n()
+  return (
+    <p className="text-sm text-muted-foreground py-8 text-center">
+      {t("admin.loadingCharts", "Chargement des graphiques…", "جاري تحميل الرسوم…")}
+    </p>
+  )
+}
+
 const AnalyticsReportsView = nextDynamic(
   () =>
     import("../../components/AnalyticsReportsView").then((mod) => mod.AnalyticsReportsView),
   {
     ssr: false,
-    loading: () => (
-      <p className="text-sm text-muted-foreground py-8 text-center">Chargement des graphiques…</p>
-    ),
+    loading: () => <AnalyticsReportsLoading />,
   }
 )
 import { EditUserDialog } from "../../components/EditUserDialog"
@@ -38,14 +46,6 @@ import { AdminProductsView } from "../../components/AdminProductsView"
 import { PasskeysTab } from "@/root/components/tabs/PasskeysTab"
 import { SubscriptionsManageView } from "../../components/SubscriptionsManageView"
 import { canAccessAdminApp, isFullAdmin as isFullAdminRole, isSuperAdmin as isSuperAdminRole } from "@/root/lib/admin-roles"
-import {
-  applyAdminLanguageToDocument,
-  createAdminT,
-  getInitialAdminLanguage,
-  persistAdminLanguage,
-  type AdminLanguage,
-} from "../../lib/i18n-admin"
-
 type EditRole = "CUSTOMER" | "VENDOR" | "DRIVER" | "ADMIN" | "SUPER_ADMIN" | "SUPPORT"
 
 export const dynamic = 'force-dynamic'
@@ -53,9 +53,8 @@ export const dynamic = 'force-dynamic'
 export default function AdminPanel() {
   const router = useRouter()
   const { toast } = useToast()
-  const [language, setLanguage] = useState<AdminLanguage>(() => getInitialAdminLanguage())
+  const { t } = useAdminI18n()
   const [isDarkMode, setIsDarkMode] = useState(false)
-  const t = useMemo(() => createAdminT(language), [language])
   
   // Edit/Delete state
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
@@ -116,11 +115,6 @@ export default function AdminPanel() {
   }, [status, isAuthenticated, user, router])
 
   useEffect(() => {
-    persistAdminLanguage(language)
-    applyAdminLanguageToDocument(language)
-  }, [language])
-
-  useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add("dark")
     } else {
@@ -145,23 +139,29 @@ export default function AdminPanel() {
 
       if (data.success) {
         toast({
-          title: "Approuvé",
-          description: "L'utilisateur a été approuvé avec succès",
+          title: t("admin.toast.approvedTitle"),
+          description: t("admin.toast.approvedDesc"),
         })
         fetchRegistrationRequests()
         fetchUsers()
         setShowRequestDialog(false)
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Impossible d'approuver la demande"),
+          title: t("common.error"),
+          description: apiErrorMessage(
+            data.error,
+            t("admin.err.approve", "Impossible d'approuver la demande", "تعذرت الموافقة على الطلب")
+          ),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible d'approuver la demande",
+        title: t("common.error"),
+        description: apiErrorMessage(
+          error,
+          t("admin.err.approve", "Impossible d'approuver la demande", "تعذرت الموافقة على الطلب")
+        ),
         variant: "destructive",
       })
     }
@@ -183,22 +183,22 @@ export default function AdminPanel() {
 
       if (data.success) {
         toast({
-          title: "Rejeté",
-          description: "La demande a été rejetée",
+          title: t("admin.toast.rejectedTitle"),
+          description: t("admin.toast.rejectedDesc"),
         })
         fetchRegistrationRequests()
         setShowRequestDialog(false)
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Impossible de rejeter la demande"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("admin.err.reject", "Impossible de rejeter la demande", "تعذر رفض الطلب")),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de rejeter la demande",
+        title: t("common.error"),
+        description: apiErrorMessage(error, t("admin.err.reject", "Impossible de rejeter la demande", "تعذر رفض الطلب")),
         variant: "destructive",
       })
     }
@@ -238,23 +238,23 @@ export default function AdminPanel() {
 
       if (data.success) {
         toast({
-          title: "Succès",
-          description: "L'utilisateur a été mis à jour avec succès",
+          title: t("common.success"),
+          description: t("admin.toast.userUpdatedDesc"),
         })
         setShowEditDialog(false)
         setSelectedUser(null)
         fetchUsers()
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Impossible de mettre à jour l'utilisateur"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("admin.err.updateUser", "Impossible de mettre à jour l'utilisateur", "تعذر تحديث المستخدم")),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour l'utilisateur",
+        title: t("common.error"),
+        description: apiErrorMessage(error, t("admin.err.updateUser", "Impossible de mettre à jour l'utilisateur", "تعذر تحديث المستخدم")),
         variant: "destructive",
       })
     } finally {
@@ -275,20 +275,20 @@ export default function AdminPanel() {
       if (data.success) {
         const extra = data.data?.notificationEmail ? ` (${data.data.notificationEmail})` : ""
         toast({
-          title: "Mot de passe mis à jour",
-          description: `Le mot de passe a été réinitialisé.${extra}`,
+          title: t("admin.toast.passwordUpdatedTitle"),
+          description: t("admin.toast.passwordUpdatedDesc") + extra,
         })
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Réinitialisation impossible"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("admin.err.resetPw", "Réinitialisation impossible", "تعذرت إعادة التعيين")),
           variant: "destructive",
         })
       }
     } catch {
       toast({
-        title: "Erreur",
-        description: "Réinitialisation impossible",
+        title: t("common.error"),
+        description: t("admin.err.resetPw", "Réinitialisation impossible", "تعذرت إعادة التعيين"),
         variant: "destructive",
       })
     } finally {
@@ -318,23 +318,23 @@ export default function AdminPanel() {
 
       if (data.success) {
         toast({
-          title: "Succès",
-          description: "L'utilisateur a été supprimé avec succès",
+          title: t("common.success"),
+          description: t("admin.toast.userDeletedDesc"),
         })
         setShowDeleteDialog(false)
         setSelectedUser(null)
         fetchUsers()
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Impossible de supprimer l'utilisateur"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("admin.err.deleteUser", "Impossible de supprimer l'utilisateur", "تعذر حذف المستخدم")),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer l'utilisateur",
+        title: t("common.error"),
+        description: apiErrorMessage(error, t("admin.err.deleteUser", "Impossible de supprimer l'utilisateur", "تعذر حذف المستخدم")),
         variant: "destructive",
       })
     } finally {
@@ -357,22 +357,31 @@ export default function AdminPanel() {
       const data = await response.json()
 
       if (data.success) {
+        const actionWord =
+          action === "suspend"
+            ? t("admin.toast.bulkSuspend")
+            : action === "unsuspend"
+              ? t("admin.toast.bulkActivate")
+              : t("admin.toast.bulkDeleted")
         toast({
-          title: "Succès",
-          description: `${data.affected} utilisateur(s) ${action === 'suspend' ? 'suspendu(s)' : action === 'unsuspend' ? 'activé(s)' : 'supprimé(s)'} avec succès`,
+          title: t("common.success"),
+          description: t("admin.toast.bulkSuccess", undefined, undefined, {
+            count: String(data.affected),
+            action: actionWord,
+          }),
         })
         fetchUsers()
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Impossible d'effectuer l'action en masse"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("admin.err.bulk", "Impossible d'effectuer l'action en masse", "تعذرت الإجراءات الجماعية")),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible d'effectuer l'action en masse",
+        title: t("common.error"),
+        description: apiErrorMessage(error, t("admin.err.bulk", "Impossible d'effectuer l'action en masse", "تعذرت الإجراءات الجماعية")),
         variant: "destructive",
       })
       throw error
@@ -382,8 +391,6 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-background">
       <AdminHeader
-        language={language}
-        setLanguage={setLanguage}
         isDarkMode={isDarkMode}
         setIsDarkMode={setIsDarkMode}
         supportDesk={isSupportAgentUser}
@@ -520,19 +527,17 @@ export default function AdminPanel() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Badge variant="secondary">SLA</Badge>
-                    Command Center
+                    {t("admin.commandCenter.title")}
                   </CardTitle>
                   <p className="text-sm text-muted-foreground">
-                    Vue rapide des commandes à risque (SLA
-                    {!isSupportAgentUser && " & espèces"}).{" "}
                     {isSupportAgentUser
-                      ? "Lecture seule — pas d’actions financières."
-                      : "Actions pourront être branchées sur l’API plus tard."}
+                      ? t("admin.commandCenter.subSupport")
+                      : t("admin.commandCenter.subFull")}
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="space-y-3">
-                    <h4 className="font-semibold">Commandes en risque SLA (&gt; 30 min)</h4>
+                    <h4 className="font-semibold">{t("admin.commandCenter.slaRisk")}</h4>
                     {orders
                       .filter((o) => {
                         const riskyStatus = ["PENDING", "ACCEPTED", "PREPARING"]
@@ -551,26 +556,26 @@ export default function AdminPanel() {
                               <Badge variant="outline">{o.status}</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              Client: {(o as any).customer?.name || "N/A"} • Tel: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
+                              {t("admin.commandCenter.client")}: {(o as any).customer?.name || "N/A"} • {t("admin.commandCenter.tel")}: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Créé: {new Date(o.createdAt || Date.now()).toLocaleString("fr-FR")}
+                              {t("admin.commandCenter.created")}: {new Date(o.createdAt || Date.now()).toLocaleString("fr-FR")}
                             </p>
                           </div>
                           <div className="text-right space-y-1">
                             <p className="text-sm font-semibold">{o.total} DZD</p>
-                            <p className="text-xs text-muted-foreground">Ville: {(o as any).city || "N/A"}</p>
+                            <p className="text-xs text-muted-foreground">{t("admin.commandCenter.city")}: {(o as any).city || "N/A"}</p>
                           </div>
                         </div>
                       ))}
                     {orders.length === 0 && (
-                      <p className="text-sm text-muted-foreground">Aucune commande disponible</p>
+                      <p className="text-sm text-muted-foreground">{t("admin.commandCenter.noOrders")}</p>
                     )}
                   </div>
 
                   {!isSupportAgentUser && (
                   <div className="space-y-3">
-                    <h4 className="font-semibold">Surveillance espèces (&gt; 10k DZD)</h4>
+                    <h4 className="font-semibold">{t("admin.commandCenter.cashWatch")}</h4>
                     {orders
                       .filter((o) => ((o as any).paymentMethod || "").toLowerCase() === "cash" && o.total > 10000)
                       .slice(0, 12)
@@ -585,17 +590,17 @@ export default function AdminPanel() {
                               <Badge variant="outline">{o.status}</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              Client: {(o as any).customer?.name || "N/A"} • Tel: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
+                              {t("admin.commandCenter.client")}: {(o as any).customer?.name || "N/A"} • {t("admin.commandCenter.tel")}: {(o as any).customerPhone || (o as any).customer?.phone || "N/A"}
                             </p>
                           </div>
                           <div className="text-right space-y-1">
                             <p className="text-sm font-semibold">{o.total} DZD</p>
-                            <p className="text-xs text-muted-foreground">Mode: {(o as any).paymentMethod || "cash"}</p>
+                            <p className="text-xs text-muted-foreground">{t("admin.commandCenter.mode")}: {(o as any).paymentMethod || "cash"}</p>
                           </div>
                         </div>
                       ))}
                     {orders.filter((o) => ((o as any).paymentMethod || "").toLowerCase() === "cash" && o.total > 10000).length === 0 && (
-                      <p className="text-sm text-muted-foreground">Aucune alerte espèces</p>
+                      <p className="text-sm text-muted-foreground">{t("admin.commandCenter.noCashAlert")}</p>
                     )}
                   </div>
                   )}
@@ -609,10 +614,10 @@ export default function AdminPanel() {
               <TabsContent value="customers">
                 <UserListViewWithBulk
                   users={customers}
-                  title="Gestion des Clients"
+                  title={t("admin.manageCustomers")}
                   icon={<Users className="w-6 h-6 text-primary" />}
-                  emptyMessage="Aucun client"
-                  searchPlaceholder="Rechercher un client..."
+                  emptyMessage={t("admin.emptyCustomer")}
+                  searchPlaceholder={t("admin.searchCustomer")}
                   onEdit={handleEditUser}
                   onDelete={(user) => {
                     setSelectedUser(user)
@@ -625,10 +630,10 @@ export default function AdminPanel() {
               <TabsContent value="drivers">
                 <UserListViewWithBulk
                   users={drivers}
-                  title="Gestion des Livreurs"
+                  title={t("admin.manageDrivers")}
                   icon={<Truck className="w-6 h-6 text-primary" />}
-                  emptyMessage="Aucun livreur"
-                  searchPlaceholder="Rechercher un livreur..."
+                  emptyMessage={t("admin.emptyDriver")}
+                  searchPlaceholder={t("admin.searchDriver")}
                   onEdit={handleEditUser}
                   onDelete={(user) => {
                     setSelectedUser(user)
@@ -641,10 +646,10 @@ export default function AdminPanel() {
               <TabsContent value="vendors">
                 <UserListViewWithBulk
                   users={vendors}
-                  title="Gestion des Vendeurs"
+                  title={t("admin.manageVendors")}
                   icon={<Store className="w-6 h-6 text-primary" />}
-                  emptyMessage="Aucun vendeur"
-                  searchPlaceholder="Rechercher un vendeur..."
+                  emptyMessage={t("admin.emptyVendor")}
+                  searchPlaceholder={t("admin.searchVendor")}
                   onEdit={handleEditUser}
                   onDelete={(user) => {
                     setSelectedUser(user)

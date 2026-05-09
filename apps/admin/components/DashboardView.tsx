@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, Badge } from "@albaz/ui"
 import { OrderStatus } from "@/root/lib/constants"
 import { ShoppingBag, TrendingUp, Clock, CheckCircle2, Users, Truck, Store, Package, AlertTriangle, Shield } from "lucide-react"
 import type { Order, User as UserType } from "@/root/lib/types"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 interface DashboardViewProps {
   orders: Order[]
@@ -15,6 +16,7 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({ orders, customers, drivers, vendors, supportMode = false }: DashboardViewProps) {
+  const { t } = useAdminI18n()
   const totalOrders = orders.length
   const pendingOrders = orders.filter((o) => o.status === OrderStatus.PENDING).length 
   const completedOrders = orders.filter((o) => o.status === OrderStatus.DELIVERED).length
@@ -50,9 +52,9 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[var(--albaz-text-soft)] mb-1">Revenu Total</p>
+                  <p className="text-sm text-[var(--albaz-text-soft)] mb-1">{t("dashboard.totalRevenue")}</p>
                   <p className="text-3xl font-bold text-[var(--albaz-text)]">{totalRevenue}</p>
-                  <p className="text-xs text-[var(--albaz-text-soft)]">DZD</p>
+                  <p className="text-xs text-[var(--albaz-text-soft)]">{t("dashboard.currency")}</p>
                 </div>
                 <div className="w-12 h-12 rounded-full bg-[var(--albaz-olive)] flex items-center justify-center text-white">
                   <TrendingUp className="w-6 h-6" />
@@ -66,7 +68,7 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-[var(--albaz-text-soft)] mb-1">En Attente</p>
+                <p className="text-sm text-[var(--albaz-text-soft)] mb-1">{t("dashboard.pending")}</p>
                 <p className="text-3xl font-bold text-[var(--albaz-text)]">{pendingOrders}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-[var(--albaz-orange)] flex items-center justify-center text-white">
@@ -97,12 +99,12 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              Clients
+              {t("dashboard.customersTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{customers.length}</p>
-            <p className="text-sm text-muted-foreground">Utilisateurs actifs</p>
+            <p className="text-sm text-muted-foreground">{t("dashboard.activeUsers")}</p>
           </CardContent>
         </Card>
 
@@ -110,12 +112,12 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Truck className="w-5 h-5 text-primary" />
-              Livreurs
+              {t("dashboard.driversTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{drivers.length}</p>
-            <p className="text-sm text-muted-foreground">Personnel de livraison</p>
+            <p className="text-sm text-muted-foreground">{t("dashboard.deliveryStaff")}</p>
           </CardContent>
         </Card>
 
@@ -123,12 +125,12 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Store className="w-5 h-5 text-primary" />
-              Vendeurs
+              {t("dashboard.vendorsTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">{vendors.length}</p>
-            <p className="text-sm text-muted-foreground">Magasins partenaires</p>
+            <p className="text-sm text-muted-foreground">{t("dashboard.partnerStores")}</p>
           </CardContent>
         </Card>
       </div>
@@ -139,13 +141,13 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2 text-amber-700">
               <AlertTriangle className="w-5 h-5" />
-              Commandes en risque (SLA)
+              {t("dashboard.slaRiskTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-3xl font-bold text-amber-700">{staleOrders.length}</p>
             <p className="text-sm text-muted-foreground">
-              Plus de 30 min en attente / préparation
+              {t("dashboard.slaSub")}
             </p>
             <div className="space-y-2">
               {staleOrders.slice(0, 3).map((o) => (
@@ -155,7 +157,7 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
                 </div>
               ))}
               {staleOrders.length === 0 && (
-                <p className="text-sm text-muted-foreground">Aucune alerte SLA</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.noSla")}</p>
               )}
             </div>
           </CardContent>
@@ -166,13 +168,13 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2 text-emerald-700">
               <Shield className="w-5 h-5" />
-              Surveillance paiement (cash)
+              {t("dashboard.cashWatchTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-3xl font-bold text-emerald-700">{highValueCash.length}</p>
             <p className="text-sm text-muted-foreground">
-              Montants &gt; 10k DZD en espèces à vérifier
+              {t("dashboard.cashSub")}
             </p>
             <div className="space-y-2">
               {highValueCash.slice(0, 3).map((o) => (
@@ -182,7 +184,7 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
                 </div>
               ))}
               {highValueCash.length === 0 && (
-                <p className="text-sm text-muted-foreground">Aucune alerte cash</p>
+                <p className="text-sm text-muted-foreground">{t("dashboard.noCash")}</p>
               )}
             </div>
           </CardContent>
@@ -192,7 +194,7 @@ export function DashboardView({ orders, customers, drivers, vendors, supportMode
 
       <Card>
         <CardHeader>
-          <CardTitle>Commandes Récentes</CardTitle>
+          <CardTitle>{t("dashboard.recentOrders")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">

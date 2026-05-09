@@ -12,6 +12,9 @@ const mockCreate = jest.fn() as jest.MockedFunction<
 const mockUpsert = jest.fn() as jest.MockedFunction<
   (args: unknown) => Promise<unknown>
 >
+const mockSubscriptionUpdate = jest.fn() as jest.MockedFunction<
+  (args: unknown) => Promise<unknown>
+>
 
 jest.mock('../../../lib/get-session-from-request', () => ({
   getSessionFromRequest: (req: Request) => mockGetSession(req),
@@ -23,7 +26,7 @@ jest.mock('../../../lib/prisma', () => ({
       findUnique: (args: unknown) => mockFindUnique(args),
       create: (args: unknown) => mockCreate(args),
       upsert: (args: unknown) => mockUpsert(args),
-      update: jest.fn(),
+      update: (args: unknown) => mockSubscriptionUpdate(args),
     },
   },
 }))
@@ -67,7 +70,13 @@ describe('api-subscriptions handleSubscriptionsGet', () => {
     mockGetSession.mockResolvedValue({
       user: { id: 'u1', email: 'a@b.com', role: 'VENDOR' },
     })
-    mockFindUnique.mockResolvedValue({ ...sub, subscriptionPayments: [], usage: [] })
+    mockFindUnique.mockResolvedValue({
+      ...sub,
+      subscriptionPayments: [],
+      usage: [],
+      trialEnd: null,
+      trialStart: null,
+    })
 
     const res = await handleSubscriptionsGet(
       new Request('http://localhost/api/subscriptions')
@@ -75,6 +84,78 @@ describe('api-subscriptions handleSubscriptionsGet', () => {
     const json = await res.json()
     expect(json.success).toBe(true)
     expect(json.data?.subscription?.id).toBe('s1')
+  })
+})
+
+describe('api-subscriptions handleSubscriptionsPost COD free trial', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+  })
+
+  it('starts PROFESSIONAL trial when none exists', async () => {
+    const { handleSubscriptionsPost } = await import('@/lib/api-subscriptions')
+    mockGetSession.mockResolvedValue({
+      user: { id: 'u1', email: 'a@b.com', role: 'VENDOR' },
+    })
+    mockFindUnique.mockResolvedValue(null)
+    mockUpsert.mockResolvedValue({
+      id: 's-new',
+      userId: 'u1',
+      plan: 'PROFESSIONAL',
+      status: 'TRIAL',
+      trialStart: new Date(),
+      trialEnd: new Date(),
+      subscriptionPayments: [],
+      usage: [],
+    })
+
+    const res = await handleSubscriptionsPost(
+      new Request('http://localhost/api/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({ startTrial: true }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+    const json = await res.json()
+    expect(json.success).toBe(true)
+    expect(mockUpsert).toHaveBeenCalled()
+    const arg = mockUpsert.mock.calls[0]?.[0] as {
+      create: Record<string, unknown>
+      update: Record<string, unknown>
+    }
+    expect(arg.create.plan).toBe('PROFESSIONAL')
+    expect(arg.create.status).toBe('TRIAL')
+    expect(arg.create.trialStart).toBeInstanceOf(Date)
+    expect(arg.create.trialEnd).toBeInstanceOf(Date)
+    expect(arg.create.currentPeriodEnd).toEqual(arg.create.trialEnd)
+    expect(arg.update.plan).toBe('PROFESSIONAL')
+  })
+
+  it('rejects second trial when trialStart already set', async () => {
+    const { handleSubscriptionsPost } = await import('@/lib/api-subscriptions')
+    mockGetSession.mockResolvedValue({
+      user: { id: 'u1', email: 'a@b.com', role: 'VENDOR' },
+    })
+    mockFindUnique.mockResolvedValue({
+      id: 's1',
+      userId: 'u1',
+      trialStart: new Date(),
+      trialEnd: null,
+      status: 'ACTIVE',
+      plan: 'STARTER',
+    })
+
+    const res = await handleSubscriptionsPost(
+      new Request('http://localhost/api/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({ startTrial: true }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+    )
+    const json = await res.json()
+    expect(json.success).toBe(false)
+    expect(res.status).toBe(403)
+    expect(mockUpsert).not.toHaveBeenCalled()
   })
 })
 

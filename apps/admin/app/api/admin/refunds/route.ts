@@ -6,7 +6,7 @@ import { successResponse, errorResponse, ForbiddenError, NotFoundError } from '@
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { isFullAdmin } from '@/root/lib/admin-roles'
-import { csrfProtection } from '../../../../../lib/csrf'
+import { csrfProtection } from '@/lib/csrf'
 import { createRefundSchema } from '@/root/lib/validations/api'
 import { z } from 'zod'
 

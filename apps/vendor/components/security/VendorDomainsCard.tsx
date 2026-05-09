@@ -48,6 +48,8 @@ interface DomainsResponse {
     currentPlan: string
     currentStatus: string
     allowDomainWrites: boolean
+    /** Platform `{slug}.{apex}` branded host */
+    allowVendorBrandedSubdomain: boolean
     allowVendorCustomDomain: boolean
     maxStoreCustomDomains: number
     usedStoreCustomDomains: number
@@ -213,12 +215,20 @@ export function VendorDomainsCard({
     normalizedSubdomain !== savedSubdomain ||
     normalizedCustomDomain !== savedCustomDomain
   const canEdit = Boolean(data?.subscription?.allowDomainWrites)
-  const canEditCustom = Boolean(
-    data?.subscription?.allowDomainWrites &&
-      data?.subscription?.allowVendorCustomDomain
-  )
+  const allowBranded = Boolean(data?.subscription?.allowVendorBrandedSubdomain)
+  const allowByod = Boolean(data?.subscription?.allowVendorCustomDomain)
+  const canEditSubdomain = Boolean(canEdit && allowBranded)
+  const canEditCustom = Boolean(canEdit && allowByod)
+  const wantsDefaultPlatformOnly =
+    !normalizedSubdomain.length && !normalizedCustomDomain.length
+  const canClearToSharedHost =
+    canEdit && wantsDefaultPlatformOnly && !allowBranded && !allowByod
+  const hasHostIdentifiers =
+    Boolean(normalizedSubdomain.length || normalizedCustomDomain.length)
   const canSave =
-    canEdit && hasChanges && Boolean(normalizedSubdomain || normalizedCustomDomain)
+    canEdit &&
+    hasChanges &&
+    (hasHostIdentifiers || canClearToSharedHost)
 
   const copyToClipboard = useCallback(async (value: string) => {
     try {
@@ -336,7 +346,7 @@ export function VendorDomainsCard({
                     }
                     placeholder="myvendor"
                     className="border-none shadow-none focus-visible:ring-0"
-                    disabled={saving || !canEdit}
+                    disabled={saving || !canEditSubdomain}
                   />
                   <span className="flex items-center border-l bg-muted px-3 text-xs text-muted-foreground">
                     .{apex}
@@ -348,6 +358,15 @@ export function VendorDomainsCard({
                     "استخدم الأحرف والأرقام والشرطة فقط. مثال: demo."
                   )}
                 </p>
+                {canEdit && !allowBranded ? (
+                  <p className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Sparkles className="size-3" />
+                    {t(
+                      "Le lien sous-domaine marque nécessite le plan Professionnel ou supérieur.",
+                      "الرابط بالنطاق الفرعي المميّز يتطلّب خطة محترف أو أعلى."
+                    )}
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-1.5">

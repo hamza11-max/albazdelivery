@@ -19,6 +19,7 @@ import {
 import { Loader2, Package, RefreshCw } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 type StoreOpt = { id: string; name: string; city: string }
 type ProductRow = {
@@ -31,6 +32,7 @@ type ProductRow = {
 
 export function AdminProductsView() {
   const { toast } = useToast()
+  const { t } = useAdminI18n()
   const [stores, setStores] = useState<StoreOpt[]>([])
   const [storeId, setStoreId] = useState("")
   const [search, setSearch] = useState("")
@@ -71,18 +73,18 @@ export function AdminProductsView() {
       } else {
         setProducts([])
         toast({
-          title: "Erreur",
-          description: data.error?.message || "Impossible de charger les produits",
+          title: t("common.error"),
+          description: data.error?.message || t("products.loadError"),
           variant: "destructive",
         })
       }
     } catch {
       setProducts([])
-      toast({ title: "Erreur", description: "Réseau", variant: "destructive" })
+      toast({ title: t("common.error"), description: t("common.networkError"), variant: "destructive" })
     } finally {
       setLoading(false)
     }
-  }, [storeId, searchApplied, availableFilter, toast])
+  }, [storeId, searchApplied, availableFilter, toast, t])
 
   useEffect(() => {
     void loadProducts()
@@ -99,19 +101,19 @@ export function AdminProductsView() {
       const data = await res.json()
       if (data.success) {
         toast({
-          title: "Enregistré",
-          description: p.available ? "Produit désactivé." : "Produit activé.",
+          title: t("products.saved"),
+          description: p.available ? t("products.deactivated") : t("products.activated"),
         })
         void loadProducts()
       } else {
         toast({
-          title: "Erreur",
-          description: data.error?.message || "Mise à jour impossible",
+          title: t("common.error"),
+          description: data.error?.message || t("products.patchFail"),
           variant: "destructive",
         })
       }
     } catch {
-      toast({ title: "Erreur", variant: "destructive" })
+      toast({ title: t("common.error"), variant: "destructive" })
     } finally {
       setTogglingId(null)
     }
@@ -125,25 +127,25 @@ export function AdminProductsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Produits (vue admin)
+            {t("products.adminTitle")}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Liste multi-magasins, recherche et activation / désactivation (même logique que l’API vendeur).
+            {t("products.adminSubtitle")}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-2">
-              <Label>Magasin</Label>
+              <Label>{t("products.store")}</Label>
               <Select
                 value={storeSelectValue}
                 onValueChange={(v) => setStoreId(v === "all" ? "" : v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Tous" />
+                  <SelectValue placeholder={t("products.all")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous les magasins</SelectItem>
+                  <SelectItem value="all">{t("products.allStores")}</SelectItem>
                   {stores.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name} — {s.city}
@@ -153,38 +155,38 @@ export function AdminProductsView() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Disponibilité</Label>
+              <Label>{t("products.availability")}</Label>
               <Select value={availableFilter} onValueChange={setAvailableFilter}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Tous</SelectItem>
-                  <SelectItem value="true">En vente</SelectItem>
-                  <SelectItem value="false">Indisponible</SelectItem>
+                  <SelectItem value="all">{t("products.all")}</SelectItem>
+                  <SelectItem value="true">{t("products.forSale")}</SelectItem>
+                  <SelectItem value="false">{t("products.unavailable")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="admin-product-search">Recherche</Label>
+              <Label htmlFor="admin-product-search">{t("products.searchLabel")}</Label>
               <div className="flex gap-2">
                 <Input
                   id="admin-product-search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Nom ou description…"
+                  placeholder={t("products.searchPlaceholder")}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") setSearchApplied(search)
                   }}
                 />
                 <Button type="button" variant="secondary" onClick={() => setSearchApplied(search)}>
-                  Filtrer
+                  {t("products.filter")}
                 </Button>
               </div>
             </div>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => void loadProducts()}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Actualiser
+            <RefreshCw className="mr-2 h-4 w-4" /> {t("common.refresh")}
           </Button>
         </CardContent>
       </Card>
@@ -196,7 +198,9 @@ export function AdminProductsView() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : products.length === 0 ? (
-            <p className="py-12 text-center text-sm text-muted-foreground">Aucun produit pour ces filtres.</p>
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              {t("products.emptyFilters")}
+            </p>
           ) : (
             <div className="divide-y">
               {products.map((p) => (
@@ -211,7 +215,7 @@ export function AdminProductsView() {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="tabular-nums font-semibold">{p.price} DZD</span>
                     <Badge variant={p.available ? "default" : "secondary"}>
-                      {p.available ? "Actif" : "Inactif"}
+                      {p.available ? t("products.active") : t("products.inactive")}
                     </Badge>
                     <Button
                       type="button"
@@ -223,9 +227,9 @@ export function AdminProductsView() {
                       {togglingId === p.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : p.available ? (
-                        "Désactiver"
+                        t("products.deactivate")
                       ) : (
-                        "Activer"
+                        t("products.activateBtn")
                       )}
                     </Button>
                   </div>

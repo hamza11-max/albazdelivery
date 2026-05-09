@@ -2,8 +2,9 @@
 
 ## 📋 Table of Contents
 1. [Subscription Plans](#subscription-plans)
-2. [RFID System Integration Plan](#rfid-system-integration-plan)
-3. [Implementation Roadmap](#implementation-roadmap)
+2. [Custom Domain & Subdomain](#custom-domain--subdomain)
+3. [RFID System Integration Plan](#rfid-system-integration-plan)
+4. [Implementation Phases](#implementation-phases)
 
 ---
 
@@ -14,12 +15,11 @@
 
 **Features:**
 - Basic POS functionality
-- Up to 50 products
+- Up to 5 products
 - Basic inventory management
-- Sales history (last 30 days)
+- Sales history window aligned to Starter entitlements in the app (**~1 month slice** in `PLAN_FEATURES`; not a separate rolling 30-day engine unless product adds one)
 - Basic reporting
 - Manual order management
-- Email support
 - Single device access
 - Basic receipt printing
 
@@ -34,12 +34,22 @@
 
 ---
 
+### Free trial (vendor app — Professional, 14 days)
+
+- **Audience:** New vendors who have not used a trial on the same account (`trialStart` is null) and who are **not already on an active paid plan** (Starter is OK unless they were previously trialling or migrated by support).
+- **What they get:** Full **Professional** feature baseline from [`lib/subscription-plans.ts`](lib/subscription-plans.ts): higher product caps, cloud sync, WhatsApp Flows where enabled, **`brandedSubdomain: true`**, etc., for **14 days** (`VENDOR_FREE_TRIAL_DAYS`, overridable server-side via `VENDOR_TRIAL_DAYS`).
+- **Billing:** No card required — suitable for **COD-first** rollout. Stripe checkout remains optional for later self-serve card billing.
+- **After day 14:** Subscription is **lazily downgraded** to **Starter** (`ACTIVE`) on the next `GET /api/subscriptions`; `trialStart` / `trialEnd` are kept for analytics. Vendors can then continue on Starter or upgrade via admin / future payment flows.
+- **UX:** Vendor app shows a **banner** during trial and a **“Start 14-day trial”** CTA under **Paramètres → Paiements** when eligible.
+
+---
+
 ### Plan 2: Professional
 **Target:** Growing businesses, single location vendors
 
 **Features:**
 - Everything in Starter
-- Unlimited products
+- up to 50 products
 - Advanced inventory management
 - Full sales history
 - Advanced reporting & analytics
@@ -54,6 +64,7 @@
 - Coupon management
 - Inventory alerts
 - Email integration
+- **Branded subdomain** on the Albaz Vendor host (unique slug, e.g. `{your-store}.vendor.albaz.example`)
 
 **Price:** $29/month or $290/year (save 17%)
 
@@ -77,6 +88,7 @@
 - Supplier management
 - Advanced financial reporting
 - White-label options
+- **Single custom domain** (bring-your-own domain via DNS; e.g. `pos.yourbusiness.com`)
 - Dedicated account manager
 
 **Price:** $79/month or $790/year (save 17%)
@@ -102,6 +114,8 @@
 - Multi-warehouse management
 - Advanced staff management
 - Custom training & onboarding
+- **Multiple custom domains / host aliases** (e.g. regions, brands, short-lived campaign domains)
+- **Staging or preview hostnames** for go-live validation (paired with SLA support)
 
 **Price:** $199/month or $1,990/year (save 17%) + RFID hardware costs
 
@@ -572,7 +586,7 @@ enum EventType {
 
 ---
 
-**Last Updated:** 2024
-**Version:** 1.0
+**Last Updated:** 2026
+**Version:** 1.1
 **Status:** Planning Phase
 

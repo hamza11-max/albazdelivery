@@ -3,6 +3,72 @@ import { prisma } from "./prisma"
 import { stripe, PLAN_PRICES } from "./stripe"
 import { errorResponse, ForbiddenError, successResponse, UnauthorizedError } from "./errors"
 import { resolveVendorEntitlements } from "./subscriptions/resolve-entitlements"
+import { VENDOR_FREE_TRIAL_DAYS } from "./subscription-plans"
+import type { Prisma } from "../generated/prisma/client"
+
+const PAID_PLANS = ["PROFESSIONAL", "BUSINESS", "ENTERPRISE"] as const
+
+const SUBSCRIPTION_FIND_INCLUDE = {
+  subscriptionPayments: {
+    orderBy: { createdAt: "desc" as const },
+    take: 10,
+  },
+  usage: true,
+} as const satisfies Prisma.SubscriptionInclude
+
+function starterActivePeriodEnd(): Date {
+  return new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+}
+
+function vendorTrialDurationDays(): number {
+  const raw = String(process.env.VENDOR_TRIAL_DAYS ?? "").trim()
+  const n = parseInt(raw, 10)
+  if (Number.isFinite(n) && n > 0 && n <= 366) return n
+  return VENDOR_FREE_TRIAL_DAYS
+}
+
+function trialEligibilityReason(
+  sub: {
+    trialStart: Date | null
+    status: string
+    plan: string
+    trialEnd: Date | null
+  } | null,
+  now: number
+): string | null {
+  if (!sub) return null
+  if (sub.trialStart != null) return "trial_already_used"
+  if (sub.status === "ACTIVE" && sub.plan !== "STARTER") return "already_on_paid_plan"
+  if (sub.status === "TRIAL" && sub.trialEnd != null && sub.trialEnd.getTime() > now) {
+    return "trial_already_active"
+  }
+  return null
+}
+
+async function expireStaleTrialSubscription(
+  sub: NonNullable<Awaited<ReturnType<typeof prisma.subscription.findUnique>>>
+) {
+  if (sub.status !== "TRIAL" || !sub.trialEnd || sub.trialEnd.getTime() >= Date.now()) {
+    return sub
+  }
+
+  await prisma.subscription.update({
+    where: { id: sub.id },
+    data: {
+      plan: "STARTER",
+      status: "ACTIVE",
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: starterActivePeriodEnd(),
+      cancelAtPeriodEnd: false,
+    },
+  })
+
+  const refreshed = await prisma.subscription.findUnique({
+    where: { id: sub.id },
+    include: SUBSCRIPTION_FIND_INCLUDE,
+  })
+  return refreshed ?? sub
+}
 
 /** When true, POST plan STARTER can activate without Stripe (intended for dev/special enterprise deals). */
 function allowStarterPlanWithoutStripe(): boolean {
@@ -20,13 +86,7 @@ export async function handleSubscriptionsGet(request: Request) {
 
     let subscription = await prisma.subscription.findUnique({
       where: { userId: session.user.id },
-      include: {
-        subscriptionPayments: {
-          orderBy: { createdAt: "desc" },
-          take: 10,
-        },
-        usage: true,
-      },
+      include: SUBSCRIPTION_FIND_INCLUDE,
     })
 
     if (!subscription) {
@@ -34,6 +94,8 @@ export async function handleSubscriptionsGet(request: Request) {
       // start a trial or checkout via POST /api/subscriptions (or a dedicated onboarding flow).
       return successResponse({ subscription: null, entitlements: null })
     }
+
+    subscription = await expireStaleTrialSubscription(subscription)
 
     const entitlements = resolveVendorEntitlements({
       plan: subscription.plan,
@@ -54,10 +116,87 @@ export async function handleSubscriptionsPost(request: Request) {
       throw new UnauthorizedError()
     }
 
-    const body = await request.json()
-    const { plan, paymentMethodId } = body
+    const body = (await request.json().catch(() => ({}))) as {
+      plan?: string
+      paymentMethodId?: string
+      startTrial?: boolean
+    }
+    const { paymentMethodId } = body
+    const startTrial = body.startTrial === true
 
-    if (!plan || !["STARTER", "PROFESSIONAL", "BUSINESS", "ENTERPRISE"].includes(plan)) {
+    let plan = body.plan
+    const VALID = ["STARTER", "PROFESSIONAL", "BUSINESS", "ENTERPRISE"] as const
+
+    if (startTrial) {
+      const trialPlan =
+        plan &&
+        VALID.includes(plan as (typeof VALID)[number]) &&
+        plan !== "STARTER" &&
+        PAID_PLANS.includes(plan as (typeof PAID_PLANS)[number])
+          ? plan
+          : "PROFESSIONAL"
+
+      let row = await prisma.subscription.findUnique({
+        where: { userId: session.user.id },
+        include: SUBSCRIPTION_FIND_INCLUDE,
+      })
+      if (row) {
+        row = await expireStaleTrialSubscription(row)
+      }
+
+      const existingForTrial =
+        row != null
+          ? {
+              trialStart: row.trialStart,
+              trialEnd: row.trialEnd,
+              status: row.status,
+              plan: row.plan,
+            }
+          : null
+
+      const now = Date.now()
+      const deny = trialEligibilityReason(existingForTrial, now)
+      if (deny) {
+        const msg =
+          deny === "trial_already_used"
+            ? "Free trial has already been used for this account"
+            : deny === "already_on_paid_plan"
+              ? "You already have an active paid subscription"
+              : "A trial is already active"
+        return errorResponse(new ForbiddenError(msg))
+      }
+
+      const days = vendorTrialDurationDays()
+      const trialEnd = new Date(now + days * 24 * 60 * 60 * 1000)
+      const trialStart = new Date(now)
+
+      const updated = await prisma.subscription.upsert({
+        where: { userId: session.user.id },
+        update: {
+          plan: trialPlan,
+          status: "TRIAL",
+          trialStart,
+          trialEnd,
+          currentPeriodStart: trialStart,
+          currentPeriodEnd: trialEnd,
+          cancelAtPeriodEnd: false,
+        },
+        create: {
+          userId: session.user.id,
+          plan: trialPlan,
+          status: "TRIAL",
+          trialStart,
+          trialEnd,
+          currentPeriodStart: trialStart,
+          currentPeriodEnd: trialEnd,
+        },
+        include: SUBSCRIPTION_FIND_INCLUDE,
+      })
+
+      return successResponse({ subscription: updated })
+    }
+
+    if (!plan || !VALID.includes(plan as (typeof VALID)[number])) {
       return errorResponse(new Error("Invalid plan"), 400)
     }
 
@@ -221,6 +360,19 @@ export async function handleSubscriptionsCancelPost(request: Request) {
     }
 
     if (!subscription.stripeSubscriptionId) {
+      if (subscription.status === "TRIAL") {
+        const updated = await prisma.subscription.update({
+          where: { userId: session.user.id },
+          data: {
+            plan: "STARTER",
+            status: "ACTIVE",
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: starterActivePeriodEnd(),
+            cancelAtPeriodEnd: false,
+          },
+        })
+        return successResponse(updated)
+      }
       return errorResponse(new Error("No active Stripe subscription"), 400)
     }
 

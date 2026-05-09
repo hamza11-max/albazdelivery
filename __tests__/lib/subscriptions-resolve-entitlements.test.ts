@@ -20,6 +20,20 @@ describe("resolveVendorEntitlements", () => {
     })
     expect(e.apiAccess).toBe(true)
     expect(e.maxProducts).toBe(-1)
+    expect(e.brandedSubdomain).toBe(true)
+    expect(e.vendorBringYourOwnDomain).toBe(true)
+    expect(e.maxStoreCustomDomains).toBe(5)
+  })
+
+  it("Professional includes branded subdomain but not vendor BYOD", () => {
+    const e = resolveVendorEntitlements({
+      plan: "PROFESSIONAL",
+      status: "ACTIVE",
+      featureOverrides: null,
+    })
+    expect(e.brandedSubdomain).toBe(true)
+    expect(e.vendorBringYourOwnDomain).toBe(false)
+    expect(e.maxStoreCustomDomains).toBe(1)
   })
 
   it("merges boolean and numeric overrides on top of baseline", () => {

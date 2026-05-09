@@ -10,8 +10,8 @@ import {
   ValidationError,
 } from '@/root/lib/errors'
 import { isFullAdmin } from '@/root/lib/admin-roles'
-import { csrfProtection } from '../../../../../lib/csrf'
-import { createAuditLog, AuditActions, AuditResources } from '../../../../../lib/audit'
+import { csrfProtection } from '@/lib/csrf'
+import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 import { resolveVendorEntitlements } from '@/root/lib/subscriptions/resolve-entitlements'
 import {
   featureOverridesPatchSchema,

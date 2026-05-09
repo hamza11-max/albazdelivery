@@ -33,7 +33,7 @@ import type { User as UserType } from "@/root/lib/types"
 import type { PlanFeatures } from "@/root/lib/subscription-plans"
 import { fetchWithCsrf } from "../lib/csrf-client"
 import { apiErrorMessage } from "../lib/api-error-message"
-import { createAdminT, getInitialAdminLanguage } from "../lib/i18n-admin"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 import {
   CreditCard,
   Download,
@@ -83,7 +83,7 @@ interface SubscriptionsManageViewProps {
 
 export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProps) {
   const { toast } = useToast()
-  const t = useMemo(() => createAdminT(getInitialAdminLanguage()), [])
+  const { t, language } = useAdminI18n()
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([])
   const [stats, setStats] = useState<SubscriptionStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -111,7 +111,10 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
   const [selApi, setSelApi] = useState<BoolSelect>("")
   const [selWa, setSelWa] = useState<BoolSelect>("")
   const [selRfid, setSelRfid] = useState<BoolSelect>("")
+  const [selBrandedSub, setSelBrandedSub] = useState<BoolSelect>("")
+  const [selVendorByod, setSelVendorByod] = useState<BoolSelect>("")
   const [selSupport, setSelSupport] = useState<string>("")
+  const [numMaxStoreDomains, setNumMaxStoreDomains] = useState("")
   const [savingEnt, setSavingEnt] = useState(false)
 
   const fetchSubscriptions = useCallback(async () => {
@@ -135,7 +138,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, t])
 
   useEffect(() => {
     void fetchSubscriptions()
@@ -166,6 +169,17 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
         setSelApi(raw.apiAccess === true ? "true" : raw.apiAccess === false ? "false" : "")
         setSelWa(raw.whatsappFlows === true ? "true" : raw.whatsappFlows === false ? "false" : "")
         setSelRfid(raw.rfid === true ? "true" : raw.rfid === false ? "false" : "")
+        setSelBrandedSub(
+          raw.brandedSubdomain === true ? "true" : raw.brandedSubdomain === false ? "false" : ""
+        )
+        setSelVendorByod(
+          raw.vendorBringYourOwnDomain === true
+            ? "true"
+            : raw.vendorBringYourOwnDomain === false
+              ? "false"
+              : ""
+        )
+        setNumMaxStoreDomains(g("maxStoreCustomDomains"))
         setSelSupport(typeof raw.support === "string" ? (raw.support as string) : "")
       } catch (e: unknown) {
         toast({
@@ -179,7 +193,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
         setDetailLoading(false)
       }
     },
-    [toast]
+    [toast, t]
   )
 
   const resetDetailForm = () => {
@@ -193,6 +207,9 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
     setSelApi("")
     setSelWa("")
     setSelRfid("")
+    setSelBrandedSub("")
+    setSelVendorByod("")
+    setNumMaxStoreDomains("")
     setSelSupport("")
   }
 
@@ -216,6 +233,11 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
     if (selWa === "false") body.whatsappFlows = false
     if (selRfid === "true") body.rfid = true
     if (selRfid === "false") body.rfid = false
+    if (selBrandedSub === "true") body.brandedSubdomain = true
+    if (selBrandedSub === "false") body.brandedSubdomain = false
+    if (selVendorByod === "true") body.vendorBringYourOwnDomain = true
+    if (selVendorByod === "false") body.vendorBringYourOwnDomain = false
+    parseNum(numMaxStoreDomains, "maxStoreCustomDomains")
     if (selSupport && SUPPORT_OPTS.includes(selSupport as PlanFeatures["support"])) {
       body.support = selSupport
     }
@@ -360,7 +382,11 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
   }, [subscriptions, searchQuery, statusFilter, planFilter])
 
   const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString("fr-FR", { year: "numeric", month: "short", day: "numeric" })
+    new Date(d).toLocaleDateString(language === "ar" ? "ar-DZ" : "fr-FR", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    })
 
   return (
     <div className="space-y-6">
@@ -381,11 +407,11 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => void fetchSubscriptions()}>
             <RefreshCw className="h-4 w-4 mr-1" />
-            Actualiser
+            {t("subscriptions.refresh")}
           </Button>
           <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
-            Nouvel abonnement
+            {t("subscriptions.newBtn")}
           </Button>
         </div>
       </div>
@@ -393,11 +419,11 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       {stats && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
-            ["Total", stats.total],
-            ["Actifs", stats.active],
-            ["Essai", stats.trial],
-            ["Annulés", stats.cancelled],
-            ["Expirés", stats.expired],
+            [t("subscriptions.statsTotal"), stats.total],
+            [t("subscriptions.statsActive"), stats.active],
+            [t("subscriptions.statsTrial"), stats.trial],
+            [t("subscriptions.statsCancelled"), stats.cancelled],
+            [t("subscriptions.statsExpired"), stats.expired],
           ].map(([k, v]) => (
             <Card key={String(k)}>
               <CardHeader className="py-3">
@@ -411,7 +437,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Liste</CardTitle>
+          <CardTitle className="text-lg">{t("subscriptions.list")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -419,17 +445,17 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-9"
-                placeholder="Rechercher…"
+                placeholder={t("subscriptions.searchPlaceholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[160px]">
-                <SelectValue placeholder="Statut" />
+                <SelectValue placeholder={t("common.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous statuts</SelectItem>
+                <SelectItem value="all">{t("subscriptions.allStatuses")}</SelectItem>
                 {STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
@@ -439,10 +465,10 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
             </Select>
             <Select value={planFilter} onValueChange={setPlanFilter}>
               <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Plan" />
+                <SelectValue placeholder={t("common.plan")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous plans</SelectItem>
+                <SelectItem value="all">{t("subscriptions.allPlans")}</SelectItem>
                 {PLANS.map((p) => (
                   <SelectItem key={p} value={p}>
                     {p}
@@ -461,11 +487,11 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Vendeur</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead>Fin période</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("subscriptions.vendorCol")}</TableHead>
+                    <TableHead>{t("common.plan")}</TableHead>
+                    <TableHead>{t("common.status")}</TableHead>
+                    <TableHead>{t("subscriptions.periodEnd")}</TableHead>
+                    <TableHead className="text-right">{t("common.actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -489,7 +515,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
                           disabled={extendingId === sub.id}
                           onClick={() => void handleExtend(sub.id, 30)}
                         >
-                          +30j
+                          {t("subscriptions.extendDays")}
                         </Button>
                         <Button
                           variant="default"
@@ -497,7 +523,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
                           onClick={() => void loadDetail(sub.id)}
                         >
                           <Settings2 className="h-4 w-4 mr-1" />
-                          Fonctions
+                          {t("subscriptions.functions")}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -505,7 +531,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
                 </TableBody>
               </Table>
               {filtered.length === 0 && (
-                <p className="p-6 text-center text-sm text-muted-foreground">Aucun abonnement</p>
+                <p className="p-6 text-center text-sm text-muted-foreground">{t("subscriptions.empty")}</p>
               )}
             </div>
           )}
@@ -515,15 +541,15 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nouvel abonnement</DialogTitle>
-            <DialogDescription>Créer un abonnement pour un compte vendeur existant.</DialogDescription>
+            <DialogTitle>{t("subscriptions.new")}</DialogTitle>
+            <DialogDescription>{t("subscriptions.newDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label>Vendeur</Label>
+              <Label>{t("subscriptions.vendorCol")}</Label>
               <Select value={createUserId} onValueChange={setCreateUserId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choisir…" />
+                  <SelectValue placeholder={t("subscriptions.pickVendor")} />
                 </SelectTrigger>
                 <SelectContent>
                   {vendors.map((v) => (
@@ -535,7 +561,7 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
               </Select>
             </div>
             <div>
-              <Label>Plan</Label>
+              <Label>{t("common.plan")}</Label>
               <Select value={createPlan} onValueChange={setCreatePlan}>
                 <SelectTrigger>
                   <SelectValue />
@@ -550,17 +576,17 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
               </Select>
             </div>
             <div>
-              <Label>Durée (jours)</Label>
+              <Label>{t("subscriptions.durationDays")}</Label>
               <Input value={createDays} onChange={(e) => setCreateDays(e.target.value)} type="number" min={1} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button onClick={() => void handleCreate()} disabled={creating}>
               {creating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Créer
+              {t("subscriptions.create")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -577,12 +603,8 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
       >
         <DialogContent className="max-h-[90vh] overflow-y-auto max-w-lg">
           <DialogHeader>
-            <DialogTitle>Fonctionnalités effectives</DialogTitle>
-            <DialogDescription>
-              Les valeurs ci-dessous sont fusionnées avec le plan. Laissez vide pour ne pas envoyer de
-              changement sur ce champ (overrides existants restent en base sauf si vous ré-enregistrez une
-              nouvelle valeur).
-            </DialogDescription>
+            <DialogTitle>{t("subscriptions.effectiveFeatures")}</DialogTitle>
+            <DialogDescription>{t("subscriptions.effectiveDesc")}</DialogDescription>
           </DialogHeader>
           {detailLoading ? (
             <div className="flex justify-center py-8">
@@ -592,39 +614,60 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
             <div className="space-y-4 py-2">
               <div className="rounded-md bg-muted p-3 text-xs space-y-1">
                 <div>
-                  <span className="text-muted-foreground">Plan (sans override) — max produits:</span>{" "}
+                  <span className="text-muted-foreground">{t("subscriptions.planBaselineMax")}</span>{" "}
                   {planBaseline.maxProducts === -1 ? "∞" : planBaseline.maxProducts}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Effectif — max produits:</span>{" "}
+                  <span className="text-muted-foreground">{t("subscriptions.effectiveMaxProducts")}</span>{" "}
                   {effectiveEntitlements.maxProducts === -1 ? "∞" : effectiveEntitlements.maxProducts}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Effectif — cloud sync:</span>{" "}
+                  <span className="text-muted-foreground">{t("subscriptions.effectiveCloud")}</span>{" "}
                   {String(effectiveEntitlements.cloudSync)}
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Effectif — support:</span>{" "}
+                  <span className="text-muted-foreground">{t("subscriptions.effectiveSupport")}</span>{" "}
                   {effectiveEntitlements.support}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">brandedSubdomain</span>{" "}
+                  {String(effectiveEntitlements.brandedSubdomain)}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">vendorBringYourOwnDomain</span>{" "}
+                  {String(effectiveEntitlements.vendorBringYourOwnDomain)}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">maxStoreCustomDomains</span>{" "}
+                  {effectiveEntitlements.maxStoreCustomDomains === -1
+                    ? "∞"
+                    : effectiveEntitlements.maxStoreCustomDomains}
                 </div>
               </div>
 
               <div className="grid gap-3">
                 <div>
-                  <Label>maxProducts (-1 = illimité)</Label>
+                  <Label>{t("subscriptions.maxProductsLabel")}</Label>
                   <Input value={numMaxProducts} onChange={(e) => setNumMaxProducts(e.target.value)} />
                 </div>
                 <div>
-                  <Label>maxUsers</Label>
+                  <Label>{t("subscriptions.field.maxUsers")}</Label>
                   <Input value={numMaxUsers} onChange={(e) => setNumMaxUsers(e.target.value)} />
                 </div>
                 <div>
-                  <Label>maxLocations</Label>
+                  <Label>{t("subscriptions.field.maxLocations")}</Label>
                   <Input value={numMaxLocations} onChange={(e) => setNumMaxLocations(e.target.value)} />
                 </div>
                 <div>
-                  <Label>salesHistoryMonths</Label>
+                  <Label>{t("subscriptions.field.salesHistoryMonths")}</Label>
                   <Input value={numSalesHistory} onChange={(e) => setNumSalesHistory(e.target.value)} />
+                </div>
+                <div>
+                  <Label>maxStoreCustomDomains (-1 = unlimited)</Label>
+                  <Input
+                    value={numMaxStoreDomains}
+                    onChange={(e) => setNumMaxStoreDomains(e.target.value)}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -634,6 +677,8 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
                       ["apiAccess", selApi, setSelApi],
                       ["whatsappFlows", selWa, setSelWa],
                       ["rfid", selRfid, setSelRfid],
+                      ["brandedSubdomain", selBrandedSub, setSelBrandedSub],
+                      ["vendorBringYourOwnDomain", selVendorByod, setSelVendorByod],
                     ] as const
                   ).map(([label, val, setV]) => (
                     <div key={label}>
@@ -643,10 +688,10 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
                         onValueChange={(v) => setV((v === "unset" ? "" : v) as BoolSelect)}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="non défini" />
+                          <SelectValue placeholder={t("subscriptions.undefinedPlaceholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="unset">(non défini)</SelectItem>
+                          <SelectItem value="unset">{t("subscriptions.unset")}</SelectItem>
                           <SelectItem value="true">true</SelectItem>
                           <SelectItem value="false">false</SelectItem>
                         </SelectContent>
@@ -656,13 +701,13 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
                 </div>
 
                 <div>
-                  <Label>support</Label>
+                  <Label>{t("subscriptions.field.support")}</Label>
                   <Select value={selSupport || "unset"} onValueChange={(v) => setSelSupport(v === "unset" ? "" : v)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="(non défini)" />
+                      <SelectValue placeholder={t("subscriptions.unset")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="unset">(non défini)</SelectItem>
+                      <SelectItem value="unset">{t("subscriptions.unset")}</SelectItem>
                       {SUPPORT_OPTS.map((s) => (
                         <SelectItem key={s} value={s}>
                           {s}
@@ -675,21 +720,21 @@ export function SubscriptionsManageView({ vendors }: SubscriptionsManageViewProp
                 <div className="flex flex-wrap gap-2 pt-2">
                   <Button onClick={() => void saveEntitlements()} disabled={savingEnt}>
                     {savingEnt && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Enregistrer overrides
+                    {t("subscriptions.saveOverrides")}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => detailId && void handlePatchPlanStatus(detailId, "PROFESSIONAL")}
                   >
-                    Forcer plan PRO
+                    {t("subscriptions.forcePro")}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => detailId && void handlePatchPlanStatus(detailId, undefined, "ACTIVE")}
                   >
-                    Statut ACTIVE
+                    {t("subscriptions.statusActiveBtn")}
                   </Button>
                 </div>
               </div>

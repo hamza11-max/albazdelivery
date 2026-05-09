@@ -4,12 +4,9 @@ import Link from "next/link"
 import { Button } from "@albaz/ui"
 import { LogOut, Sun, Moon, Globe, KeyRound } from "lucide-react"
 import { signOut } from "next-auth/react"
-import type { AdminLanguage } from "../lib/i18n-admin"
-import { createAdminT } from "../lib/i18n-admin"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 interface AdminHeaderProps {
-  language: AdminLanguage
-  setLanguage: (lang: AdminLanguage) => void
   isDarkMode: boolean
   setIsDarkMode: (dark: boolean) => void
   /** Support desk agents use a restricted shell — lighter chrome; no passkeys shortcut. */
@@ -17,13 +14,11 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({
-  language,
-  setLanguage,
   isDarkMode,
   setIsDarkMode,
   supportDesk = false,
 }: AdminHeaderProps) {
-  const t = createAdminT(language)
+  const { language, setLanguage, t } = useAdminI18n()
   return (
     <header className="sticky top-0 z-50 albaz-nav">
       <div className="container mx-auto px-4 py-4">
@@ -98,4 +93,3 @@ export function AdminHeader({
     </header>
   )
 }
-

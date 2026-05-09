@@ -9,26 +9,19 @@ import { AdminHeader } from "../../../components/AdminHeader"
 import { Button } from "@albaz/ui"
 import { ArrowLeft } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
-import {
-  applyAdminLanguageToDocument,
-  createAdminT,
-  getInitialAdminLanguage,
-  persistAdminLanguage,
-  type AdminLanguage,
-} from "../../../lib/i18n-admin"
+import { useAdminI18n } from "../../../lib/AdminI18nProvider"
 
 export default function AdminPasskeysPage() {
   const router = useRouter()
+  const { t } = useAdminI18n()
   const sessionResult = useSession()
   const session = sessionResult?.data ?? null
   const status = sessionResult?.status ?? "loading"
   const user = session?.user ?? null
   const isAuthenticated = status === "authenticated"
 
-  const [language, setLanguage] = useState<AdminLanguage>(() => getInitialAdminLanguage())
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [vendors, setVendors] = useState<UserType[]>([])
-  const t = createAdminT(language)
 
   useEffect(() => {
     if (status === "loading") return
@@ -44,11 +37,6 @@ export default function AdminPasskeysPage() {
       document.documentElement.classList.remove("dark")
     }
   }, [isDarkMode])
-
-  useEffect(() => {
-    persistAdminLanguage(language)
-    applyAdminLanguageToDocument(language)
-  }, [language])
 
   const fetchVendors = async () => {
     try {
@@ -69,12 +57,7 @@ export default function AdminPasskeysPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AdminHeader
-        language={language}
-        setLanguage={setLanguage}
-        isDarkMode={isDarkMode}
-        setIsDarkMode={setIsDarkMode}
-      />
+      <AdminHeader isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
       <main className="container mx-auto px-4 py-6">
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Button type="button" variant="outline" size="sm" onClick={() => router.push("/admin")}>

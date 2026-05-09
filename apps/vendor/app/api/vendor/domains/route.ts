@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
         currentPlan: entitlements.currentPlan,
         currentStatus: entitlements.currentStatus,
         allowDomainWrites: entitlements.allowDomainWrites,
+        allowVendorBrandedSubdomain: entitlements.allowVendorBrandedSubdomain,
         allowVendorCustomDomain: entitlements.allowVendorCustomDomain,
         maxStoreCustomDomains: entitlements.maxStoreCustomDomains,
         usedStoreCustomDomains,
@@ -194,14 +195,24 @@ export async function POST(request: NextRequest) {
       throw new ValidationError('Invalid vendorCustomDomain')
     }
 
-    if (!nextSubdomain && !nextCustomDomain) {
-      throw new ValidationError('At least one domain identifier must remain configured')
-    }
-
     const entitlements = await getVendorDomainEntitlements(targetVendorId)
     if (!entitlements.allowDomainWrites) {
       throw new ForbiddenError(
         `Domain changes are blocked for subscription status ${entitlements.currentStatus}. Renew or reactivate to continue.`
+      )
+    }
+
+    if (!nextSubdomain && !nextCustomDomain) {
+      const defaultPlatformHostOnly =
+        !entitlements.allowVendorBrandedSubdomain && !entitlements.allowVendorCustomDomain
+      if (!defaultPlatformHostOnly) {
+        throw new ValidationError('At least one domain identifier must remain configured')
+      }
+    }
+
+    if (nextSubdomain && !entitlements.allowVendorBrandedSubdomain) {
+      throw new ForbiddenError(
+        `Current plan ${entitlements.currentPlan} does not include a branded vendor subdomain. Upgrade your plan.`
       )
     }
     if (nextCustomDomain && !entitlements.allowVendorCustomDomain) {

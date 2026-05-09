@@ -7,6 +7,7 @@ import { csrfProtection } from '@/lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '@/lib/audit'
 import { deleteUserRelatedData } from '@/root/lib/admin/cascade-delete-user'
 import { z } from 'zod'
+import type { Role } from '@prisma/client'
 import { isFullAdmin, isSuperAdmin, isProtectedAdminAccount } from '@/root/lib/admin-roles'
 
 const bulkActionSchema = z.object({
@@ -61,10 +62,9 @@ export async function POST(request: NextRequest) {
 
     let result: any = { affected: 0 }
 
-    const staffRoleFilter =
-      sessionIsSuper
-        ? undefined
-        : { notIn: ['ADMIN', 'SUPER_ADMIN'] as const }
+    const staffRoleFilter = sessionIsSuper
+      ? undefined
+      : { notIn: ['ADMIN', 'SUPER_ADMIN'] as Role[] }
 
     if (action === 'suspend') {
       result = await prisma.user.updateMany({

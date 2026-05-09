@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Eye, EyeOff, Search, Image as ImageIcon, ExternalLi
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 import { apiErrorMessage } from "../lib/api-error-message"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 const SELECT_ALL = "__all__"
 
@@ -28,6 +29,7 @@ interface Ad {
 
 export function AdsManagementView() {
   const { toast } = useToast()
+  const { t } = useAdminI18n()
   const [ads, setAds] = useState<Ad[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null)
@@ -69,8 +71,8 @@ export function AdsManagementView() {
       console.error("[Admin] Error fetching ads:", error)
       setAds([])
       toast({
-        title: "Erreur",
-        description: "Impossible de charger les publicités",
+        title: t("common.error"),
+        description: t("ads.loadError"),
         variant: "destructive",
       })
     } finally {
@@ -143,22 +145,22 @@ export function AdsManagementView() {
 
       if (data.success) {
         toast({
-          title: "Succès",
-          description: selectedAd ? "Publicité mise à jour" : "Publicité créée",
+          title: t("common.success"),
+          description: selectedAd ? t("ads.updated") : t("ads.created"),
         })
         setShowDialog(false)
         fetchAds()
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Impossible de sauvegarder"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("ads.saveError")),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder la publicité",
+        title: t("common.error"),
+        description: t("ads.saveErrorFull"),
         variant: "destructive",
       })
     } finally {
@@ -179,23 +181,23 @@ export function AdsManagementView() {
 
       if (data.success) {
         toast({
-          title: "Succès",
-          description: "Publicité supprimée",
+          title: t("common.success"),
+          description: t("ads.deleted"),
         })
         setShowDeleteDialog(false)
         setSelectedAd(null)
         fetchAds()
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Impossible de supprimer"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("ads.deleteError")),
           variant: "destructive",
         })
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de supprimer la publicité",
+        title: t("common.error"),
+        description: t("ads.deleteErrorFull"),
         variant: "destructive",
       })
     } finally {
@@ -215,40 +217,30 @@ export function AdsManagementView() {
 
       if (data.success) {
         toast({
-          title: "Succès",
-          description: ad.isActive ? "Publicité désactivée" : "Publicité activée",
+          title: t("common.success"),
+          description: ad.isActive ? t("ads.deactivated") : t("ads.activatedAd"),
         })
         fetchAds()
       }
     } catch (error) {
       toast({
-        title: "Erreur",
-        description: "Impossible de modifier le statut",
+        title: t("common.error"),
+        description: t("ads.toggleError"),
         variant: "destructive",
       })
     }
   }
 
-  const getPositionLabel = (position: string) => {
-    const labels: Record<string, string> = {
-      HOME_BANNER: "Bannière principale",
-      HOME_SIDEBAR: "Barre latérale",
-      CATEGORY_TOP: "Haut de catégorie",
-      CATEGORY_SIDEBAR: "Barre latérale catégorie",
-      PRODUCT_PAGE: "Page produit",
-      CHECKOUT_PAGE: "Page paiement",
-      MOBILE_BANNER: "Bannière mobile",
-    }
-    return labels[position] || position
-  }
+  const getPositionLabel = (position: string) => t(`ads.pos.${position}`, position, position)
+
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Gestion des Publicités</h2>
+        <h2 className="text-2xl font-bold">{t("ads.pageTitle")}</h2>
         <Button onClick={handleCreate}>
           <Plus className="w-4 h-4 mr-2" />
-          Nouvelle publicité
+          {t("ads.newAd")}
         </Button>
       </div>
 
@@ -259,7 +251,7 @@ export function AdsManagementView() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
-                placeholder="Rechercher..."
+                placeholder={t("ads.searchPlaceholder")}
                 value={filters.search}
                 onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 className="pl-10"
@@ -273,17 +265,17 @@ export function AdsManagementView() {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Toutes les positions" />
+                <SelectValue placeholder={t("ads.allPositions")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_ALL}>Toutes les positions</SelectItem>
-                <SelectItem value="HOME_BANNER">Bannière principale</SelectItem>
-                <SelectItem value="HOME_SIDEBAR">Barre latérale</SelectItem>
-                <SelectItem value="CATEGORY_TOP">Haut de catégorie</SelectItem>
-                <SelectItem value="CATEGORY_SIDEBAR">Barre latérale catégorie</SelectItem>
-                <SelectItem value="PRODUCT_PAGE">Page produit</SelectItem>
-                <SelectItem value="CHECKOUT_PAGE">Page paiement</SelectItem>
-                <SelectItem value="MOBILE_BANNER">Bannière mobile</SelectItem>
+                <SelectItem value={SELECT_ALL}>{t("ads.allPositions")}</SelectItem>
+                <SelectItem value="HOME_BANNER">{t("ads.pos.HOME_BANNER")}</SelectItem>
+                <SelectItem value="HOME_SIDEBAR">{t("ads.pos.HOME_SIDEBAR")}</SelectItem>
+                <SelectItem value="CATEGORY_TOP">{t("ads.pos.CATEGORY_TOP")}</SelectItem>
+                <SelectItem value="CATEGORY_SIDEBAR">{t("ads.pos.CATEGORY_SIDEBAR")}</SelectItem>
+                <SelectItem value="PRODUCT_PAGE">{t("ads.pos.PRODUCT_PAGE")}</SelectItem>
+                <SelectItem value="CHECKOUT_PAGE">{t("ads.pos.CHECKOUT_PAGE")}</SelectItem>
+                <SelectItem value="MOBILE_BANNER">{t("ads.pos.MOBILE_BANNER")}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -294,12 +286,12 @@ export function AdsManagementView() {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Tous les statuts" />
+                <SelectValue placeholder={t("users.allStatuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_ALL}>Tous les statuts</SelectItem>
-                <SelectItem value="true">Actives</SelectItem>
-                <SelectItem value="false">Inactives</SelectItem>
+                <SelectItem value={SELECT_ALL}>{t("users.allStatuses")}</SelectItem>
+                <SelectItem value="true">{t("ads.filterActive")}</SelectItem>
+                <SelectItem value="false">{t("ads.filterInactive")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -310,14 +302,14 @@ export function AdsManagementView() {
       {isLoading ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">Chargement...</p>
+            <p className="text-muted-foreground">{t("ads.loading")}</p>
           </CardContent>
         </Card>
       ) : filteredAds.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <ImageIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">Aucune publicité trouvée</p>
+            <p className="text-muted-foreground">{t("ads.empty")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -343,30 +335,36 @@ export function AdsManagementView() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={ad.isActive ? "default" : "secondary"}>
-                          {ad.isActive ? "Active" : "Inactive"}
+                          {ad.isActive ? t("products.active") : t("products.inactive")}
                         </Badge>
                         <Badge variant="outline">{getPositionLabel(ad.position)}</Badge>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                      <span>Priorité: {ad.priority}</span>
-                      <span>Vues: {ad.viewCount}</span>
-                      <span>Clics: {ad.clickCount}</span>
+                      <span>
+                        {t("ads.priority")}: {ad.priority}
+                      </span>
+                      <span>
+                        {t("ads.views")}: {ad.viewCount}
+                      </span>
+                      <span>
+                        {t("ads.clicks")}: {ad.clickCount}
+                      </span>
                       {ad.linkUrl && (
                         <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
                           <ExternalLink className="w-3 h-3" />
-                          Lien
+                          {t("ads.link")}
                         </a>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Button variant="outline" size="sm" onClick={() => toggleActive(ad)}>
                         {ad.isActive ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-                        {ad.isActive ? "Désactiver" : "Activer"}
+                        {ad.isActive ? t("products.deactivate") : t("products.activateBtn")}
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(ad)}>
                         <Edit className="w-4 h-4 mr-2" />
-                        Modifier
+                        {t("common.edit")}
                       </Button>
                       <Button
                         variant="outline"
@@ -378,7 +376,7 @@ export function AdsManagementView() {
                         }}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Supprimer
+                        {t("common.delete")}
                       </Button>
                     </div>
                   </div>
@@ -396,77 +394,77 @@ export function AdsManagementView() {
           aria-describedby="ad-dialog-description"
         >
           <DialogHeader>
-            <DialogTitle>{selectedAd ? "Modifier la publicité" : "Nouvelle publicité"}</DialogTitle>
+            <DialogTitle>{selectedAd ? t("ads.editTitle") : t("ads.createTitle")}</DialogTitle>
             <DialogDescription id="ad-dialog-description">
-              {selectedAd ? "Modifiez les informations de la publicité" : "Créez une nouvelle publicité"}
+              {selectedAd ? t("ads.editDesc") : t("ads.createDesc")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="ad-title">Titre *</Label>
+              <Label htmlFor="ad-title">{t("ads.fieldTitle")}</Label>
               <Input
                 id="ad-title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="Titre de la publicité"
+                placeholder={t("ads.phTitle")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ad-description">Description</Label>
+              <Label htmlFor="ad-description">{t("ads.fieldDescription")}</Label>
               <Textarea
                 id="ad-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Description de la publicité"
+                placeholder={t("ads.phDescription")}
                 rows={3}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ad-image">URL de l'image *</Label>
+              <Label htmlFor="ad-image">{t("ads.fieldImageUrl")}</Label>
               <Input
                 id="ad-image"
                 type="url"
                 value={formData.imageUrl}
                 onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                placeholder="https://example.com/image.jpg"
+                placeholder={t("ads.phImageUrl")}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="ad-link">URL de destination</Label>
+              <Label htmlFor="ad-link">{t("ads.fieldLinkUrl")}</Label>
               <Input
                 id="ad-link"
                 type="url"
                 value={formData.linkUrl}
                 onChange={(e) => setFormData({ ...formData, linkUrl: e.target.value })}
-                placeholder="https://example.com"
+                placeholder={t("ads.phLinkUrl")}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ad-position">Position *</Label>
+                <Label htmlFor="ad-position">{t("ads.fieldPosition")}</Label>
                 <Select value={formData.position} onValueChange={(value: any) => setFormData({ ...formData, position: value })}>
                   <SelectTrigger id="ad-position">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="HOME_BANNER">Bannière principale</SelectItem>
-                    <SelectItem value="HOME_SIDEBAR">Barre latérale</SelectItem>
-                    <SelectItem value="CATEGORY_TOP">Haut de catégorie</SelectItem>
-                    <SelectItem value="CATEGORY_SIDEBAR">Barre latérale catégorie</SelectItem>
-                    <SelectItem value="PRODUCT_PAGE">Page produit</SelectItem>
-                    <SelectItem value="CHECKOUT_PAGE">Page paiement</SelectItem>
-                    <SelectItem value="MOBILE_BANNER">Bannière mobile</SelectItem>
+                    <SelectItem value="HOME_BANNER">{t("ads.pos.HOME_BANNER")}</SelectItem>
+                    <SelectItem value="HOME_SIDEBAR">{t("ads.pos.HOME_SIDEBAR")}</SelectItem>
+                    <SelectItem value="CATEGORY_TOP">{t("ads.pos.CATEGORY_TOP")}</SelectItem>
+                    <SelectItem value="CATEGORY_SIDEBAR">{t("ads.pos.CATEGORY_SIDEBAR")}</SelectItem>
+                    <SelectItem value="PRODUCT_PAGE">{t("ads.pos.PRODUCT_PAGE")}</SelectItem>
+                    <SelectItem value="CHECKOUT_PAGE">{t("ads.pos.CHECKOUT_PAGE")}</SelectItem>
+                    <SelectItem value="MOBILE_BANNER">{t("ads.pos.MOBILE_BANNER")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ad-priority">Priorité</Label>
+                <Label htmlFor="ad-priority">{t("ads.fieldPriority")}</Label>
                 <Input
                   id="ad-priority"
                   type="number"
@@ -479,7 +477,7 @@ export function AdsManagementView() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="ad-start-date">Date de début</Label>
+                <Label htmlFor="ad-start-date">{t("ads.startDate")}</Label>
                 <Input
                   id="ad-start-date"
                   type="datetime-local"
@@ -489,7 +487,7 @@ export function AdsManagementView() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="ad-end-date">Date de fin</Label>
+                <Label htmlFor="ad-end-date">{t("ads.endDate")}</Label>
                 <Input
                   id="ad-end-date"
                   type="datetime-local"
@@ -508,17 +506,17 @@ export function AdsManagementView() {
                 className="rounded"
               />
               <Label htmlFor="ad-active" className="cursor-pointer">
-                Publicité active
+                {t("ads.activeAd")}
               </Label>
             </div>
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)} disabled={isSaving}>
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? "Enregistrement..." : "Enregistrer"}
+              {isSaving ? t("ads.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -528,9 +526,9 @@ export function AdsManagementView() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent aria-describedby="ad-delete-description">
           <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogTitle>{t("ads.deleteConfirmTitle")}</DialogTitle>
             <DialogDescription id="ad-delete-description">
-              Êtes-vous sûr de vouloir supprimer cette publicité ? Cette action est irréversible.
+              {t("ads.deleteConfirmDesc")}
             </DialogDescription>
           </DialogHeader>
           {selectedAd && (
@@ -541,10 +539,10 @@ export function AdsManagementView() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={isDeleting}>
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
-              {isDeleting ? "Suppression..." : "Supprimer"}
+              {isDeleting ? t("ads.deleting") : t("common.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

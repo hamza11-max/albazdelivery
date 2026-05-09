@@ -45,6 +45,43 @@ describe('Vendor domains API', () => {
     expect(response.status).toBe(401)
   })
 
+  it('POST /api/vendor/domains blocks branded subdomain on STARTER', async () => {
+    const vendorId = generateCuid()
+
+    const { auth } = await import('@/root/lib/auth')
+    const { prisma } = await import('@/root/lib/prisma')
+    const { getVendorDomainEntitlements } = await import('@/root/lib/subscriptions/domain-entitlements')
+
+    ;(auth as jest.Mock<any>).mockResolvedValue({
+      user: { id: vendorId, role: 'VENDOR' },
+    })
+    ;(prisma.user.findUnique as jest.Mock<any>).mockResolvedValue({
+      id: vendorId,
+      role: 'VENDOR',
+      vendorSubdomain: null,
+      vendorCustomDomain: null,
+    })
+    ;(getVendorDomainEntitlements as jest.Mock<any>).mockResolvedValue({
+      currentPlan: 'STARTER',
+      currentStatus: 'ACTIVE',
+      allowDomainWrites: true,
+      allowVendorBrandedSubdomain: false,
+      allowVendorCustomDomain: false,
+      maxStoreCustomDomains: 0,
+    })
+
+    const { POST } = await import('@/app/api/vendor/domains/route')
+    const request = createMockRequest('http://localhost:3000/api/vendor/domains', {
+      method: 'POST',
+      body: {
+        vendorSubdomain: 'my-shop',
+      },
+    })
+
+    const response = await POST(request)
+    expect(response.status).toBe(403)
+  })
+
   it('POST /api/vendor/domains blocks custom domain on STARTER', async () => {
     const vendorId = generateCuid()
 
@@ -65,6 +102,7 @@ describe('Vendor domains API', () => {
       currentPlan: 'STARTER',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
+      allowVendorBrandedSubdomain: false,
       allowVendorCustomDomain: false,
       maxStoreCustomDomains: 0,
     })
@@ -111,6 +149,7 @@ describe('Vendor domains API', () => {
       currentPlan: 'BUSINESS',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
+      allowVendorBrandedSubdomain: true,
       allowVendorCustomDomain: true,
       maxStoreCustomDomains: 5,
     })

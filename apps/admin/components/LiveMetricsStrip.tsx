@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent } from "@albaz/ui"
 import { Activity, Clock, DollarSign, Loader2, ShoppingBag, Zap } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 type LivePayload = {
   asOf: string
@@ -18,8 +19,10 @@ const POLL_MS = 30_000
 
 export function LiveMetricsStrip() {
   const { toast } = useToast()
+  const { t, language } = useAdminI18n()
   const [live, setLive] = useState<LivePayload | null>(null)
   const [loading, setLoading] = useState(true)
+  const locale = language === "ar" ? "ar-DZ" : "fr-FR"
 
   const fetchLive = useCallback(async () => {
     try {
@@ -29,20 +32,20 @@ export function LiveMetricsStrip() {
         setLive(json.data.live as LivePayload)
       } else if (!json.success) {
         toast({
-          title: "Métriques temps réel indisponibles",
+          title: t("liveMetrics.unavailable"),
           variant: "destructive",
         })
       }
     } catch {
       toast({
-        title: "Métriques temps réel",
-        description: "Erreur réseau",
+        title: t("liveMetrics.titleShort"),
+        description: t("common.networkError"),
         variant: "destructive",
       })
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, t])
 
   useEffect(() => {
     fetchLive()
@@ -55,7 +58,7 @@ export function LiveMetricsStrip() {
       <Card>
         <CardContent className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Chargement des indicateurs en direct…
+          {t("liveMetrics.loading")}
         </CardContent>
       </Card>
     )
@@ -63,38 +66,38 @@ export function LiveMetricsStrip() {
 
   if (!live) return null
 
-  const asOf = new Date(live.asOf).toLocaleString("fr-FR")
+  const asOf = new Date(live.asOf).toLocaleString(locale)
 
   const items = [
     {
-      label: "Actualisé à",
+      label: t("liveMetrics.updatedAt"),
       value: asOf,
       icon: Clock,
       sub: `${POLL_MS / 1000}s`,
     },
     {
-      label: "Commandes (1h)",
+      label: t("liveMetrics.orders1h"),
       value: live.ordersLastHour,
       icon: Zap,
-      sub: "créées",
+      sub: t("liveMetrics.created"),
     },
     {
-      label: "Commandes actives",
+      label: t("liveMetrics.activeOrders"),
       value: live.activeOrders,
       icon: Activity,
-      sub: "hors livré / annulé",
+      sub: t("liveMetrics.activeOrdersSub"),
     },
     {
-      label: "24h — créées",
+      label: t("liveMetrics.created24h"),
       value: live.ordersLast24h,
       icon: ShoppingBag,
-      sub: `${live.deliveredLast24h} livrées`,
+      sub: t("liveMetrics.delivered24hSub", undefined, undefined, { n: String(live.deliveredLast24h) }),
     },
     {
-      label: "CA 24h (livrées)",
-      value: `${Math.round(live.revenueLast24h).toLocaleString("fr-FR")} DZD`,
+      label: t("liveMetrics.ca24h"),
+      value: `${Math.round(live.revenueLast24h).toLocaleString(locale)} DZD`,
       icon: DollarSign,
-      sub: "sur périmètre 24h",
+      sub: t("liveMetrics.ca24hSub"),
     },
   ]
 

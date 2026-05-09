@@ -1,6 +1,8 @@
 /**
  * Client-safe subscription plan metadata (no Stripe Node SDK).
  * Imported by hooks and vendor UI; keep free of `stripe` package imports.
+ *
+ * Aligns with ALBAZ_VENDOR_PLUS_PLAN.md tiers (Starter → Enterprise / Vendor+).
  */
 
 export interface PlanFeatures {
@@ -15,29 +17,47 @@ export interface PlanFeatures {
   salesHistoryMonths: number
   support: "email" | "email_phone" | "priority" | "dedicated"
   rfid?: boolean
+  /** Branded `{slug}.{platform}` vendor host — Professional and above */
+  brandedSubdomain: boolean
+  /** Bring-your-own domain for vendor portal — Business and above */
+  vendorBringYourOwnDomain: boolean
+  /** Connected storefront custom domains (-1 unlimited) */
+  maxStoreCustomDomains: number
 }
 
 /** Vendor UI: Algeria-first amounts in DZD. Card charges follow Stripe price currency (often USD). */
 export const PLAN_DISPLAY_PRICING: Record<string, { dzd: string; usdHint?: string }> = {
   STARTER: { dzd: "0" },
-  PROFESSIONAL: { dzd: "5 900", usdHint: "≈ $39 USD / month if Stripe bills in USD" },
-  BUSINESS: { dzd: "14 900", usdHint: "≈ $99 USD / month if Stripe bills in USD" },
-  ENTERPRISE: { dzd: "36 900", usdHint: "≈ $249 USD / month if Stripe bills in USD" },
+  PROFESSIONAL: {
+    dzd: "4 400",
+    usdHint: "≈ $29 USD / month if Stripe bills in USD (Professional)",
+  },
+  BUSINESS: {
+    dzd: "11 900",
+    usdHint: "≈ $79 USD / month if Stripe bills in USD (Business)",
+  },
+  ENTERPRISE: {
+    dzd: "29 500",
+    usdHint: "≈ $199 USD / month if Stripe bills in USD (Enterprise / Vendor+)",
+  },
 }
 
 export const PLAN_FEATURES: Record<string, PlanFeatures> = {
   STARTER: {
-    maxProducts: 50,
+    maxProducts: 5,
     maxUsers: 1,
     maxLocations: 1,
     cloudSync: false,
     apiAccess: false,
-    whatsappFlows: true,
+    whatsappFlows: false,
     salesHistoryMonths: 1,
     support: "email",
+    brandedSubdomain: false,
+    vendorBringYourOwnDomain: false,
+    maxStoreCustomDomains: 0,
   },
   PROFESSIONAL: {
-    maxProducts: -1,
+    maxProducts: 50,
     maxUsers: 3,
     maxLocations: 1,
     cloudSync: true,
@@ -45,16 +65,22 @@ export const PLAN_FEATURES: Record<string, PlanFeatures> = {
     whatsappFlows: true,
     salesHistoryMonths: 12,
     support: "email_phone",
+    brandedSubdomain: true,
+    vendorBringYourOwnDomain: false,
+    maxStoreCustomDomains: 1,
   },
   BUSINESS: {
     maxProducts: -1,
     maxUsers: -1,
-    maxLocations: -1,
+    maxLocations: 5,
     cloudSync: true,
     apiAccess: true,
     whatsappFlows: true,
     salesHistoryMonths: -1,
     support: "priority",
+    brandedSubdomain: true,
+    vendorBringYourOwnDomain: true,
+    maxStoreCustomDomains: 5,
   },
   ENTERPRISE: {
     maxProducts: -1,
@@ -66,8 +92,14 @@ export const PLAN_FEATURES: Record<string, PlanFeatures> = {
     salesHistoryMonths: -1,
     support: "dedicated",
     rfid: true,
+    brandedSubdomain: true,
+    vendorBringYourOwnDomain: true,
+    maxStoreCustomDomains: -1,
   },
 }
+
+/** Default COD / Stripe-free Professional trial length in days (`VENDOR_TRIAL_DAYS` env overrides server-side). */
+export const VENDOR_FREE_TRIAL_DAYS = 14
 
 export function getPlanFeatures(plan: string): PlanFeatures {
   return PLAN_FEATURES[plan] || PLAN_FEATURES.STARTER

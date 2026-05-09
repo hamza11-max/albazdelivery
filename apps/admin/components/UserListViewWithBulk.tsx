@@ -5,6 +5,7 @@ import { Button, Card, CardContent, Input, Badge, Select, SelectContent, SelectI
 import { Checkbox } from "@/root/components/ui/checkbox"
 import { Search, Plus, Edit, Trash2, MoreVertical, Ban, CheckCircle2 } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 // DropdownMenu not available, using Button instead
 
 /** Radix Select forbids SelectItem value=""; use this sentinel for "no filter". */
@@ -36,6 +37,7 @@ export function UserListViewWithBulk({
   onAdd,
   showActionLabels = false,
 }: UserListViewWithBulkProps) {
+  const { t } = useAdminI18n()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
   const [roleFilter, setRoleFilter] = useState("")
@@ -95,7 +97,7 @@ export function UserListViewWithBulk({
         {onAdd && (
           <Button onClick={onAdd}>
             <Plus className="w-4 h-4 mr-2" />
-            Ajouter
+            {t("users.add")}
           </Button>
         )}
       </div>
@@ -120,13 +122,13 @@ export function UserListViewWithBulk({
               onValueChange={(v) => setRoleFilter(v === SELECT_ALL ? "" : v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Tous les rôles" />
+                <SelectValue placeholder={t("users.allRoles")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_ALL}>Tous les rôles</SelectItem>
-                <SelectItem value="CUSTOMER">Client</SelectItem>
-                <SelectItem value="VENDOR">Vendeur</SelectItem>
-                <SelectItem value="DRIVER">Livreur</SelectItem>
+                <SelectItem value={SELECT_ALL}>{t("users.allRoles")}</SelectItem>
+                <SelectItem value="CUSTOMER">{t("common.client")}</SelectItem>
+                <SelectItem value="VENDOR">{t("common.vendor")}</SelectItem>
+                <SelectItem value="DRIVER">{t("common.driver")}</SelectItem>
               </SelectContent>
             </Select>
 
@@ -135,13 +137,13 @@ export function UserListViewWithBulk({
               onValueChange={(v) => setStatusFilter(v === SELECT_ALL ? "" : v)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Tous les statuts" />
+                <SelectValue placeholder={t("users.allStatuses")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={SELECT_ALL}>Tous les statuts</SelectItem>
-                <SelectItem value="PENDING">En attente</SelectItem>
-                <SelectItem value="APPROVED">Approuvé</SelectItem>
-                <SelectItem value="REJECTED">Rejeté</SelectItem>
+                <SelectItem value={SELECT_ALL}>{t("users.allStatuses")}</SelectItem>
+                <SelectItem value="PENDING">{t("common.pending")}</SelectItem>
+                <SelectItem value="APPROVED">{t("common.approved")}</SelectItem>
+                <SelectItem value="REJECTED">{t("common.rejected")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -154,7 +156,7 @@ export function UserListViewWithBulk({
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium">
-                {selectedUsers.size} utilisateur{selectedUsers.size > 1 ? "s" : ""} sélectionné{selectedUsers.size > 1 ? "s" : ""}
+                {t("users.bulkSelected", undefined, undefined, { count: String(selectedUsers.size) })}
               </p>
               <div className="flex gap-2">
                 <Button
@@ -164,7 +166,7 @@ export function UserListViewWithBulk({
                   disabled={isProcessing}
                 >
                   <Ban className="w-4 h-4 mr-2" />
-                  Suspendre
+                  {t("users.suspend")}
                 </Button>
                 <Button
                   variant="outline"
@@ -173,7 +175,7 @@ export function UserListViewWithBulk({
                   disabled={isProcessing}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Activer
+                  {t("users.activate")}
                 </Button>
                 <Button
                   variant="destructive"
@@ -182,7 +184,7 @@ export function UserListViewWithBulk({
                   disabled={isProcessing}
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Supprimer
+                  {t("common.delete")}
                 </Button>
               </div>
             </div>
@@ -198,7 +200,7 @@ export function UserListViewWithBulk({
               {icon}
             </div>
             <p className="text-lg text-muted-foreground">
-              {searchQuery || roleFilter || statusFilter ? `Aucun résultat trouvé` : emptyMessage}
+              {searchQuery || roleFilter || statusFilter ? t("users.noResults") : emptyMessage}
             </p>
           </CardContent>
         </Card>
@@ -212,7 +214,7 @@ export function UserListViewWithBulk({
                   checked={selectedUsers.size === filteredUsers.length && filteredUsers.length > 0}
                   onCheckedChange={toggleAll}
                 />
-                <span className="text-sm font-medium">Sélectionner tout</span>
+                <span className="text-sm font-medium">{t("users.selectAll")}</span>
               </div>
             </CardContent>
           </Card>
@@ -249,7 +251,7 @@ export function UserListViewWithBulk({
                         onClick={() => onEdit(user)}
                       >
                         <Edit className="w-4 h-4" />
-                        {showActionLabels ? <span className="ml-1">Modifier</span> : null}
+                        {showActionLabels ? <span className="ml-1">{t("common.edit")}</span> : null}
                       </Button>
                       <Button
                         variant="outline"
@@ -258,7 +260,7 @@ export function UserListViewWithBulk({
                         onClick={() => onDelete(user)}
                       >
                         <Trash2 className="w-4 h-4" />
-                        {showActionLabels ? <span className="ml-1">Supprimer</span> : null}
+                        {showActionLabels ? <span className="ml-1">{t("common.delete")}</span> : null}
                       </Button>
                     </div>
                   </div>

@@ -23,13 +23,14 @@ function getVendorWindowIconPath() {
 
   const candidates = []
   if (process?.resourcesPath) {
-    candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.ico'))
+    // Prefer unpacked assets (electron-builder asarUnpack); build/icon.ico is not shipped in the app asar.
     candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'assets', 'logo.ico'))
+    candidates.push(path.join(process.resourcesPath, 'app.asar.unpacked', 'build', 'icon.ico'))
     candidates.push(path.join(process.resourcesPath, 'build', 'icon.ico'))
   }
   if (resourcesPath) {
-    candidates.push(path.join(resourcesPath, 'resources', 'app.asar.unpacked', 'build', 'icon.ico'))
     candidates.push(path.join(resourcesPath, 'resources', 'app.asar.unpacked', 'assets', 'logo.ico'))
+    candidates.push(path.join(resourcesPath, 'resources', 'app.asar.unpacked', 'build', 'icon.ico'))
     candidates.push(path.join(resourcesPath, 'resources', 'build', 'icon.ico'))
   }
   if (appPath) {

@@ -17,6 +17,9 @@ export const featureOverridesPatchSchema = z
     salesHistoryMonths: z.number().finite(),
     support: supportSchema,
     rfid: z.boolean(),
+    brandedSubdomain: z.boolean(),
+    vendorBringYourOwnDomain: z.boolean(),
+    maxStoreCustomDomains: z.number().finite(),
   })
   .partial()
   .strict()

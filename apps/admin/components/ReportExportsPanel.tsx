@@ -5,11 +5,13 @@ import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Labe
 import { Download, FileJson, FileSpreadsheet } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 type ExportKind = "users" | "orders" | "audit-logs"
 
 export function ReportExportsPanel() {
   const { toast } = useToast()
+  const { t } = useAdminI18n()
   const [days, setDays] = useState("30")
   const [exportType, setExportType] = useState<ExportKind>("orders")
   const [busy, setBusy] = useState(false)
@@ -38,7 +40,7 @@ export function ReportExportsPanel() {
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
-        throw new Error((err as { error?: string }).error || "Export refusé")
+        throw new Error((err as { error?: string }).error || t("report.exportRejected"))
       }
 
       const blob = await response.blob()
@@ -51,11 +53,11 @@ export function ReportExportsPanel() {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      toast({ title: "Export CSV prêt", description: "Le fichier a été téléchargé." })
+      toast({ title: t("report.csvReady"), description: t("report.fileDownloaded") })
     } catch (e) {
       toast({
-        title: "Export impossible",
-        description: e instanceof Error ? e.message : "Erreur inconnue",
+        title: t("report.exportFailed"),
+        description: e instanceof Error ? e.message : t("report.unknownError"),
         variant: "destructive",
       })
     } finally {
@@ -77,7 +79,7 @@ export function ReportExportsPanel() {
       })
       const data = await response.json()
       if (!data.success) {
-        throw new Error("Réponse analytics invalide")
+        throw new Error(t("report.analyticsInvalid"))
       }
       const blob = new Blob([JSON.stringify(data.data, null, 2)], {
         type: "application/json",
@@ -91,11 +93,11 @@ export function ReportExportsPanel() {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
 
-      toast({ title: "Rapport JSON exporté", description: "Données agrégées téléchargées." })
+      toast({ title: t("report.jsonReady"), description: t("report.jsonDownloaded") })
     } catch (e) {
       toast({
-        title: "Export JSON impossible",
-        description: e instanceof Error ? e.message : "Erreur",
+        title: t("report.jsonFailed"),
+        description: e instanceof Error ? e.message : t("common.error"),
         variant: "destructive",
       })
     } finally {
@@ -108,37 +110,37 @@ export function ReportExportsPanel() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5 text-primary" />
-          Rapports & exports
+          {t("report.title")}
         </CardTitle>
         <CardDescription>
-          Choisissez une période puis exportez les jeux bruts (CSV/JSON API) ou l’agrégat analytique (JSON) — sans requête SQL manuelle.
+          {t("report.desc")}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="report-days">Période</Label>
+          <Label htmlFor="report-days">{t("report.period")}</Label>
           <Select value={days} onValueChange={setDays}>
             <SelectTrigger id="report-days" className="w-[200px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="7">7 jours</SelectItem>
-              <SelectItem value="30">30 jours</SelectItem>
-              <SelectItem value="90">90 jours</SelectItem>
-              <SelectItem value="365">1 an</SelectItem>
+              <SelectItem value="7">{t("report.days7")}</SelectItem>
+              <SelectItem value="30">{t("report.days30")}</SelectItem>
+              <SelectItem value="90">{t("report.days90")}</SelectItem>
+              <SelectItem value="365">{t("report.year")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex flex-col gap-2">
-          <Label htmlFor="report-dataset">Jeu export CSV</Label>
+          <Label htmlFor="report-dataset">{t("report.csvDataset")}</Label>
           <Select value={exportType} onValueChange={(v) => setExportType(v as ExportKind)}>
             <SelectTrigger id="report-dataset" className="w-[220px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="orders">Commandes</SelectItem>
-              <SelectItem value="users">Utilisateurs</SelectItem>
-              <SelectItem value="audit-logs">Journal d’audit</SelectItem>
+              <SelectItem value="orders">{t("report.datasetOrders")}</SelectItem>
+              <SelectItem value="users">{t("report.datasetUsers")}</SelectItem>
+              <SelectItem value="audit-logs">{t("report.datasetAudit")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -148,7 +150,7 @@ export function ReportExportsPanel() {
         </Button>
         <Button type="button" variant="outline" disabled={jsonBusy} onClick={() => downloadAnalyticsJson()}>
           {jsonBusy ? "…" : <FileJson className="mr-2 h-4 w-4" />}
-          JSON analytique
+          {t("report.jsonAnalytics")}
         </Button>
       </CardContent>
     </Card>

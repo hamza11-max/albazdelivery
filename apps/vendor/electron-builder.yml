@@ -21,10 +21,12 @@ files:
 
 # Unpack standalone so Node can run server.js (asar is read-only for child processes)
 # Unpack native .node modules so they load on Windows
+# Unpack app icon: Windows nativeImage / taskbar load from real paths (not inside app.asar)
 asarUnpack:
   - '.next/standalone/**/*'
   - '.next/static/**/*'
   - 'node_modules/better-sqlite3/**/*'
+  - 'assets/logo.ico'
 
 extraMetadata:
   main: electron/main.js
@@ -48,7 +50,10 @@ win:
     # Written by scripts/write-bundled-flavor.js before pack (shop type preset per installer vertical)
     - from: bundled-flavor.json
       to: bundled-flavor.json
-  # Skip code-signing tool download (avoids 7z symlink errors on Windows without admin/Developer Mode)
+  # true runs signtool/rcedit on the unpacked exe/resources (electron-builder pulls winCodeSign).
+  # On typical Windows setups without symlink privilege (or Developer Mode OFF), unpacking that
+  # cache fails with: "Cannot create symbolic link : A required privilege is not held by the client".
+  # false skips that path for unsigned local builds — NSIS shortcuts still use build/icon.ico.
   signAndEditExecutable: false
   target:
     - target: nsis

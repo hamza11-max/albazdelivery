@@ -52,7 +52,8 @@ describe('Store domain verification API', () => {
       currentPlan: 'PROFESSIONAL',
       currentStatus: 'PAST_DUE',
       allowDomainWrites: false,
-      allowVendorCustomDomain: true,
+      allowVendorBrandedSubdomain: true,
+      allowVendorCustomDomain: false,
       maxStoreCustomDomains: 1,
     })
 
@@ -86,6 +87,7 @@ describe('Store domain verification API', () => {
       currentPlan: 'BUSINESS',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
+      allowVendorBrandedSubdomain: true,
       allowVendorCustomDomain: true,
       maxStoreCustomDomains: 5,
     })
@@ -133,6 +135,7 @@ describe('Store domain verification API', () => {
       currentPlan: 'BUSINESS',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
+      allowVendorBrandedSubdomain: true,
       allowVendorCustomDomain: true,
       maxStoreCustomDomains: 5,
     })

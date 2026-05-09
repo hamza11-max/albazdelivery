@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, Badge, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from "@albaz/ui"
-import { Search, Filter, Calendar, Download } from "lucide-react"
+import { Search, Filter, Download } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 const SELECT_ALL = "__all__"
 
@@ -23,6 +24,7 @@ interface AuditLog {
 
 export function AuditLogView() {
   const { toast } = useToast()
+  const { t, language } = useAdminI18n()
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filters, setFilters] = useState({
@@ -45,7 +47,7 @@ export function AuditLogView() {
       if (filters.endDate) params.append("endDate", filters.endDate)
 
       const response = await fetch(`/api/admin/audit-logs?${params.toString()}`, {
-        credentials: 'include',
+        credentials: "include",
       })
       const data = await response.json()
       setLogs(data?.data?.logs || [])
@@ -62,27 +64,32 @@ export function AuditLogView() {
   }, [filters.action, filters.resource, filters.status, filters.startDate, filters.endDate])
 
   const filteredLogs = filters.search
-    ? logs.filter((log) =>
-        log.action.toLowerCase().includes(filters.search.toLowerCase()) ||
-        log.resource.toLowerCase().includes(filters.search.toLowerCase()) ||
-        (log.userRole && log.userRole.toLowerCase().includes(filters.search.toLowerCase()))
+    ? logs.filter(
+        (log) =>
+          log.action.toLowerCase().includes(filters.search.toLowerCase()) ||
+          log.resource.toLowerCase().includes(filters.search.toLowerCase()) ||
+          (log.userRole && log.userRole.toLowerCase().includes(filters.search.toLowerCase()))
       )
     : logs
+
+  const trAction = (code: string) => t(`audit.action.${code}`, code, code)
+  const trResource = (code: string) => t(`audit.resource.${code}`, code, code)
+  const trStatus = (code: string) => t(`audit.status.${code}`, code, code)
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Journal d'audit</h2>
-        <Button 
+        <h2 className="text-2xl font-bold">{t("audit.title")}</h2>
+        <Button
           variant="outline"
           onClick={async () => {
             try {
-              const response = await fetchWithCsrf('/api/admin/export', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+              const response = await fetchWithCsrf("/api/admin/export", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  type: 'audit-logs',
-                  format: 'csv',
+                  type: "audit-logs",
+                  format: "csv",
                   filters: {
                     action: filters.action || undefined,
                     resource: filters.resource || undefined,
@@ -96,47 +103,46 @@ export function AuditLogView() {
               if (response.ok) {
                 const blob = await response.blob()
                 const url = window.URL.createObjectURL(blob)
-                const a = document.createElement('a')
+                const a = document.createElement("a")
                 a.href = url
-                a.download = `audit-logs_${new Date().toISOString().split('T')[0]}.csv`
+                a.download = `audit-logs_${new Date().toISOString().split("T")[0]}.csv`
                 document.body.appendChild(a)
                 a.click()
                 window.URL.revokeObjectURL(url)
                 document.body.removeChild(a)
 
                 toast({
-                  title: "Succès",
-                  description: "Export réussi",
+                  title: t("common.success"),
+                  description: t("audit.exportSuccess"),
                 })
               } else {
-                throw new Error('Export failed')
+                throw new Error("Export failed")
               }
-            } catch (error) {
+            } catch {
               toast({
-                title: "Erreur",
-                description: "Impossible d'exporter les logs",
+                title: t("common.error"),
+                description: t("audit.exportError"),
                 variant: "destructive",
               })
             }
           }}
         >
           <Download className="w-4 h-4 mr-2" />
-          Exporter
+          {t("common.export")}
         </Button>
       </div>
 
-      {/* Advanced Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Filter className="w-5 h-5" />
-            Filtres avancés
+            {t("audit.advancedFilters")}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">Action</label>
+              <label className="text-sm font-medium mb-2 block">{t("audit.action")}</label>
               <Select
                 value={filters.action === "" ? SELECT_ALL : filters.action}
                 onValueChange={(value) =>
@@ -144,25 +150,25 @@ export function AuditLogView() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Toutes les actions" />
+                  <SelectValue placeholder={t("audit.allActions")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SELECT_ALL}>Toutes les actions</SelectItem>
-                  <SelectItem value="USER_CREATED">Création d'utilisateur</SelectItem>
-                  <SelectItem value="USER_UPDATED">Modification d'utilisateur</SelectItem>
-                  <SelectItem value="USER_DELETED">Suppression d'utilisateur</SelectItem>
-                  <SelectItem value="USER_SUSPENDED">Suspension d'utilisateur</SelectItem>
-                  <SelectItem value="REGISTRATION_APPROVED">Approbation d'inscription</SelectItem>
-                  <SelectItem value="REGISTRATION_REJECTED">Rejet d'inscription</SelectItem>
-                  <SelectItem value="AD_CREATED">Création de publicité</SelectItem>
-                  <SelectItem value="AD_UPDATED">Modification de publicité</SelectItem>
-                  <SelectItem value="AD_DELETED">Suppression de publicité</SelectItem>
+                  <SelectItem value={SELECT_ALL}>{t("audit.allActions")}</SelectItem>
+                  <SelectItem value="USER_CREATED">{trAction("USER_CREATED")}</SelectItem>
+                  <SelectItem value="USER_UPDATED">{trAction("USER_UPDATED")}</SelectItem>
+                  <SelectItem value="USER_DELETED">{trAction("USER_DELETED")}</SelectItem>
+                  <SelectItem value="USER_SUSPENDED">{trAction("USER_SUSPENDED")}</SelectItem>
+                  <SelectItem value="REGISTRATION_APPROVED">{trAction("REGISTRATION_APPROVED")}</SelectItem>
+                  <SelectItem value="REGISTRATION_REJECTED">{trAction("REGISTRATION_REJECTED")}</SelectItem>
+                  <SelectItem value="AD_CREATED">{trAction("AD_CREATED")}</SelectItem>
+                  <SelectItem value="AD_UPDATED">{trAction("AD_UPDATED")}</SelectItem>
+                  <SelectItem value="AD_DELETED">{trAction("AD_DELETED")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Ressource</label>
+              <label className="text-sm font-medium mb-2 block">{t("audit.resource")}</label>
               <Select
                 value={filters.resource === "" ? SELECT_ALL : filters.resource}
                 onValueChange={(value) =>
@@ -170,19 +176,19 @@ export function AuditLogView() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Toutes les ressources" />
+                  <SelectValue placeholder={t("audit.allResources")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SELECT_ALL}>Toutes les ressources</SelectItem>
-                  <SelectItem value="USER">Utilisateur</SelectItem>
-                  <SelectItem value="REGISTRATION_REQUEST">Demande d'inscription</SelectItem>
-                  <SelectItem value="AD">Publicité</SelectItem>
+                  <SelectItem value={SELECT_ALL}>{t("audit.allResources")}</SelectItem>
+                  <SelectItem value="USER">{trResource("USER")}</SelectItem>
+                  <SelectItem value="REGISTRATION_REQUEST">{trResource("REGISTRATION_REQUEST")}</SelectItem>
+                  <SelectItem value="AD">{trResource("AD")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Statut</label>
+              <label className="text-sm font-medium mb-2 block">{t("common.status")}</label>
               <Select
                 value={filters.status === "" ? SELECT_ALL : filters.status}
                 onValueChange={(value) =>
@@ -190,18 +196,18 @@ export function AuditLogView() {
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Tous les statuts" />
+                  <SelectValue placeholder={t("users.allStatuses")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={SELECT_ALL}>Tous les statuts</SelectItem>
-                  <SelectItem value="SUCCESS">Succès</SelectItem>
-                  <SelectItem value="FAILURE">Échec</SelectItem>
+                  <SelectItem value={SELECT_ALL}>{t("users.allStatuses")}</SelectItem>
+                  <SelectItem value="SUCCESS">{trStatus("SUCCESS")}</SelectItem>
+                  <SelectItem value="FAILURE">{trStatus("FAILURE")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Date de début</label>
+              <label className="text-sm font-medium mb-2 block">{t("audit.startDate")}</label>
               <Input
                 type="date"
                 value={filters.startDate}
@@ -210,7 +216,7 @@ export function AuditLogView() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Date de fin</label>
+              <label className="text-sm font-medium mb-2 block">{t("audit.endDate")}</label>
               <Input
                 type="date"
                 value={filters.endDate}
@@ -219,11 +225,11 @@ export function AuditLogView() {
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-2 block">Recherche</label>
+              <label className="text-sm font-medium mb-2 block">{t("common.search")}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher..."
+                  placeholder={t("audit.searchPlaceholder")}
                   value={filters.search}
                   onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                   className="pl-10"
@@ -234,17 +240,16 @@ export function AuditLogView() {
         </CardContent>
       </Card>
 
-      {/* Audit Logs List */}
       {isLoading ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">Chargement...</p>
+            <p className="text-muted-foreground">{t("common.loading")}</p>
           </CardContent>
         </Card>
       ) : filteredLogs.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-muted-foreground">Aucun log d'audit trouvé</p>
+            <p className="text-muted-foreground">{t("audit.empty")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -254,19 +259,19 @@ export function AuditLogView() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
                       <Badge variant={log.status === "SUCCESS" ? "default" : "destructive"}>
-                        {log.status}
+                        {trStatus(log.status)}
                       </Badge>
-                      <Badge variant="outline">{log.action}</Badge>
-                      <Badge variant="outline">{log.resource}</Badge>
+                      <Badge variant="outline">{trAction(log.action)}</Badge>
+                      <Badge variant="outline">{trResource(log.resource)}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {log.userRole && `Par ${log.userRole}`}
+                      {log.userRole && t("audit.byRole", undefined, undefined, { role: log.userRole })}
                       {log.resourceId && ` • ID: ${log.resourceId}`}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(log.createdAt).toLocaleString("fr-DZ")}
+                      {new Date(log.createdAt).toLocaleString(language === "ar" ? "ar-DZ" : "fr-DZ")}
                     </p>
                     {log.errorMessage && (
                       <p className="text-sm text-red-600 mt-2">{log.errorMessage}</p>
@@ -281,4 +286,3 @@ export function AuditLogView() {
     </div>
   )
 }
-

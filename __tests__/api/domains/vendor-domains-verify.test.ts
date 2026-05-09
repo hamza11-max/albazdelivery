@@ -44,6 +44,7 @@ describe('Vendor domain verification API', () => {
       currentPlan: 'BUSINESS',
       currentStatus: 'PAST_DUE',
       allowDomainWrites: false,
+      allowVendorBrandedSubdomain: true,
       allowVendorCustomDomain: true,
       maxStoreCustomDomains: 5,
     })
@@ -72,6 +73,7 @@ describe('Vendor domain verification API', () => {
       currentPlan: 'BUSINESS',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
+      allowVendorBrandedSubdomain: true,
       allowVendorCustomDomain: true,
       maxStoreCustomDomains: 5,
     })
@@ -120,6 +122,7 @@ describe('Vendor domain verification API', () => {
       currentPlan: 'BUSINESS',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
+      allowVendorBrandedSubdomain: true,
       allowVendorCustomDomain: true,
       maxStoreCustomDomains: 5,
     })

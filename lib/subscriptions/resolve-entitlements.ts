@@ -17,6 +17,9 @@ export type FeatureOverridesInput = Partial<
     | "salesHistoryMonths"
     | "support"
     | "rfid"
+    | "brandedSubdomain"
+    | "vendorBringYourOwnDomain"
+    | "maxStoreCustomDomains"
   >
 >
 
@@ -39,7 +42,13 @@ function applyOverridesMutable(base: PlanFeatures, raw: unknown): void {
 
   const o = raw as Record<string, unknown>
 
-  for (const key of ["cloudSync", "apiAccess", "whatsappFlows"] as const) {
+  for (const key of [
+    "cloudSync",
+    "apiAccess",
+    "whatsappFlows",
+    "brandedSubdomain",
+    "vendorBringYourOwnDomain",
+  ] as const) {
     if (key in o && typeof o[key] === "boolean") {
       base[key] = o[key]
     }
@@ -56,7 +65,13 @@ function applyOverridesMutable(base: PlanFeatures, raw: unknown): void {
     base.support = o.support as PlanFeatures["support"]
   }
 
-  for (const key of ["maxProducts", "maxUsers", "maxLocations", "salesHistoryMonths"] as const) {
+  for (const key of [
+    "maxProducts",
+    "maxUsers",
+    "maxLocations",
+    "salesHistoryMonths",
+    "maxStoreCustomDomains",
+  ] as const) {
     if (!(key in o) || o[key] === undefined) continue
     const v = o[key]
     if (typeof v !== "number" || !Number.isFinite(v)) continue

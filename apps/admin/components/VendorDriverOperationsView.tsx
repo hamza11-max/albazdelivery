@@ -29,6 +29,7 @@ import { Loader2, MapPin, PieChart, Store, Truck } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 import { apiErrorMessage } from "../lib/api-error-message"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 interface OrderLike {
   id: string
@@ -73,6 +74,7 @@ export function VendorDriverOperationsView({
   onRefreshOrders,
 }: VendorDriverOperationsViewProps) {
   const { toast } = useToast()
+  const { t, language } = useAdminI18n()
 
   const [stats, setStats] = useState<VendorRow[]>([])
   const [stores, setStores] = useState<StoreRecord[]>([])
@@ -115,14 +117,14 @@ export function VendorDriverOperationsView({
     } catch (e) {
       console.error("[VendorDriverOperationsView]", e)
       toast({
-        title: "Erreur",
-        description: "Impossible de charger Opérations vendeurs / livreurs",
+        title: t("common.error"),
+        description: t("ops.loadError"),
         variant: "destructive",
       })
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, t])
 
   useEffect(() => {
     load()
@@ -152,18 +154,18 @@ export function VendorDriverOperationsView({
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Magasin mis à jour" })
+        toast({ title: t("ops.storeUpdated") })
         setEditStore(null)
         load()
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Mise à jour impossible"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("products.patchFail")),
           variant: "destructive",
         })
       }
     } catch {
-      toast({ title: "Erreur", description: "Mise à jour impossible", variant: "destructive" })
+      toast({ title: t("common.error"), description: t("products.patchFail"), variant: "destructive" })
     } finally {
       setSaveStoreLoading(false)
     }
@@ -171,7 +173,7 @@ export function VendorDriverOperationsView({
 
   const handleAssign = async () => {
     if (!assignOrderId || !assignDriverId) {
-      toast({ title: "Sélection requise", description: "Commande et livreur", variant: "destructive" })
+      toast({ title: t("ops.selectRequired"), description: t("ops.selectRequiredDesc"), variant: "destructive" })
       return
     }
     setAssignLoading(true)
@@ -184,19 +186,23 @@ export function VendorDriverOperationsView({
       const data = await res.json()
       if (data.success) {
         toast({
-          title: "Livreur assigné",
-          description: `Commande #${assignOrderId.slice(0, 8)}…`,
+          title: t("ops.driverAssigned"),
+          description: t("ops.orderPrefix", undefined, undefined, { id: assignOrderId.slice(0, 8) }),
         })
         await onRefreshOrders?.()
       } else {
         toast({
-          title: "Erreur",
-          description: apiErrorMessage(data.error, "Assignation impossible"),
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("admin.err.assign", "Assignation impossible", "تعذر التعيين")),
           variant: "destructive",
         })
       }
     } catch {
-      toast({ title: "Erreur", description: "Assignation impossible", variant: "destructive" })
+      toast({
+        title: t("common.error"),
+        description: t("admin.err.assign", "Assignation impossible", "تعذر التعيين"),
+        variant: "destructive",
+      })
     } finally {
       setAssignLoading(false)
     }
@@ -218,23 +224,23 @@ export function VendorDriverOperationsView({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <PieChart className="h-5 w-5 text-primary" />
-            Statistiques vendeurs
+            {t("ops.vendorStatsTitle")}
           </CardTitle>
-          <CardDescription>Commandes, magasins, chiffre d&apos;affaires (livré)</CardDescription>
+          <CardDescription>{t("ops.vendorStatsDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {stats.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun vendeur</p>
+            <p className="text-sm text-muted-foreground">{t("ops.noVendors")}</p>
           ) : (
             <div className="overflow-x-auto border rounded-lg">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="text-left p-2">Vendeur</th>
-                    <th className="text-right p-2">Magasins</th>
-                    <th className="text-right p-2">Cmd (total)</th>
-                    <th className="text-right p-2">Cmd livrées</th>
-                    <th className="text-right p-2">CA livré (DZD)</th>
+                    <th className="text-left p-2">{t("common.vendor")}</th>
+                    <th className="text-right p-2">{t("ops.thStores")}</th>
+                    <th className="text-right p-2">{t("ops.thOrdersTotal")}</th>
+                    <th className="text-right p-2">{t("ops.thOrdersDelivered")}</th>
+                    <th className="text-right p-2">{t("ops.thRevenueDelivered")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -260,13 +266,13 @@ export function VendorDriverOperationsView({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Store className="h-5 w-5 text-primary" />
-            Magasins
+            {t("ops.storesTitle")}
           </CardTitle>
-          <CardDescription>Activer ou modifier les informations (tous vendeurs)</CardDescription>
+          <CardDescription>{t("ops.storesDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {stores.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucun magasin</p>
+            <p className="text-sm text-muted-foreground">{t("ops.noStores")}</p>
           ) : (
             stores.map((s) => (
               <div
@@ -280,13 +286,15 @@ export function VendorDriverOperationsView({
                   </p>
                   <div className="mt-2 flex gap-2">
                     <Badge variant={s.isActive ? "default" : "secondary"}>
-                      {s.isActive ? "Actif" : "Inactif"}
+                      {s.isActive ? t("products.active") : t("products.inactive")}
                     </Badge>
-                    <Badge variant="outline">{s._count?.orders ?? 0} commandes</Badge>
+                    <Badge variant="outline">
+                      {t("ops.orderCount", undefined, undefined, { count: String(s._count?.orders ?? 0) })}
+                    </Badge>
                   </div>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditStore(s)}>
-                  Gérer
+                  {t("ops.manage")}
                 </Button>
               </div>
             ))
@@ -298,28 +306,30 @@ export function VendorDriverOperationsView({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5 text-primary" />
-            Positions livreurs
+            {t("ops.driverLocationsTitle")}
           </CardTitle>
-          <CardDescription>Hors ligne / en ligne selon dernier signalement.</CardDescription>
+          <CardDescription>{t("ops.driverLocationsDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {locations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune position enregistrée</p>
+            <p className="text-sm text-muted-foreground">{t("ops.noLocations")}</p>
           ) : (
             <div className="overflow-x-auto border rounded-lg text-sm">
               <table className="min-w-full">
                 <thead>
                   <tr className="border-b bg-muted/50 text-left">
-                    <th className="p-2">Livreur</th>
-                    <th className="p-2">Statut</th>
-                    <th className="p-2">Lat / Long</th>
-                    <th className="p-2">Maj</th>
+                    <th className="p-2">{t("common.driver")}</th>
+                    <th className="p-2">{t("common.status")}</th>
+                    <th className="p-2">{t("ops.thLatLong")}</th>
+                    <th className="p-2">{t("ops.thUpdated")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {locations.slice(0, 40).map((loc: any) => {
                     const drv = loc.driver as { id: string; name: string }
-                    const at = loc.updatedAt ? new Date(loc.updatedAt as string).toLocaleString("fr-FR") : "—"
+                    const at = loc.updatedAt
+                      ? new Date(loc.updatedAt as string).toLocaleString(language === "ar" ? "ar-DZ" : "fr-FR")
+                      : "—"
                     return (
                       <tr key={loc.id as string} className="border-b border-border">
                         <td className="p-2">{drv?.name ?? "—"}</td>
@@ -344,22 +354,20 @@ export function VendorDriverOperationsView({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-primary" />
-            Performance (persistée + livraisons livrées)
+            {t("ops.performanceTitle")}
           </CardTitle>
-          <CardDescription>
-            Indicateurs agrégés et nombre de livraisons terminées (DB)
-          </CardDescription>
+          <CardDescription>{t("ops.performanceDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="overflow-x-auto border rounded-lg">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="text-left p-2">Livreur</th>
-                  <th className="text-right p-2">Total livré (DB stats)</th>
-                  <th className="text-right p-2">Temps moy.</th>
-                  <th className="text-right p-2">À l&apos;heure %</th>
-                  <th className="text-right p-2">Note</th>
+                  <th className="text-left p-2">{t("common.driver")}</th>
+                  <th className="text-right p-2">{t("ops.thTotalDeliveredDb")}</th>
+                  <th className="text-right p-2">{t("ops.thAvgTime")}</th>
+                  <th className="text-right p-2">{t("ops.thOnTimePct")}</th>
+                  <th className="text-right p-2">{t("ops.thRating")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -394,17 +402,15 @@ export function VendorDriverOperationsView({
 
       <Card>
         <CardHeader>
-          <CardTitle>Assignation manuelle</CardTitle>
-          <CardDescription>
-            États admis : READY ou ASSIGNED (aligné avec l&apos;assignation automatique).
-          </CardDescription>
+          <CardTitle>{t("ops.assignTitle")}</CardTitle>
+          <CardDescription>{t("ops.assignDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-4 items-end">
           <div className="space-y-2 min-w-[200px]">
-            <Label>Commande</Label>
+            <Label>{t("ops.order")}</Label>
             <Select value={assignOrderId} onValueChange={setAssignOrderId}>
               <SelectTrigger>
-                <SelectValue placeholder="Choisir…" />
+                <SelectValue placeholder={t("subscriptions.pickVendor")} />
               </SelectTrigger>
               <SelectContent>
                 {assignableOrders.map((o) => (
@@ -416,10 +422,10 @@ export function VendorDriverOperationsView({
             </Select>
           </div>
           <div className="space-y-2 min-w-[200px]">
-            <Label>Livreur</Label>
+            <Label>{t("common.driver")}</Label>
             <Select value={assignDriverId} onValueChange={setAssignDriverId}>
               <SelectTrigger>
-                <SelectValue placeholder="Choisir…" />
+                <SelectValue placeholder={t("subscriptions.pickVendor")} />
               </SelectTrigger>
               <SelectContent>
                 {drivers.map((d) => (
@@ -435,10 +441,10 @@ export function VendorDriverOperationsView({
             disabled={assignLoading || !assignOrderId || !assignDriverId}
             onClick={() => void handleAssign()}
           >
-            {assignLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assigner"}
+            {assignLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("ops.assign")}
           </Button>
           {assignableOrders.length === 0 && (
-            <p className="text-xs text-muted-foreground w-full">Aucune commande READY/ASSIGNED dans le lot chargé.</p>
+            <p className="text-xs text-muted-foreground w-full">{t("ops.noReadyOrders")}</p>
           )}
         </CardContent>
       </Card>
@@ -446,40 +452,40 @@ export function VendorDriverOperationsView({
       <Dialog open={!!editStore} onOpenChange={(o) => !o && setEditStore(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Magasin · {editableStoreForm.name}</DialogTitle>
-            <DialogDescription>Mettre à jour les champs puis enregistrer.</DialogDescription>
+            <DialogTitle>{t("ops.storeEditTitle", undefined, undefined, { name: editableStoreForm.name || "" })}</DialogTitle>
+            <DialogDescription>{t("ops.storeEditDesc")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <Label>Nom</Label>
+              <Label>{t("common.name")}</Label>
               <Input
                 value={editableStoreForm.name ?? ""}
                 onChange={(e) => editStore && setEditStore({ ...editStore, name: e.target.value })}
               />
             </div>
             <div>
-              <Label>Type</Label>
+              <Label>{t("ops.type")}</Label>
               <Input
                 value={editableStoreForm.type ?? ""}
                 onChange={(e) => editStore && setEditStore({ ...editStore, type: e.target.value })}
               />
             </div>
             <div>
-              <Label>Adresse</Label>
+              <Label>{t("common.address")}</Label>
               <Input
                 value={editableStoreForm.address ?? ""}
                 onChange={(e) => editStore && setEditStore({ ...editStore, address: e.target.value })}
               />
             </div>
             <div>
-              <Label>Ville</Label>
+              <Label>{t("common.city")}</Label>
               <Input
                 value={editableStoreForm.city ?? ""}
                 onChange={(e) => editStore && setEditStore({ ...editStore, city: e.target.value })}
               />
             </div>
             <div>
-              <Label>Téléphone</Label>
+              <Label>{t("common.phone")}</Label>
               <Input
                 value={editableStoreForm.phone ?? ""}
                 onChange={(e) =>
@@ -489,7 +495,7 @@ export function VendorDriverOperationsView({
               />
             </div>
             <div>
-              <Label>Délai de livraison (texte)</Label>
+              <Label>{t("ops.deliveryTime")}</Label>
               <Input
                 value={editableStoreForm.deliveryTime ?? ""}
                 onChange={(e) =>
@@ -507,15 +513,15 @@ export function VendorDriverOperationsView({
                   editStore && setEditStore({ ...editStore, isActive: e.target.checked })
                 }
               />
-              <Label htmlFor="store-active">Magasin actif</Label>
+              <Label htmlFor="store-active">{t("ops.storeActive")}</Label>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditStore(null)}>
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button onClick={() => void handleSaveStore()} disabled={saveStoreLoading}>
-              {saveStoreLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+              {saveStoreLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

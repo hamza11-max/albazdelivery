@@ -22,9 +22,10 @@ import { Loader2, Megaphone, RefreshCw, Settings2, Ticket, Layers, MapPinned, Ma
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
 import { apiErrorMessage } from "../lib/api-error-message"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 function EmailTemplateRow({
-  template: t,
+  template: tmpl,
   onSaved,
   toast,
 }: {
@@ -40,28 +41,33 @@ function EmailTemplateRow({
   onSaved: () => void
   toast: (opts: { title?: string; description?: string; variant?: "destructive" }) => void
 }) {
-  const [labelFr, setLabelFr] = useState(t.labelFr ?? "")
-  const [subjectFr, setSubjectFr] = useState(t.subjectFr ?? "")
-  const [bodyFr, setBodyFr] = useState(t.bodyFr ?? "")
+  const { t } = useAdminI18n()
+  const [labelFr, setLabelFr] = useState(tmpl.labelFr ?? "")
+  const [subjectFr, setSubjectFr] = useState(tmpl.subjectFr ?? "")
+  const [bodyFr, setBodyFr] = useState(tmpl.bodyFr ?? "")
   const [busy, setBusy] = useState(false)
 
   const save = async () => {
     setBusy(true)
     try {
-      const res = await fetchWithCsrf(`/api/admin/email-templates/${encodeURIComponent(t.key)}`, {
+      const res = await fetchWithCsrf(`/api/admin/email-templates/${encodeURIComponent(tmpl.key)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ labelFr, subjectFr, bodyFr }),
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Modèle enregistré", description: t.key })
+        toast({ title: t("content.templateSaved"), description: tmpl.key })
         onSaved()
       } else {
-        toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
+        toast({
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("common.error")),
+          variant: "destructive",
+        })
       }
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" })
+      toast({ title: t("common.networkError"), variant: "destructive" })
     } finally {
       setBusy(false)
     }
@@ -70,21 +76,21 @@ function EmailTemplateRow({
   return (
     <div className="space-y-3 rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-xs text-muted-foreground">{t.key}</p>
+        <p className="font-mono text-xs text-muted-foreground">{tmpl.key}</p>
         <Button type="button" size="sm" disabled={busy} onClick={() => void save()}>
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enregistrer"}
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.save")}
         </Button>
       </div>
       <div>
-        <Label>Libellé</Label>
+        <Label>{t("content.fieldLabel")}</Label>
         <Input value={labelFr} onChange={(e) => setLabelFr(e.target.value)} />
       </div>
       <div>
-        <Label>Sujet (FR)</Label>
+        <Label>{t("content.fieldSubjectFr")}</Label>
         <Input value={subjectFr} onChange={(e) => setSubjectFr(e.target.value)} />
       </div>
       <div>
-        <Label>Corps (FR)</Label>
+        <Label>{t("content.fieldBodyFr")}</Label>
         <Textarea value={bodyFr} onChange={(e) => setBodyFr(e.target.value)} rows={6} className="font-mono text-sm" />
       </div>
     </div>
@@ -93,6 +99,8 @@ function EmailTemplateRow({
 
 export function ContentOperationsView() {
   const { toast } = useToast()
+  const { t, language } = useAdminI18n()
+  const dateLocale = language === "ar" ? "ar-DZ" : "fr-FR"
   const [loading, setLoading] = useState(true)
   const [zones, setZones] = useState<Array<Record<string, unknown>>>([])
   const [categories, setCategories] = useState<Array<Record<string, unknown>>>([])
@@ -119,24 +127,24 @@ export function ContentOperationsView() {
       if (emj.success) setTemplates((emj.data?.templates as any) ?? [])
     } catch (e) {
       console.error(e)
-      toast({ title: "Erreur chargement", variant: "destructive" })
+      toast({ title: t("content.loadError"), variant: "destructive" })
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, t])
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  const [bcTitle, setBcTitle] = useState("Annonce")
+  const [bcTitle, setBcTitle] = useState("")
   const [bcMsg, setBcMsg] = useState("")
   const [bcRole, setBcRole] = useState<string>("CUSTOMER")
   const [bcBusy, setBcBusy] = useState(false)
 
   const sendBroadcast = async () => {
     if (bcMsg.trim().length < 2) {
-      toast({ title: "Message trop court", variant: "destructive" })
+      toast({ title: t("content.messageTooShort"), variant: "destructive" })
       return
     }
     setBcBusy(true)
@@ -145,7 +153,7 @@ export function ContentOperationsView() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: bcTitle,
+          title: bcTitle.trim() || t("content.defaultBroadcastTitle"),
           message: bcMsg,
           type: "SYSTEM",
           recipientRole: bcRole,
@@ -153,11 +161,21 @@ export function ContentOperationsView() {
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Notifications envoyées", description: `Créées : ${data.data?.created ?? 0}` })
+        toast({
+          title: t("common.success"),
+          description: t("content.notificationsSent", undefined, undefined, {
+            count: String(data.data?.created ?? 0),
+          }),
+        })
         setBcMsg("")
-      } else toast({ title: "Erreur", description: apiErrorMessage(data.error, "Erreur"), variant: "destructive" })
+      } else
+        toast({
+          title: t("common.error"),
+          description: apiErrorMessage(data.error, t("common.error")),
+          variant: "destructive",
+        })
     } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" })
+      toast({ title: t("common.networkError"), variant: "destructive" })
     } finally {
       setBcBusy(false)
     }
@@ -177,7 +195,7 @@ export function ContentOperationsView() {
     <div className="space-y-8">
       <div className="flex justify-end">
         <Button type="button" variant="outline" size="sm" onClick={() => void refresh()}>
-          <RefreshCw className="h-4 w-4 mr-1" /> Actualiser
+          <RefreshCw className="h-4 w-4 mr-1" /> {t("common.refresh")}
         </Button>
       </div>
 
@@ -185,20 +203,18 @@ export function ContentOperationsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-primary" />
-            Intégrations (clés d’API / env)
+            {t("content.integrationsTitle")}
           </CardTitle>
-          <CardDescription>
-            Présence des variables sur le serveur — les valeurs ne sont jamais affichées.
-          </CardDescription>
+          <CardDescription>{t("content.integrationsDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto text-sm">
           {Array.isArray((config as any)?.integrationKeys) && (config as any).integrationKeys.length > 0 ? (
             <table className="min-w-full">
               <thead>
                 <tr className="border-b bg-muted/50 text-left">
-                  <th className="p-2">Intégration</th>
-                  <th className="p-2">Variable</th>
-                  <th className="p-2">Statut</th>
+                  <th className="p-2">{t("content.thIntegration")}</th>
+                  <th className="p-2">{t("content.thVariable")}</th>
+                  <th className="p-2">{t("common.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,7 +224,7 @@ export function ContentOperationsView() {
                     <td className="p-2 font-mono text-xs">{row.envVar}</td>
                     <td className="p-2">
                       <Badge variant={row.configured ? "default" : "secondary"}>
-                        {row.configured ? "configuré" : "absent"}
+                        {row.configured ? t("content.configured") : t("content.absent")}
                       </Badge>
                     </td>
                   </tr>
@@ -216,7 +232,7 @@ export function ContentOperationsView() {
               </tbody>
             </table>
           ) : (
-            <p className="text-muted-foreground">Aucune donnée d’intégration.</p>
+            <p className="text-muted-foreground">{t("content.noIntegrationData")}</p>
           )}
         </CardContent>
       </Card>
@@ -225,15 +241,13 @@ export function ContentOperationsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5 text-primary" />
-            Modèles d’e-mail
+            {t("content.emailTemplatesTitle")}
           </CardTitle>
-          <CardDescription>
-            Textes éditables (placeholder <code className="text-xs">{"{{name}}"}</code> possible). Enregistrement via API.
-          </CardDescription>
+          <CardDescription>{t("content.emailTemplatesDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {templates.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Aucun modèle.</p>
+            <p className="text-muted-foreground text-sm">{t("content.noTemplates")}</p>
           ) : (
             templates.map((t: any) => (
               <EmailTemplateRow
@@ -251,9 +265,9 @@ export function ContentOperationsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-primary" />
-            Configuration système (lecture seule)
+            {t("content.systemConfigTitle")}
           </CardTitle>
-          <CardDescription>Variables non sensibles pour le diagnostic.</CardDescription>
+          <CardDescription>{t("content.systemConfigDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <pre className="text-xs bg-muted rounded-lg p-4 overflow-x-auto">
@@ -266,23 +280,21 @@ export function ContentOperationsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <MapPinned className="h-5 w-5 text-primary" />
-            Zones de livraison
+            {t("content.zonesTitle")}
           </CardTitle>
-          <CardDescription>
-            Gestion via API — création complexe (polygone). Utilisez l’API ou dupliquez une zone existante côté DB en phase ultérieure.
-          </CardDescription>
+          <CardDescription>{t("content.zonesDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto text-sm">
           {zones.length === 0 ? (
-            <p className="text-muted-foreground">Aucune zone</p>
+            <p className="text-muted-foreground">{t("content.noZones")}</p>
           ) : (
             <table className="min-w-full">
               <thead>
                 <tr className="border-b bg-muted/50 text-left">
-                  <th className="p-2">Nom</th>
-                  <th className="p-2">Ville</th>
-                  <th className="p-2">Frais</th>
-                  <th className="p-2">Actif</th>
+                  <th className="p-2">{t("content.thName")}</th>
+                  <th className="p-2">{t("common.city")}</th>
+                  <th className="p-2">{t("content.thFee")}</th>
+                  <th className="p-2">{t("content.thActiveShort")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -292,7 +304,9 @@ export function ContentOperationsView() {
                     <td className="p-2">{z.city}</td>
                     <td className="p-2 tabular-nums">{z.deliveryFee}</td>
                     <td className="p-2">
-                      <Badge variant={z.isActive ? "default" : "secondary"}>{z.isActive ? "oui" : "non"}</Badge>
+                      <Badge variant={z.isActive ? "default" : "secondary"}>
+                        {z.isActive ? t("content.yes") : t("content.no")}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
@@ -306,17 +320,17 @@ export function ContentOperationsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5 text-primary" />
-            Catégories catalogue
+            {t("content.categoriesTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto text-sm">
           <table className="min-w-full">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="text-left p-2">Slug</th>
-                <th className="text-left p-2">Nom FR</th>
-                <th className="text-right p-2">Magasins</th>
-                <th className="text-left p-2">Actif</th>
+                <th className="text-left p-2">{t("content.thSlug")}</th>
+                <th className="text-left p-2">{t("content.thNameFr")}</th>
+                <th className="text-right p-2">{t("content.thStores")}</th>
+                <th className="text-left p-2">{t("content.thActiveShort")}</th>
               </tr>
             </thead>
             <tbody>
@@ -326,7 +340,9 @@ export function ContentOperationsView() {
                   <td className="p-2">{c.nameFr}</td>
                   <td className="text-right p-2">{c._count?.stores ?? 0}</td>
                   <td className="p-2">
-                    <Badge variant={c.isActive ? "default" : "secondary"}>{c.isActive ? "oui" : "non"}</Badge>
+                    <Badge variant={c.isActive ? "default" : "secondary"}>
+                      {c.isActive ? t("content.yes") : t("content.no")}
+                    </Badge>
                   </td>
                 </tr>
               ))}
@@ -339,20 +355,20 @@ export function ContentOperationsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Ticket className="h-5 w-5 text-primary" />
-            Codes promo
+            {t("content.promosTitle")}
           </CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto text-sm">
           {promos.length === 0 ? (
-            <p className="text-muted-foreground">Aucun code</p>
+            <p className="text-muted-foreground">{t("content.noPromos")}</p>
           ) : (
             <table className="min-w-full">
               <thead>
                 <tr className="border-b bg-muted/50">
-                  <th className="text-left p-2">Code</th>
-                  <th className="text-left p-2">Type</th>
-                  <th className="text-right p-2">Valeur</th>
-                  <th className="text-left p-2">Expire</th>
+                  <th className="text-left p-2">{t("content.thCode")}</th>
+                  <th className="text-left p-2">{t("content.thType")}</th>
+                  <th className="text-right p-2">{t("content.thValue")}</th>
+                  <th className="text-left p-2">{t("content.thExpires")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -361,7 +377,9 @@ export function ContentOperationsView() {
                     <td className="p-2 font-mono">{p.code}</td>
                     <td className="p-2">{p.discountType}</td>
                     <td className="text-right p-2 tabular-nums">{p.discountValue}</td>
-                    <td className="p-2 text-xs">{p.expiresAt ? new Date(p.expiresAt).toLocaleDateString("fr-FR") : "—"}</td>
+                    <td className="p-2 text-xs">
+                      {p.expiresAt ? new Date(p.expiresAt).toLocaleDateString(dateLocale) : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -374,37 +392,39 @@ export function ContentOperationsView() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Megaphone className="h-5 w-5 text-primary" />
-            Notification plateforme
+            {t("content.broadcastTitle")}
           </CardTitle>
-          <CardDescription>
-            Envoie une notification in-app (type SYSTEM) à tous les utilisateurs du rôle choisi (max 500 par défaut côté API).
-          </CardDescription>
+          <CardDescription>{t("content.broadcastDesc")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 max-w-xl">
           <div>
-            <Label>Titre</Label>
-            <Input value={bcTitle} onChange={(e) => setBcTitle(e.target.value)} />
+            <Label>{t("content.labelTitle")}</Label>
+            <Input
+              value={bcTitle}
+              onChange={(e) => setBcTitle(e.target.value)}
+              placeholder={t("content.defaultBroadcastTitle")}
+            />
           </div>
           <div>
-            <Label>Message</Label>
+            <Label>{t("content.labelMessage")}</Label>
             <Input value={bcMsg} onChange={(e) => setBcMsg(e.target.value)} />
           </div>
           <div>
-            <Label>Rôle destinataires</Label>
+            <Label>{t("content.labelRecipientRole")}</Label>
             <Select value={bcRole} onValueChange={setBcRole}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="CUSTOMER">Clients</SelectItem>
-                <SelectItem value="VENDOR">Vendeurs</SelectItem>
-                <SelectItem value="DRIVER">Livreurs</SelectItem>
-                <SelectItem value="ADMIN">Admins</SelectItem>
+                <SelectItem value="CUSTOMER">{t("content.roleCustomers")}</SelectItem>
+                <SelectItem value="VENDOR">{t("content.roleVendors")}</SelectItem>
+                <SelectItem value="DRIVER">{t("content.roleDrivers")}</SelectItem>
+                <SelectItem value="ADMIN">{t("content.roleAdmins")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <Button type="button" disabled={bcBusy} onClick={() => void sendBroadcast()}>
-            {bcBusy ? <Loader2 className="animate-spin h-4 w-4" /> : "Envoyer"}
+            {bcBusy ? <Loader2 className="animate-spin h-4 w-4" /> : t("content.send")}
           </Button>
         </CardContent>
       </Card>

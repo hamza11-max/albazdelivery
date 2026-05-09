@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@albaz/ui"
 import { Save, X, KeyRound } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 function generateSecurePassword(): string {
   const chars =
@@ -50,6 +51,7 @@ export function EditUserDialog({
   isResetting = false,
   allowSuperAdminRole = false,
 }: EditUserDialogProps) {
+  const { t } = useAdminI18n()
   const [resetPw, setResetPw] = useState("")
   const [resetPwConfirm, setResetPwConfirm] = useState("")
   const [resetError, setResetError] = useState<string | null>(null)
@@ -67,11 +69,11 @@ export function EditUserDialog({
   const handleApplyPassword = async () => {
     setResetError(null)
     if (resetPw.length < 8) {
-      setResetError("Le mot de passe doit contenir au moins 8 caractères.")
+      setResetError(t("editUser.err.minLen"))
       return
     }
     if (resetPw !== resetPwConfirm) {
-      setResetError("Les mots de passe ne correspondent pas.")
+      setResetError(t("editUser.err.mismatch"))
       return
     }
     await onResetPassword?.(resetPw)
@@ -81,29 +83,29 @@ export function EditUserDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Modifier l&apos;utilisateur</DialogTitle>
+          <DialogTitle>{t("editUser.title")}</DialogTitle>
           <DialogDescription>
             {user ? (
-              <>Modifiez les informations de {user.email}</>
+              <>{t("editUser.descWithEmail", undefined, undefined, { email: user.email || "" })}</>
             ) : (
-              <>Modifiez les informations de l&apos;utilisateur</>
+              <>{t("editUser.descGeneric")}</>
             )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="edit-name">Nom</Label>
+            <Label htmlFor="edit-name">{t("common.name")}</Label>
             <Input
               id="edit-name"
               value={form.name}
               onChange={(e) => onFormChange({ ...form, name: e.target.value })}
-              placeholder="Nom complet"
+              placeholder={t("editUser.placeholder.fullName")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-email">Email</Label>
+            <Label htmlFor="edit-email">{t("common.email")}</Label>
             <Input
               id="edit-email"
               type="email"
@@ -114,7 +116,7 @@ export function EditUserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-phone">Téléphone</Label>
+            <Label htmlFor="edit-phone">{t("common.phone")}</Label>
             <Input
               id="edit-phone"
               value={form.phone}
@@ -124,7 +126,7 @@ export function EditUserDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-role">Rôle</Label>
+            <Label htmlFor="edit-role">{t("common.role")}</Label>
             <Select
               value={form.role}
               onValueChange={(value: any) => onFormChange({ ...form, role: value })}
@@ -133,20 +135,20 @@ export function EditUserDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="CUSTOMER">Client</SelectItem>
-                <SelectItem value="VENDOR">Vendeur</SelectItem>
-                <SelectItem value="DRIVER">Livreur</SelectItem>
-                <SelectItem value="ADMIN">Administrateur</SelectItem>
+                <SelectItem value="CUSTOMER">{t("common.client")}</SelectItem>
+                <SelectItem value="VENDOR">{t("common.vendor")}</SelectItem>
+                <SelectItem value="DRIVER">{t("common.driver")}</SelectItem>
+                <SelectItem value="ADMIN">{t("users.role.admin")}</SelectItem>
                 {allowSuperAdminRole ? (
-                  <SelectItem value="SUPER_ADMIN">Super administrateur</SelectItem>
+                  <SelectItem value="SUPER_ADMIN">{t("users.role.superAdmin")}</SelectItem>
                 ) : null}
-                <SelectItem value="SUPPORT">Support</SelectItem>
+                <SelectItem value="SUPPORT">{t("users.role.support")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-status">Statut</Label>
+            <Label htmlFor="edit-status">{t("common.status")}</Label>
             <Select
               value={form.status}
               onValueChange={(value: any) => onFormChange({ ...form, status: value })}
@@ -155,38 +157,38 @@ export function EditUserDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="PENDING">En attente</SelectItem>
-                <SelectItem value="APPROVED">Approuvé</SelectItem>
-                <SelectItem value="REJECTED">Rejeté</SelectItem>
+                <SelectItem value="PENDING">{t("common.pending")}</SelectItem>
+                <SelectItem value="APPROVED">{t("common.approved")}</SelectItem>
+                <SelectItem value="REJECTED">{t("common.rejected")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-address">Adresse</Label>
+            <Label htmlFor="edit-address">{t("common.address")}</Label>
             <Input
               id="edit-address"
               value={form.address}
               onChange={(e) => onFormChange({ ...form, address: e.target.value })}
-              placeholder="Adresse complète"
+              placeholder={t("editUser.placeholder.address")}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-city">Ville</Label>
+            <Label htmlFor="edit-city">{t("common.city")}</Label>
             <Input
               id="edit-city"
               value={form.city}
               onChange={(e) => onFormChange({ ...form, city: e.target.value })}
-              placeholder="Ville"
+              placeholder={t("editUser.placeholder.city")}
             />
           </div>
 
           {resetEnabled ? (
             <div className="space-y-3 rounded-lg border border-border p-3 pt-3">
-              <p className="text-sm font-medium">Réinitialiser le mot de passe</p>
+              <p className="text-sm font-medium">{t("editUser.resetSection")}</p>
               <p className="text-xs text-muted-foreground">
-                Un e-mail peut être envoyé à l&apos;utilisateur après succès (selon configuration SMTP).
+                {t("editUser.resetHint")}
               </p>
               <div className="flex gap-2">
                 <Button
@@ -202,29 +204,29 @@ export function EditUserDialog({
                     setResetError(null)
                   }}
                 >
-                  Générer
+                  {t("editUser.generate")}
                 </Button>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reset-pw">Nouveau mot de passe</Label>
+                <Label htmlFor="reset-pw">{t("editUser.newPassword")}</Label>
                 <Input
                   id="reset-pw"
                   type="password"
                   autoComplete="new-password"
                   value={resetPw}
                   onChange={(e) => setResetPw(e.target.value)}
-                  placeholder="Min. 8 caractères"
+                  placeholder={t("editUser.minChars")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reset-pw2">Confirmer</Label>
+                <Label htmlFor="reset-pw2">{t("editUser.confirm")}</Label>
                 <Input
                   id="reset-pw2"
                   type="password"
                   autoComplete="new-password"
                   value={resetPwConfirm}
                   onChange={(e) => setResetPwConfirm(e.target.value)}
-                  placeholder="Répéter le mot de passe"
+                  placeholder={t("editUser.repeatPassword")}
                 />
               </div>
               {resetError ? (
@@ -238,12 +240,12 @@ export function EditUserDialog({
                 onClick={() => void handleApplyPassword()}
               >
                 <KeyRound className="w-4 h-4 mr-2" />
-                {isResetting ? "Application…" : "Appliquer le nouveau mot de passe"}
+                {isResetting ? t("editUser.applying") : t("editUser.applyPassword")}
               </Button>
             </div>
           ) : onResetPassword && !canResetPassword ? (
             <p className="text-sm text-muted-foreground">
-              Impossible de réinitialiser le mot de passe d&apos;un autre compte administrateur (super admin requis).
+              {t("editUser.cannotResetOtherAdmin")}
             </p>
           ) : null}
         </div>
@@ -255,15 +257,14 @@ export function EditUserDialog({
             disabled={isSaving}
           >
             <X className="w-4 h-4 mr-2" />
-            Annuler
+            {t("common.cancel")}
           </Button>
           <Button onClick={onSave} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
-            {isSaving ? "Enregistrement..." : "Enregistrer"}
+            {isSaving ? t("editUser.saving") : t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   )
 }
-

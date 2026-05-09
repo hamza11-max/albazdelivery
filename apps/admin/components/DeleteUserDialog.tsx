@@ -3,6 +3,7 @@
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Badge } from "@albaz/ui"
 import { Trash2, X } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 interface DeleteUserDialogProps {
   open: boolean
@@ -19,13 +20,14 @@ export function DeleteUserDialog({
   onConfirm,
   isDeleting,
 }: DeleteUserDialogProps) {
+  const { t } = useAdminI18n()
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Confirmer la suppression</DialogTitle>
+          <DialogTitle>{t("deleteUser.title")}</DialogTitle>
           <DialogDescription>
-            Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
+            {t("deleteUser.desc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -45,11 +47,11 @@ export function DeleteUserDialog({
             disabled={isDeleting}
           >
             <X className="w-4 h-4 mr-2" />
-            Annuler
+            {t("common.cancel")}
           </Button>
           <Button variant="destructive" onClick={onConfirm} disabled={isDeleting}>
             <Trash2 className="w-4 h-4 mr-2" />
-            {isDeleting ? "Suppression..." : "Supprimer"}
+            {isDeleting ? t("deleteUser.deleting") : t("common.delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import {
   Button,
   Card,
@@ -18,6 +18,7 @@ import {
 import { LineChart as LineChartIcon, Loader2 } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { apiErrorMessage } from "../lib/api-error-message"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 import {
   ResponsiveContainer,
   BarChart,
@@ -65,6 +66,7 @@ type ForecastBlock = {
 
 export function AdminAdvancedAnalyticsPanel() {
   const { toast } = useToast()
+  const { t } = useAdminI18n()
   const [zones, setZones] = useState<Zone[]>([])
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [zoneId, setZoneId] = useState("")
@@ -109,14 +111,14 @@ export function AdminAdvancedAnalyticsPanel() {
           setVendorId((prev) => prev || list[0]?.id || "")
         }
       } catch {
-        toast({ title: "Chargement sélecteurs", variant: "destructive" })
+        toast({ title: t("adv.selectorsLoadFail"), variant: "destructive" })
       }
     })()
-  }, [toast])
+  }, [toast, t])
 
   const fetchDemand = async () => {
     if (!zoneId) {
-      toast({ title: "Choisir une zone", variant: "destructive" })
+      toast({ title: t("adv.chooseZone"), variant: "destructive" })
       return
     }
     setLoading("demand")
@@ -131,8 +133,8 @@ export function AdminAdvancedAnalyticsPanel() {
       setRawDemand(JSON.stringify(json, null, 2))
       if (!json.success) {
         toast({
-          title: "Demande prédiction",
-          description: apiErrorMessage(json.error, "Réponse invalide"),
+          title: t("adv.toastDemandPred"),
+          description: apiErrorMessage(json.error, t("opsCard.invalidResponse")),
           variant: "destructive",
         })
         return
@@ -144,7 +146,7 @@ export function AdminAdvancedAnalyticsPanel() {
       const disc = json.data?.predictionMeta?.disclaimer
       setDemandDisclaimer(typeof disc === "string" ? disc : null)
     } catch {
-      toast({ title: "Demande prédiction", variant: "destructive" })
+      toast({ title: t("adv.toastDemandPred"), variant: "destructive" })
     } finally {
       setLoading(null)
     }
@@ -152,7 +154,7 @@ export function AdminAdvancedAnalyticsPanel() {
 
   const fetchInsights = async () => {
     if (!vendorId) {
-      toast({ title: "Choisir un vendeur", variant: "destructive" })
+      toast({ title: t("adv.chooseVendor"), variant: "destructive" })
       return
     }
     setLoading("insights")
@@ -166,15 +168,15 @@ export function AdminAdvancedAnalyticsPanel() {
       setRawInsights(JSON.stringify(json, null, 2))
       if (!json.success) {
         toast({
-          title: "Insights clients",
-          description: apiErrorMessage(json.error, "Réponse invalide"),
+          title: t("adv.toastInsights"),
+          description: apiErrorMessage(json.error, t("opsCard.invalidResponse")),
           variant: "destructive",
         })
         return
       }
       setInsights((json.data?.insights as InsightsBlock) ?? null)
     } catch {
-      toast({ title: "Insights clients", variant: "destructive" })
+      toast({ title: t("adv.toastInsights"), variant: "destructive" })
     } finally {
       setLoading(null)
     }
@@ -182,7 +184,7 @@ export function AdminAdvancedAnalyticsPanel() {
 
   const fetchForecast = async () => {
     if (!vendorId) {
-      toast({ title: "Choisir un vendeur", variant: "destructive" })
+      toast({ title: t("adv.chooseVendor"), variant: "destructive" })
       return
     }
     setLoading("forecast")
@@ -195,15 +197,15 @@ export function AdminAdvancedAnalyticsPanel() {
       setRawForecast(JSON.stringify(json, null, 2))
       if (!json.success) {
         toast({
-          title: "Prévision ventes",
-          description: apiErrorMessage(json.error, "Réponse invalide"),
+          title: t("adv.toastForecast"),
+          description: apiErrorMessage(json.error, t("opsCard.invalidResponse")),
           variant: "destructive",
         })
         return
       }
       setForecast((json.data?.forecast as ForecastBlock) ?? null)
     } catch {
-      toast({ title: "Prévision ventes", variant: "destructive" })
+      toast({ title: t("adv.toastForecast"), variant: "destructive" })
     } finally {
       setLoading(null)
     }
@@ -217,31 +219,43 @@ export function AdminAdvancedAnalyticsPanel() {
   const topCustomerChart =
     insights?.topCustomers?.map((c) => ({
       name: c.customerName?.slice(0, 12) || c.customerId.slice(0, 8),
-      commandes: c.orderCount,
-      dépensé: Math.round(Number(c.totalSpent) || 0),
+      orderCount: c.orderCount,
+      spentDzd: Math.round(Number(c.totalSpent) || 0),
     })) ?? []
+
+  const forecastBarData = useMemo(() => {
+    if (!forecast) return []
+    const avg = forecast.avgDailyRevenue ?? 0
+    return [
+      { label: t("adv.chartAvgDay"), val: avg },
+      {
+        label: t("adv.chartForecastPeriod"),
+        val: forecast.period === "week" ? Math.round(avg * 7) : Math.round(avg * 30),
+      },
+      { label: t("adv.chartApiPred"), val: forecast.predictedSales ?? 0 },
+    ]
+  }, [forecast, t])
+
+  const jsonToggle = (show: boolean) => (show ? t("adv.hideJson") : t("adv.showJson"))
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <LineChartIcon className="h-4 w-4" />
-          Analytique avancée
+          {t("adv.title")}
         </CardTitle>
-        <CardDescription>
-          Prévision de demande par zone, insights clients et prévisions de ventes — visualisations + JSON détaillé en
-          option.
-        </CardDescription>
+        <CardDescription>{t("adv.desc")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold">Prévision de demande</h3>
+          <h3 className="text-sm font-semibold">{t("adv.demandForecast")}</h3>
           <div className="flex flex-wrap gap-3 items-end">
             <div className="space-y-1">
-              <Label>Zone</Label>
+              <Label>{t("adv.zone")}</Label>
               <Select value={zoneId} onValueChange={setZoneId}>
                 <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Zone…" />
+                  <SelectValue placeholder={t("adv.zonePlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {zones.map((z) => (
@@ -254,7 +268,7 @@ export function AdminAdvancedAnalyticsPanel() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Date</Label>
+              <Label>{t("adv.date")}</Label>
               <input
                 type="date"
                 className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -263,7 +277,7 @@ export function AdminAdvancedAnalyticsPanel() {
               />
             </div>
             <Button type="button" disabled={loading === "demand"} onClick={() => void fetchDemand()}>
-              {loading === "demand" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Charger"}
+              {loading === "demand" ? <Loader2 className="h-4 w-4 animate-spin" /> : t("adv.load")}
             </Button>
           </div>
 
@@ -271,24 +285,27 @@ export function AdminAdvancedAnalyticsPanel() {
             <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
               <div className="grid gap-3 sm:grid-cols-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Demande prédite (unité modèle)</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.predictedDemand")}</p>
                   <p className="text-xl font-semibold tabular-nums">{demand.predictedDemand ?? "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Heures de pointe</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.peakHours")}</p>
                   <p className="font-medium">{(demand.peakHours ?? []).join(", ") || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Impacts (placeholders)</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.impacts")}</p>
                   <p className="text-xs">
-                    Météo ×{demand.weatherImpact ?? "—"} · Événements ×{demand.eventImpact ?? "—"}
+                    {t("adv.weatherEvents", undefined, undefined, {
+                      w: String(demand.weatherImpact ?? "—"),
+                      e: String(demand.eventImpact ?? "—"),
+                    })}
                   </p>
                 </div>
               </div>
               {demandDisclaimer ? <p className="text-xs text-muted-foreground italic">{demandDisclaimer}</p> : null}
               {pricingChartData.length > 0 ? (
                 <div className="h-64 w-full">
-                  <p className="text-xs font-medium mb-2">Multiplicateurs tarifaires par heure</p>
+                  <p className="text-xs font-medium mb-2">{t("adv.pricingMultipliers")}</p>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={pricingChartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -296,13 +313,13 @@ export function AdminAdvancedAnalyticsPanel() {
                       <YAxis tick={{ fontSize: 10 }} width={36} domain={[0, "auto"]} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="mult" name="Multiplicateur" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="mult" name={t("adv.multiplier")} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               ) : null}
               <Button type="button" variant="ghost" size="sm" onClick={() => setShowDemandJson((v) => !v)}>
-                {showDemandJson ? "Masquer" : "Voir"} JSON brut
+                {jsonToggle(showDemandJson)} {t("adv.rawJson")}
               </Button>
               {showDemandJson && rawDemand ? (
                 <pre className="max-h-48 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{rawDemand}</pre>
@@ -312,13 +329,13 @@ export function AdminAdvancedAnalyticsPanel() {
         </section>
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold">Vendeur pour insights / prévisions</h3>
+          <h3 className="text-sm font-semibold">{t("adv.vendorInsightsSection")}</h3>
           <div className="flex flex-wrap gap-3 items-end">
             <div className="space-y-1">
-              <Label>Vendeur</Label>
+              <Label>{t("common.vendor")}</Label>
               <Select value={vendorId} onValueChange={setVendorId}>
                 <SelectTrigger className="w-[280px]">
-                  <SelectValue placeholder="Vendeur…" />
+                  <SelectValue placeholder={t("adv.vendorPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {vendors.map((v) => (
@@ -330,22 +347,22 @@ export function AdminAdvancedAnalyticsPanel() {
               </Select>
             </div>
             <div className="space-y-1">
-              <Label>Période prévision</Label>
+              <Label>{t("adv.forecastPeriod")}</Label>
               <Select value={forecastPeriod} onValueChange={(v: "week" | "month") => setForecastPeriod(v)}>
                 <SelectTrigger className="w-[120px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="week">Semaine</SelectItem>
-                  <SelectItem value="month">Mois</SelectItem>
+                  <SelectItem value="week">{t("adv.week")}</SelectItem>
+                  <SelectItem value="month">{t("adv.month")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <Button type="button" variant="secondary" disabled={loading === "insights"} onClick={() => void fetchInsights()}>
-              {loading === "insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Insights clients"}
+              {loading === "insights" ? <Loader2 className="h-4 w-4 animate-spin" /> : t("adv.customerInsightsBtn")}
             </Button>
             <Button type="button" variant="secondary" disabled={loading === "forecast"} onClick={() => void fetchForecast()}>
-              {loading === "forecast" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Prévision ventes"}
+              {loading === "forecast" ? <Loader2 className="h-4 w-4 animate-spin" /> : t("adv.salesForecastBtn")}
             </Button>
           </div>
 
@@ -353,21 +370,21 @@ export function AdminAdvancedAnalyticsPanel() {
             <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
               <div className="grid gap-3 sm:grid-cols-3 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Clients uniques</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.uniqueCustomers")}</p>
                   <p className="text-xl font-semibold tabular-nums">{insights.totalCustomers ?? "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Clients récurrents</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.repeatCustomers")}</p>
                   <p className="text-xl font-semibold tabular-nums">{insights.repeatCustomers ?? "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Taux réachat</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.repeatRate")}</p>
                   <p className="text-xl font-semibold tabular-nums">{insights.repeatRate ?? "—"}%</p>
                 </div>
               </div>
               {topCustomerChart.length > 0 ? (
                 <div className="h-72 w-full">
-                  <p className="text-xs font-medium mb-2">Top clients (commandes & dépenses DZD)</p>
+                  <p className="text-xs font-medium mb-2">{t("adv.topCustomersChart")}</p>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={topCustomerChart} margin={{ top: 8, right: 8, left: 8, bottom: 24 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -375,16 +392,16 @@ export function AdminAdvancedAnalyticsPanel() {
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="commandes" name="Commandes" fill="#82ca9d" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="dépensé" name="DZD dépensé" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="orderCount" name={t("adv.barOrders")} fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="spentDzd" name={t("adv.barSpentDzd")} fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">Pas encore assez de données pour le graphique.</p>
+                <p className="text-sm text-muted-foreground">{t("adv.notEnoughData")}</p>
               )}
               <Button type="button" variant="ghost" size="sm" onClick={() => setShowInsightsJson((v) => !v)}>
-                {showInsightsJson ? "Masquer" : "Voir"} JSON brut
+                {jsonToggle(showInsightsJson)} {t("adv.rawJson")}
               </Button>
               {showInsightsJson && rawInsights ? (
                 <pre className="max-h-48 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{rawInsights}</pre>
@@ -396,40 +413,30 @@ export function AdminAdvancedAnalyticsPanel() {
             <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
                 <div>
-                  <p className="text-xs text-muted-foreground">Période</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.forecastPeriodLabel")}</p>
                   <p className="font-medium uppercase">{forecast.period ?? "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">CA prévu (DZD, heuristique)</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.forecastSalesHint")}</p>
                   <p className="text-xl font-semibold tabular-nums">{forecast.predictedSales ?? "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">CA / jour moy.</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.avgDaily")}</p>
                   <p className="text-lg font-semibold tabular-nums">{forecast.avgDailyRevenue ?? "—"}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Commandes historiques</p>
+                  <p className="text-xs text-muted-foreground">{t("adv.historicalOrders")}</p>
                   <p className="text-lg font-semibold tabular-nums">{forecast.historicalOrders ?? "—"}</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground">
-                Tendance : <strong>{forecast.trend ?? "—"}</strong>
-                {forecast.confidence != null ? ` · Confiance affichée : ${forecast.confidence}` : null}
+                {t("adv.trend")} <strong>{forecast.trend ?? "—"}</strong>
+                {forecast.confidence != null ? ` · ${t("adv.confidenceShown")} ${forecast.confidence}` : null}
               </p>
               <div className="h-48 w-full max-w-md">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={[
-                      { label: "Moy. jour", val: forecast.avgDailyRevenue ?? 0 },
-                      {
-                        label: "Prévision période",
-                        val:
-                          forecast.period === "week"
-                            ? Math.round((forecast.avgDailyRevenue ?? 0) * 7)
-                            : Math.round((forecast.avgDailyRevenue ?? 0) * 30),
-                      },
-                      { label: "Prédiction API", val: forecast.predictedSales ?? 0 },
-                    ]}
+                    data={forecastBarData}
                     layout="vertical"
                     margin={{ top: 4, right: 16, left: 72, bottom: 4 }}
                   >
@@ -442,7 +449,7 @@ export function AdminAdvancedAnalyticsPanel() {
                 </ResponsiveContainer>
               </div>
               <Button type="button" variant="ghost" size="sm" onClick={() => setShowForecastJson((v) => !v)}>
-                {showForecastJson ? "Masquer" : "Voir"} JSON brut
+                {jsonToggle(showForecastJson)} {t("adv.rawJson")}
               </Button>
               {showForecastJson && rawForecast ? (
                 <pre className="max-h-48 overflow-auto rounded-md border bg-muted/40 p-3 text-xs">{rawForecast}</pre>

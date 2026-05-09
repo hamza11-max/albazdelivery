@@ -55,7 +55,8 @@ describe('Store domains API', () => {
       currentPlan: 'PROFESSIONAL',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
-      allowVendorCustomDomain: true,
+      allowVendorBrandedSubdomain: true,
+      allowVendorCustomDomain: false,
       maxStoreCustomDomains: 1,
     })
     ;(prisma.store.count as jest.Mock<any>).mockResolvedValue(1)
@@ -93,6 +94,7 @@ describe('Store domains API', () => {
       currentPlan: 'BUSINESS',
       currentStatus: 'ACTIVE',
       allowDomainWrites: true,
+      allowVendorBrandedSubdomain: true,
       allowVendorCustomDomain: true,
       maxStoreCustomDomains: 5,
     })

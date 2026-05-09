@@ -5,6 +5,7 @@ import "./globals.css"
 import { Toaster } from "@albaz/ui"
 import { ThemeInitializer } from "../../../components/ThemeInitializer"
 import { ErrorBoundary } from "../../../components/ErrorBoundary"
+import { AdminProviders } from "../components/AdminProviders"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
@@ -25,10 +26,12 @@ export default function AdminLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className={inter.variable}>
-        <ThemeInitializer />
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
+        <AdminProviders>
+          <ThemeInitializer />
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
+        </AdminProviders>
         <Toaster />
       </body>
     </html>

@@ -123,6 +123,7 @@ import { VendorMenuGrid } from "../../components/navigation/VendorMenuGrid"
 import { WebAuthnPasskeysCard } from "../../components/security/WebAuthnPasskeysCard"
 import { VendorDomainsCard } from "../../components/security/VendorDomainsCard"
 import { VendorStorefrontWebPanel } from "../../components/VendorStorefrontWebPanel"
+import { VendorSubscriptionTrialPanel } from "../../components/VendorSubscriptionTrialPanel"
 import { vendorMenuItems } from "../../components/navigation/vendor-menu-items"
 import { NotificationsPanel, type VendorNotificationItem } from "../../components/navigation/NotificationsPanel"
 import { StaffSwitchDialog } from "../../components/navigation/StaffSwitchDialog"
@@ -193,7 +194,7 @@ function VendorDashboardContent() {
   const pathname = usePathname()
   const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
-  const { subscription } = useSubscription()
+  const { subscription, loading: subscriptionLoading, refetch: refetchSubscription } = useSubscription()
   const [ordersCustomerFilter, setOrdersCustomerFilter] = useState<string | null>(null)
   const [highlightOrderId, setHighlightOrderId] = useState<string | null>(null)
   
@@ -2272,6 +2273,16 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             }}
           />
 
+          <VendorSubscriptionTrialPanel
+            variant="banner"
+            translate={translate}
+            subscription={subscription}
+            loading={subscriptionLoading}
+            onUpdated={async () => {
+              await refetchSubscription()
+            }}
+          />
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           {/* Topbar-driven navigation */}
 
@@ -3146,6 +3157,16 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </TabsContent>
 
               <TabsContent value="finance" className="mt-4 space-y-6 outline-none">
+
+          <VendorSubscriptionTrialPanel
+            variant="card"
+            translate={translate}
+            subscription={subscription}
+            loading={subscriptionLoading}
+            onUpdated={async () => {
+              await refetchSubscription()
+            }}
+          />
 
           {/* Payouts & disputes (DB-backed via /api/vendor/finance/*) */}
           <Card>

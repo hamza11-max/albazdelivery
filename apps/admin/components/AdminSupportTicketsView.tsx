@@ -17,6 +17,7 @@ import {
 import { LifeBuoy, Loader2, RefreshCw } from "lucide-react"
 import { useToast } from "@/root/hooks/use-toast"
 import { fetchWithCsrf } from "../lib/csrf-client"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 type TicketRow = {
   id: string
@@ -33,6 +34,7 @@ const STATUSES = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const
 
 export function AdminSupportTicketsView() {
   const { toast } = useToast()
+  const { t, language } = useAdminI18n()
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [tickets, setTickets] = useState<TicketRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,18 +52,18 @@ export function AdminSupportTicketsView() {
       } else {
         setTickets([])
         toast({
-          title: "Erreur",
-          description: data.error?.message || "Chargement impossible",
+          title: t("common.error"),
+          description: data.error?.message || t("supportTickets.loadError"),
           variant: "destructive",
         })
       }
     } catch {
       setTickets([])
-      toast({ title: "Erreur", description: "Réseau", variant: "destructive" })
+      toast({ title: t("common.error"), description: t("supportTickets.network"), variant: "destructive" })
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, toast])
+  }, [statusFilter, toast, t])
 
   useEffect(() => {
     void load()
@@ -77,23 +79,23 @@ export function AdminSupportTicketsView() {
       })
       const data = await res.json()
       if (data.success) {
-        toast({ title: "Mis à jour", description: "Statut du ticket enregistré." })
+        toast({ title: t("supportTickets.updatedTitle"), description: t("supportTickets.updatedDesc") })
         void load()
       } else {
         toast({
-          title: "Erreur",
-          description: data.error?.message || "Échec de la mise à jour",
+          title: t("common.error"),
+          description: data.error?.message || t("supportTickets.patchFail"),
           variant: "destructive",
         })
       }
     } catch {
-      toast({ title: "Erreur", description: "Réessayez.", variant: "destructive" })
+      toast({ title: t("common.error"), description: t("supportTickets.retry"), variant: "destructive" })
     } finally {
       setUpdatingId(null)
     }
   }
 
-  const openCount = tickets.filter((t) => t.status === "OPEN").length
+  const openCount = tickets.filter((row) => row.status === "OPEN").length
 
   return (
     <div className="space-y-4">
@@ -101,20 +103,20 @@ export function AdminSupportTicketsView() {
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle className="flex flex-wrap items-center gap-2">
             <LifeBuoy className="h-5 w-5 shrink-0" />
-            Support — tickets
+            {t("supportTickets.title")}
             {statusFilter === "ALL" && openCount > 0 && (
               <Badge variant="destructive" className="font-normal">
-                {openCount} ouvert(s) (page courante)
+                {t("supportTickets.openOnPage", undefined, undefined, { count: String(openCount) })}
               </Badge>
             )}
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Statut" />
+                <SelectValue placeholder={t("common.status")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Tous les statuts</SelectItem>
+                <SelectItem value="ALL">{t("users.allStatuses")}</SelectItem>
                 {STATUSES.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
@@ -122,7 +124,13 @@ export function AdminSupportTicketsView() {
                 ))}
               </SelectContent>
             </Select>
-            <Button type="button" variant="outline" size="icon" onClick={() => void load()} aria-label="Actualiser">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => void load()}
+              aria-label={t("common.refresh")}
+            >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -133,30 +141,30 @@ export function AdminSupportTicketsView() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : tickets.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Aucun ticket pour ce filtre.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">{t("supportTickets.emptyFilter")}</p>
           ) : (
             <div className="space-y-3">
-              {tickets.map((t) => (
-                <Card key={t.id}>
+              {tickets.map((ticket) => (
+                <Card key={ticket.id}>
                   <CardContent className="space-y-3 p-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-semibold">{t.subject}</p>
-                        <p className="font-mono text-xs text-muted-foreground">{t.id}</p>
+                        <p className="font-semibold">{ticket.subject}</p>
+                        <p className="font-mono text-xs text-muted-foreground">{ticket.id}</p>
                       </div>
-                      <Badge variant="outline">{t.priority}</Badge>
+                      <Badge variant="outline">{ticket.priority}</Badge>
                     </div>
-                    <p className="line-clamp-4 whitespace-pre-wrap text-sm text-muted-foreground">{t.description}</p>
+                    <p className="line-clamp-4 whitespace-pre-wrap text-sm text-muted-foreground">{ticket.description}</p>
                     <div className="flex flex-wrap gap-x-2 gap-y-1 text-xs text-muted-foreground">
                       <span>
-                        Client: {t.customer?.name || t.customer?.email || t.customer?.id}
+                        {t("supportTickets.client")}: {ticket.customer?.name || ticket.customer?.email || ticket.customer?.id}
                       </span>
-                      <span>• {t.category}</span>
-                      <span>• {new Date(t.createdAt).toLocaleString("fr-FR")}</span>
+                      <span>• {ticket.category}</span>
+                      <span>• {new Date(ticket.createdAt).toLocaleString(language === "ar" ? "ar-DZ" : "fr-FR")}</span>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-                      <span className="text-sm text-muted-foreground">Statut</span>
-                      <Select value={t.status} disabled={updatingId === t.id} onValueChange={(v) => void patchStatus(t.id, v)}>
+                      <span className="text-sm text-muted-foreground">{t("common.status")}</span>
+                      <Select value={ticket.status} disabled={updatingId === ticket.id} onValueChange={(v) => void patchStatus(ticket.id, v)}>
                         <SelectTrigger className="h-9 w-[200px]">
                           <SelectValue />
                         </SelectTrigger>
@@ -168,7 +176,7 @@ export function AdminSupportTicketsView() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {updatingId === t.id && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                      {updatingId === ticket.id && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
                     </div>
                   </CardContent>
                 </Card>

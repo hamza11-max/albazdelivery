@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button, Card, CardContent, Input, Badge } from "@albaz/ui"
 import { Search, Plus, Edit, Trash2, Users, Truck, Store } from "lucide-react"
 import type { User as UserType } from "@/root/lib/types"
+import { useAdminI18n } from "../lib/AdminI18nProvider"
 
 interface UserListViewProps {
   users: UserType[]
@@ -26,6 +27,7 @@ export function UserListView({
   onDelete,
   onAdd,
 }: UserListViewProps) {
+  const { t } = useAdminI18n()
   const [searchQuery, setSearchQuery] = useState("")
 
   const filteredUsers = searchQuery.trim()
@@ -46,7 +48,7 @@ export function UserListView({
         {onAdd && (
           <Button onClick={onAdd}>
             <Plus className="w-4 h-4 mr-2" />
-            Ajouter
+            {t("users.add")}
           </Button>
         )}
       </div>
@@ -69,7 +71,7 @@ export function UserListView({
               {icon}
             </div>
             <p className="text-lg text-muted-foreground">
-              {searchQuery ? `Aucun résultat trouvé` : emptyMessage}
+              {searchQuery ? t("users.noResults") : emptyMessage}
             </p>
           </CardContent>
         </Card>

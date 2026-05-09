@@ -13,6 +13,8 @@ interface Subscription {
   plan: string
   status: string
   currentPeriodEnd: string
+  trialStart?: string | null
+  trialEnd?: string | null
   cancelAtPeriodEnd: boolean
   usage?: Array<{
     feature: string
