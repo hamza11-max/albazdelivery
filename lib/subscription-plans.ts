@@ -23,6 +23,8 @@ export interface PlanFeatures {
   vendorBringYourOwnDomain: boolean
   /** Connected storefront custom domains (-1 unlimited) */
   maxStoreCustomDomains: number
+  /** Invite drivers and assign deliveries (vendor dashboard) — Professional+ */
+  driverFleetManagement: boolean
 }
 
 /** Vendor UI: Algeria-first amounts in DZD. Card charges follow Stripe price currency (often USD). */
@@ -55,6 +57,7 @@ export const PLAN_FEATURES: Record<string, PlanFeatures> = {
     brandedSubdomain: false,
     vendorBringYourOwnDomain: false,
     maxStoreCustomDomains: 0,
+    driverFleetManagement: false,
   },
   PROFESSIONAL: {
     maxProducts: 50,
@@ -68,6 +71,7 @@ export const PLAN_FEATURES: Record<string, PlanFeatures> = {
     brandedSubdomain: true,
     vendorBringYourOwnDomain: false,
     maxStoreCustomDomains: 1,
+    driverFleetManagement: true,
   },
   BUSINESS: {
     maxProducts: -1,
@@ -95,6 +99,7 @@ export const PLAN_FEATURES: Record<string, PlanFeatures> = {
     brandedSubdomain: true,
     vendorBringYourOwnDomain: true,
     maxStoreCustomDomains: -1,
+    driverFleetManagement: true,
   },
 }
 

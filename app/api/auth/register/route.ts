@@ -7,6 +7,11 @@ import {
   sendWelcomeCustomerEmail,
   sendWelcomeVendorEmail,
 } from '@/root/lib/mail/notify-customer-transactional'
+import {
+  parseVendorRegistrationChannel,
+  resolveVendorAutoApprove,
+  vendorRegistrationPendingMessage,
+} from '@/root/lib/auth/vendor-registration-policy'
 
 export async function POST(request: Request) {
   try {
@@ -16,7 +21,12 @@ export async function POST(request: Request) {
     // Parse and validate request body
     const body = await request.json()
     const validatedData = registerSchema.parse(body)
-    const autoApprove = body?.autoApprove === true
+    const registrationChannel = parseVendorRegistrationChannel(body?.registrationChannel)
+    const autoApprove = resolveVendorAutoApprove({
+      role: validatedData.role,
+      channel: registrationChannel,
+      clientRequestedAutoApprove: body?.autoApprove === true,
+    })
     const normalizedEmail = validatedData.email.toLowerCase().trim()
     const normalizedPhone = validatedData.phone.trim()
 
@@ -164,6 +174,7 @@ export async function POST(request: Request) {
             role: user.role,
           },
           autoApproved: true,
+          pendingApproval: false,
           message: 'Vendor auto-approved successfully',
         },
         201
@@ -197,7 +208,9 @@ export async function POST(request: Request) {
     return successResponse(
       {
         request: registrationRequest,
-        message: 'Registration request submitted successfully. Awaiting admin approval.',
+        autoApproved: false,
+        pendingApproval: true,
+        message: vendorRegistrationPendingMessage(registrationChannel),
       },
       201
     )

@@ -16,6 +16,8 @@ describe('Vendor page structure validation', () => {
     expect(content).toContain('import { DineQrTab }')
     expect(content).toContain('import { AccountingTab }')
     expect(content).toContain('import { DriversTab }')
+    expect(content).toContain('driverFleetAllowed')
+    expect(content).toContain('handleAssignOrderDriver')
     expect(content).toContain('import { SuppliersTab }')
     expect(content).toContain('import { AITab }')
     expect(content).toContain('import { ReportsTab }')

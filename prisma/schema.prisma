@@ -300,11 +300,20 @@ model Store {
   @@index([customDomain])
 }
 
+enum DriverVendorConnectionSource {
+  DRIVER_REQUESTED
+  VENDOR_INVITED
+}
+
 model DriverVendorConnection {
   id          String   @id @default(cuid())
   driverId    String
   vendorId    String
   status      String   @default("PENDING")
+  /** Who initiated the pending link (controls which side sees accept/reject). */
+  connectionSource DriverVendorConnectionSource @default(DRIVER_REQUESTED)
+  /** Vendor UI: include driver in dispatch pool (independent of driver app GPS). */
+  availableForDispatch Boolean @default(true)
   requestedAt DateTime @default(now())
   respondedAt DateTime?
   createdAt   DateTime @default(now())
@@ -359,6 +368,10 @@ model Order {
   deliveryAddress String
   city            String
   customerPhone   String
+  clientName      String?
+  clientPhone     String?
+  clientAddress   String?
+  notes           String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   

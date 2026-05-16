@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/root/components/ui/button"
 import { Card, CardContent } from "@/root/components/ui/card"
 import { Badge } from "@/root/components/ui/badge"
-import { ShoppingBag, CheckCircle, Clock, CheckCircle2, AlertCircle, MessageCircle, X } from "lucide-react"
+import { Label } from "@/root/components/ui/label"
+import { ShoppingBag, CheckCircle, Clock, CheckCircle2, AlertCircle, MessageCircle, X, Truck } from "lucide-react"
 import type { Order } from "@/root/lib/types"
 
 const ACTIVE_ORDER_STATUSES = new Set([
@@ -35,6 +36,9 @@ export function OrdersTab({
   loadingState,
   translate,
   handleUpdateOrderStatus,
+  connectedDrivers = [],
+  driverFleetAllowed = false,
+  handleAssignOrderDriver,
   prepTimeMinutes,
   filterCustomerId = null,
   highlightOrderId = null,
@@ -250,6 +254,41 @@ export function OrdersTab({
                             <p className="mt-2 font-bold text-lg">
                               {translate("Total", "المجموع")}: {order.total?.toFixed(2) || "0.00"} {translate("DZD", "دج")}
                             </p>
+                            {driverFleetAllowed &&
+                              connectedDrivers.length > 0 &&
+                              handleAssignOrderDriver &&
+                              ["PENDING", "ACCEPTED", "PREPARING", "READY"].includes(String(status)) && (
+                              <div className="mt-3 space-y-1.5 rounded-md border bg-muted/30 p-3">
+                                <Label className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                  <Truck className="h-3.5 w-3.5" />
+                                  {translate("Chauffeur livreur", "سائق التوصيل")}
+                                </Label>
+                                <select
+                                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                  value={
+                                    (order as { driverId?: string }).driverId ||
+                                    (order as { driver?: { id?: string } }).driver?.id ||
+                                    ""
+                                  }
+                                  onChange={(e) =>
+                                    void handleAssignOrderDriver(order, e.target.value || null)
+                                  }
+                                >
+                                  <option value="">
+                                    {translate("Non assigné", "غير معيّن")}
+                                  </option>
+                                  {connectedDrivers.map((c) => {
+                                    const d = c.driver
+                                    if (!d?.id) return null
+                                    return (
+                                      <option key={d.id} value={d.id}>
+                                        {d.name || d.id.slice(0, 8)}
+                                      </option>
+                                    )
+                                  })}
+                                </select>
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="flex flex-col gap-2 md:w-auto w-full">

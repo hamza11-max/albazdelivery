@@ -21,6 +21,10 @@ export type CreateOrderInternalInput = {
   deliveryAddress: string
   city: string
   customerPhone: string
+  clientName?: string | null
+  clientPhone?: string | null
+  clientAddress?: string | null
+  notes?: string | null
   orderSource?: OrderSource
   /** When true, loads unit prices from DB and rejects unknown/unavailable products */
   recomputePricing: boolean
@@ -80,6 +84,10 @@ export async function createOrderInternal(params: CreateOrderInternalInput) {
       deliveryAddress: params.deliveryAddress,
       city: params.city,
       customerPhone: params.customerPhone,
+      clientName: params.clientName,
+      clientPhone: params.clientPhone,
+      clientAddress: params.clientAddress,
+      notes: params.notes,
       orderSource: params.orderSource ?? 'APP',
       items: {
         create: lines.map((item) => ({
@@ -92,7 +100,7 @@ export async function createOrderInternal(params: CreateOrderInternalInput) {
     include: {
       items: { include: { product: true } },
       customer: { select: { id: true, name: true, phone: true, email: true } },
-      store: { select: { id: true, name: true, address: true } },
+      store: { select: { id: true, name: true, address: true, deliveryTime: true } },
     },
   })
 

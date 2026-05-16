@@ -10,6 +10,7 @@ import {
   serializeRegistrationCredential,
   supportsWebAuthnInBrowser,
 } from "../../lib/webauthn-browser"
+import { safeFetch } from "../../utils/errorHandling"
 
 interface WebAuthnPasskeysCardProps {
   translate: (fr: string, ar: string) => string
@@ -47,7 +48,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch("/api/auth/passkeys/me", {
+      const response = await safeFetch("/api/auth/passkeys/me", {
         credentials: "include",
       })
       const data = await response.json()
@@ -80,7 +81,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
       setEnrolling(true)
       setError(null)
 
-      const optionsRes = await fetch("/api/auth/passkeys/register/options", {
+      const optionsRes = await safeFetch("/api/auth/passkeys/register/options", {
         method: "POST",
         credentials: "include",
       })
@@ -98,7 +99,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
         throw new Error(translate("Inscription passkey annulée", "تم إلغاء تسجيل مفتاح المرور"))
       }
 
-      const verifyRes = await fetch("/api/auth/passkeys/register/verify", {
+      const verifyRes = await safeFetch("/api/auth/passkeys/register/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -125,7 +126,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
     try {
       setRemovingId(credentialId)
       setError(null)
-      const response = await fetch(`/api/auth/passkeys/me/${credentialId}`, {
+      const response = await safeFetch(`/api/auth/passkeys/me/${credentialId}`, {
         method: "DELETE",
         credentials: "include",
       })

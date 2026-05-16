@@ -377,6 +377,8 @@ function handlePostServerReady() {
 }
 let tray = null
 let isQuitting = false
+/** When true, main window `close` is allowed (e.g. logout); otherwise X/Alt+F4 hides to tray and keeps the Next server alive. */
+let allowMainWindowClose = false
 
 // Configure CSP. In dev, Next.js HMR/hydration requires 'unsafe-eval'/'unsafe-inline' — Electron
 // will show a security warning; it does not appear in the packaged build (strict policy is used).
@@ -481,13 +483,22 @@ function createWindow() {
   // Check authentication and start server
   checkAuthenticationAndLoad()
 
-  // Handle window closed
-  mainWindow.on('closed', () => {
-    mainWindow = null
-    if (nextProcess) {
-      nextProcess.kill()
-      nextProcess = null
+  // Keep embedded Next running when the user closes the main window (X / Alt+F4): hide to tray only.
+  // Killing the child here caused "Server process exited with code 1" while the Electron app stayed open.
+  mainWindow.on('close', (event) => {
+    if (!isQuitting && !allowMainWindowClose) {
+      event.preventDefault()
+      try {
+        mainWindow.hide()
+      } catch (_) {
+        /* ignore */
+      }
     }
+  })
+
+  mainWindow.on('closed', () => {
+    allowMainWindowClose = false
+    mainWindow = null
   })
 
   // Handle external links
@@ -511,8 +522,9 @@ function createWindow() {
   })
 }
 
-// Helper function to kill process on port 3001
-function killPort3001() {
+/** Free TCP port 3001 (delayMs gives Windows time to release the socket after taskkill). */
+function killPort3001(delayMs) {
+  const wait = typeof delayMs === 'number' && delayMs > 0 ? delayMs : 800
   return new Promise((resolve) => {
     if (process.platform === 'win32') {
       // Windows: Use netstat to find and kill process
@@ -534,12 +546,12 @@ function killPort3001() {
             }
           })
         }
-        setTimeout(resolve, 500) // Wait a bit for port to be freed
+        setTimeout(resolve, wait)
       })
     } else {
       // Unix-like: Use lsof to find and kill process
       exec('lsof -ti:3001 | xargs kill -9 2>/dev/null || true', () => {
-        setTimeout(resolve, 500)
+        setTimeout(resolve, wait)
       })
     }
   })
@@ -665,152 +677,191 @@ function startNextStandaloneServer() {
     return
   }
 
-  // Windows: paths with spaces (e.g. "Program Files", "AlBaz Vendor") often cause the Next server to exit with code 1
+  // Paths with spaces used to be hard-blocked; Node spawn with cwd usually works. Log a warning only.
   if (isPackaged && process.platform === 'win32' && serverDir.includes(' ')) {
-    logStartup('Blocked: install path contains spaces - ' + serverDir)
-    const logPath = path.join(app.getPath('userData'), STARTUP_LOG_NAME)
-    const msg = 'The app is installed in a folder whose path contains spaces (e.g. "New folder (2)"). On Windows this can make the server fail to start.\n\nReinstall the app to a path without spaces, for example:\nE:\\AlBazVendor\nor\nC:\\AlBazVendor'
-    showErrorInWindow(mainWindow, 'Unsupported install path', msg, { logPath, showTroubleshoot: true })
-    mainWindow.show()
-    return
+    logStartup('Warning: server cwd contains spaces — if startup fails, reinstall to e.g. C:\\AlbazVendor — ' + serverDir)
   }
 
-  process.env.PORT = '3001'
-  process.env.HOSTNAME = 'localhost'
+  function spawnEmbeddedNextServer() {
+    process.env.PORT = '3001'
+    process.env.HOSTNAME = 'localhost'
 
-  // Use bundled Node when packaged on Windows (user may not have Node in PATH)
-  const nodeBin = isPackaged && process.platform === 'win32'
-    ? path.join(process.resourcesPath, 'node', 'node.exe')
-    : 'node'
-  const useBundledNode = isPackaged && process.platform === 'win32' && fs.existsSync(nodeBin)
-  logStartup('Node bin=' + nodeBin + ' useBundled=' + useBundledNode)
+    // Use bundled Node when packaged on Windows (user may not have Node in PATH)
+    const nodeBin = isPackaged && process.platform === 'win32'
+      ? path.join(process.resourcesPath, 'node', 'node.exe')
+      : 'node'
+    const useBundledNode = isPackaged && process.platform === 'win32' && fs.existsSync(nodeBin)
+    logStartup('Node bin=' + nodeBin + ' useBundled=' + useBundledNode)
 
-  if (isPackaged && process.platform === 'win32' && !useBundledNode) {
-    const msg = 'Bundled Node.js not found. Run "npm run electron:build" from the project to include Node, or install Node.js (LTS) and add it to PATH.'
-    console.warn('[Electron]', msg)
-  }
+    if (isPackaged && process.platform === 'win32' && !useBundledNode) {
+      const msg = 'Bundled Node.js not found. Run "npm run electron:build" from the project to include Node, or install Node.js (LTS) and add it to PATH.'
+      console.warn('[Electron]', msg)
+    }
 
-  const spawnEnv = {
-    ...process.env,
-    PORT: '3001',
-    HOSTNAME: 'localhost',
-    NODE_ENV: process.env.NODE_ENV || 'production',
-    VENDOR_USER_DATA_PATH: app.getPath('userData'),
-    // Ensure auth vars for offline mode (session endpoint won't 500 when secret is set)
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3001',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'electron-offline-secret-' + (process.env.ALBAZ_ELECTRON_PASSKEY || 'default'),
-  }
-  if (isPackaged && process.platform === 'win32') {
-    const exeDir = path.dirname(app.getPath('exe'))
-    const configPath = path.join(exeDir, 'vendor-config.json')
-    try {
-      if (fs.existsSync(configPath)) {
-        const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
-        if (config.DATABASE_URL) {
-          spawnEnv.DATABASE_URL = config.DATABASE_URL
-          logStartup('Loaded DATABASE_URL from vendor-config.json')
+    const spawnEnv = {
+      ...process.env,
+      PORT: '3001',
+      HOSTNAME: 'localhost',
+      NODE_ENV: process.env.NODE_ENV || 'production',
+      VENDOR_USER_DATA_PATH: app.getPath('userData'),
+      // Ensure auth vars for offline mode (session endpoint won't 500 when secret is set)
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3001',
+      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'electron-offline-secret-' + (process.env.ALBAZ_ELECTRON_PASSKEY || 'default'),
+    }
+    if (isPackaged && process.platform === 'win32') {
+      const exeDir = path.dirname(app.getPath('exe'))
+      const configPath = path.join(exeDir, 'vendor-config.json')
+      try {
+        if (fs.existsSync(configPath)) {
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+          if (config.DATABASE_URL) {
+            spawnEnv.DATABASE_URL = config.DATABASE_URL
+            logStartup('Loaded DATABASE_URL from vendor-config.json')
+          }
         }
+      } catch (e) {
+        logStartup('Could not read vendor-config.json: ' + (e && e.message))
       }
-    } catch (e) {
-      logStartup('Could not read vendor-config.json: ' + (e && e.message))
     }
-  }
-  nextProcess = spawn(useBundledNode ? nodeBin : 'node', ['server.js'], {
-    cwd: serverDir,
-    shell: !useBundledNode,
-    stdio: 'pipe',
-    env: spawnEnv,
-  })
-  logStartup('Server process spawned cwd=' + serverDir)
 
-  let serverReady = false
-  const startupTimeoutMs = isPackaged ? 90000 : 45000
-  const serverReadyTimeout = setTimeout(() => {
-    if (serverReady) return
-    serverReady = true
-    if (pollInterval) clearInterval(pollInterval)
-    console.error('[Electron] Next.js server did not become ready in time')
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      const logHint = isPackaged ? ' Check the log in AppData/Roaming/@albaz/vendor/vendor-startup.log for details.' : ''
-      showErrorInWindow(mainWindow, 'Startup timeout', 'The app server did not start in time. Try running the app again.' + logHint + ' If the problem continues, reinstall or rebuild the app.')
-      mainWindow.show()
+    let portBindConflict = false
+    nextProcess = spawn(useBundledNode ? nodeBin : 'node', ['server.js'], {
+      cwd: serverDir,
+      shell: !useBundledNode,
+      stdio: 'pipe',
+      env: spawnEnv,
+    })
+    logStartup('Server process spawned cwd=' + serverDir)
+
+    let serverReady = false
+    const startupTimeoutMs = isPackaged ? 90000 : 45000
+    const serverReadyTimeout = setTimeout(() => {
+      if (serverReady) return
+      serverReady = true
+      if (pollInterval) clearInterval(pollInterval)
+      console.error('[Electron] Next.js server did not become ready in time')
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const logHint = isPackaged ? ' Check the log in AppData/Roaming/@albaz/vendor/vendor-startup.log for details.' : ''
+        showErrorInWindow(mainWindow, 'Startup timeout', 'The app server did not start in time. Try running the app again.' + logHint + ' If the problem continues, reinstall or rebuild the app.')
+        mainWindow.show()
+      }
+    }, startupTimeoutMs)
+
+    function markServerReady() {
+      if (serverReady) return
+      // Another process may still be holding 3001; do not treat HTTP 200 as success if we already saw EADDRINUSE
+      if (portBindConflict) {
+        logStartup('Ignoring spurious server-ready (port bind failed for this process)')
+        return
+      }
+      // Our child must still be running (ignore late poll/stdout after exit or handoff)
+      if (!nextProcess || nextProcess.exitCode !== null) {
+        return
+      }
+      serverReady = true
+      clearTimeout(serverReadyTimeout)
+      if (pollInterval) clearInterval(pollInterval)
+      logStartup('Server ready')
+      setTimeout(() => {
+        handlePostServerReady()
+      }, 2000)
     }
-  }, startupTimeoutMs)
 
-  function markServerReady() {
-    if (serverReady) return
-    serverReady = true
-    clearTimeout(serverReadyTimeout)
-    if (pollInterval) clearInterval(pollInterval)
-    logStartup('Server ready')
-    setTimeout(() => {
-      handlePostServerReady()
-    }, 2000)
-  }
+    // Poll http://localhost:3001 so we detect ready even if Next.js doesn't print "Ready" to stdout
+    let pollInterval = setInterval(() => {
+      if (serverReady || portBindConflict) return
+      const req = http.get('http://localhost:3001', { timeout: 3000 }, (res) => {
+        if (res.statusCode !== undefined) {
+          logStartup('Server responded with status ' + res.statusCode)
+          markServerReady()
+        }
+      })
+      req.on('error', () => {})
+      req.on('timeout', () => { req.destroy() })
+    }, 1500)
 
-  // Poll http://localhost:3001 so we detect ready even if Next.js doesn't print "Ready" to stdout
-  let pollInterval = setInterval(() => {
-    if (serverReady) return
-    const req = http.get('http://localhost:3001', { timeout: 3000 }, (res) => {
-      if (res.statusCode !== undefined) {
-        logStartup('Server responded with status ' + res.statusCode)
+    const serverStderrLines = []
+    const serverStdoutLines = []
+    const maxServerLogLines = 25
+
+    nextProcess.stdout.on('data', (data) => {
+      const output = data.toString()
+      console.log('[Next.js Standalone]', output)
+      const lines = output.split('\n').map((l) => l.trim()).filter(Boolean)
+      serverStdoutLines.push(...lines)
+      if (serverStdoutLines.length > maxServerLogLines) serverStdoutLines.splice(0, serverStdoutLines.length - maxServerLogLines)
+      if (!serverReady && !portBindConflict && (output.includes('Ready') || output.includes('Local:') || output.includes('localhost:3001'))) {
         markServerReady()
       }
     })
-    req.on('error', () => {})
-    req.on('timeout', () => { req.destroy() })
-  }, 1500)
 
-  nextProcess.stdout.on('data', (data) => {
-    const output = data.toString()
-    console.log('[Next.js Standalone]', output)
-    if (!serverReady && (output.includes('Ready') || output.includes('Local:') || output.includes('localhost:3001'))) {
-      markServerReady()
-    }
-  })
+    nextProcess.stderr.on('data', (data) => {
+      const msg = data.toString()
+      logStartup('Server stderr: ' + msg.trim())
+      console.error('[Next.js Standalone Error]', msg)
+      if (msg.includes('EADDRINUSE') || msg.includes('address already in use')) {
+        portBindConflict = true
+      }
+      const lines = msg.split('\n').map((l) => l.trim()).filter(Boolean)
+      serverStderrLines.push(...lines)
+      if (serverStderrLines.length > maxServerLogLines) serverStderrLines.splice(0, serverStderrLines.length - maxServerLogLines)
+    })
 
-  const serverStderrLines = []
-  const maxStderrLines = 15
-  nextProcess.stderr.on('data', (data) => {
-    const msg = data.toString()
-    logStartup('Server stderr: ' + msg.trim())
-    console.error('[Next.js Standalone Error]', msg)
-    const lines = msg.split('\n').map((l) => l.trim()).filter(Boolean)
-    serverStderrLines.push(...lines)
-    if (serverStderrLines.length > maxStderrLines) serverStderrLines.splice(0, serverStderrLines.length - maxStderrLines)
-  })
+    nextProcess.on('close', (code, signal) => {
+      clearTimeout(serverReadyTimeout)
+      if (pollInterval) clearInterval(pollInterval)
+      const sig = signal ? ' signal=' + signal : ''
+      logStartup('Server process exited with code ' + code + sig)
+      if (code !== 0 && serverStderrLines.length > 0) {
+        logStartup('Last server stderr: ' + serverStderrLines.slice(-10).join(' | '))
+      }
+      if (code !== 0 && serverStdoutLines.length > 0) {
+        logStartup('Last server stdout: ' + serverStdoutLines.slice(-10).join(' | '))
+      }
+      console.log(`[Next.js Standalone] Process exited with code ${code}`)
+      nextProcess = null
+      if (code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
+        const stderrSnippet = serverStderrLines.length ? '\n\nServer output:\n' + serverStderrLines.slice(-15).join('\n') : ''
+        const logPath = isPackaged ? path.join(app.getPath('userData'), STARTUP_LOG_NAME) : ''
+        const spaceHint =
+          isPackaged && process.platform === 'win32' && serverDir.includes(' ')
+            ? '\n\nIf the path above contains spaces (e.g. C:\\Albaz Vendor\\...), try reinstalling to a folder without spaces, e.g. C:\\AlbazVendor.'
+            : ''
+        const portHint =
+          serverStderrLines.some((l) => l.includes('EADDRINUSE') || l.includes('address already in use'))
+            ? '\n\nPort 3001 was already in use. Close other AlBaz Vendor windows, end duplicate processes in Task Manager, or stop anything else using port 3001 (e.g. npm run dev on 3001).'
+            : ''
+        const message = 'The app server exited unexpectedly (code ' + code + ').' + (stderrSnippet ? stderrSnippet : '') + spaceHint + portHint
+        showErrorInWindow(mainWindow, 'Server stopped', message, {
+          logPath: logPath || undefined,
+          showTroubleshoot: true,
+        })
+        mainWindow.show()
+      }
+    })
 
-  nextProcess.on('close', (code) => {
-    clearTimeout(serverReadyTimeout)
-    if (pollInterval) clearInterval(pollInterval)
-    logStartup('Server process exited with code ' + code)
-    if (code !== 0 && serverStderrLines.length > 0) {
-      logStartup('Last server stderr: ' + serverStderrLines.slice(-10).join(' | '))
-    }
-    console.log(`[Next.js Standalone] Process exited with code ${code}`)
-    nextProcess = null
-    if (code !== 0 && mainWindow && !mainWindow.isDestroyed()) {
-      const stderrSnippet = serverStderrLines.length ? '\n\nServer output:\n' + serverStderrLines.slice(-15).join('\n') : ''
-      const logPath = isPackaged ? path.join(app.getPath('userData'), STARTUP_LOG_NAME) : ''
-      const message = 'The app server exited unexpectedly (code ' + code + ').' + (stderrSnippet ? stderrSnippet : '')
-      showErrorInWindow(mainWindow, 'Server stopped', message, {
-        logPath: logPath || undefined,
-        showTroubleshoot: true,
-      })
-      mainWindow.show()
-    }
-  })
+    nextProcess.on('error', (error) => {
+      console.error('[Next.js Standalone] Failed to start:', error)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const errMsg = error.code === 'ENOENT'
+          ? 'Node.js was not found. Install Node.js (LTS) and add it to PATH, or rebuild the app with "npm run electron:build" to bundle Node.'
+          : 'Server failed to start: ' + error.message
+        showErrorInWindow(mainWindow, 'Unable to start', errMsg)
+        mainWindow.show()
+      }
+    })
+  }
 
-  nextProcess.on('error', (error) => {
-    console.error('[Next.js Standalone] Failed to start:', error)
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      const errMsg = error.code === 'ENOENT'
-        ? 'Node.js was not found. Install Node.js (LTS) and add it to PATH, or rebuild the app with "npm run electron:build" to bundle Node.'
-        : 'Server failed to start: ' + error.message
-      showErrorInWindow(mainWindow, 'Unable to start', errMsg)
-      mainWindow.show()
-    }
-  })
+  // Packaged: ensure port 3001 is free (second instance / stray node / previous crash)
+  if (isPackaged) {
+    logStartup('Draining port 3001 before embedded Next server...')
+    killPort3001(1200).then(() => {
+      logStartup('Port 3001 drain complete; spawning server')
+      spawnEmbeddedNextServer()
+    })
+  } else {
+    spawnEmbeddedNextServer()
+  }
 }
 
 // Authentication check and load
@@ -1022,8 +1073,9 @@ ipcMain.handle('auth-logout', async () => {
     store.delete('vendor_auth_state')
     isAuthenticated = false
     
-    // Close main window and show login
-    if (mainWindow) {
+    // Close main window and show login (allow real close — server must stay up for auth window localhost:3001)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      allowMainWindowClose = true
       mainWindow.close()
     }
     createAuthWindow()
@@ -1360,7 +1412,21 @@ function createTray() {
   console.log('[Tray] System tray created')
 }
 
-// App event handlers
+// App event handlers — single instance so two Electron processes never fight for port 3001
+const vendorSingleInstanceLock = app.requestSingleInstanceLock()
+if (!vendorSingleInstanceLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+    }
+  })
+}
+
+if (vendorSingleInstanceLock) {
 app.whenReady().then(() => {
   if (app.isPackaged) writeEarlyLog('whenReady - starting')
   if (process.platform === 'win32') {
@@ -1465,6 +1531,7 @@ app.whenReady().then(() => {
     }
   })
 })
+}
 
 app.on('window-all-closed', () => {
   // On Windows/Linux, minimize to tray instead of quitting

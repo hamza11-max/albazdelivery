@@ -1,6 +1,15 @@
-const SHELL_CACHE = "albaz-vendor-shell-v3";
-const RUNTIME_CACHE = "albaz-vendor-runtime-v3";
-const CORE_ASSETS = ["/vendor", "/logo.png", "/manifest.webmanifest"];
+const SHELL_CACHE = "albaz-vendor-shell-v4";
+const CORE_ASSETS = [
+  "/vendor",
+  "/logo.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+  "/favicon.ico",
+  "/manifest.webmanifest",
+];
+
+const RUNTIME_CACHE = "albaz-vendor-runtime-v4";
 
 const NEXT_STATIC_PATTERN = /\/_next\/static\//;
 const STATIC_FILE_PATTERN = /\.(?:css|js|png|jpg|jpeg|gif|svg|ico|woff2?)$/i;

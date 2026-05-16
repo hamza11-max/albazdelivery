@@ -23,6 +23,8 @@ import {
   Moon,
   LogOut,
   Globe,
+  Building2,
+  XCircle,
 } from "lucide-react"
 import type { Order } from "@/root/lib/types"
 import { useSSE } from "@/root/lib/use-sse"
@@ -43,7 +45,6 @@ export default function DriverApp() {
   const [stackedDeliveries, setStackedDeliveries] = useState<Order[]>([])
   const [deliveryHistory, setDeliveryHistory] = useState<Order[]>([])
   const [loading, setLoading] = useState(false)
-  const [driverId] = useState("driver-1")
   const [isOnShift, setIsOnShift] = useState(() => {
     if (typeof window === "undefined") return false
     return localStorage.getItem("driver-on-shift") === "true"
@@ -60,24 +61,35 @@ export default function DriverApp() {
   const [isDarkMode, setIsDarkMode] = useState(false)
   const [driverLocation, setDriverLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [isTrackingLocation, setIsTrackingLocation] = useState(false)
-  
+  const [pendingVendorInvites, setPendingVendorInvites] = useState<
+    { connectionId: string; vendorId: string; vendorName: string }[]
+  >([])
+  const [inviteActionId, setInviteActionId] = useState<string | null>(null)
+
   // Safely handle useSession during build time - it may return undefined during static generation
   const sessionResult = useSession()
   const session = sessionResult?.data ?? null
   const status = sessionResult?.status ?? "loading"
   const user = session?.user ?? null
   const isAuthenticated = status === "authenticated"
-  
-  const { data: sseData, isConnected } = useSSE(`/api/notifications/sse?role=driver&userId=${driverId}`, false)
+  const driverId = user?.id ?? ""
+  const sseEnabled =
+    status === "authenticated" && user?.role === "DRIVER" && Boolean(driverId)
+
+  const { data: sseData, isConnected } = useSSE(
+    `/api/notifications/sse?role=driver&userId=${encodeURIComponent(driverId)}`,
+    sseEnabled,
+  )
 
   const startLocationTracking = () => {
+    if (!driverId) return undefined
     if (!navigator.geolocation) {
       toast({
         title: "Erreur",
         description: "La géolocalisation n'est pas disponible",
         variant: "destructive",
       })
-      return
+      return undefined
     }
 
     setIsTrackingLocation(true)
@@ -250,6 +262,77 @@ export default function DriverApp() {
     }
   }
 
+  const fetchVendorInvites = useCallback(async () => {
+    try {
+      const response = await fetch("/api/drivers/vendors")
+      const data = await response.json()
+      if (!data.success || !data.data?.vendors) {
+        setPendingVendorInvites([])
+        return
+      }
+      const rows = data.data.vendors as Array<{
+        id: string
+        name: string
+        connectionStatus: string | null
+        connectionSource: string | null
+        connectionId: string | null
+      }>
+      setPendingVendorInvites(
+        rows
+          .filter(
+            (v) =>
+              v.connectionStatus === "PENDING" &&
+              v.connectionSource === "VENDOR_INVITED" &&
+              v.connectionId
+          )
+          .map((v) => ({
+            connectionId: v.connectionId as string,
+            vendorId: v.id,
+            vendorName: v.name,
+          }))
+      )
+    } catch {
+      setPendingVendorInvites([])
+    }
+  }, [])
+
+  const respondToVendorInvite = async (connectionId: string, action: "accept" | "reject") => {
+    setInviteActionId(connectionId)
+    try {
+      const response = await fetch("/api/drivers/vendor-connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, action }),
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({
+          title: action === "accept" ? "Connexion acceptée" : "Invitation refusée",
+          description:
+            action === "accept"
+              ? "Vous êtes maintenant lié à ce commerçant."
+              : "Le commerçant a été informé.",
+        })
+        await fetchVendorInvites()
+      } else {
+        toast({
+          title: "Action impossible",
+          description: data.error?.message ?? "Réessayez plus tard.",
+          variant: "destructive",
+        })
+      }
+    } catch (e) {
+      console.error("[Driver] vendor invite response:", e)
+      toast({
+        title: "Erreur réseau",
+        description: "Impossible de contacter le serveur.",
+        variant: "destructive",
+      })
+    } finally {
+      setInviteActionId(null)
+    }
+  }
+
   // Accept delivery
   const acceptDelivery = async (orderId: string) => {
     try {
@@ -355,21 +438,25 @@ export default function DriverApp() {
 
   // Initial load
   useEffect(() => {
+    if (status !== "authenticated" || user?.role !== "DRIVER" || !user?.id) return
+
     const stopTracking = startLocationTracking()
     fetchAvailableDeliveries()
     fetchActiveDelivery()
+    fetchVendorInvites()
 
     // Poll more frequently (every 5 seconds instead of 10)
     const interval = setInterval(() => {
       fetchAvailableDeliveries()
       fetchActiveDelivery()
+      fetchVendorInvites()
     }, 5000)
 
     return () => {
       if (stopTracking) stopTracking()
       clearInterval(interval)
     }
-  }, [driverId])
+  }, [status, user?.id, user?.role, fetchVendorInvites])
 
   const fetchVendorProfile = useCallback(async (vendorId: string) => {
     try {
@@ -435,6 +522,7 @@ export default function DriverApp() {
               onClick={() => {
                 fetchAvailableDeliveries()
                 fetchActiveDelivery()
+                fetchVendorInvites()
               }}
             >
               <RefreshCw className={`w-5 h-5 ${loading ? "animate-spin" : ""}`} />
@@ -472,6 +560,48 @@ export default function DriverApp() {
   // Dashboard View - Available Deliveries
   const DashboardView = () => (
     <div className="container mx-auto px-4 py-6 pb-24 space-y-6">
+      {pendingVendorInvites.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-[var(--albaz-text)]">Invitations commerçants</h2>
+          {pendingVendorInvites.map((inv) => (
+            <Card key={inv.connectionId} className="albaz-card border-[var(--albaz-olive)]/40">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[var(--albaz-olive)]/15 flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5 text-[var(--albaz-olive)]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-[var(--albaz-text)]">{inv.vendorName}</p>
+                    <p className="text-sm text-[var(--albaz-text-soft)]">
+                      Ce commerçant souhaite vous ajouter à son équipe de livraison.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    className="flex-1 bg-[var(--albaz-olive)] hover:brightness-95 text-white"
+                    disabled={inviteActionId === inv.connectionId}
+                    onClick={() => respondToVendorInvite(inv.connectionId, "accept")}
+                  >
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Accepter
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    disabled={inviteActionId === inv.connectionId}
+                    onClick={() => respondToVendorInvite(inv.connectionId, "reject")}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Refuser
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4">
         <Card className="albaz-card">

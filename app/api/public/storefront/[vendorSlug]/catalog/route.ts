@@ -25,7 +25,11 @@ export async function GET(
     })
     if (!vendor) throw new NotFoundError('Vendor storefront')
 
-    const catalog = await getVendorCatalog(vendor.id)
+    const catalog = await getVendorCatalog(vendor.id, {
+      category: request.nextUrl.searchParams.get('category'),
+      search: request.nextUrl.searchParams.get('search'),
+      sort: request.nextUrl.searchParams.get('sort'),
+    })
     return successResponse(catalog)
   } catch (error) {
     return errorResponse(error)

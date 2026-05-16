@@ -10,16 +10,19 @@ export async function GET(request: NextRequest) {
     // Apply rate limiting
     await applyRateLimit(request, rateLimitConfigs.api)
 
-    // DISABLED for Electron app (no authentication)
-    // const session = await auth()
-    // if (!session?.user) {
-    //   throw new UnauthorizedError()
-    // }
+    const session = await auth()
+    const allowUnauthenticatedAdminUsers =
+      process.env.NODE_ENV === "development" &&
+      process.env.ALLOW_VENDOR_ADMIN_USERS_WITHOUT_AUTH === "1"
 
-    // For Electron app, default to admin mode
-    // if (session.user.role !== 'ADMIN') {
-    //   throw new ForbiddenError('Only admins can access this resource')
-    // }
+    if (!allowUnauthenticatedAdminUsers) {
+      if (!session?.user) {
+        throw new UnauthorizedError()
+      }
+      if (session.user.role !== "ADMIN") {
+        throw new ForbiddenError("Only admins can access this resource")
+      }
+    }
 
     // Get query parameters
     const searchParams = request.nextUrl.searchParams

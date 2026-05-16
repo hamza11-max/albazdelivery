@@ -50,8 +50,8 @@ export function CheckoutForm({ vendorSlug, accent, defaultCity }: Props) {
     e.preventDefault()
     setError(null)
 
-    if (!form.name.trim() || !form.phone.trim() || !form.address.trim()) {
-      setError('Please fill in your name, phone and delivery address.')
+    if (!form.name.trim() || !form.phone.trim()) {
+      setError('Please fill in your name and phone.')
       return
     }
 
@@ -106,7 +106,7 @@ export function CheckoutForm({ vendorSlug, accent, defaultCity }: Props) {
       }
 
       clear()
-      router.push(`/orders/${orderId}?t=${encodeURIComponent(token)}`)
+      router.push(`/order/${orderId}?t=${encodeURIComponent(token)}`)
     } catch (err) {
       setError(
         err instanceof Error
@@ -140,10 +140,9 @@ export function CheckoutForm({ vendorSlug, accent, defaultCity }: Props) {
         autoComplete="tel"
       />
       <Field
-        label="Delivery address"
+        label="Delivery address (optional)"
         value={form.address}
         onChange={(v) => setForm((f) => ({ ...f, address: v }))}
-        required
         autoComplete="street-address"
       />
       <Field

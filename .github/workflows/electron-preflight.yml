@@ -1,0 +1,32 @@
+# Manual Windows check: Next.js standalone for @albaz/vendor (no NSIS publish).
+# Use before relying on a full `electron:build` on a clean machine.
+
+name: Electron vendor (Next standalone)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  next-standalone:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema=./prisma/schema.prisma
+
+      - name: Vendor app typecheck
+        run: npm run type-check:vendor
+
+      - name: Next.js standalone build (ELECTRON_BUILD)
+        run: npm run build:electron -w @albaz/vendor

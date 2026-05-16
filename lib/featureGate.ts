@@ -1,11 +1,16 @@
 import { prisma } from "@/lib/prisma"
 import type { PlanFeatures } from "./subscription-plans"
 import { resolveVendorEntitlements } from "./subscriptions/resolve-entitlements"
+import { vendorDevDriverFleetUnlocked } from "./vendor-dev-flags"
 
 export async function checkFeatureAccess(
   userId: string,
   feature: keyof PlanFeatures
 ): Promise<boolean> {
+  if (feature === "driverFleetManagement" && vendorDevDriverFleetUnlocked()) {
+    return true
+  }
+
   const subscription = await prisma.subscription.findUnique({
     where: { userId },
     select: {

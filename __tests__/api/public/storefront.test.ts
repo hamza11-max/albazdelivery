@@ -234,7 +234,11 @@ describe('Public storefront API', () => {
       expect(payload.success).toBe(true)
       expect(payload.data.totalProducts).toBe(1)
       expect(payload.data.stores).toHaveLength(1)
-      expect(getVendorCatalog).toHaveBeenCalledWith(vendorId)
+      expect(getVendorCatalog).toHaveBeenCalledWith(vendorId, {
+        category: null,
+        search: null,
+        sort: null,
+      })
     })
   })
 
@@ -320,6 +324,7 @@ describe('Public storefront API', () => {
         id: orderId,
         status: 'PENDING',
         total: 1200,
+        store: { deliveryTime: '30-45 min' },
       })
 
       const { POST } = await import('@/app/api/public/storefront/orders/route')
@@ -356,6 +361,10 @@ describe('Public storefront API', () => {
           storeId,
           items: [{ productId, quantity: 1 }],
           paymentMethod: 'CASH',
+          clientName: 'Test Guest',
+          clientPhone: '0661234567',
+          clientAddress: '123 Customer Avenue, Algiers',
+          notes: null,
         })
       )
     })
@@ -405,6 +414,118 @@ describe('Public storefront API', () => {
 
       const response = await POST(request)
       expect(response.status).toBe(400)
+    })
+
+    it('rejects products outside the resolved tenant', async () => {
+      const vendorId = generateCuid()
+
+      const { prisma } = await import('@/root/lib/prisma')
+      ;(prisma.user.findFirst as jest.Mock<any>).mockResolvedValue({
+        id: vendorId,
+        name: 'Vendor',
+        phone: '0771234567',
+        vendorSubdomain: 'demo',
+        vendorCustomDomain: null,
+        vendorDomainStatus: 'VERIFIED',
+        storefrontLogoUrl: null,
+        storefrontHeroUrl: null,
+        storefrontTagline: null,
+        storefrontAccentColor: null,
+        storefrontWhatsappPhone: null,
+        city: 'Algiers',
+      })
+      ;(prisma.product.findMany as jest.Mock<any>).mockResolvedValue([])
+
+      const { POST } = await import('@/app/api/public/storefront/orders/route')
+      const request = createMockRequest(
+        'http://localhost:3000/api/public/storefront/orders',
+        {
+          method: 'POST',
+          body: {
+            vendorSlug: 'demo',
+            items: [{ productId: 'other-vendor-product', quantity: 1 }],
+            customer: {
+              name: 'Test Guest',
+              phone: '0661234567',
+            },
+          },
+        }
+      )
+
+      const response = await POST(request)
+      expect(response.status).toBe(400)
+      expect(prisma.product.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            store: { vendorId, isActive: true },
+            available: true,
+          }),
+        })
+      )
+    })
+
+    it('supports the flat /api/orders guest checkout payload', async () => {
+      const vendorId = generateCuid()
+      const customerId = generateCuid()
+      const orderId = generateCuid()
+
+      const { prisma } = await import('@/root/lib/prisma')
+      ;(prisma.user.findFirst as jest.Mock<any>).mockResolvedValue({
+        id: vendorId,
+        name: 'Le Taj Mahal',
+        phone: '0771234567',
+        vendorSubdomain: 'demo',
+        vendorCustomDomain: null,
+        vendorDomainStatus: 'VERIFIED',
+        storefrontLogoUrl: null,
+        storefrontHeroUrl: null,
+        storefrontTagline: null,
+        storefrontAccentColor: null,
+        storefrontWhatsappPhone: '+213771234567',
+        city: 'Algiers',
+      })
+      ;(prisma.product.findMany as jest.Mock<any>).mockResolvedValue([
+        { id: 'prod-1', storeId: 'store-1' },
+      ])
+
+      const { ensureGuestCustomerByPhone } = await import(
+        '@/root/lib/storefront/ensure-guest-customer'
+      )
+      ;(ensureGuestCustomerByPhone as jest.Mock<any>).mockResolvedValue({
+        id: customerId,
+        phone: '0661234567',
+        name: 'Test Guest',
+      })
+
+      const { createOrderInternal } = await import(
+        '@/root/lib/orders/create-order-internal'
+      )
+      ;(createOrderInternal as jest.Mock<any>).mockResolvedValue({
+        id: orderId,
+        status: 'PENDING',
+        total: 1200,
+        store: { deliveryTime: '30-45 min' },
+      })
+
+      const { POST } = await import('@/app/api/orders/route')
+      const request = createMockRequest('http://localhost:3000/api/orders', {
+        method: 'POST',
+        body: {
+          vendorSlug: 'demo',
+          clientName: 'Test Guest',
+          clientPhone: '0661234567',
+          clientAddress: 'Hydra',
+          notes: 'No onions',
+          items: [{ productId: 'prod-1', quantity: 1 }],
+        },
+      })
+
+      const response = await POST(request)
+      expect(response.status).toBe(201)
+      const payload = await readJson(response)
+      expect(payload.data.orderId).toBe(orderId)
+      expect(payload.data.estimatedTime).toBe('30-45 min')
+      expect(payload.data.vendorWhatsApp).toBe('+213771234567')
     })
   })
 
@@ -465,6 +586,52 @@ describe('Public storefront API', () => {
       const payload = await readJson(response)
       expect(payload.success).toBe(true)
       expect(payload.data.id).toBe(orderId)
+      expect(fetchStorefrontOrder).toHaveBeenCalledWith({
+        vendorId,
+        orderId,
+        token: 'signed-token',
+      })
+    })
+
+    it('supports the /api/orders/[id] tracking alias with token', async () => {
+      const vendorId = generateCuid()
+      const orderId = generateCuid()
+
+      const { prisma } = await import('@/root/lib/prisma')
+      ;(prisma.user.findFirst as jest.Mock<any>).mockResolvedValue({
+        id: vendorId,
+        name: 'V',
+        phone: '0',
+        vendorSubdomain: 'demo',
+        vendorCustomDomain: null,
+        vendorDomainStatus: 'VERIFIED',
+        storefrontLogoUrl: null,
+        storefrontHeroUrl: null,
+        storefrontTagline: null,
+        storefrontAccentColor: null,
+        storefrontWhatsappPhone: null,
+        city: 'Algiers',
+      })
+
+      const { fetchStorefrontOrder } = await import('@/root/lib/storefront/orders')
+      ;(fetchStorefrontOrder as jest.Mock<any>).mockResolvedValue({
+        id: orderId,
+        status: 'READY',
+        total: 1200,
+      })
+
+      const { GET } = await import('@/app/api/orders/[id]/route')
+      const request = createMockRequest(
+        `http://localhost:3000/api/orders/${orderId}?t=signed-token&vendorSlug=demo`
+      )
+
+      const response = await GET(request, {
+        params: Promise.resolve({ id: orderId }),
+      } as any)
+
+      expect(response.status).toBe(200)
+      const payload = await readJson(response)
+      expect(payload.data.order.status).toBe('READY')
       expect(fetchStorefrontOrder).toHaveBeenCalledWith({
         vendorId,
         orderId,

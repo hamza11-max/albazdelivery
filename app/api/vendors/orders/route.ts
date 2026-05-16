@@ -4,6 +4,7 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError, NotF
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitOrderUpdated } from '@/lib/events'
+import { checkFeatureAccess } from '@/lib/featureGate'
 import { orderQuerySchema } from '@/lib/validations/api'
 import { z } from 'zod'
 
@@ -170,31 +171,27 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { orderId, status } = body
+    const orderId = body?.orderId as string | undefined
+    const statusRaw = body?.status as string | undefined
+    const driverIdRaw = body?.driverId
+    const hasDriverField = driverIdRaw !== undefined
+    const hasStatus = typeof statusRaw === 'string' && statusRaw.trim().length > 0
 
-    if (!orderId || !status) {
-      return errorResponse(new Error('orderId and status are required'), 400)
+    if (!orderId || (!hasStatus && !hasDriverField)) {
+      return errorResponse(
+        new Error('orderId and at least one of status or driverId are required'),
+        400,
+      )
     }
 
-    // Validate orderId format
     try {
       z.string().cuid().parse(orderId)
     } catch {
       return errorResponse(new Error('Invalid order ID format'), 400)
     }
 
-    // Validate status
-    const allowedStatuses = ['ACCEPTED', 'PREPARING', 'READY', 'CANCELLED']
-    const normalizedStatus = status.toUpperCase()
-    if (!allowedStatuses.includes(normalizedStatus)) {
-      return errorResponse(new Error(`Invalid status for vendor. Allowed statuses: ${allowedStatuses.join(', ')}`), 400)
-    }
-
-    // Verify order belongs to vendor
     const order = await prisma.order.findFirst({
-      where: {
-        id: orderId,
-      },
+      where: { id: orderId },
       select: { id: true, status: true, vendorId: true },
     })
 
@@ -206,28 +203,80 @@ export async function PATCH(request: NextRequest) {
       throw new ForbiddenError('You can only update your own orders')
     }
 
-    // Prepare update data with timestamps
-    const updateData: any = { status: normalizedStatus }
+    const vendorScopeId =
+      order.vendorId || (session.user.role === 'VENDOR' ? session.user.id : null)
 
-    // Add appropriate timestamp based on status
-    switch (normalizedStatus) {
-      case 'ACCEPTED':
-        updateData.acceptedAt = new Date()
-        break
-      case 'PREPARING':
-        updateData.preparingAt = new Date()
-        break
-      case 'READY':
-        updateData.readyAt = new Date()
-        break
-      case 'CANCELLED':
-        updateData.cancelledAt = new Date()
-        break
+    const updateData: Record<string, unknown> = {}
+
+    if (hasStatus) {
+      const allowedStatuses = ['ACCEPTED', 'PREPARING', 'READY', 'CANCELLED']
+      const normalizedStatus = statusRaw!.toUpperCase()
+      if (!allowedStatuses.includes(normalizedStatus)) {
+        return errorResponse(
+          new Error(`Invalid status for vendor. Allowed statuses: ${allowedStatuses.join(', ')}`),
+          400,
+        )
+      }
+      updateData.status = normalizedStatus
+      switch (normalizedStatus) {
+        case 'ACCEPTED':
+          updateData.acceptedAt = new Date()
+          break
+        case 'PREPARING':
+          updateData.preparingAt = new Date()
+          break
+        case 'READY':
+          updateData.readyAt = new Date()
+          break
+        case 'CANCELLED':
+          updateData.cancelledAt = new Date()
+          break
+        default:
+          break
+      }
+    }
+
+    if (hasDriverField) {
+      if (!vendorScopeId) {
+        return errorResponse(new Error('Order has no vendor for driver assignment'), 400)
+      }
+      const fleetOk = await checkFeatureAccess(vendorScopeId, 'driverFleetManagement')
+      if (!fleetOk) {
+        throw new ForbiddenError('Driver assignment requires Professional plan or higher')
+      }
+
+      let nextDriverId: string | null
+      if (driverIdRaw === null || driverIdRaw === '') {
+        nextDriverId = null
+      } else if (typeof driverIdRaw === 'string' && driverIdRaw.length > 0) {
+        const link = await prisma.driverVendorConnection.findFirst({
+          where: {
+            vendorId: vendorScopeId,
+            driverId: driverIdRaw,
+            status: 'ACCEPTED',
+            availableForDispatch: true,
+          },
+          select: { id: true },
+        })
+        if (!link) {
+          throw new ForbiddenError('Driver is not connected to your store')
+        }
+        nextDriverId = driverIdRaw
+      } else {
+        return errorResponse(new Error('driverId must be string, empty, or null'), 400)
+      }
+
+      updateData.driverId = nextDriverId
+      updateData.assignedAt = nextDriverId ? new Date() : null
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return errorResponse(new Error('No valid updates'), 400)
     }
 
     const updatedOrder = await prisma.order.update({
       where: { id: orderId },
-      data: updateData,
+      data: updateData as Record<string, unknown>,
       include: {
         items: {
           include: {
@@ -271,7 +320,7 @@ export async function PATCH(request: NextRequest) {
       },
     })
 
-    console.log('[API] Vendor updated order:', orderId, '->', normalizedStatus)
+    console.log('[API] Vendor updated order:', orderId, updateData)
     emitOrderUpdated(updatedOrder)
 
     return successResponse({ order: updatedOrder })

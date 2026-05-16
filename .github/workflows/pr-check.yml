@@ -36,8 +36,11 @@ jobs:
       - name: Verify awaited applyRateLimit in API routes
         run: npm run check:rate-limit
 
-      - name: Run tests
-        run: npm test -- --runInBand
+      - name: Run API tests (mocked, no DB)
+        run: npm run test:api
+
+      - name: Run UI Jest tests
+        run: npm run test:jest-ui -- --ci --runInBand
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium

@@ -7,6 +7,7 @@ import {
   subscriptionStatusGrantsPlanFeatures,
   type PlanFeatures,
 } from "@/root/lib/subscription-plans"
+import { vendorDevDriverFleetUnlocked } from "@/root/lib/vendor-dev-flags"
 
 interface Subscription {
   id: string
@@ -69,6 +70,9 @@ export function useSubscription() {
   }
 
   const hasFeature = (feature: keyof PlanFeatures): boolean => {
+    if (feature === "driverFleetManagement" && vendorDevDriverFleetUnlocked()) {
+      return true
+    }
     if (!subscription) return false
 
     if (entitlements) {

@@ -9,6 +9,7 @@ import { createMockRequest, generateCuid } from '@/__tests__/helpers/test-utils'
 // Mock Prisma
 jest.mock('@/lib/prisma', () => ({
   prisma: {
+    $queryRaw: jest.fn(async () => [{ ok: 1 }]),
     inventoryProduct: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
@@ -17,9 +18,14 @@ jest.mock('@/lib/prisma', () => ({
       update: jest.fn(),
       delete: jest.fn(),
       updateMany: jest.fn(),
+      count: jest.fn(async () => 0),
     },
     supplier: {
       findFirst: jest.fn(),
+    },
+    /** Used by resolveVendorOwnerContextId / userActsAsVendorOwner in vendor-staff-access */
+    vendorStaffMember: {
+      findUnique: jest.fn(),
     },
   },
 }))
@@ -27,6 +33,14 @@ jest.mock('@/lib/prisma', () => ({
 // Mock auth
 jest.mock('@/lib/auth', () => ({
   auth: jest.fn(),
+}))
+
+jest.mock('@/lib/get-session-from-request', () => ({
+  getSessionFromRequest: jest.fn(),
+}))
+
+jest.mock('@/lib/featureGate', () => ({
+  checkUsageLimit: jest.fn(async () => true),
 }))
 
 // Mock rate limit
@@ -42,10 +56,17 @@ jest.mock('@/lib/events', () => ({
   emitOrderAssigned: jest.fn(),
 }))
 
+async function setupInventoryHandlerMocks() {
+  jest.clearAllMocks()
+  const { resetInventoryFallbackForTests } = await import('@/lib/api-handlers/erp/inventory')
+  resetInventoryFallbackForTests()
+  const { auth } = await import('@/lib/auth')
+  const { getSessionFromRequest } = await import('@/lib/get-session-from-request')
+  ;(getSessionFromRequest as jest.Mock).mockImplementation(() => auth())
+}
+
 describe('POST /api/erp/inventory', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
+  beforeEach(setupInventoryHandlerMocks)
 
   it('should create inventory product with valid data', async () => {
     const { auth } = await import('@/lib/auth')
@@ -224,9 +245,7 @@ describe('POST /api/erp/inventory', () => {
 })
 
 describe('GET /api/erp/inventory', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
+  beforeEach(setupInventoryHandlerMocks)
 
   it('should return inventory products for vendor', async () => {
     const { auth } = await import('@/lib/auth')
@@ -288,9 +307,7 @@ describe('GET /api/erp/inventory', () => {
 })
 
 describe('DELETE /api/erp/inventory', () => {
-  beforeEach(() => {
-    jest.clearAllMocks()
-  })
+  beforeEach(setupInventoryHandlerMocks)
 
   it('should delete product owned by vendor', async () => {
     const { auth } = await import('@/lib/auth')

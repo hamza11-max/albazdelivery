@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { auth } from "@/root/lib/auth"
+import { getSessionFromRequest } from "@/root/lib/get-session-from-request"
 import { prisma } from "@/root/lib/prisma"
 import { errorResponse, ForbiddenError, UnauthorizedError, successResponse } from "@/root/lib/errors"
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
     await applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
+    const session = await getSessionFromRequest(request)
     if (!session?.user?.id) throw new UnauthorizedError()
 
     const credentials = await prisma.webAuthnCredential.findMany({

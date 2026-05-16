@@ -56,10 +56,12 @@ const config: Config.InitialOptions = {
     '/__tests__/setupTests.ts',
     '/__tests__/jest-matchers.d.ts',
     '/__tests__/test-utils.tsx',
-    '/__tests__/mocks/'
+    '/__tests__/mocks/',
+    '/apps/vendor/.next/standalone/',
   ],
   modulePathIgnorePatterns: [
     '<rootDir>/apps/vendor/dist/',
+    '<rootDir>/apps/vendor/.next/standalone/',
   ],
   watchPathIgnorePatterns: [
     '<rootDir>/apps/vendor/dist/',

@@ -170,6 +170,22 @@ describe('middleware storefront host rewrite', () => {
     expect(getRewriteTarget(response)).toBeNull()
   })
 
+  it('does not rewrite reserved vendor. subdomain as storefront slug', async () => {
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('vendor.albazdelivery.com', '/shop')
+    const response = await middleware(request)
+
+    expect(getRewriteTarget(response)).toBeNull()
+  })
+
+  it('does not rewrite reserved drivers. subdomain', async () => {
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('drivers.albazdelivery.com', '/')
+    const response = await middleware(request)
+
+    expect(getRewriteTarget(response)).toBeNull()
+  })
+
   it('does not rewrite the base domain host', async () => {
     const middleware = (await import('@/middleware')).default
     const request = buildRequest('albazdelivery.com', '/about')

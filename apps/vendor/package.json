@@ -33,6 +33,7 @@
     "electron:build:vendor:desktop:other": "npm run electron:build:win:other",
     "electron:build:vendor:desktop:all-verticals": "npm run electron:build:win:all-verticals",
     "electron:verify": "node scripts/verify-build.js",
+    "electron:verify:strict": "node scripts/verify-build.js --strict",
     "setup:icons": "node scripts/setup-icons.js",
     "optimize:brand-logo": "node scripts/strip-albaz-logo-bg.mjs",
     "optimize:topbar-bird": "node scripts/process-topbar-bird-logo.mjs",

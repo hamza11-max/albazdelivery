@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { resolveStorefrontTenant } from '@/lib/domains/resolve-tenant-from-headers'
 import { getVendorCatalog } from '@/lib/storefront/catalog'
 import { ProductCard } from './_storefront/ProductCard'
@@ -70,11 +71,53 @@ export default async function StorefrontHome({ params }: PageProps) {
               {catalog.totalProducts === 1 ? '' : 's'}
             </span>
           </div>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link
+              href="/menu"
+              className="rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-sm"
+              style={{ backgroundColor: accent }}
+            >
+              Browse menu
+            </Link>
+            <Link
+              href="/cart"
+              className={`rounded-full px-5 py-2.5 text-sm font-semibold ${
+                tenant.vendor.storefrontHeroUrl
+                  ? 'bg-white/15 text-white ring-1 ring-white/30'
+                  : 'bg-white text-slate-800 ring-1 ring-slate-200'
+              }`}
+            >
+              View cart
+            </Link>
+          </div>
         </div>
       </section>
 
+      {catalog.featuredProducts.length > 0 ? (
+        <section className="mx-auto max-w-5xl px-4 py-8">
+          <div className="mb-4 flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                Featured
+              </p>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Popular picks
+              </h2>
+            </div>
+            <Link href="/menu" className="text-sm font-medium" style={{ color: accent }}>
+              See all
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {catalog.featuredProducts.slice(0, 4).map((product) => (
+              <ProductCard key={product.id} product={product} accent={accent} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {/* Catalog */}
-      <section className="mx-auto max-w-5xl px-4 py-8">
+      <section className="mx-auto max-w-5xl px-4 pb-8">
         {catalog.stores.length === 0 ? (
           <EmptyCatalog />
         ) : (

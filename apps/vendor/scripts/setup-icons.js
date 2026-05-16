@@ -2,17 +2,88 @@
 
 /**
  * Icon Setup Helper Script
- * Uses logo.png as source; generates logo.ico for Windows (electron-builder uses assets/logo.ico).
+ * - Syncs `public/logo.png` → `assets/logo.png` so Electron matches the browser mark.
+ * - Generates `logo.ico` + copies to `build/icon.ico` for electron-builder.
+ * - Writes square web assets: icon-192/512, apple-touch-icon, favicon.ico in public/.
  */
 
 const fs = require('fs')
 const path = require('path')
 
-const assetsDir = path.join(__dirname, '../assets')
+const vendorRoot = path.join(__dirname, '..')
+const assetsDir = path.join(vendorRoot, 'assets')
+const publicDir = path.join(vendorRoot, 'public')
 const logoPath = path.join(assetsDir, 'logo.png')
+const publicLogoPath = path.join(publicDir, 'logo.png')
 const logoIcoPath = path.join(assetsDir, 'logo.ico')
 
 console.log('🎨 AlBaz Vendor - Icon Setup Helper\n')
+
+/** Single source for the dashboard mark in the browser lives in `public/`; Electron reads `assets/`. */
+function syncPublicLogoToAssets() {
+  if (!fs.existsSync(publicLogoPath)) {
+    if (!fs.existsSync(logoPath)) {
+      console.warn('   No public/logo.png or assets/logo.png — add artwork first')
+    }
+    return
+  }
+  fs.mkdirSync(assetsDir, { recursive: true })
+  fs.copyFileSync(publicLogoPath, logoPath)
+  console.log('   Synced public/logo.png → assets/logo.png')
+}
+
+async function writeSquarePngOutputs() {
+  if (!fs.existsSync(logoPath)) return false
+  let sharp
+  try {
+    sharp = require('sharp')
+  } catch {
+    console.warn('   sharp unavailable; skipping web PNG icons')
+    return false
+  }
+  const write = async (relativeName, px) => {
+    const out = path.join(publicDir, relativeName)
+    await sharp(logoPath)
+      .resize(px, px, {
+        fit: 'contain',
+        background: { r: 18, g: 27, b: 38, alpha: 1 }, // matches theme_color / background
+      })
+      .png({ compressionLevel: 9 })
+      .toFile(out)
+    console.log(`   ✅ public/${relativeName} (${px}×${px})`)
+    return true
+  }
+  if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true })
+  await write('icon-192.png', 192)
+  await write('icon-512.png', 512)
+  await sharp(logoPath)
+    .resize(180, 180, {
+      fit: 'contain',
+      background: { r: 18, g: 27, b: 38, alpha: 1 },
+    })
+    .png({ compressionLevel: 9 })
+    .toFile(path.join(publicDir, 'apple-touch-icon.png'))
+  console.log('   ✅ public/apple-touch-icon.png (180×180)')
+  return true
+}
+
+async function copyIcoToPublicFavicon() {
+  const dest = path.join(publicDir, 'favicon.ico')
+  if (!fs.existsSync(logoIcoPath)) return
+  if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true })
+  fs.copyFileSync(logoIcoPath, dest)
+  console.log('   ✅ Copied logo.ico → public/favicon.ico')
+}
+
+/** Square PNGs + favicon from current assets/logo.png and assets/logo.ico. */
+async function refreshWebDerivedIcons() {
+  try {
+    await writeSquarePngOutputs()
+  } catch (err) {
+    console.warn('   Web PNG icons skipped:', err.message)
+  }
+  await copyIcoToPublicFavicon()
+}
 
 // Try to generate logo.ico from logo.png (used by Electron Windows exe and window icon)
 function tryGenerateIco() {
@@ -46,6 +117,8 @@ async function resolveIcoSourcePng() {
 }
 
 async function run() {
+  syncPublicLogoToAssets()
+
   const pngToIco = tryGenerateIco()
   if (fs.existsSync(logoPath) && pngToIco) {
     console.log('   Generating logo.ico from logo.png...')
@@ -128,6 +201,8 @@ async function run() {
     console.log('✅ Created fallback logo.ico')
   }
 
+  if (fs.existsSync(logoIcoPath)) await refreshWebDerivedIcons()
+
   // Status: electron-builder expects assets/logo.ico (win), assets/logo.icns (mac), assets/logo.png (linux)
   const icons = {
     'logo.ico (Windows exe & window)': logoIcoPath,
@@ -142,7 +217,7 @@ async function run() {
   }
 
   // electron-builder expects buildResources/build/icon.ico for Windows exe & shortcuts
-  const buildDir = path.join(__dirname, '../build')
+  const buildDir = path.join(vendorRoot, 'build')
   const buildIconPath = path.join(buildDir, 'icon.ico')
   if (fs.existsSync(logoIcoPath)) {
     if (!fs.existsSync(buildDir)) fs.mkdirSync(buildDir, { recursive: true })

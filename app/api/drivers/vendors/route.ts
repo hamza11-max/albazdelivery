@@ -42,20 +42,25 @@ export async function GET(request: NextRequest) {
     const connections = await prisma.driverVendorConnection.findMany({
       where: { driverId: session.user.id },
       select: {
+        id: true,
         vendorId: true,
         status: true,
+        connectionSource: true,
       },
     })
 
-    const connectionMap = new Map(
-      connections.map((c) => [c.vendorId, c.status])
+    const connectionByVendor = new Map(
+      connections.map((c) => [
+        c.vendorId,
+        { id: c.id, status: c.status, connectionSource: c.connectionSource },
+      ])
     )
 
     // Format vendors with connection status
     const vendorsWithStatus = vendors
       .filter((v) => v.stores.length > 0) // Only vendors with active stores
       .map((vendor) => {
-        const connectionStatus = connectionMap.get(vendor.id) || null
+        const conn = connectionByVendor.get(vendor.id)
         return {
           id: vendor.id,
           name: vendor.name,
@@ -65,7 +70,10 @@ export async function GET(request: NextRequest) {
           city: vendor.city,
           address: vendor.address,
           stores: vendor.stores,
-          connectionStatus, // null = not requested, PENDING, ACCEPTED, REJECTED
+          connectionStatus: conn?.status ?? null,
+          connectionSource: conn?.connectionSource ?? null,
+          /** Present when a row exists; required for accept/decline vendor invites */
+          connectionId: conn?.id ?? null,
         }
       })
 
@@ -125,6 +133,14 @@ export async function POST(request: NextRequest) {
         return errorResponse(new Error('Already connected to this vendor'), 400)
       }
       if (existingConnection.status === 'PENDING') {
+        if (existingConnection.connectionSource === 'VENDOR_INVITED') {
+          return errorResponse(
+            new Error(
+              'You have a pending invitation from this vendor. Accept or decline it on your driver dashboard.'
+            ),
+            400
+          )
+        }
         return errorResponse(new Error('Connection request already pending'), 400)
       }
       if (existingConnection.status === 'REJECTED') {
@@ -133,6 +149,7 @@ export async function POST(request: NextRequest) {
           where: { id: existingConnection.id },
           data: {
             status: 'PENDING',
+            connectionSource: 'DRIVER_REQUESTED',
             requestedAt: new Date(),
             respondedAt: null,
           },
@@ -145,6 +162,7 @@ export async function POST(request: NextRequest) {
           driverId: session.user.id,
           vendorId,
           status: 'PENDING',
+          connectionSource: 'DRIVER_REQUESTED',
         },
       })
     }

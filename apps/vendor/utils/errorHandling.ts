@@ -1,5 +1,7 @@
 "use client"
 
+import { electronFetch, isElectronRuntime } from "@/lib/electron-fetch"
+
 /**
  * Custom error classes for better error handling
  */
@@ -309,13 +311,20 @@ export async function safeFetch(
   url: string,
   options?: RequestInit
 ): Promise<Response> {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(options?.headers as Record<string, string> | undefined),
+  }
+  const init: RequestInit = { ...options, headers }
+
   try {
+    if (typeof window !== "undefined" && isElectronRuntime()) {
+      return await electronFetch(url, init)
+    }
+
     const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
+      ...init,
+      credentials: init.credentials ?? "include",
     })
     return response
   } catch (error) {

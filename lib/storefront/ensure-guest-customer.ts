@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
+import { ValidationError } from '@/lib/errors'
 
 /**
  * Normalize a loosely-typed phone string to the Algerian local format used
@@ -41,7 +42,7 @@ export async function ensureGuestCustomerByPhone({
 }): Promise<{ id: string; phone: string; name: string }> {
   const normalized = normalizeAlgerianPhoneLoose(phone)
   if (!normalized) {
-    throw new Error('Invalid Algerian phone number')
+    throw new ValidationError('Invalid Algerian phone number')
   }
 
   const existing = await prisma.user.findUnique({

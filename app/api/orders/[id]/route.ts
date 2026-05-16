@@ -6,6 +6,8 @@ import { auth } from '@/lib/auth'
 import { emitOrderUpdated } from '@/lib/events'
 import { updateOrderStatusSchema } from '@/lib/validations/order'
 import { userActsAsVendorOwner } from '@/lib/vendor-staff-access'
+import { resolveVendorBySlugOrHost } from '@/lib/storefront/resolve-vendor-slug'
+import { fetchStorefrontOrder } from '@/lib/storefront/orders'
 
 // GET /api/orders/[id] - Get a specific order
 export async function GET(
@@ -16,6 +18,27 @@ export async function GET(
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const paramsResolved = await context.params
+    const token =
+      request.nextUrl.searchParams.get('token') ||
+      request.nextUrl.searchParams.get('t')
+    if (token) {
+      const vendor = await resolveVendorBySlugOrHost({
+        slug: request.nextUrl.searchParams.get('vendorSlug'),
+        tenantHost: request.headers.get('x-tenant-host'),
+      })
+      if (!vendor) {
+        return errorResponse(new Error('Order not found'), 404)
+      }
+      const storefrontOrder = await fetchStorefrontOrder({
+        vendorId: vendor.id,
+        orderId: paramsResolved.id,
+        token,
+      })
+      if (!storefrontOrder) {
+        return errorResponse(new Error('Order not found'), 404)
+      }
+      return successResponse({ order: storefrontOrder })
+    }
 
     const session = await auth()
     if (!session?.user) {

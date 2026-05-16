@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useState } from 'react'
 import { ShoppingBag } from 'lucide-react'
 import { useStorefrontCart } from './StorefrontCartProvider'
+import { CartDrawer } from './CartDrawer'
 
 interface HeaderProps {
   vendor: {
@@ -17,6 +19,7 @@ interface HeaderProps {
 
 export function StorefrontHeader({ vendor }: HeaderProps) {
   const { totalItems } = useStorefrontCart()
+  const [cartOpen, setCartOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -51,9 +54,11 @@ export function StorefrontHeader({ vendor }: HeaderProps) {
           </div>
         </Link>
 
-        <Link
-          href="/cart"
+        <button
+          type="button"
+          onClick={() => setCartOpen(true)}
           className="relative inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+          aria-label={`Open cart with ${totalItems} items`}
         >
           <ShoppingBag className="h-4 w-4" />
           <span>Cart</span>
@@ -65,8 +70,13 @@ export function StorefrontHeader({ vendor }: HeaderProps) {
               {totalItems}
             </span>
           ) : null}
-        </Link>
+        </button>
       </div>
+      <CartDrawer
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        accent={vendor.accent}
+      />
     </header>
   )
 }

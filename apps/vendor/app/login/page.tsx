@@ -7,14 +7,16 @@ import { signIn } from "next-auth/react"
 import { Button } from "@/root/components/ui/button"
 import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
-import Link from "next/link"
 import { SHOP_TYPES, SHOP_TYPE_LABELS } from "../../config/shopTypes"
+import { VendorRegistrationLinks } from "../../components/auth/VendorRegistrationLinks"
 import { BRAND_MARK_SRC } from "@/lib/brand-mark"
 import {
   buildAuthenticationRequestOptions,
   serializeAuthenticationCredential,
   supportsWebAuthnInBrowser,
 } from "../../lib/webauthn-browser"
+import { submitRegistrationRequest } from "@/root/lib/auth/register-client"
+import { withApiBaseUrl } from "@/lib/config/api-base-url"
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
@@ -31,7 +33,9 @@ function LoginForm() {
   const [usePinLogin, setUsePinLogin] = useState(false)
   const [pin, setPin] = useState("")
   const [staffCode, setStaffCode] = useState("")
-  const [setupStep, setSetupStep] = useState<"passkey" | "shoptype" | "owner" | "login">("login")
+  const [setupStep, setSetupStep] = useState<
+    "passkey" | "shoptype" | "owner" | "pending" | "login"
+  >("login")
   const [isElectron, setIsElectron] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -152,26 +156,39 @@ function LoginForm() {
         password: ownerPassword,
       })
       if (result?.success) {
-        // Auto-register owner (vendor request) via API
         if (!result?.alreadyComplete) {
-          const registerResponse = await fetch('/api/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          const setup = await (window as any).electronAPI?.auth?.getSetup?.()
+          const shopType = setup?.shopType || setup?.lockedShopType || "other"
+          const reg = await submitRegistrationRequest(
+            {
+              role: "VENDOR",
               name: ownerName,
               email: ownerEmail,
               phone: ownerPhone,
               password: ownerPassword,
-              role: 'VENDOR',
+              shopType,
+            },
+            {
+              registerPath: withApiBaseUrl("/api/auth/register"),
+              registrationChannel: "electron",
               autoApprove: true,
-            }),
-          })
-          if (!registerResponse.ok) {
-            const data = await registerResponse.json().catch(() => null)
-            throw new Error(data?.error?.message || data?.message || 'Registration failed')
+            }
+          )
+          if (!reg.success) {
+            throw new Error(reg.error || "Registration failed")
           }
+          const data = reg.data as {
+            autoApproved?: boolean
+            pendingApproval?: boolean
+          } | undefined
+          setIdentifier(ownerEmail)
+          if (data?.pendingApproval) {
+            setSetupStep("pending")
+            return
+          }
+        } else {
+          setIdentifier(ownerEmail)
         }
-        setIdentifier(ownerEmail)
         setSetupStep("login")
       } else {
         if (result?.error === 'Setup already complete') {
@@ -237,7 +254,7 @@ function LoginForm() {
         if (result.error === 'CredentialsSignin') {
           // Since redirect: false prevents URL-based error codes, check user status via API
           try {
-            const statusResponse = await fetch('/api/auth/check-status', {
+            const statusResponse = await fetch(withApiBaseUrl('/api/auth/check-status'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ identifier }),
@@ -427,6 +444,7 @@ function LoginForm() {
               >
                 {loading ? "Vérification..." : "Vérifier"}
               </Button>
+              <VendorRegistrationLinks variant="inline" className="pt-2" />
             </form>
           ) : isElectron && setupStep === "shoptype" ? (
             <div className="space-y-4">
@@ -453,6 +471,7 @@ function LoginForm() {
                   )
                 })}
               </div>
+              <VendorRegistrationLinks variant="inline" className="pt-2" />
             </div>
           ) : isElectron && setupStep === "owner" ? (
             <form onSubmit={handleOwnerSetup} className="space-y-4">
@@ -521,6 +540,10 @@ function LoginForm() {
                   className="mt-1"
                 />
               </div>
+              <p className="text-xs text-gray-500">
+                Le compte est enregistré puis validé dans l&apos;application administrateur Albaz
+                (onglet Approbations), sauf approbation automatique en environnement de test.
+              </p>
               <Button
                 type="submit"
                 disabled={loading}
@@ -528,7 +551,22 @@ function LoginForm() {
               >
                 {loading ? "Création..." : "Créer le compte propriétaire"}
               </Button>
+              <VendorRegistrationLinks variant="inline" className="pt-1" />
             </form>
+          ) : isElectron && setupStep === "pending" ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm font-medium text-gray-800">Demande envoyée</p>
+              <p className="text-xs text-gray-500">{ownerEmail}</p>
+              <VendorRegistrationLinks variant="pending" showSignupAction={false} />
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => setSetupStep("login")}
+              >
+                Retour à la connexion
+              </Button>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {isElectron ? (
@@ -631,14 +669,7 @@ function LoginForm() {
             </form>
           )}
 
-          {!isElectron && (
-            <div className="mt-6 text-center text-sm text-gray-600">
-              <p>Vous n'avez pas de compte ?</p>
-              <Link href="/signup" className="text-teal-600 hover:text-teal-700 font-medium">
-                Créer un compte vendeur
-              </Link>
-            </div>
-          )}
+          {setupStep === "login" && <VendorRegistrationLinks />}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo, useRef, useCallback, FormEvent, Suspense } from "react"
 import type { ChangeEvent } from "react"
@@ -97,7 +97,7 @@ import { useBarcodeScanner } from "../../hooks/useBarcodeScanner"
 import { saveProduct, deleteProduct, postProductToDelivery } from "../../utils/productUtils"
 import { saveCustomer } from "../../utils/customerUtils"
 import { saveSupplier } from "../../utils/supplierUtils"
-import { updateOrderStatus } from "../../utils/orderUtils"
+import { assignOrderDriver, updateOrderStatus } from "../../utils/orderUtils"
 import { completeSale as completeSaleUtil } from "../../utils/saleUtils"
 import {
   getVendorPrinterDevice,
@@ -107,23 +107,22 @@ import {
 import { resetProductForm, resetCustomerForm } from "../../utils/formUtils"
 import { handleFileUpload as handleFileUploadUtil } from "../../utils/fileUtils"
 import { handleDataLoad as handleDataLoadUtil } from "../../utils/dataUtils"
-import { fetchDrivers as fetchDriversUtil, respondToDriverRequest as respondToDriverRequestUtil } from "../../utils/driverUtils"
+import {
+  fetchDrivers as fetchDriversUtil,
+  respondToDriverRequest as respondToDriverRequestUtil,
+  inviteVendorDriver as inviteVendorDriverUtil,
+  setDriverDispatchAvailability as setDriverDispatchAvailabilityUtil,
+} from "../../utils/driverUtils"
 import { fetchAIInsights as fetchAIInsightsUtil } from "../../utils/aiUtils"
 import { useDataLoading } from "../../hooks/useDataLoading"
 import { usePOSHandlers } from "../../hooks/usePOSHandlers"
-import { AdminVendorSelector } from "../../components/AdminVendorSelector"
 import { LoadingScreen } from "@/root/components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisionalSale } from "../../utils/electronUtils"
 import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
-import { ErrorBoundary } from "../../components/ErrorBoundary"
-import { VendorTopbar } from "../../components/navigation/VendorTopbar"
-import { VendorMenuGrid } from "../../components/navigation/VendorMenuGrid"
-import { WebAuthnPasskeysCard } from "../../components/security/WebAuthnPasskeysCard"
-import { VendorDomainsCard } from "../../components/security/VendorDomainsCard"
+import { VendorSecuritySettingsPanel } from "../../components/security/VendorSecuritySettingsPanel"
 import { VendorStorefrontWebPanel } from "../../components/VendorStorefrontWebPanel"
-import { VendorSubscriptionTrialPanel } from "../../components/VendorSubscriptionTrialPanel"
 import { vendorMenuItems } from "../../components/navigation/vendor-menu-items"
 import { NotificationsPanel, type VendorNotificationItem } from "../../components/navigation/NotificationsPanel"
 import { StaffSwitchDialog } from "../../components/navigation/StaffSwitchDialog"
@@ -134,8 +133,15 @@ import {
   type ShopType,
 } from "../../config/shopTypes"
 import { getVendorFeatureFlags } from "../../config/vendorFeatures"
+import { listAccessibleTabIds } from "../../config/vendorEntitlements"
+import { VendorShell } from "../../components/layout/VendorShell"
 import { setLightDarkTheme } from "@/root/lib/theme"
 import { useSubscription } from "@/root/hooks/useSubscription"
+import {
+  subscriptionStatusGrantsPlanFeatures,
+  PLAN_FEATURES,
+} from "@/root/lib/subscription-plans"
+import { resolveVendorEntitlements } from "@/root/lib/subscriptions/resolve-entitlements"
 
 // Types
 import type {
@@ -194,7 +200,12 @@ function VendorDashboardContent() {
   const pathname = usePathname()
   const { isAuthenticated, user, isLoading, status } = useAuth()
   const { toast } = useToast()
-  const { subscription, loading: subscriptionLoading, refetch: refetchSubscription } = useSubscription()
+  const {
+    subscription,
+    loading: subscriptionLoading,
+    refetch: refetchSubscription,
+    hasFeature,
+  } = useSubscription()
   const [ordersCustomerFilter, setOrdersCustomerFilter] = useState<string | null>(null)
   const [highlightOrderId, setHighlightOrderId] = useState<string | null>(null)
   
@@ -333,6 +344,20 @@ function VendorDashboardContent() {
     }
   }, [queryString, setActiveTab, vendorTabIds])
 
+  useEffect(() => {
+    const onSwitchTab = (e: Event) => {
+      const tab = (e as CustomEvent<string>).detail
+      if (typeof tab !== "string" || !vendorTabIds.has(tab)) return
+      setActiveTab(tab)
+      const p = new URLSearchParams(searchParams.toString())
+      p.set("tab", tab)
+      router.replace(`${pathname}?${p.toString()}`, { scroll: false })
+    }
+    if (typeof window === "undefined") return
+    window.addEventListener("switchTab", onSwitchTab as EventListener)
+    return () => window.removeEventListener("switchTab", onSwitchTab as EventListener)
+  }, [pathname, router, searchParams, setActiveTab, vendorTabIds])
+
   const clearOrdersCustomerFilter = useCallback(() => {
     setOrdersCustomerFilter(null)
     const p = new URLSearchParams(searchParams.toString())
@@ -391,17 +416,32 @@ function VendorDashboardContent() {
   )
 
   const vendorFeatures = useMemo(() => getVendorFeatureFlags(shopType), [shopType])
+  const subscriptionPlanFeatures = useMemo(() => {
+    const plan = subscription?.plan || "STARTER"
+    const status = subscription?.status || "TRIAL"
+    return resolveVendorEntitlements({ plan, status, featureOverrides: null })
+  }, [subscription?.plan, subscription?.status])
+  const subscriptionGrantsFeatures = useMemo(() => {
+    if (!subscription) return true
+    return subscriptionStatusGrantsPlanFeatures(subscription.plan, subscription.status)
+  }, [subscription])
   const allowedTabIds = useMemo(() => {
-    return getTabsForShopType(shopType).filter((id) => {
-      if (id === "dine-qr") return vendorFeatures.dineTablesUi
-      if (id === "accounting") return vendorFeatures.accountingModule
-      if (id === "kitchen") return vendorFeatures.kitchenBoard
-      if (id === "storefront") return !isElectronRuntime
-      return true
+    return listAccessibleTabIds({
+      shopType,
+      vendorFeatures,
+      planFeatures: subscriptionPlanFeatures ?? PLAN_FEATURES.STARTER,
+      isElectron: isElectronRuntime,
+      subscriptionGrantsFeatures,
     })
-  }, [shopType, vendorFeatures, isElectronRuntime])
+  }, [
+    shopType,
+    vendorFeatures,
+    subscriptionPlanFeatures,
+    isElectronRuntime,
+    subscriptionGrantsFeatures,
+  ])
   const shortcutItems = useMemo(() => {
-    const menuEntry = { id: "menu", labelFr: "Menu rapide", labelAr: "القائمة السريعة" }
+    const menuEntry = { id: "menu", labelFr: "Menu rapide", labelAr: "Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø³Ø±ÙŠØ¹Ø©" }
     const tabEntries = vendorMenuItems
       .filter((item) => allowedTabIds.includes(item.id))
       .map((item) => ({
@@ -464,6 +504,7 @@ function VendorDashboardContent() {
     }
   }, [isDarkMode])
 
+  const [settingsSubTab, setSettingsSubTab] = useState("shop")
   const [isUpdatingStoreStatus, setIsUpdatingStoreStatus] = useState(false)
   const [prepTimeMinutes, setPrepTimeMinutes] = useState(() => {
     if (typeof window === 'undefined') return 20
@@ -525,13 +566,13 @@ function VendorDashboardContent() {
     }
   })
   const LABEL_FIELD_OPTIONS = useMemo(() => [
-    { id: "sku", labelFr: "SKU", labelAr: "الرمز" },
-    { id: "name", labelFr: "Nom", labelAr: "الاسم" },
-    { id: "price", labelFr: "Prix", labelAr: "السعر" },
-    { id: "barcode", labelFr: "Code-barres", labelAr: "الباركود" },
-    { id: "category", labelFr: "Catégorie", labelAr: "الفئة" },
+    { id: "sku", labelFr: "SKU", labelAr: "Ø§Ù„Ø±Ù…Ø²" },
+    { id: "name", labelFr: "Nom", labelAr: "Ø§Ù„Ø§Ø³Ù…" },
+    { id: "price", labelFr: "Prix", labelAr: "Ø§Ù„Ø³Ø¹Ø±" },
+    { id: "barcode", labelFr: "Code-barres", labelAr: "Ø§Ù„Ø¨Ø§Ø±ÙƒÙˆØ¯" },
+    { id: "category", labelFr: "CatÃ©gorie", labelAr: "Ø§Ù„ÙØ¦Ø©" },
     { id: "rfid", labelFr: "RFID", labelAr: "RFID" },
-    { id: "shopname", labelFr: "Nom du magasin", labelAr: "اسم المتجر" },
+    { id: "shopname", labelFr: "Nom du magasin", labelAr: "Ø§Ø³Ù… Ø§Ù„Ù…ØªØ¬Ø±" },
   ], [])
   const [labelFields, setLabelFields] = useState<string[]>(() => {
     if (typeof window === 'undefined') return ['name', 'price', 'sku']
@@ -610,10 +651,10 @@ function VendorDashboardContent() {
     if (!api?.scanner?.connectSerial) return
     try {
       const res = await api.scanner.connectSerial(portPath, serialBaudRate)
-      if (res?.success) toast({ title: translate("Port série", "المنفذ التسلسلي"), description: translate("Connecté", "متصل") })
-      else toast({ title: translate("Erreur", "خطأ"), description: translate("Échec de la connexion au port", "فشل الاتصال بالمنفذ"), variant: "destructive" })
+      if (res?.success) toast({ title: translate("Port sÃ©rie", "Ø§Ù„Ù…Ù†ÙØ° Ø§Ù„ØªØ³Ù„Ø³Ù„ÙŠ"), description: translate("ConnectÃ©", "Ù…ØªØµÙ„") })
+      else toast({ title: translate("Erreur", "Ø®Ø·Ø£"), description: translate("Ã‰chec de la connexion au port", "ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ù…Ù†ÙØ°"), variant: "destructive" })
     } catch (e: any) {
-      toast({ title: translate("Erreur", "خطأ"), description: e?.message || translate("Échec de la connexion", "فشل الاتصال"), variant: "destructive" })
+      toast({ title: translate("Erreur", "Ø®Ø·Ø£"), description: e?.message || translate("Ã‰chec de la connexion", "ÙØ´Ù„ Ø§Ù„Ø§ØªØµØ§Ù„"), variant: "destructive" })
     }
   }, [serialBaudRate, toast, translate])
   const handleSerialBaudChange = useCallback((baud: number) => {
@@ -622,9 +663,9 @@ function VendorDashboardContent() {
     const api = (window as any).electronAPI
     if (!api?.scanner?.connectSerial) return
     api.scanner.connectSerial(selectedSerialPort, baud).then((res: any) => {
-      if (res?.success) toast({ title: translate("Vitesse mise à jour", "تم تحديث السرعة"), description: `${baud} baud` })
-      else toast({ title: translate("Erreur", "خطأ"), variant: "destructive" })
-    }).catch(() => toast({ title: translate("Erreur", "خطأ"), variant: "destructive" }))
+      if (res?.success) toast({ title: translate("Vitesse mise Ã  jour", "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø³Ø±Ø¹Ø©"), description: `${baud} baud` })
+      else toast({ title: translate("Erreur", "Ø®Ø·Ø£"), variant: "destructive" })
+    }).catch(() => toast({ title: translate("Erreur", "Ø®Ø·Ø£"), variant: "destructive" }))
   }, [selectedSerialPort, toast, translate])
   const BAUD_OPTIONS = [9600, 19200, 38400, 115200]
   const [staffRole, setStaffRole] = useState<"owner" | "manager" | "cashier">(() => {
@@ -804,29 +845,29 @@ function VendorDashboardContent() {
 
   const handleSwitchStaff = useCallback(async (staffCodeInput: string, pinInput: string) => {
     if (!staffCodeInput || !pinInput) {
-      return { ok: false, error: translate("Code staff et PIN requis.", "رمز الموظف وPIN مطلوبان.") }
+      return { ok: false, error: translate("Code staff et PIN requis.", "Ø±Ù…Ø² Ø§Ù„Ù…ÙˆØ¸Ù ÙˆPIN Ù…Ø·Ù„ÙˆØ¨Ø§Ù†.") }
     }
     const normalizedCode = staffCodeInput.replace(/\D/g, "").slice(0, 4)
     const account = staffAccounts.find((acc) => String(acc.staffCode || "").trim() === normalizedCode)
     if (!account) {
-      return { ok: false, error: translate("Staff introuvable.", "لم يتم العثور على الموظف.") }
+      return { ok: false, error: translate("Staff introuvable.", "Ù„Ù… ÙŠØªÙ… Ø§Ù„Ø¹Ø«ÙˆØ± Ø¹Ù„Ù‰ Ø§Ù„Ù…ÙˆØ¸Ù.") }
     }
     if (!account.pinHash || !account.pinSalt) {
-      return { ok: false, error: translate("Ce compte n'a pas de PIN actif.", "هذا الحساب لا يحتوي على PIN نشط.") }
+      return { ok: false, error: translate("Ce compte n'a pas de PIN actif.", "Ù‡Ø°Ø§ Ø§Ù„Ø­Ø³Ø§Ø¨ Ù„Ø§ ÙŠØ­ØªÙˆÙŠ Ø¹Ù„Ù‰ PIN Ù†Ø´Ø·.") }
     }
     const attemptedHash = await hashLocalPassword(pinInput, account.pinSalt)
     if (attemptedHash !== account.pinHash) {
-      return { ok: false, error: translate("PIN incorrect.", "PIN غير صحيح.") }
+      return { ok: false, error: translate("PIN incorrect.", "PIN ØºÙŠØ± ØµØ­ÙŠØ­.") }
     }
     const role = account.role === "manager" || account.role === "cashier" ? account.role : "owner"
     setStaffRole(role)
     pushNotification(
-      translate("Staff changé", "تم تبديل الموظف"),
-      translate(`Connecté en tant que ${account.name || role}.`, `تم الدخول كـ ${account.name || role}.`)
+      translate("Staff changÃ©", "ØªÙ… ØªØ¨Ø¯ÙŠÙ„ Ø§Ù„Ù…ÙˆØ¸Ù"),
+      translate(`ConnectÃ© en tant que ${account.name || role}.`, `ØªÙ… Ø§Ù„Ø¯Ø®ÙˆÙ„ ÙƒÙ€ ${account.name || role}.`)
     )
     toast({
-      title: translate("Staff actif mis à jour", "تم تحديث الموظف النشط"),
-      description: translate(`Rôle actif: ${role}`, `الدور النشط: ${role}`),
+      title: translate("Staff actif mis Ã  jour", "ØªÙ… ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…ÙˆØ¸Ù Ø§Ù„Ù†Ø´Ø·"),
+      description: translate(`RÃ´le actif: ${role}`, `Ø§Ù„Ø¯ÙˆØ± Ø§Ù„Ù†Ø´Ø·: ${role}`),
     })
     return { ok: true }
   }, [hashLocalPassword, pushNotification, setStaffRole, staffAccounts, toast, translate])
@@ -890,27 +931,27 @@ function VendorDashboardContent() {
   const buildSubscriptionReminder = useCallback((daysLeft: number) => {
     if (daysLeft <= 0) {
       return {
-        title: translate("Abonnement expiré", "انتهى الاشتراك"),
+        title: translate("Abonnement expirÃ©", "Ø§Ù†ØªÙ‡Ù‰ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ"),
         description: translate(
-          "Votre abonnement est expiré. Renouvelez maintenant pour éviter toute interruption des ventes.",
-          "انتهى اشتراكك. جدد الآن لتجنب أي انقطاع في المبيعات."
+          "Votre abonnement est expirÃ©. Renouvelez maintenant pour Ã©viter toute interruption des ventes.",
+          "Ø§Ù†ØªÙ‡Ù‰ Ø§Ø´ØªØ±Ø§ÙƒÙƒ. Ø¬Ø¯Ø¯ Ø§Ù„Ø¢Ù† Ù„ØªØ¬Ù†Ø¨ Ø£ÙŠ Ø§Ù†Ù‚Ø·Ø§Ø¹ ÙÙŠ Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª."
         ),
       }
     }
     if (daysLeft === 1) {
       return {
-        title: translate("Abonnement expire demain", "الاشتراك ينتهي غدًا"),
+        title: translate("Abonnement expire demain", "Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ ÙŠÙ†ØªÙ‡ÙŠ ØºØ¯Ù‹Ø§"),
         description: translate(
-          "Il reste 1 jour. Préparez le renouvellement pour garder l'application active.",
-          "يتبقى يوم واحد. جهز التجديد للحفاظ على عمل التطبيق."
+          "Il reste 1 jour. PrÃ©parez le renouvellement pour garder l'application active.",
+          "ÙŠØªØ¨Ù‚Ù‰ ÙŠÙˆÙ… ÙˆØ§Ø­Ø¯. Ø¬Ù‡Ø² Ø§Ù„ØªØ¬Ø¯ÙŠØ¯ Ù„Ù„Ø­ÙØ§Ø¸ Ø¹Ù„Ù‰ Ø¹Ù…Ù„ Ø§Ù„ØªØ·Ø¨ÙŠÙ‚."
         ),
       }
     }
     return {
-      title: translate("Rappel d'abonnement", "تذكير الاشتراك"),
+      title: translate("Rappel d'abonnement", "ØªØ°ÙƒÙŠØ± Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ"),
       description: translate(
         `Il reste ${daysLeft} jour(s) avant expiration de l'abonnement.`,
-        `يتبقى ${daysLeft} يوم قبل انتهاء الاشتراك.`
+        `ÙŠØªØ¨Ù‚Ù‰ ${daysLeft} ÙŠÙˆÙ… Ù‚Ø¨Ù„ Ø§Ù†ØªÙ‡Ø§Ø¡ Ø§Ù„Ø§Ø´ØªØ±Ø§Ùƒ.`
       ),
     }
   }, [translate])
@@ -940,19 +981,19 @@ function VendorDashboardContent() {
     if (!updater?.onUpdateAvailable || !updater?.onDownloaded) return
     const offAvailable = updater.onUpdateAvailable((payload: any) => {
       pushNotification(
-        translate("Mise à jour disponible", "تحديث متاح"),
+        translate("Mise Ã  jour disponible", "ØªØ­Ø¯ÙŠØ« Ù…ØªØ§Ø­"),
         translate(
-          `Version ${payload?.version || "nouvelle"} prête à télécharger.`,
-          `الإصدار ${payload?.version || "الجديد"} جاهز للتنزيل.`
+          `Version ${payload?.version || "nouvelle"} prÃªte Ã  tÃ©lÃ©charger.`,
+          `Ø§Ù„Ø¥ØµØ¯Ø§Ø± ${payload?.version || "Ø§Ù„Ø¬Ø¯ÙŠØ¯"} Ø¬Ø§Ù‡Ø² Ù„Ù„ØªÙ†Ø²ÙŠÙ„.`
         )
       )
     })
     const offDownloaded = updater.onDownloaded((payload: any) => {
       pushNotification(
-        translate("Mise à jour prête", "التحديث جاهز"),
+        translate("Mise Ã  jour prÃªte", "Ø§Ù„ØªØ­Ø¯ÙŠØ« Ø¬Ø§Ù‡Ø²"),
         translate(
-          `Version ${payload?.version || "nouvelle"} téléchargée. Cliquez sur redémarrer pour installer.`,
-          `تم تنزيل الإصدار ${payload?.version || "الجديد"}. اضغط إعادة التشغيل للتثبيت.`
+          `Version ${payload?.version || "nouvelle"} tÃ©lÃ©chargÃ©e. Cliquez sur redÃ©marrer pour installer.`,
+          `ØªÙ… ØªÙ†Ø²ÙŠÙ„ Ø§Ù„Ø¥ØµØ¯Ø§Ø± ${payload?.version || "Ø§Ù„Ø¬Ø¯ÙŠØ¯"}. Ø§Ø¶ØºØ· Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„ØªØ´ØºÙŠÙ„ Ù„Ù„ØªØ«Ø¨ÙŠØª.`
         )
       )
     })
@@ -969,10 +1010,10 @@ function VendorDashboardContent() {
     if (localStorage.getItem(key) === today) return
     localStorage.setItem(key, today)
     pushNotification(
-      translate("Stock faible", "مخزون منخفض"),
+      translate("Stock faible", "Ù…Ø®Ø²ÙˆÙ† Ù…Ù†Ø®ÙØ¶"),
       translate(
         `${lowStockProducts.length} produit(s) sont en stock faible.`,
-        `${lowStockProducts.length} منتجًا في مخزون منخفض.`
+        `${lowStockProducts.length} Ù…Ù†ØªØ¬Ù‹Ø§ ÙÙŠ Ù…Ø®Ø²ÙˆÙ† Ù…Ù†Ø®ÙØ¶.`
       )
     )
   }, [lowStockProducts, pushNotification, translate])
@@ -981,16 +1022,16 @@ function VendorDashboardContent() {
     if (!isElectronRuntime) return
     if (!staffForm.name || !staffForm.password || !staffForm.confirmPassword) {
       toast({
-        title: translate("Champs requis", "حقول مطلوبة"),
-        description: translate("Remplissez le nom et le mot de passe.", "املأ الاسم وكلمة المرور."),
+        title: translate("Champs requis", "Ø­Ù‚ÙˆÙ„ Ù…Ø·Ù„ÙˆØ¨Ø©"),
+        description: translate("Remplissez le nom et le mot de passe.", "Ø§Ù…Ù„Ø£ Ø§Ù„Ø§Ø³Ù… ÙˆÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±."),
         variant: "destructive",
       })
       return
     }
     if (staffForm.password !== staffForm.confirmPassword) {
       toast({
-        title: translate("Mot de passe invalide", "كلمة المرور غير متطابقة"),
-        description: translate("Les mots de passe ne correspondent pas.", "كلمتا المرور غير متطابقتين."),
+        title: translate("Mot de passe invalide", "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± Ù…ØªØ·Ø§Ø¨Ù‚Ø©"),
+        description: translate("Les mots de passe ne correspondent pas.", "ÙƒÙ„Ù…ØªØ§ Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± Ù…ØªØ·Ø§Ø¨Ù‚ØªÙŠÙ†."),
         variant: "destructive",
       })
       return
@@ -1002,8 +1043,8 @@ function VendorDashboardContent() {
     let staffCode = normalizeCode(staffForm.staffCode || '')
     if (staffCode && existingCodes.has(staffCode)) {
       toast({
-        title: translate("Code existant", "الرمز مستخدم"),
-        description: translate("Choisissez un code unique.", "اختر رمزاً فريداً."),
+        title: translate("Code existant", "Ø§Ù„Ø±Ù…Ø² Ù…Ø³ØªØ®Ø¯Ù…"),
+        description: translate("Choisissez un code unique.", "Ø§Ø®ØªØ± Ø±Ù…Ø²Ø§Ù‹ ÙØ±ÙŠØ¯Ø§Ù‹."),
         variant: "destructive",
       })
       return
@@ -1021,8 +1062,8 @@ function VendorDashboardContent() {
     }
     if (!staffCode) {
       toast({
-        title: translate("Erreur", "خطأ"),
-        description: translate("Impossible de générer un code unique.", "تعذر إنشاء رمز فريد."),
+        title: translate("Erreur", "Ø®Ø·Ø£"),
+        description: translate("Impossible de gÃ©nÃ©rer un code unique.", "ØªØ¹Ø°Ø± Ø¥Ù†Ø´Ø§Ø¡ Ø±Ù…Ø² ÙØ±ÙŠØ¯."),
         variant: "destructive",
       })
       return
@@ -1056,8 +1097,8 @@ function VendorDashboardContent() {
     setStaffAccounts(next)
     setStaffForm({ name: "", phone: "", email: "", role: "cashier", password: "", confirmPassword: "", pin: "", staffCode: "" })
     toast({
-      title: translate("Compte créé", "تم إنشاء الحساب"),
-      description: translate("Le compte du personnel est prêt.", "تم إنشاء حساب الموظف."),
+      title: translate("Compte crÃ©Ã©", "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨"),
+      description: translate("Le compte du personnel est prÃªt.", "ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø­Ø³Ø§Ø¨ Ø§Ù„Ù…ÙˆØ¸Ù."),
     })
   }, [hashLocalPassword, isElectronRuntime, staffAccounts, staffForm, toast, translate])
 
@@ -1070,8 +1111,8 @@ function VendorDashboardContent() {
     await Promise.resolve(electronAPI.store.set("device_staff_accounts", next)).catch(() => null)
     setStaffAccounts(next)
     toast({
-      title: translate("PIN réinitialisé", "تمت إعادة تعيين PIN"),
-      description: translate("Le personnel devra définir un nouveau PIN.", "يجب على الموظف تعيين PIN جديد."),
+      title: translate("PIN rÃ©initialisÃ©", "ØªÙ…Øª Ø¥Ø¹Ø§Ø¯Ø© ØªØ¹ÙŠÙŠÙ† PIN"),
+      description: translate("Le personnel devra dÃ©finir un nouveau PIN.", "ÙŠØ¬Ø¨ Ø¹Ù„Ù‰ Ø§Ù„Ù…ÙˆØ¸Ù ØªØ¹ÙŠÙŠÙ† PIN Ø¬Ø¯ÙŠØ¯."),
     })
     setStaffPinResetOpen(false)
     setStaffPinResetTarget(null)
@@ -1157,8 +1198,8 @@ function VendorDashboardContent() {
     if (!allowed && isAcceptingOrders) {
       setIsAcceptingOrders(false)
       toast({
-        title: translate("En pause hors horaires", "إيقاف مؤقت خارج أوقات العمل"),
-        description: translate("Réactivez vos horaires ou désactivez l'auto-pause.", "أعد ضبط الساعات أو عطّل الإيقاف التلقائي."),
+        title: translate("En pause hors horaires", "Ø¥ÙŠÙ‚Ø§Ù Ù…Ø¤Ù‚Øª Ø®Ø§Ø±Ø¬ Ø£ÙˆÙ‚Ø§Øª Ø§Ù„Ø¹Ù…Ù„"),
+        description: translate("RÃ©activez vos horaires ou dÃ©sactivez l'auto-pause.", "Ø£Ø¹Ø¯ Ø¶Ø¨Ø· Ø§Ù„Ø³Ø§Ø¹Ø§Øª Ø£Ùˆ Ø¹Ø·Ù‘Ù„ Ø§Ù„Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ."),
         variant: "destructive",
       })
     }
@@ -1187,8 +1228,8 @@ function VendorDashboardContent() {
   const handleToggleAcceptingOrders = useCallback(async () => {
     if (!storeId) {
       toast({
-        title: translate("Boutique introuvable", "المتجر غير متاح"),
-        description: translate("Impossible de changer l'état des commandes", "لا يمكن تغيير حالة الطلبات"),
+        title: translate("Boutique introuvable", "Ø§Ù„Ù…ØªØ¬Ø± ØºÙŠØ± Ù…ØªØ§Ø­"),
+        description: translate("Impossible de changer l'Ã©tat des commandes", "Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªØºÙŠÙŠØ± Ø­Ø§Ù„Ø© Ø§Ù„Ø·Ù„Ø¨Ø§Øª"),
         variant: "destructive",
       })
       return
@@ -1209,15 +1250,15 @@ function VendorDashboardContent() {
         throw new Error(data?.error || 'Failed to update store status')
       }
       toast({
-        title: next ? translate("Commandes réactivées", "تم تفعيل الطلبات") : translate("Commandes mises en pause", "تم إيقاف الطلبات"),
-        description: next ? translate("Les clients peuvent commander", "يمكن للزبائن الطلب الآن") : translate("Les nouvelles commandes sont bloquées", "تم إيقاف الطلبات الجديدة"),
+        title: next ? translate("Commandes rÃ©activÃ©es", "ØªÙ… ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª") : translate("Commandes mises en pause", "ØªÙ… Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„Ø·Ù„Ø¨Ø§Øª"),
+        description: next ? translate("Les clients peuvent commander", "ÙŠÙ…ÙƒÙ† Ù„Ù„Ø²Ø¨Ø§Ø¦Ù† Ø§Ù„Ø·Ù„Ø¨ Ø§Ù„Ø¢Ù†") : translate("Les nouvelles commandes sont bloquÃ©es", "ØªÙ… Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø©"),
       })
     } catch (error) {
       console.error('[Vendor] Failed to toggle orders:', error)
       setIsAcceptingOrders(!next)
       toast({
-        title: translate("Échec de la mise à jour", "فشل التحديث"),
-        description: translate("Réessayez ou contactez le support", "أعد المحاولة أو اتصل بالدعم"),
+        title: translate("Ã‰chec de la mise Ã  jour", "ÙØ´Ù„ Ø§Ù„ØªØ­Ø¯ÙŠØ«"),
+        description: translate("RÃ©essayez ou contactez le support", "Ø£Ø¹Ø¯ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ø£Ùˆ Ø§ØªØµÙ„ Ø¨Ø§Ù„Ø¯Ø¹Ù…"),
         variant: "destructive",
       })
     } finally {
@@ -1230,8 +1271,8 @@ function VendorDashboardContent() {
     const amountValue = parseFloat(disputeForm.amount || '0')
     if (!disputeForm.payoutId) {
       toast({
-        title: translate("Sélectionnez un paiement", "اختر دفعة"),
-        description: translate("Choisissez un payout avant d'envoyer", "اختر دفعة قبل الإرسال"),
+        title: translate("SÃ©lectionnez un paiement", "Ø§Ø®ØªØ± Ø¯ÙØ¹Ø©"),
+        description: translate("Choisissez un payout avant d'envoyer", "Ø§Ø®ØªØ± Ø¯ÙØ¹Ø© Ù‚Ø¨Ù„ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„"),
         variant: "destructive",
       })
       return
@@ -1239,8 +1280,8 @@ function VendorDashboardContent() {
 
     if (Number.isNaN(amountValue) || amountValue <= 0) {
       toast({
-        title: translate("Montant invalide", "مبلغ غير صالح"),
-        description: translate("Entrez un montant positif", "أدخل مبلغاً موجباً"),
+        title: translate("Montant invalide", "Ù…Ø¨Ù„Øº ØºÙŠØ± ØµØ§Ù„Ø­"),
+        description: translate("Entrez un montant positif", "Ø£Ø¯Ø®Ù„ Ù…Ø¨Ù„ØºØ§Ù‹ Ù…ÙˆØ¬Ø¨Ø§Ù‹"),
         variant: "destructive",
       })
       return
@@ -1248,8 +1289,8 @@ function VendorDashboardContent() {
 
     if (!disputeForm.reason || disputeForm.reason.trim().length < 5) {
       toast({
-        title: translate("Informations manquantes", "المعلومات ناقصة"),
-        description: translate("Ajoutez une raison (5 caractères min)", "أضف سبباً لا يقل عن 5 أحرف"),
+        title: translate("Informations manquantes", "Ø§Ù„Ù…Ø¹Ù„ÙˆÙ…Ø§Øª Ù†Ø§Ù‚ØµØ©"),
+        description: translate("Ajoutez une raison (5 caractÃ¨res min)", "Ø£Ø¶Ù Ø³Ø¨Ø¨Ø§Ù‹ Ù„Ø§ ÙŠÙ‚Ù„ Ø¹Ù† 5 Ø£Ø­Ø±Ù"),
         variant: "destructive",
       })
       return
@@ -1275,7 +1316,7 @@ function VendorDashboardContent() {
         const msg =
           json?.error?.message ||
           json?.message ||
-          translate("Échec de l'envoi", "فشل الإرسال")
+          translate("Ã‰chec de l'envoi", "ÙØ´Ù„ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„")
         throw new Error(typeof msg === "string" ? msg : "Request failed")
       }
       const d = json.data?.dispute
@@ -1294,13 +1335,13 @@ function VendorDashboardContent() {
       }
       setDisputeForm({ payoutId: '', orderId: '', reason: '', amount: '' })
       toast({
-        title: translate("Réclamation enregistrée", "تم تسجيل الاعتراض"),
-        description: translate("Nous traiterons votre demande", "سنعالج طلبك"),
+        title: translate("RÃ©clamation enregistrÃ©e", "ØªÙ… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø§Ø¹ØªØ±Ø§Ø¶"),
+        description: translate("Nous traiterons votre demande", "Ø³Ù†Ø¹Ø§Ù„Ø¬ Ø·Ù„Ø¨Ùƒ"),
       })
     } catch (error) {
       toast({
-        title: translate("Échec de l'envoi", "فشل الإرسال"),
-        description: translate("Réessayez ou contactez le support", "أعد المحاولة أو اتصل بالدعم"),
+        title: translate("Ã‰chec de l'envoi", "ÙØ´Ù„ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„"),
+        description: translate("RÃ©essayez ou contactez le support", "Ø£Ø¹Ø¯ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ø£Ùˆ Ø§ØªØµÙ„ Ø¨Ø§Ù„Ø¯Ø¹Ù…"),
         variant: "destructive",
       })
     } finally {
@@ -1415,10 +1456,10 @@ function VendorDashboardContent() {
           fetchInventory(activeVendorId)
           fetchSales(activeVendorId, { skipCache: true })
           toast({
-            title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"),
+            title: translate("Ventes synchronisÃ©es", "ØªÙ…Øª Ù…Ø²Ø§Ù…Ù†Ø© Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª"),
             description: translate(
-              `${stats.syncedSales} vente(s) ont été envoyées`,
-              `تم إرسال ${stats.syncedSales} عملية بيع`
+              `${stats.syncedSales} vente(s) ont Ã©tÃ© envoyÃ©es`,
+              `ØªÙ… Ø¥Ø±Ø³Ø§Ù„ ${stats.syncedSales} Ø¹Ù…Ù„ÙŠØ© Ø¨ÙŠØ¹`
             ),
           })
         }
@@ -1467,10 +1508,10 @@ function VendorDashboardContent() {
         fetchInventory(activeVendorId)
         fetchSales(activeVendorId, { skipCache: true })
         toast({
-          title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"),
+          title: translate("Ventes synchronisÃ©es", "ØªÙ…Øª Ù…Ø²Ø§Ù…Ù†Ø© Ø§Ù„Ù…Ø¨ÙŠØ¹Ø§Øª"),
           description: translate(
-            `${syncedCount} vente(s) ont été envoyées`,
-            `تم إرسال ${syncedCount} عملية بيع`
+            `${syncedCount} vente(s) ont Ã©tÃ© envoyÃ©es`,
+            `ØªÙ… Ø¥Ø±Ø³Ø§Ù„ ${syncedCount} Ø¹Ù…Ù„ÙŠØ© Ø¨ÙŠØ¹`
           ),
         })
       }
@@ -1485,13 +1526,11 @@ function VendorDashboardContent() {
     if (typeof window !== "undefined") {
       window.addEventListener("online", handleOnline)
     }
-    const interval = setInterval(syncOfflineSales, 15000)
 
     return () => {
       if (typeof window !== "undefined") {
         window.removeEventListener("online", handleOnline)
       }
-      clearInterval(interval)
     }
   }, [syncOfflineSales])
 
@@ -1570,7 +1609,7 @@ function VendorDashboardContent() {
     return () => window.removeEventListener("keydown", handleKeydown)
   }, [allowedTabIds, setActiveTab])
 
-  // Load vendor store info to control intake/pause (skip in Electron offline mode — no web session)
+  // Load vendor store info to control intake/pause (skip in Electron offline mode â€” no web session)
   useEffect(() => {
     const targetVendorId = isAdmin ? activeVendorId : effectiveUser?.id
     if (!targetVendorId) return
@@ -1669,8 +1708,8 @@ function VendorDashboardContent() {
 
     if (!coupon) {
       toast({
-        title: translate("Coupon invalide", "كوبون غير صالح"),
-        description: translate("Le code coupon n'existe pas", "رمز الكوبون غير موجود"),
+        title: translate("Coupon invalide", "ÙƒÙˆØ¨ÙˆÙ† ØºÙŠØ± ØµØ§Ù„Ø­"),
+        description: translate("Le code coupon n'existe pas", "Ø±Ù…Ø² Ø§Ù„ÙƒÙˆØ¨ÙˆÙ† ØºÙŠØ± Ù…ÙˆØ¬ÙˆØ¯"),
         variant: "destructive",
       })
       return
@@ -1682,13 +1721,13 @@ function VendorDashboardContent() {
       setPosDiscount(result.discount)
       setPosDiscountPercent((result.discount / cartSubtotal) * 100)
       toast({
-        title: translate("Coupon appliqué", "تم تطبيق الكوبون"),
-        description: translate(`Réduction de ${result.discount.toFixed(2)} DZD appliquée`, `تم تطبيق خصم بقيمة ${result.discount.toFixed(2)} دج`),
+        title: translate("Coupon appliquÃ©", "ØªÙ… ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„ÙƒÙˆØ¨ÙˆÙ†"),
+        description: translate(`RÃ©duction de ${result.discount.toFixed(2)} DZD appliquÃ©e`, `ØªÙ… ØªØ·Ø¨ÙŠÙ‚ Ø®ØµÙ… Ø¨Ù‚ÙŠÙ…Ø© ${result.discount.toFixed(2)} Ø¯Ø¬`),
       })
     } else {
       toast({
-        title: translate("Coupon non applicable", "الكوبون غير قابل للتطبيق"),
-        description: translate("Le coupon ne peut pas être appliqué à cette commande", "لا يمكن تطبيق الكوبون على هذا الطلب"),
+        title: translate("Coupon non applicable", "Ø§Ù„ÙƒÙˆØ¨ÙˆÙ† ØºÙŠØ± Ù‚Ø§Ø¨Ù„ Ù„Ù„ØªØ·Ø¨ÙŠÙ‚"),
+        description: translate("Le coupon ne peut pas Ãªtre appliquÃ© Ã  cette commande", "Ù„Ø§ ÙŠÙ…ÙƒÙ† ØªØ·Ø¨ÙŠÙ‚ Ø§Ù„ÙƒÙˆØ¨ÙˆÙ† Ø¹Ù„Ù‰ Ù‡Ø°Ø§ Ø§Ù„Ø·Ù„Ø¨"),
         variant: "destructive",
       })
     }
@@ -1763,16 +1802,16 @@ function VendorDashboardContent() {
         } as any)
         playSuccessSound()
         toast({
-          title: translate("Produit ajouté (RFID)", "تمت الإضافة (RFID)"),
+          title: translate("Produit ajoutÃ© (RFID)", "ØªÙ…Øª Ø§Ù„Ø¥Ø¶Ø§ÙØ© (RFID)"),
           description: product.name,
         })
       } else {
         setPosSearch(tagId.trim())
         toast({
-          title: translate("RFID non lié", "الوسم غير مرتبط"),
+          title: translate("RFID non liÃ©", "Ø§Ù„ÙˆØ³Ù… ØºÙŠØ± Ù…Ø±ØªØ¨Ø·"),
           description: translate(
             "Aucun produit pour ce tag. Vous pouvez rechercher par code.",
-            "لا يوجد منتج لهذا الوسم. يمكنك البحث بالرمز."
+            "Ù„Ø§ ÙŠÙˆØ¬Ø¯ Ù…Ù†ØªØ¬ Ù„Ù‡Ø°Ø§ Ø§Ù„ÙˆØ³Ù…. ÙŠÙ…ÙƒÙ†Ùƒ Ø§Ù„Ø¨Ø­Ø« Ø¨Ø§Ù„Ø±Ù…Ø²."
           ),
           variant: "destructive",
         })
@@ -1811,7 +1850,7 @@ function VendorDashboardContent() {
         } as any)
         playSuccessSound()
         toast({
-          title: translate("Produit ajouté", "تمت الإضافة"),
+          title: translate("Produit ajoutÃ©", "ØªÙ…Øª Ø§Ù„Ø¥Ø¶Ø§ÙØ©"),
           description: product.name,
         })
       } else {
@@ -1921,6 +1960,18 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   }
 
   // Update Order Status - using utility function
+  const handleAssignOrderDriver = async (order: Order, driverUserId: string | null) => {
+    await assignOrderDriver({
+      orderId: String(order.id),
+      driverId: driverUserId,
+      fetchOrders,
+      activeVendorId,
+      toast,
+      translate,
+      playSuccessSound,
+    })
+  }
+
   const handleUpdateOrderStatus = async (order: Order, status: string) => {
     await updateOrderStatus({
       orderId: order.id,
@@ -1963,9 +2014,40 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     })
   }
 
+  const inviteVendorDriverHandler = async (params: { email?: string; phone?: string }) => {
+    await inviteVendorDriverUtil({
+      email: params.email,
+      phone: params.phone,
+      fetchDrivers,
+      toast,
+      translate,
+      playSuccessSound,
+    })
+  }
+
+  const handleDriverDispatchChange = async (driverId: string, availableForDispatch: boolean) => {
+    await setDriverDispatchAvailabilityUtil({
+      driverId,
+      availableForDispatch,
+      fetchDrivers,
+      toast,
+      translate,
+      playSuccessSound,
+    })
+  }
+
+  const connectedDriversForDispatch = useMemo(
+    () =>
+      connectedDrivers.filter(
+        (c: { availableForDispatch?: boolean; driver?: { id?: string } }) =>
+          c?.availableForDispatch !== false && Boolean(c?.driver?.id),
+      ),
+    [connectedDrivers],
+  )
+
   // Delete Product - using utility function
   const handleDeleteProduct = async (id: number | string) => {
-    if (!confirm(translate("Êtes-vous sûr de vouloir supprimer ce produit?", "هل أنت متأكد من حذف هذا المنتج؟"))) return
+    if (!confirm(translate("ÃŠtes-vous sÃ»r de vouloir supprimer ce produit?", "Ù‡Ù„ Ø£Ù†Øª Ù…ØªØ£ÙƒØ¯ Ù…Ù† Ø­Ø°Ù Ù‡Ø°Ø§ Ø§Ù„Ù…Ù†ØªØ¬ØŸ"))) return
     await deleteProduct({
       id,
       activeVendorId,
@@ -1992,8 +2074,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         setIsAcceptingOrders(false)
       }
       toast({
-        title: translate("En pause (hors horaires)", "إيقاف مؤقت (خارج التوقيت)"),
-        description: translate("Modifiez vos horaires ou désactivez l'auto-pause pour reprendre.", "عدّل ساعات العمل أو عطّل الإيقاف التلقائي للمتابعة."),
+        title: translate("En pause (hors horaires)", "Ø¥ÙŠÙ‚Ø§Ù Ù…Ø¤Ù‚Øª (Ø®Ø§Ø±Ø¬ Ø§Ù„ØªÙˆÙ‚ÙŠØª)"),
+        description: translate("Modifiez vos horaires ou dÃ©sactivez l'auto-pause pour reprendre.", "Ø¹Ø¯Ù‘Ù„ Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ø¹Ù…Ù„ Ø£Ùˆ Ø¹Ø·Ù‘Ù„ Ø§Ù„Ø¥ÙŠÙ‚Ø§Ù Ø§Ù„ØªÙ„Ù‚Ø§Ø¦ÙŠ Ù„Ù„Ù…ØªØ§Ø¨Ø¹Ø©."),
         variant: "destructive",
       })
       return false
@@ -2005,8 +2087,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     }
     if (maxOrdersPerHour > 0 && trimmed.length >= maxOrdersPerHour) {
       toast({
-        title: translate("Capacité atteinte", "تم بلوغ السعة"),
-        description: translate("Réduisez le volume ou augmentez le seuil horaire dans Paramètres.", "خفّض الطلبات أو زد الحد في الساعة من الإعدادات."),
+        title: translate("CapacitÃ© atteinte", "ØªÙ… Ø¨Ù„ÙˆØº Ø§Ù„Ø³Ø¹Ø©"),
+        description: translate("RÃ©duisez le volume ou augmentez le seuil horaire dans ParamÃ¨tres.", "Ø®ÙÙ‘Ø¶ Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ø£Ùˆ Ø²Ø¯ Ø§Ù„Ø­Ø¯ ÙÙŠ Ø§Ù„Ø³Ø§Ø¹Ø© Ù…Ù† Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª."),
         variant: "destructive",
       })
       return false
@@ -2184,14 +2266,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         await storeAPI.set("vendor-shop-info", shopInfo)
       }
       toast({
-        title: translate("Informations enregistrées", "تم حفظ المعلومات"),
-        description: translate("Les données de boutique sont prêtes pour reçus et affichage.", "بيانات المتجر جاهزة للإيصالات والعرض."),
+        title: translate("Informations enregistrÃ©es", "ØªÙ… Ø­ÙØ¸ Ø§Ù„Ù…Ø¹Ù„ÙˆÙ…Ø§Øª"),
+        description: translate("Les donnÃ©es de boutique sont prÃªtes pour reÃ§us et affichage.", "Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ù…ØªØ¬Ø± Ø¬Ø§Ù‡Ø²Ø© Ù„Ù„Ø¥ÙŠØµØ§Ù„Ø§Øª ÙˆØ§Ù„Ø¹Ø±Ø¶."),
       })
     } catch (error) {
       console.error("[Vendor] Failed to save shop info", error)
       toast({
-        title: translate("Erreur de sauvegarde", "خطأ في الحفظ"),
-        description: translate("Réessayez ou vérifiez le stockage.", "أعد المحاولة أو تحقق من التخزين."),
+        title: translate("Erreur de sauvegarde", "Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø­ÙØ¸"),
+        description: translate("RÃ©essayez ou vÃ©rifiez le stockage.", "Ø£Ø¹Ø¯ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø© Ø£Ùˆ ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„ØªØ®Ø²ÙŠÙ†."),
         variant: "destructive",
       })
     }
@@ -2202,8 +2284,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const capped = Math.min(value, allowedMaxDiscount)
     if (value > allowedMaxDiscount) {
       toast({
-        title: translate("Limite de remise atteinte", "تم بلوغ حد الخصم"),
-        description: translate("Votre rôle limite la remise maximale.", "دورك يحدد الحد الأقصى للخصم."),
+        title: translate("Limite de remise atteinte", "ØªÙ… Ø¨Ù„ÙˆØº Ø­Ø¯ Ø§Ù„Ø®ØµÙ…"),
+        description: translate("Votre rÃ´le limite la remise maximale.", "Ø¯ÙˆØ±Ùƒ ÙŠØ­Ø¯Ø¯ Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ù„Ø®ØµÙ…."),
         variant: "destructive",
       })
     }
@@ -2239,62 +2321,33 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   }
 
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-transparent" dir={isArabic ? "rtl" : "ltr"}>
-      <main className="w-full min-w-0 overflow-x-hidden" dir={isArabic ? "rtl" : "ltr"}>
-        <div className="mx-auto h-full w-full max-w-[1900px] px-2 pb-4 pt-0 sm:px-4 sm:pb-6 2xl:px-6">
-          <AdminVendorSelector
-            isAdmin={isAdmin}
-            selectedVendorId={selectedVendorId}
-            setSelectedVendorId={setSelectedVendorId}
-            availableVendors={availableVendors}
-            isLoadingVendors={isLoadingVendors}
-            translate={translate}
-          />
-
-          <VendorTopbar
-            isElectronRuntime={isElectronRuntime}
-            isArabic={isArabic}
-            isDarkMode={isDarkMode}
-            notificationCount={unreadNotificationCount}
-            translate={translate}
-            onOpenDashboard={() => setActiveTab("dashboard")}
-            onOpenSettings={() => setActiveTab("settings")}
-            onOpenProfile={() => setShowStaffSwitchDialog(true)}
-            onOpenNotifications={() => setShowNotificationsPanel(true)}
-            onOpenMenuPage={() => setActiveTab("menu")}
-            onOpenHelp={() => setShowShortcutsDialog(true)}
-            onMinimize={handleMinimizeApp}
-            onLogout={handleLogoutAction}
-            onToggleTheme={() => {
-              const next = !isDarkMode
-              setLightDarkTheme(next)
-              setIsDarkMode(next)
-            }}
-          />
-
-          <VendorSubscriptionTrialPanel
-            variant="banner"
-            translate={translate}
-            subscription={subscription}
-            loading={subscriptionLoading}
-            onUpdated={async () => {
-              await refetchSubscription()
-            }}
-          />
-
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          {/* Topbar-driven navigation */}
-
-          <TabsContent value="menu" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
-            <VendorMenuGrid
-              allowedTabIds={allowedTabIds}
-              activeTab={activeTab}
-              translate={translate}
-              onSelectTab={setActiveTab}
-            />
-          </TabsContent>
-
+    <>
+      <VendorShell
+        isArabic={isArabic}
+        isElectronRuntime={isElectronRuntime}
+        isDarkMode={isDarkMode}
+        setIsDarkMode={setIsDarkMode}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        allowedTabIds={allowedTabIds}
+        translate={translate}
+        unreadNotificationCount={unreadNotificationCount}
+        onOpenProfile={() => setShowStaffSwitchDialog(true)}
+        onOpenNotifications={() => setShowNotificationsPanel(true)}
+        onOpenHelp={() => setShowShortcutsDialog(true)}
+        onMinimize={handleMinimizeApp}
+        onLogout={handleLogoutAction}
+        isAdmin={isAdmin}
+        selectedVendorId={selectedVendorId}
+        setSelectedVendorId={setSelectedVendorId}
+        availableVendors={availableVendors}
+        isLoadingVendors={isLoadingVendors}
+        subscription={subscription}
+        subscriptionLoading={subscriptionLoading}
+        onSubscriptionUpdated={async () => {
+          await refetchSubscription()
+        }}
+      >
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <DashboardTab
@@ -2378,7 +2431,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 (window as any).electronAPI?.print?.printProductLabels
                   ? async (items: InventoryProduct[]) => {
                       if (items.length === 0) {
-                        toast({ title: translate("Aucun produit", "لا منتجات"), description: translate("Sélectionnez des produits à imprimer", "اختر منتجات للطباعة"), variant: "destructive" })
+                        toast({ title: translate("Aucun produit", "Ù„Ø§ Ù…Ù†ØªØ¬Ø§Øª"), description: translate("SÃ©lectionnez des produits Ã  imprimer", "Ø§Ø®ØªØ± Ù…Ù†ØªØ¬Ø§Øª Ù„Ù„Ø·Ø¨Ø§Ø¹Ø©"), variant: "destructive" })
                         return
                       }
                       try {
@@ -2391,10 +2444,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                           shopName: shopInfo?.name || '',
                           deviceName: getVendorPrinterDevice(VENDOR_PRINTER_LABEL_KEY) || undefined,
                         })
-                        if (res?.success) toast({ title: translate("Impression lancée", "تم بدء الطباعة"), description: translate("Les étiquettes ont été envoyées à l'imprimante.", "تم إرسال الملصقات إلى الطابعة.") })
-                        else toast({ title: translate("Erreur", "خطأ"), description: res?.error || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
+                        if (res?.success) toast({ title: translate("Impression lancÃ©e", "ØªÙ… Ø¨Ø¯Ø¡ Ø§Ù„Ø·Ø¨Ø§Ø¹Ø©"), description: translate("Les Ã©tiquettes ont Ã©tÃ© envoyÃ©es Ã  l'imprimante.", "ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ù…Ù„ØµÙ‚Ø§Øª Ø¥Ù„Ù‰ Ø§Ù„Ø·Ø§Ø¨Ø¹Ø©.") })
+                        else toast({ title: translate("Erreur", "Ø®Ø·Ø£"), description: res?.error || translate("Ã‰chec de l'impression", "ÙØ´Ù„ Ø§Ù„Ø·Ø¨Ø§Ø¹Ø©"), variant: "destructive" })
                       } catch (e: any) {
-                        toast({ title: translate("Erreur", "خطأ"), description: e?.message || translate("Échec de l'impression", "فشل الطباعة"), variant: "destructive" })
+                        toast({ title: translate("Erreur", "Ø®Ø·Ø£"), description: e?.message || translate("Ã‰chec de l'impression", "ÙØ´Ù„ Ø§Ù„Ø·Ø¨Ø§Ø¹Ø©"), variant: "destructive" })
                       }
                     }
                   : undefined
@@ -2409,6 +2462,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               loadingState={loadingState}
               translate={translate}
               handleUpdateOrderStatus={handleUpdateOrderStatus}
+              connectedDrivers={connectedDriversForDispatch}
+              driverFleetAllowed={hasFeature("driverFleetManagement")}
+              handleAssignOrderDriver={handleAssignOrderDriver}
               prepTimeMinutes={prepTimeMinutes}
               filterCustomerId={ordersCustomerFilter}
               highlightOrderId={highlightOrderId}
@@ -2441,6 +2497,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               connectedDrivers={connectedDrivers}
               translate={translate}
               respondToDriverRequest={respondToDriverRequest}
+              driverFleetAllowed={hasFeature("driverFleetManagement")}
+              onInviteDriver={inviteVendorDriverHandler}
+              onDriverDispatchChange={handleDriverDispatchChange}
             />
           </TabsContent>
 
@@ -2453,146 +2512,6 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             />
           </TabsContent>
 
-          {/* Drivers Tab - Extracted */}
-          <TabsContent value="drivers-old" className="hidden">
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold">
-                {translate("Gestion des Chauffeurs", "إدارة السائقين")}
-              </h2>
-            </div>
-
-            {loadingDrivers ? (
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                {/* Pending Requests */}
-                {pendingDriverRequests.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <AlertCircle className="w-5 h-5 text-orange-500" />
-                        {translate("Demandes en attente", "الطلبات المعلقة")}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-6">
-                      <div className="space-y-4">
-                        {pendingDriverRequests.map((request: any) => (
-                          <Card key={request.id} className="border-l-4 border-l-orange-500">
-                            <CardContent className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center text-white font-semibold">
-                                    {request.driver?.name?.charAt(0) || "D"}
-                                  </div>
-                                  <div>
-                                    <h3 className="font-semibold text-lg">{request.driver?.name || "N/A"}</h3>
-                                    <p className="text-sm text-muted-foreground">
-                                      {translate("Téléphone", "الهاتف")}: {request.driver?.phone || "N/A"}
-                                    </p>
-                                    {request.driver?.vehicleType && (
-                                      <p className="text-sm text-muted-foreground">
-                                        {translate("Véhicule", "المركبة")}: {request.driver.vehicleType}
-                                      </p>
-                                    )}
-                                    {request.driver?.licenseNumber && (
-                                      <p className="text-sm text-muted-foreground">
-                                        {translate("Permis", "الترخيص")}: {request.driver.licenseNumber}
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button
-                                    className="bg-albaz-green-gradient hover:opacity-90 text-white"
-                                    onClick={() => respondToDriverRequest(request.connectionId, "accept")}
-                                  >
-                                    <CheckCircle className="w-4 h-4 mr-2" />
-                                    {translate("Accepter", "قبول")}
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    className="border-red-300 text-red-600 hover:bg-red-50"
-                                    onClick={() => respondToDriverRequest(request.connectionId, "reject")}
-                                  >
-                                    <X className="w-4 h-4 mr-2" />
-                                    {translate("Refuser", "رفض")}
-                                  </Button>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Connected Drivers */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Truck className="w-5 h-5 text-green-500" />
-                      {translate("Chauffeurs connectés", "السائقون المتصلون")}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {connectedDrivers.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Truck className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                        <p className="text-lg text-muted-foreground">
-                          {translate("Aucun chauffeur connecté", "لا يوجد سائقون متصلون")}
-                        </p>
-                        {pendingDriverRequests.length === 0 && (
-                          <p className="text-sm text-muted-foreground mt-2">
-                            {translate("Les demandes de connexion apparaîtront ici", "ستظهر طلبات الاتصال هنا")}
-                          </p>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {connectedDrivers.map((connection: any) => (
-                          <Card key={connection.id} className="border-l-4 border-l-green-500">
-                            <CardContent className="p-4">
-                              <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-teal-500 via-cyan-400 to-orange-500 flex items-center justify-center text-white font-semibold">
-                                  {connection.driver?.name?.charAt(0) || "D"}
-                                </div>
-                                <div className="flex-1">
-                                  <h3 className="font-semibold text-lg">{connection.driver?.name || "N/A"}</h3>
-                                  <p className="text-sm text-muted-foreground">
-                                    {translate("Téléphone", "الهاتف")}: {connection.driver?.phone || "N/A"}
-                                  </p>
-                                  {connection.driver?.vehicleType && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {translate("Véhicule", "المركبة")}: {connection.driver.vehicleType}
-                                    </p>
-                                  )}
-                                  {connection.driver?.licenseNumber && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {translate("Permis", "الترخيص")}: {connection.driver.licenseNumber}
-                                    </p>
-                                  )}
-                                  <Badge className="mt-2 bg-green-500">
-                                    {translate("Connecté", "متصل")}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </>
-            )}
-          </TabsContent>
 
           {/* Sales History Tab */}
           <TabsContent value="sales" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
@@ -2673,14 +2592,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
           {/* AI Insights Tab */}
           <TabsContent value="ai" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
-            <h2 className="text-2xl font-bold">Insights Alimentés par l'IA</h2>
+            <h2 className="text-2xl font-bold">Insights AlimentÃ©s par l'IA</h2>
 
             {/* Sales Forecast */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
-                  Prévisions des Ventes
+                  PrÃ©visions des Ventes
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -2709,7 +2628,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">Données insuffisantes pour les prévisions</p>
+                  <p className="text-muted-foreground">DonnÃ©es insuffisantes pour les prÃ©visions</p>
                 )}
               </CardContent>
             </Card>
@@ -2719,7 +2638,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  Recommandations de Réapprovisionnement
+                  Recommandations de RÃ©approvisionnement
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -2755,8 +2674,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     {productBundles.map((bundle, index) => (
                       <div key={index} className="p-3 bg-muted rounded-lg">
                         <p className="font-medium mb-2">Bundle #{index + 1}</p>
-                        <p className="text-sm text-muted-foreground mb-2">Acheté ensemble {bundle.frequency} fois</p>
-                        <Badge variant="secondary">Remise suggérée: {bundle.suggestedDiscount}%</Badge>
+                        <p className="text-sm text-muted-foreground mb-2">AchetÃ© ensemble {bundle.frequency} fois</p>
+                        <Badge variant="secondary">Remise suggÃ©rÃ©e: {bundle.suggestedDiscount}%</Badge>
                       </div>
                     ))}
                   </div>
@@ -2769,45 +2688,52 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
           {/* Web-only: public storefront domains (vendor + per-store) */}
           <TabsContent value="storefront" className="space-y-6 pb-8">
-            <VendorStorefrontWebPanel translate={translate} vendorId={domainVendorId} />
+            <VendorStorefrontWebPanel
+              translate={translate}
+              vendorId={domainVendorId}
+              onConfigureVendorDomain={() => {
+                setActiveTab("settings")
+                setSettingsSubTab("security")
+              }}
+            />
           </TabsContent>
 
-          {/* Settings Tab — nested sub-tabs */}
+          {/* Settings Tab â€” nested sub-tabs */}
           <TabsContent value="settings" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
-            <h2 className="text-2xl font-bold">{translate("Paramètres", "الإعدادات")}</h2>
+            <h2 className="text-2xl font-bold">{translate("ParamÃ¨tres", "Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª")}</h2>
 
-            <Tabs defaultValue="shop" className="w-full gap-4">
+            <Tabs value={settingsSubTab} onValueChange={setSettingsSubTab} className="w-full gap-4">
               <TabsList className="mb-1 grid h-auto w-full max-w-full min-h-9 grid-cols-1 gap-1 p-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:justify-start">
                 <TabsTrigger value="shop" className="gap-1.5 px-2 sm:flex-none">
                   <Store className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Boutique", "المتجر")}</span>
+                  <span className="truncate">{translate("Boutique", "Ø§Ù„Ù…ØªØ¬Ø±")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="display" className="gap-1.5 px-2 sm:flex-none">
                   <Receipt className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Affichage & reçus", "العرض والإيصالات")}</span>
+                  <span className="truncate">{translate("Affichage & reÃ§us", "Ø§Ù„Ø¹Ø±Ø¶ ÙˆØ§Ù„Ø¥ÙŠØµØ§Ù„Ø§Øª")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="devices" className="gap-1.5 px-2 sm:flex-none">
                   <Printer className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Matériel", "الأجهزة")}</span>
+                  <span className="truncate">{translate("MatÃ©riel", "Ø§Ù„Ø£Ø¬Ù‡Ø²Ø©")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="team" className="gap-1.5 px-2 sm:flex-none">
                   <Users className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Équipe & commandes", "الفريق والطلبات")}</span>
+                  <span className="truncate">{translate("Ã‰quipe & commandes", "Ø§Ù„ÙØ±ÙŠÙ‚ ÙˆØ§Ù„Ø·Ù„Ø¨Ø§Øª")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="hours" className="gap-1.5 px-2 sm:flex-none">
                   <Clock className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Horaires & préparation", "المواعيد والتحضير")}</span>
+                  <span className="truncate">{translate("Horaires & prÃ©paration", "Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯ ÙˆØ§Ù„ØªØ­Ø¶ÙŠØ±")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="finance" className="gap-1.5 px-2 sm:flex-none">
                   <Wallet className="size-4 shrink-0" />
-                  <span className="truncate">{translate("Paiements", "المدفوعات")}</span>
+                  <span className="truncate">{translate("Paiements", "Ø§Ù„Ù…Ø¯ÙÙˆØ¹Ø§Øª")}</span>
                 </TabsTrigger>
                 <TabsTrigger value="security" className="gap-1.5 px-2 sm:flex-none">
                   <Shield className="size-4 shrink-0" />
                   <span className="truncate text-left leading-tight sm:max-w-[10rem]">
                     {translate(
-                      "Sécurité, clés d'accès & vitrine en ligne",
-                      "الأمان والمفاتيح والواجهة",
+                      "SÃ©curitÃ©, clÃ©s d'accÃ¨s & vitrine en ligne",
+                      "Ø§Ù„Ø£Ù…Ø§Ù† ÙˆØ§Ù„Ù…ÙØ§ØªÙŠØ­ ÙˆØ§Ù„ÙˆØ§Ø¬Ù‡Ø©",
                     )}
                   </span>
                 </TabsTrigger>
@@ -2819,21 +2745,21 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Store className="w-5 h-5" />
-                  {translate("Informations de la boutique", "معلومات المتجر")}
+                  {translate("Informations de la boutique", "Ù…Ø¹Ù„ÙˆÙ…Ø§Øª Ø§Ù„Ù…ØªØ¬Ø±")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>{translate("Nom de la boutique", "اسم المتجر")}</Label>
+                    <Label>{translate("Nom de la boutique", "Ø§Ø³Ù… Ø§Ù„Ù…ØªØ¬Ø±")}</Label>
                     <Input 
-                      placeholder={translate("Entrez le nom de votre boutique", "أدخل اسم متجرك")}
+                      placeholder={translate("Entrez le nom de votre boutique", "Ø£Ø¯Ø®Ù„ Ø§Ø³Ù… Ù…ØªØ¬Ø±Ùƒ")}
                       value={shopInfo.name}
                       onChange={(e) => handleShopInfoChange("name", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{translate("Numéro de téléphone", "رقم الهاتف")}</Label>
+                    <Label>{translate("NumÃ©ro de tÃ©lÃ©phone", "Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ")}</Label>
                     <Input 
                       type="tel"
                       placeholder="+213 XX XXX XXXX"
@@ -2842,7 +2768,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{translate("Email", "البريد الإلكتروني")}</Label>
+                    <Label>{translate("Email", "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ")}</Label>
                     <Input 
                       type="email"
                       placeholder="shop@example.com"
@@ -2851,18 +2777,18 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{translate("Adresse", "العنوان")}</Label>
+                    <Label>{translate("Adresse", "Ø§Ù„Ø¹Ù†ÙˆØ§Ù†")}</Label>
                     <Input 
-                      placeholder={translate("Adresse de la boutique", "عنوان المتجر")}
+                      placeholder={translate("Adresse de la boutique", "Ø¹Ù†ÙˆØ§Ù† Ø§Ù„Ù…ØªØ¬Ø±")}
                       value={shopInfo.address}
                       onChange={(e) => handleShopInfoChange("address", e.target.value)}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>{translate("Description", "الوصف")}</Label>
+                  <Label>{translate("Description", "Ø§Ù„ÙˆØµÙ")}</Label>
                   <Textarea 
-                    placeholder={translate("Décrivez votre boutique...", "صف متجرك...")}
+                    placeholder={translate("DÃ©crivez votre boutique...", "ØµÙ Ù…ØªØ¬Ø±Ùƒ...")}
                     rows={3}
                     value={shopInfo.description}
                     onChange={(e) => handleShopInfoChange("description", e.target.value)}
@@ -2870,7 +2796,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>{translate("Logo (affiché sur les reçus)", "الشعار (يظهر على الإيصالات)")}</Label>
+                    <Label>{translate("Logo (affichÃ© sur les reÃ§us)", "Ø§Ù„Ø´Ø¹Ø§Ø± (ÙŠØ¸Ù‡Ø± Ø¹Ù„Ù‰ Ø§Ù„Ø¥ÙŠØµØ§Ù„Ø§Øª)")}</Label>
                     <Input
                       type="file"
                       accept="image/*"
@@ -2883,7 +2809,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label>{translate("Image de couverture", "صورة الغلاف")}</Label>
+                    <Label>{translate("Image de couverture", "ØµÙˆØ±Ø© Ø§Ù„ØºÙ„Ø§Ù")}</Label>
                     <Input
                       type="file"
                       accept="image/*"
@@ -2901,13 +2827,13 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     className="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600"
                     onClick={handleSaveShopInfo}
                   >
-                    {translate("Enregistrer les informations", "حفظ المعلومات")}
+                    {translate("Enregistrer les informations", "Ø­ÙØ¸ Ø§Ù„Ù…Ø¹Ù„ÙˆÙ…Ø§Øª")}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => setShopInfo({ name: "", phone: "", email: "", address: "", description: "", logo: "", cover: "" })}
                   >
-                    {translate("Réinitialiser", "إعادة ضبط")}
+                    {translate("RÃ©initialiser", "Ø¥Ø¹Ø§Ø¯Ø© Ø¶Ø¨Ø·")}
                   </Button>
                 </div>
               </CardContent>
@@ -2920,25 +2846,25 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5" />
-                  {translate("Prise de commandes", "استقبال الطلبات")}
+                  {translate("Prise de commandes", "Ø§Ø³ØªÙ‚Ø¨Ø§Ù„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm text-muted-foreground">
                   {translate(
                     "Activer ou mettre en pause la prise de commandes pour vos clients.",
-                    "تفعيل أو إيقاف استقبال الطلبات للعملاء."
+                    "ØªÙØ¹ÙŠÙ„ Ø£Ùˆ Ø¥ÙŠÙ‚Ø§Ù Ø§Ø³ØªÙ‚Ø¨Ø§Ù„ Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ù„Ù„Ø¹Ù…Ù„Ø§Ø¡."
                   )}
                 </p>
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col">
                     <span className="font-medium">
-                      {isAcceptingOrders ? translate("Commandes actives", "الطلبات مفعلة") : translate("Commandes en pause", "الطلبات موقوفة")}
+                      {isAcceptingOrders ? translate("Commandes actives", "Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ù…ÙØ¹Ù„Ø©") : translate("Commandes en pause", "Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ù…ÙˆÙ‚ÙˆÙØ©")}
                     </span>
                     <span className="text-sm text-muted-foreground">
                       {isAcceptingOrders
-                        ? translate("Les clients peuvent passer commande", "العملاء يمكنهم الطلب")
-                        : translate("Les nouvelles commandes sont bloquées", "الطلبات الجديدة موقوفة")}
+                        ? translate("Les clients peuvent passer commande", "Ø§Ù„Ø¹Ù…Ù„Ø§Ø¡ ÙŠÙ…ÙƒÙ†Ù‡Ù… Ø§Ù„Ø·Ù„Ø¨")
+                        : translate("Les nouvelles commandes sont bloquÃ©es", "Ø§Ù„Ø·Ù„Ø¨Ø§Øª Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ù…ÙˆÙ‚ÙˆÙØ©")}
                     </span>
                   </div>
                   <Button
@@ -2947,10 +2873,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     disabled={isUpdatingStoreStatus}
                   >
                     {isUpdatingStoreStatus
-                      ? translate("Mise à jour...", "جاري التحديث...")
+                      ? translate("Mise Ã  jour...", "Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ø¯ÙŠØ«...")
                       : isAcceptingOrders
-                        ? translate("Mettre en pause", "إيقاف مؤقت")
-                        : translate("Réactiver", "إعادة التفعيل")}
+                        ? translate("Mettre en pause", "Ø¥ÙŠÙ‚Ø§Ù Ù…Ø¤Ù‚Øª")
+                        : translate("RÃ©activer", "Ø¥Ø¹Ø§Ø¯Ø© Ø§Ù„ØªÙØ¹ÙŠÙ„")}
                   </Button>
                 </div>
               </CardContent>
@@ -2962,36 +2888,36 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                {translate("Rôles du personnel & permissions", "أدوار الطاقم والصلاحيات")}
+                {translate("RÃ´les du personnel & permissions", "Ø£Ø¯ÙˆØ§Ø± Ø§Ù„Ø·Ø§Ù‚Ù… ÙˆØ§Ù„ØµÙ„Ø§Ø­ÙŠØ§Øª")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 {translate(
-                  "Choisissez un rôle pour appliquer des limites en caisse (ex: remise max).",
-                  "اختر دوراً لتطبيق حدود عند الدفع (مثل الحد الأقصى للخصم)."
+                  "Choisissez un rÃ´le pour appliquer des limites en caisse (ex: remise max).",
+                  "Ø§Ø®ØªØ± Ø¯ÙˆØ±Ø§Ù‹ Ù„ØªØ·Ø¨ÙŠÙ‚ Ø­Ø¯ÙˆØ¯ Ø¹Ù†Ø¯ Ø§Ù„Ø¯ÙØ¹ (Ù…Ø«Ù„ Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ù„Ø®ØµÙ…)."
                 )}
               </p>
               <div className="space-y-2">
-                <Label>{translate("Rôle actif", "الدور الحالي")}</Label>
+                <Label>{translate("RÃ´le actif", "Ø§Ù„Ø¯ÙˆØ± Ø§Ù„Ø­Ø§Ù„ÙŠ")}</Label>
                 <select
                   className="border rounded-md px-3 py-2 bg-background"
                   value={staffRole}
                   onChange={(e) => setStaffRole(e.target.value as any)}
                 >
-                  <option value="owner">{translate("Propriétaire", "مالك")}</option>
-                  <option value="manager">{translate("Manager", "مدير")}</option>
-                  <option value="cashier">{translate("Caissier", "أمين صندوق")}</option>
+                  <option value="owner">{translate("PropriÃ©taire", "Ù…Ø§Ù„Ùƒ")}</option>
+                  <option value="manager">{translate("Manager", "Ù…Ø¯ÙŠØ±")}</option>
+                  <option value="cashier">{translate("Caissier", "Ø£Ù…ÙŠÙ† ØµÙ†Ø¯ÙˆÙ‚")}</option>
                 </select>
               </div>
               <div className="rounded-md border px-3 py-2 bg-muted/40 text-sm">
                 <p className="font-semibold">
-                  {translate("Limites appliquées", "القيود المطبقة")}
+                  {translate("Limites appliquÃ©es", "Ø§Ù„Ù‚ÙŠÙˆØ¯ Ø§Ù„Ù…Ø·Ø¨Ù‚Ø©")}
                 </p>
                 <p className="text-muted-foreground">
                   {translate(
                     `Remise max: ${staffRole === "cashier" ? "20%" : "90%"}.`,
-                    `الحد الأقصى للخصم: ${staffRole === "cashier" ? "20%" : "90%"}.`
+                    `Ø§Ù„Ø­Ø¯ Ø§Ù„Ø£Ù‚ØµÙ‰ Ù„Ù„Ø®ØµÙ…: ${staffRole === "cashier" ? "20%" : "90%"}.`
                   )}
                 </p>
               </div>
@@ -3003,20 +2929,20 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
               <TabsContent value="hours" className="mt-4 space-y-6 outline-none">
 
-          {/* Schedule & Capacity — only for restaurant / grocery / other */}
+          {/* Schedule & Capacity â€” only for restaurant / grocery / other */}
           {isSettingsSectionVisible(shopType, "schedule") && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                {translate("Horaires & capacité", "ساعات العمل والقدرة")}
+                {translate("Horaires & capacitÃ©", "Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ø¹Ù…Ù„ ÙˆØ§Ù„Ù‚Ø¯Ø±Ø©")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
                 {translate(
-                  "Planifiez vos horaires et limitez les ventes par heure pour éviter la surcharge.",
-                  "اضبط ساعات العمل وحدد عدد الطلبات في الساعة لتفادي الضغط."
+                  "Planifiez vos horaires et limitez les ventes par heure pour Ã©viter la surcharge.",
+                  "Ø§Ø¶Ø¨Ø· Ø³Ø§Ø¹Ø§Øª Ø§Ù„Ø¹Ù…Ù„ ÙˆØ­Ø¯Ø¯ Ø¹Ø¯Ø¯ Ø§Ù„Ø·Ù„Ø¨Ø§Øª ÙÙŠ Ø§Ù„Ø³Ø§Ø¹Ø© Ù„ØªÙØ§Ø¯ÙŠ Ø§Ù„Ø¶ØºØ·."
                 )}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3026,13 +2952,13 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                       <div>
                         <p className="font-semibold">
                           {slot.kind === "weekend"
-                            ? translate("Week-end", "عطلة نهاية الأسبوع")
-                            : translate("Lundi - Vendredi", "الإثنين - الجمعة")}
+                            ? translate("Week-end", "Ø¹Ø·Ù„Ø© Ù†Ù‡Ø§ÙŠØ© Ø§Ù„Ø£Ø³Ø¨ÙˆØ¹")
+                            : translate("Lundi - Vendredi", "Ø§Ù„Ø¥Ø«Ù†ÙŠÙ† - Ø§Ù„Ø¬Ù…Ø¹Ø©")}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {slot.enabled
-                            ? translate("Actif", "مفعل")
-                            : translate("Désactivé", "معطل")}
+                            ? translate("Actif", "Ù…ÙØ¹Ù„")
+                            : translate("DÃ©sactivÃ©", "Ù…Ø¹Ø·Ù„")}
                         </p>
                       </div>
                       <Button
@@ -3047,13 +2973,13 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                         }
                       >
                         {slot.enabled
-                          ? translate("Mettre en pause", "إيقاف")
-                          : translate("Activer", "تفعيل")}
+                          ? translate("Mettre en pause", "Ø¥ÙŠÙ‚Ø§Ù")
+                          : translate("Activer", "ØªÙØ¹ÙŠÙ„")}
                       </Button>
                     </div>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <div className="space-y-1">
-                        <Label>{translate("Début", "البداية")}</Label>
+                        <Label>{translate("DÃ©but", "Ø§Ù„Ø¨Ø¯Ø§ÙŠØ©")}</Label>
                         <Input
                           type="time"
                           value={slot.start}
@@ -3067,7 +2993,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label>{translate("Fin", "النهاية")}</Label>
+                        <Label>{translate("Fin", "Ø§Ù„Ù†Ù‡Ø§ÙŠØ©")}</Label>
                         <Input
                           type="time"
                           value={slot.end}
@@ -3093,11 +3019,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     onChange={(e) => setAutoPauseOutsideSchedule(e.target.checked)}
                   />
                   <span>
-                    {translate("Pause automatique hors horaires", "إيقاف تلقائي خارج الساعات")}
+                    {translate("Pause automatique hors horaires", "Ø¥ÙŠÙ‚Ø§Ù ØªÙ„Ù‚Ø§Ø¦ÙŠ Ø®Ø§Ø±Ø¬ Ø§Ù„Ø³Ø§Ø¹Ø§Øª")}
                   </span>
                 </label>
                 <div className="flex items-center gap-3">
-                  <Label>{translate("Max commandes / heure", "أقصى الطلبات/ساعة")}</Label>
+                  <Label>{translate("Max commandes / heure", "Ø£Ù‚ØµÙ‰ Ø§Ù„Ø·Ù„Ø¨Ø§Øª/Ø³Ø§Ø¹Ø©")}</Label>
                   <Input
                     type="number"
                     min={1}
@@ -3106,7 +3032,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     onChange={(e) => setMaxOrdersPerHour(Math.max(1, Number(e.target.value) || 1))}
                   />
                   <Badge variant="secondary">
-                    {translate("Restantes", "المتبقية")}:{" "}
+                    {translate("Restantes", "Ø§Ù„Ù…ØªØ¨Ù‚ÙŠØ©")}:{" "}
                     {Math.max(0, maxOrdersPerHour - trimRecentOrders(recentOrderTimestamps).length)}
                   </Badge>
                 </div>
@@ -3117,31 +3043,31 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                   size="sm"
                   onClick={() => setMenuSchedule(defaultSchedule)}
                 >
-                  {translate("Réinitialiser les horaires", "إعادة ضبط الساعات")}
+                  {translate("RÃ©initialiser les horaires", "Ø¥Ø¹Ø§Ø¯Ø© Ø¶Ø¨Ø· Ø§Ù„Ø³Ø§Ø¹Ø§Øª")}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setRecentOrderTimestamps([])}
                 >
-                  {translate("Vider le compteur horaire", "تصفير عداد الساعة")}
+                  {translate("Vider le compteur horaire", "ØªØµÙÙŠØ± Ø¹Ø¯Ø§Ø¯ Ø§Ù„Ø³Ø§Ø¹Ø©")}
                 </Button>
               </div>
             </CardContent>
           </Card>
           )}
 
-          {/* Prep Time — only for restaurant / grocery / other */}
+          {/* Prep Time â€” only for restaurant / grocery / other */}
           {isSettingsSectionVisible(shopType, "prepTime") && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Clock className="w-5 h-5" />
-                {translate("Temps de préparation", "وقت التحضير")}
+                {translate("Temps de prÃ©paration", "ÙˆÙ‚Øª Ø§Ù„ØªØ­Ø¶ÙŠØ±")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Label>{translate("Minutes moyennes de préparation", "متوسط دقائق التحضير")}</Label>
+              <Label>{translate("Minutes moyennes de prÃ©paration", "Ù…ØªÙˆØ³Ø· Ø¯Ù‚Ø§Ø¦Ù‚ Ø§Ù„ØªØ­Ø¶ÙŠØ±")}</Label>
               <Input
                 type="number"
                 min={0}
@@ -3149,7 +3075,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 onChange={(e) => setPrepTimeMinutes(parseInt(e.target.value || "0", 10) || 0)}
               />
               <p className="text-sm text-muted-foreground">
-                {translate("Utilisé pour calculer l'ETA affichée dans les commandes", "يستخدم لحساب الوقت المتوقع في الطلبات")}
+                {translate("UtilisÃ© pour calculer l'ETA affichÃ©e dans les commandes", "ÙŠØ³ØªØ®Ø¯Ù… Ù„Ø­Ø³Ø§Ø¨ Ø§Ù„ÙˆÙ‚Øª Ø§Ù„Ù…ØªÙˆÙ‚Ø¹ ÙÙŠ Ø§Ù„Ø·Ù„Ø¨Ø§Øª")}
               </p>
             </CardContent>
           </Card>
@@ -3173,25 +3099,25 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Wallet className="w-5 h-5" />
-                {translate("Paiements et réclamations", "المدفوعات والاعتراضات")}
+                {translate("Paiements et rÃ©clamations", "Ø§Ù„Ù…Ø¯ÙÙˆØ¹Ø§Øª ÙˆØ§Ù„Ø§Ø¹ØªØ±Ø§Ø¶Ø§Øª")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {payouts.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-                  {translate("Aucune donnée de paiement pour le moment", "لا توجد بيانات مدفوعات حالياً")}
+                  {translate("Aucune donnÃ©e de paiement pour le moment", "Ù„Ø§ ØªÙˆØ¬Ø¯ Ø¨ÙŠØ§Ù†Ø§Øª Ù…Ø¯ÙÙˆØ¹Ø§Øª Ø­Ø§Ù„ÙŠØ§Ù‹")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-sm">
                     <thead>
                       <tr className="text-left text-muted-foreground">
-                        <th className="py-2 pr-4">{translate("Période", "الفترة")}</th>
-                        <th className="py-2 pr-4">{translate("Brut", "الإجمالي")}</th>
-                        <th className="py-2 pr-4">{translate("Frais", "الرسوم")}</th>
-                        <th className="py-2 pr-4">{translate("Net", "الصافي")}</th>
-                        <th className="py-2 pr-4">{translate("Statut", "الحالة")}</th>
-                        <th className="py-2 pr-4">{translate("Échéance", "تاريخ الصرف")}</th>
+                        <th className="py-2 pr-4">{translate("PÃ©riode", "Ø§Ù„ÙØªØ±Ø©")}</th>
+                        <th className="py-2 pr-4">{translate("Brut", "Ø§Ù„Ø¥Ø¬Ù…Ø§Ù„ÙŠ")}</th>
+                        <th className="py-2 pr-4">{translate("Frais", "Ø§Ù„Ø±Ø³ÙˆÙ…")}</th>
+                        <th className="py-2 pr-4">{translate("Net", "Ø§Ù„ØµØ§ÙÙŠ")}</th>
+                        <th className="py-2 pr-4">{translate("Statut", "Ø§Ù„Ø­Ø§Ù„Ø©")}</th>
+                        <th className="py-2 pr-4">{translate("Ã‰chÃ©ance", "ØªØ§Ø±ÙŠØ® Ø§Ù„ØµØ±Ù")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3203,7 +3129,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                           <td className="py-2 pr-4 font-semibold">{payout.net.toLocaleString()} DZD</td>
                           <td className="py-2 pr-4">
                             <Badge variant={payout.status === "settled" ? "default" : "secondary"}>
-                              {payout.status === "settled" ? translate("Payé", "مدفوع") : translate("En cours", "قيد المعالجة")}
+                              {payout.status === "settled" ? translate("PayÃ©", "Ù…Ø¯ÙÙˆØ¹") : translate("En cours", "Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø¹Ø§Ù„Ø¬Ø©")}
                             </Badge>
                           </td>
                           <td className="py-2 pr-4">{payout.eta}</td>
@@ -3215,17 +3141,17 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               )}
 
               <div className="border-t border-border/60 pt-4">
-                <h4 className="font-semibold mb-2">{translate("Soumettre une réclamation", "تقديم اعتراض")}</h4>
+                <h4 className="font-semibold mb-2">{translate("Soumettre une rÃ©clamation", "ØªÙ‚Ø¯ÙŠÙ… Ø§Ø¹ØªØ±Ø§Ø¶")}</h4>
                 <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={handleSubmitDispute}>
                   <div className="space-y-2">
-                    <Label>{translate("Payout concerné", "الدفعة المعنية")}</Label>
+                    <Label>{translate("Payout concernÃ©", "Ø§Ù„Ø¯ÙØ¹Ø© Ø§Ù„Ù…Ø¹Ù†ÙŠØ©")}</Label>
                     <select
                       className="border rounded-md px-3 py-2 bg-background"
                       value={disputeForm.payoutId}
                       onChange={(e) => setDisputeForm((prev) => ({ ...prev, payoutId: e.target.value }))}
                       required
                     >
-                      <option value="">{translate("Sélectionner", "اختيار")}</option>
+                      <option value="">{translate("SÃ©lectionner", "Ø§Ø®ØªÙŠØ§Ø±")}</option>
                       {payouts.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.id} - {p.period}
@@ -3234,7 +3160,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <Label>{translate("ID commande (optionnel)", "معرّف الطلب (اختياري)")}</Label>
+                    <Label>{translate("ID commande (optionnel)", "Ù…Ø¹Ø±Ù‘Ù Ø§Ù„Ø·Ù„Ø¨ (Ø§Ø®ØªÙŠØ§Ø±ÙŠ)")}</Label>
                     <Input
                       value={disputeForm.orderId}
                       onChange={(e) => setDisputeForm((prev) => ({ ...prev, orderId: e.target.value }))}
@@ -3242,7 +3168,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>{translate("Montant contesté", "المبلغ محل الاعتراض")}</Label>
+                    <Label>{translate("Montant contestÃ©", "Ø§Ù„Ù…Ø¨Ù„Øº Ù…Ø­Ù„ Ø§Ù„Ø§Ø¹ØªØ±Ø§Ø¶")}</Label>
                     <Input
                       type="number"
                       min={0}
@@ -3253,23 +3179,23 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     />
                   </div>
                   <div className="space-y-2 md:col-span-2">
-                    <Label>{translate("Raison", "السبب")}</Label>
+                    <Label>{translate("Raison", "Ø§Ù„Ø³Ø¨Ø¨")}</Label>
                     <Textarea
                       required
                       value={disputeForm.reason}
                       onChange={(e) => setDisputeForm((prev) => ({ ...prev, reason: e.target.value }))}
-                      placeholder={translate("Ex: frais incorrects, commande annulée, etc.", "مثال: رسوم غير صحيحة، طلب ملغي...")}
+                      placeholder={translate("Ex: frais incorrects, commande annulÃ©e, etc.", "Ù…Ø«Ø§Ù„: Ø±Ø³ÙˆÙ… ØºÙŠØ± ØµØ­ÙŠØ­Ø©ØŒ Ø·Ù„Ø¨ Ù…Ù„ØºÙŠ...")}
                     />
                   </div>
                   <div className="md:col-span-2 flex justify-end">
                     <Button type="submit" disabled={isSubmittingDispute}>
-                      {isSubmittingDispute ? translate("Envoi...", "جاري الإرسال...") : translate("Soumettre", "إرسال")}
+                      {isSubmittingDispute ? translate("Envoi...", "Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„...") : translate("Soumettre", "Ø¥Ø±Ø³Ø§Ù„")}
                     </Button>
                   </div>
                 </form>
                 {disputes.length > 0 && (
                   <div className="mt-4 text-sm text-muted-foreground">
-                    <p>{translate("Réclamations récentes", "الاعتراضات الأخيرة")}:</p>
+                    <p>{translate("RÃ©clamations rÃ©centes", "Ø§Ù„Ø§Ø¹ØªØ±Ø§Ø¶Ø§Øª Ø§Ù„Ø£Ø®ÙŠØ±Ø©")}:</p>
                     <ul className="list-disc list-inside">
                       {disputes.map((d) => (
                         <li key={d.id}>
@@ -3291,15 +3217,15 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5" />
-                  {translate("Apparence", "المظهر")}
+                  {translate("Apparence", "Ø§Ù„Ù…Ø¸Ù‡Ø±")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">{translate("Mode sombre", "الوضع الداكن")}</p>
+                    <p className="font-medium">{translate("Mode sombre", "Ø§Ù„ÙˆØ¶Ø¹ Ø§Ù„Ø¯Ø§ÙƒÙ†")}</p>
                     <p className="text-sm text-muted-foreground">
-                      {translate("Activer le thème sombre", "تفعيل السمة الداكنة")}
+                      {translate("Activer le thÃ¨me sombre", "ØªÙØ¹ÙŠÙ„ Ø§Ù„Ø³Ù…Ø© Ø§Ù„Ø¯Ø§ÙƒÙ†Ø©")}
                     </p>
                   </div>
                   <Button
@@ -3310,14 +3236,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                       setIsDarkMode(next)
                     }}
                   >
-                    {isDarkMode ? translate("Activé", "مفعل") : translate("Désactivé", "معطل")}
+                    {isDarkMode ? translate("ActivÃ©", "Ù…ÙØ¹Ù„") : translate("DÃ©sactivÃ©", "Ù…Ø¹Ø·Ù„")}
                   </Button>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">{translate("Langue", "اللغة")}</p>
+                    <p className="font-medium">{translate("Langue", "Ø§Ù„Ù„ØºØ©")}</p>
                     <p className="text-sm text-muted-foreground">
-                      {translate("Choisir la langue de l'interface", "اختر لغة الواجهة")}
+                      {translate("Choisir la langue de l'interface", "Ø§Ø®ØªØ± Ù„ØºØ© Ø§Ù„ÙˆØ§Ø¬Ù‡Ø©")}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -3326,14 +3252,14 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                       onClick={() => setLanguage("fr")}
                       size="sm"
                     >
-                      Français
+                      FranÃ§ais
                     </Button>
                     <Button
                       variant={language === "ar" ? "default" : "outline"}
                       onClick={() => setLanguage("ar")}
                       size="sm"
                     >
-                      العربية
+                      Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©
                     </Button>
                   </div>
                 </div>
@@ -3345,24 +3271,24 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Receipt className="w-5 h-5" />
-                  {translate("Paramètres des reçus", "إعدادات الإيصالات")}
+                  {translate("ParamÃ¨tres des reÃ§us", "Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª Ø§Ù„Ø¥ÙŠØµØ§Ù„Ø§Øª")}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>{translate("Message de pied de page", "رسالة التذييل")}</Label>
+                  <Label>{translate("Message de pied de page", "Ø±Ø³Ø§Ù„Ø© Ø§Ù„ØªØ°ÙŠÙŠÙ„")}</Label>
                   <Input 
-                    placeholder={translate("Merci pour votre achat!", "شكراً لتسوقكم!")}
+                    placeholder={translate("Merci pour votre achat!", "Ø´ÙƒØ±Ø§Ù‹ Ù„ØªØ³ÙˆÙ‚ÙƒÙ…!")}
                     defaultValue=""
                   />
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">{translate("Commandes WhatsApp", "طلبات واتساب")}</p>
+                    <p className="font-medium">{translate("Commandes WhatsApp", "Ø·Ù„Ø¨Ø§Øª ÙˆØ§ØªØ³Ø§Ø¨")}</p>
                     <p className="text-sm text-muted-foreground">
                       {translate(
-                        "Imprimer le reçu automatiquement lorsque vous confirmez (acceptez) une commande provenant de WhatsApp.",
-                        "طباعة الإيصال تلقائياً عند تأكيد (قبول) طلب قادم من واتساب.",
+                        "Imprimer le reÃ§u automatiquement lorsque vous confirmez (acceptez) une commande provenant de WhatsApp.",
+                        "Ø·Ø¨Ø§Ø¹Ø© Ø§Ù„Ø¥ÙŠØµØ§Ù„ ØªÙ„Ù‚Ø§Ø¦ÙŠØ§Ù‹ Ø¹Ù†Ø¯ ØªØ£ÙƒÙŠØ¯ (Ù‚Ø¨ÙˆÙ„) Ø·Ù„Ø¨ Ù‚Ø§Ø¯Ù… Ù…Ù† ÙˆØ§ØªØ³Ø§Ø¨.",
                       )}
                     </p>
                   </div>
@@ -3372,26 +3298,26 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     onClick={() => setAutoPrintWhatsappOnConfirm(!autoPrintWhatsappOnConfirm)}
                     className={autoPrintWhatsappOnConfirm ? "bg-albaz-green-gradient hover:opacity-90 text-white shrink-0" : "shrink-0"}
                   >
-                    {autoPrintWhatsappOnConfirm ? translate("Activé", "مفعّل") : translate("Désactivé", "معطّل")}
+                    {autoPrintWhatsappOnConfirm ? translate("ActivÃ©", "Ù…ÙØ¹Ù‘Ù„") : translate("DÃ©sactivÃ©", "Ù…Ø¹Ø·Ù‘Ù„")}
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Product labels / Étiquettes produit */}
+            {/* Product labels / Ã‰tiquettes produit */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Tag className="w-5 h-5" />
-                  {translate("Étiquettes produit", "ملصقات المنتج")}
+                  {translate("Ã‰tiquettes produit", "Ù…Ù„ØµÙ‚Ø§Øª Ø§Ù„Ù…Ù†ØªØ¬")}
                 </CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  {translate("Choisissez les champs à afficher sur l'étiquette et le type (RFID ou normal).", "اختر الحقول المعروضة على الملصق والنوع (RFID أو عادي).")}
+                  {translate("Choisissez les champs Ã  afficher sur l'Ã©tiquette et le type (RFID ou normal).", "Ø§Ø®ØªØ± Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø§Ù„Ù…Ø¹Ø±ÙˆØ¶Ø© Ø¹Ù„Ù‰ Ø§Ù„Ù…Ù„ØµÙ‚ ÙˆØ§Ù„Ù†ÙˆØ¹ (RFID Ø£Ùˆ Ø¹Ø§Ø¯ÙŠ).")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="mb-2 block">{translate("Champs sur l'étiquette", "الحقول على الملصق")}</Label>
+                  <Label className="mb-2 block">{translate("Champs sur l'Ã©tiquette", "Ø§Ù„Ø­Ù‚ÙˆÙ„ Ø¹Ù„Ù‰ Ø§Ù„Ù…Ù„ØµÙ‚")}</Label>
                   <div className="flex flex-wrap gap-3">
                     {LABEL_FIELD_OPTIONS.map((opt) => (
                       <label key={opt.id} className="flex items-center gap-2 cursor-pointer">
@@ -3410,7 +3336,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                   </div>
                 </div>
                 <div>
-                  <Label className="mb-2 block">{translate("Type d'étiquette", "نوع الملصق")}</Label>
+                  <Label className="mb-2 block">{translate("Type d'Ã©tiquette", "Ù†ÙˆØ¹ Ø§Ù„Ù…Ù„ØµÙ‚")}</Label>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -3420,7 +3346,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                         onChange={() => setLabelType('normal')}
                         className="border-input"
                       />
-                      <span>{translate("Normal (code-barres)", "عادي (باركود)")}</span>
+                      <span>{translate("Normal (code-barres)", "Ø¹Ø§Ø¯ÙŠ (Ø¨Ø§Ø±ÙƒÙˆØ¯)")}</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -3436,7 +3362,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 </div>
                 <div className="flex flex-wrap gap-4">
                   <div className="space-y-1">
-                    <Label className="text-sm">{translate("Largeur (mm)", "العرض (مم)")}</Label>
+                    <Label className="text-sm">{translate("Largeur (mm)", "Ø§Ù„Ø¹Ø±Ø¶ (Ù…Ù…)")}</Label>
                     <Input
                       type="number"
                       min={20}
@@ -3450,7 +3376,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-sm">{translate("Hauteur (mm)", "الارتفاع (مم)")}</Label>
+                    <Label className="text-sm">{translate("Hauteur (mm)", "Ø§Ù„Ø§Ø±ØªÙØ§Ø¹ (Ù…Ù…)")}</Label>
                     <Input
                       type="number"
                       min={15}
@@ -3465,7 +3391,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {translate("Utilisez l'icône étiquette dans l'onglet Inventaire (Actions) pour imprimer une étiquette par produit.", "استخدم أيقونة الملصق في تبويب المخزون (الإجراءات) لطباعة ملصق لكل منتج.")}
+                  {translate("Utilisez l'icÃ´ne Ã©tiquette dans l'onglet Inventaire (Actions) pour imprimer une Ã©tiquette par produit.", "Ø§Ø³ØªØ®Ø¯Ù… Ø£ÙŠÙ‚ÙˆÙ†Ø© Ø§Ù„Ù…Ù„ØµÙ‚ ÙÙŠ ØªØ¨ÙˆÙŠØ¨ Ø§Ù„Ù…Ø®Ø²ÙˆÙ† (Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡Ø§Øª) Ù„Ø·Ø¨Ø§Ø¹Ø© Ù…Ù„ØµÙ‚ Ù„ÙƒÙ„ Ù…Ù†ØªØ¬.")}
                 </p>
               </CardContent>
             </Card>
@@ -3475,8 +3401,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             {!isElectronRuntime && (
               <p className="text-sm text-muted-foreground rounded-md border border-dashed px-3 py-4">
                 {translate(
-                  "Imprimantes, mise à jour de l'app et port série sont disponibles dans l'application bureau (Electron).",
-                  "الطابعات وتحديث التطبيق والمنفذ التسلسلي متوفرة في تطبيق سطح المكتب.",
+                  "Imprimantes, mise Ã  jour de l'app et port sÃ©rie sont disponibles dans l'application bureau (Electron).",
+                  "Ø§Ù„Ø·Ø§Ø¨Ø¹Ø§Øª ÙˆØªØ­Ø¯ÙŠØ« Ø§Ù„ØªØ·Ø¨ÙŠÙ‚ ÙˆØ§Ù„Ù…Ù†ÙØ° Ø§Ù„ØªØ³Ù„Ø³Ù„ÙŠ Ù…ØªÙˆÙØ±Ø© ÙÙŠ ØªØ·Ø¨ÙŠÙ‚ Ø³Ø·Ø­ Ø§Ù„Ù…ÙƒØªØ¨.",
                 )}
               </p>
             )}
@@ -3494,23 +3420,23 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Cable className="w-5 h-5" />
-                    {translate("Port série", "المنفذ التسلسلي")}
+                    {translate("Port sÃ©rie", "Ø§Ù„Ù…Ù†ÙØ° Ø§Ù„ØªØ³Ù„Ø³Ù„ÙŠ")}
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    {translate("Choisissez le port série du lecteur code-barres ou RFID (connexion directe).", "اختر المنفذ التسلسلي لقارئ الباركود أو RFID (اتصال مباشر).")}
+                    {translate("Choisissez le port sÃ©rie du lecteur code-barres ou RFID (connexion directe).", "Ø§Ø®ØªØ± Ø§Ù„Ù…Ù†ÙØ° Ø§Ù„ØªØ³Ù„Ø³Ù„ÙŠ Ù„Ù‚Ø§Ø±Ø¦ Ø§Ù„Ø¨Ø§Ø±ÙƒÙˆØ¯ Ø£Ùˆ RFID (Ø§ØªØµØ§Ù„ Ù…Ø¨Ø§Ø´Ø±).")}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-wrap items-center gap-3">
                     <div className="space-y-1">
-                      <Label className="text-sm">{translate("Port", "المنفذ")}</Label>
+                      <Label className="text-sm">{translate("Port", "Ø§Ù„Ù…Ù†ÙØ°")}</Label>
                       <select
                         value={selectedSerialPort}
                         onChange={(e) => handleSerialPortChange(e.target.value)}
                         disabled={loadingSerialPorts}
                         className="flex h-9 w-full max-w-full sm:w-[220px] rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
-                        <option value="">{translate("Aucun", "لا شيء")}</option>
+                        <option value="">{translate("Aucun", "Ù„Ø§ Ø´ÙŠØ¡")}</option>
                         {serialPortsList.map((p) => (
                           <option key={p.path} value={p.path}>
                             {p.path}{p.manufacturer ? ` (${p.manufacturer})` : ''}
@@ -3519,11 +3445,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                       </select>
                     </div>
                     <Button variant="outline" size="sm" onClick={refreshSerialPorts} disabled={loadingSerialPorts}>
-                      {loadingSerialPorts ? translate("Chargement…", "جاري التحميل…") : translate("Rafraîchir", "تحديث")}
+                      {loadingSerialPorts ? translate("Chargementâ€¦", "Ø¬Ø§Ø±ÙŠ Ø§Ù„ØªØ­Ù…ÙŠÙ„â€¦") : translate("RafraÃ®chir", "ØªØ­Ø¯ÙŠØ«")}
                     </Button>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-sm">{translate("Vitesse (baud)", "السرعة (باود)")}</Label>
+                    <Label className="text-sm">{translate("Vitesse (baud)", "Ø§Ù„Ø³Ø±Ø¹Ø© (Ø¨Ø§ÙˆØ¯)")}</Label>
                     <select
                       value={serialBaudRate}
                       onChange={(e) => handleSerialBaudChange(Number(e.target.value))}
@@ -3539,26 +3465,17 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             )}
               </TabsContent>
 
-              <TabsContent value="security" className="mt-4 space-y-6 outline-none">
-                <p className="text-sm text-muted-foreground max-w-2xl">
-                  {isElectronRuntime
-                    ? translate(
-                        "Gérez les passkeys (connexion sans mot de passe) et l’adresse web publique de votre vitrine (sous-domaine ou domaine personnalisé).",
-                        "أدِر مفاتيح التحقق (تسجيل دخول بدون كلمة مرور) وعنوان واجهتك العامة (نطاق فرعي أو نطاق مخصّص).",
-                      )
-                    : translate(
-                        "Gérez les passkeys (connexion sans mot de passe). Le sous-domaine et le domaine personnalisé se configurent dans l’onglet « Vitrine en ligne ».",
-                        "أدِر مفاتيح التحقق (تسجيل دخول بدون كلمة مرور). أضبط النطاق الفرعي والنطاق المخصّص من تبويب «واجهة الويب العامة».",
-                      )}
-                </p>
-                <WebAuthnPasskeysCard translate={translate} />
-                {isElectronRuntime ? <VendorDomainsCard translate={translate} /> : null}
+              <TabsContent value="security" className="mt-4 outline-none">
+                <VendorSecuritySettingsPanel
+                  translate={translate}
+                  isElectronRuntime={isElectronRuntime}
+                  managedVendorId={domainVendorId}
+                />
               </TabsContent>
             </Tabs>
           </TabsContent>
-        </Tabs>
-        </div>
-      </main>
+
+      </VendorShell>
 
       <NotificationsPanel
         open={showNotificationsPanel}
@@ -3580,12 +3497,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5" />
-              {translate("Raccourcis clavier", "اختصارات لوحة المفاتيح")}
+              {translate("Raccourcis clavier", "Ø§Ø®ØªØµØ§Ø±Ø§Øª Ù„ÙˆØ­Ø© Ø§Ù„Ù…ÙØ§ØªÙŠØ­")}
             </DialogTitle>
             <DialogDescription>
               {translate(
                 "Astuce: appuyez sur ? pour ouvrir cette aide, puis utilisez Ctrl+Shift+<lettre> pour naviguer.",
-                "نصيحة: اضغط ? لفتح هذه المساعدة، ثم استخدم Ctrl+Shift+<حرف> للتنقل.",
+                "Ù†ØµÙŠØ­Ø©: Ø§Ø¶ØºØ· ? Ù„ÙØªØ­ Ù‡Ø°Ù‡ Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯Ø©ØŒ Ø«Ù… Ø§Ø³ØªØ®Ø¯Ù… Ctrl+Shift+<Ø­Ø±Ù> Ù„Ù„ØªÙ†Ù‚Ù„.",
               )}
             </DialogDescription>
           </DialogHeader>
@@ -3732,8 +3649,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         error={barcodeScannerError}
         translate={translate}
       />
-      </div>
-    </ErrorBoundary>
+    </>
   )
 }
 

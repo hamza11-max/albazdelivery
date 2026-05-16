@@ -11,6 +11,7 @@ import {
 } from "@/root/components/ui/card"
 import { Input } from "@/root/components/ui/input"
 import { Label } from "@/root/components/ui/label"
+import { safeFetch } from "../../utils/errorHandling"
 import {
   CheckCircle2,
   Copy,
@@ -68,6 +69,18 @@ interface DomainsResponse {
 
 const defaultT = (fr: string, _ar: string) => fr
 
+function isDomainsResponse(value: unknown): value is DomainsResponse {
+  if (!value || typeof value !== "object") return false
+  const candidate = value as Partial<DomainsResponse>
+  return Boolean(
+    candidate.vendorId &&
+      candidate.domains &&
+      typeof candidate.domains === "object" &&
+      candidate.subscription &&
+      typeof candidate.subscription === "object"
+  )
+}
+
 export function VendorDomainsCard({
   translate,
   managedVendorId,
@@ -101,7 +114,7 @@ export function VendorDomainsCard({
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/vendor/domains${vendorQuery}`, {
+      const res = await safeFetch(`/api/vendor/domains${vendorQuery}`, {
         credentials: "include",
       })
       if (!res.ok) {
@@ -111,7 +124,11 @@ export function VendorDomainsCard({
         )
       }
       const json = await res.json()
-      const payload = (json?.data || json) as DomainsResponse
+      const payload = json?.data || json
+      if (!isDomainsResponse(payload)) {
+        setData(null)
+        throw new Error(t("Configuration de domaine indisponible", "إعدادات النطاق غير متوفرة"))
+      }
       setData(payload)
       setSubdomainInput(payload.domains.subdomain || "")
       setCustomDomainInput(payload.domains.customDomain || "")
@@ -132,7 +149,7 @@ export function VendorDomainsCard({
     setMessage(null)
     setError(null)
     try {
-      const res = await fetch("/api/vendor/domains", {
+      const res = await safeFetch("/api/vendor/domains", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -150,7 +167,10 @@ export function VendorDomainsCard({
         )
       }
       const json = await res.json()
-      const payload = (json?.data || json) as DomainsResponse
+      const payload = json?.data || json
+      if (!isDomainsResponse(payload)) {
+        throw new Error(t("Réponse domaine invalide", "استجابة النطاق غير صالحة"))
+      }
       setData(payload)
       setMessage(t("Modifications enregistrées", "تم حفظ التغييرات"))
     } catch (e) {
@@ -165,7 +185,7 @@ export function VendorDomainsCard({
     setMessage(null)
     setError(null)
     try {
-      const res = await fetch("/api/vendor/domains/verify", {
+      const res = await safeFetch("/api/vendor/domains/verify", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -200,7 +220,7 @@ export function VendorDomainsCard({
     }
   }
 
-  const status = data?.domains.status
+  const status = data?.domains?.status
   const normalizedSubdomain = subdomainInput.trim().toLowerCase()
   const normalizedCustomDomain = customDomainInput.trim().toLowerCase()
   const subdomainUrl = normalizedSubdomain
@@ -209,8 +229,8 @@ export function VendorDomainsCard({
   const customDomainUrl = normalizedCustomDomain
     ? `https://${normalizedCustomDomain}`
     : null
-  const savedSubdomain = data?.domains.subdomain || ""
-  const savedCustomDomain = data?.domains.customDomain || ""
+  const savedSubdomain = data?.domains?.subdomain || ""
+  const savedCustomDomain = data?.domains?.customDomain || ""
   const hasChanges =
     normalizedSubdomain !== savedSubdomain ||
     normalizedCustomDomain !== savedCustomDomain
@@ -420,7 +440,7 @@ export function VendorDomainsCard({
                     ? t("Enregistrer", "حفظ")
                     : t("Aucun changement", "لا توجد تغييرات")}
                 </Button>
-                {data?.domains.customDomain && status !== "VERIFIED" ? (
+                {data?.domains?.customDomain && status !== "VERIFIED" ? (
                   <Button
                     type="button"
                     variant="secondary"

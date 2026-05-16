@@ -20,6 +20,7 @@ export type FeatureOverridesInput = Partial<
     | "brandedSubdomain"
     | "vendorBringYourOwnDomain"
     | "maxStoreCustomDomains"
+    | "driverFleetManagement"
   >
 >
 
@@ -48,6 +49,7 @@ function applyOverridesMutable(base: PlanFeatures, raw: unknown): void {
     "whatsappFlows",
     "brandedSubdomain",
     "vendorBringYourOwnDomain",
+    "driverFleetManagement",
   ] as const) {
     if (key in o && typeof o[key] === "boolean") {
       base[key] = o[key]

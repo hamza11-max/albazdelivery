@@ -32,20 +32,31 @@ const distExe = path.join(distUnpacked, expectedVendorExeName())
 const distStandalone = path.join(distUnpacked, '.next', 'standalone', 'apps', 'vendor', 'server.js')
 const distNode = path.join(distUnpacked, 'resources', 'node', 'node.exe')
 const standalonePublicLogo = path.join(ROOT, '.next', 'standalone', 'apps', 'vendor', 'public', 'logo.png')
+const standalonePwaIcon = path.join(ROOT, '.next', 'standalone', 'apps', 'vendor', 'public', 'icon-512.png')
+
+const strict = process.argv.includes('--strict')
+let requiredMissing = false
 
 function check(name, filePath, required) {
   const exists = fs.existsSync(filePath)
   const status = exists ? 'OK' : (required ? 'MISSING' : 'optional')
   console.log(`  [${status}] ${name}`)
-  if (required && !exists) console.log(`      path: ${filePath}`)
+  if (required && !exists) {
+    console.log(`      path: ${filePath}`)
+    requiredMissing = true
+  }
   return exists || !required
 }
 
 console.log('Build verification (apps/vendor)\n')
+if (strict) {
+  console.log('Mode: --strict (exit code 1 if any required artifact is missing)\n')
+}
 
 console.log('1. After "npm run build:electron" (Next.js standalone):')
 check('Standalone server', standaloneServer, true)
 check('Standalone public/logo.png (after copy-standalone-public)', standalonePublicLogo, false)
+check('Standalone public/icon-512.png (PWA / metadata)', standalonePwaIcon, false)
 
 console.log('\n2. After "node scripts/download-node-win.js" (Node for Windows):')
 check('Bundled node.exe', nodeExe, true)
@@ -60,4 +71,8 @@ if (hasDist) {
 }
 
 console.log('')
-process.exit(0)
+const code = strict && requiredMissing ? 1 : 0
+if (strict && requiredMissing) {
+  console.log('Strict verification failed: one or more required paths are missing.\n')
+}
+process.exit(code)

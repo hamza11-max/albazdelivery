@@ -52,8 +52,22 @@ jobs:
     - name: Verify awaited applyRateLimit in API routes
       run: npm run check:rate-limit
 
-    - name: Run tests
-      run: npm run test:ci
+    - name: Run tests (API coverage)
+      run: npm run test:api -- --coverage --coverageDirectory=coverage-api
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        NEXTAUTH_SECRET: test_secret
+        NEXTAUTH_URL: http://localhost:3000
+
+    - name: Run tests (UI coverage)
+      run: npm run test:jest-ui -- --ci --coverage --coverageDirectory=coverage-ui --maxWorkers=2
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+        NEXTAUTH_SECRET: test_secret
+        NEXTAUTH_URL: http://localhost:3000
+
+    - name: Run Playwright E2E
+      run: npx playwright test tests-e2e/
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
         NEXTAUTH_SECRET: test_secret
@@ -63,4 +77,4 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        files: ./coverage/coverage-final.json
+        files: ./coverage-api/coverage-final.json,./coverage-ui/coverage-final.json

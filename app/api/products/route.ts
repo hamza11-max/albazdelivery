@@ -5,6 +5,8 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { createProductSchema, updateProductSchema } from '@/lib/validations/api'
 import { z } from 'zod'
+import { resolveStorefrontTenant } from '@/lib/domains/resolve-tenant-from-headers'
+import { getVendorCatalog } from '@/lib/storefront/catalog'
 
 // GET /api/products - Get products by store with optional filters
 export async function GET(request: NextRequest) {
@@ -21,6 +23,34 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const minPrice = searchParams.get('minPrice')
     const maxPrice = searchParams.get('maxPrice')
+
+    if (!storeId) {
+      const tenant = await resolveStorefrontTenant()
+      if (tenant) {
+        const catalog = await getVendorCatalog(tenant.vendor.id, {
+          category,
+          search,
+          sort: searchParams.get('sort'),
+        })
+        return successResponse({
+          vendorId: tenant.vendor.id,
+          products: catalog.stores.flatMap((store) =>
+            store.products.map((product) => ({
+              ...product,
+              store: {
+                id: store.id,
+                name: store.name,
+                city: store.city,
+                deliveryTime: store.deliveryTime,
+              },
+            }))
+          ),
+          categories: catalog.categories,
+          featuredProducts: catalog.featuredProducts,
+          total: catalog.totalProducts,
+        })
+      }
+    }
 
     // Validate storeId
     if (!storeId) {

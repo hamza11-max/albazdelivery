@@ -4,6 +4,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { resolveStorefrontTenant } from '@/lib/domains/resolve-tenant-from-headers'
 import { fetchStorefrontOrder } from '@/lib/storefront/orders'
 import { formatPrice } from '@/lib/utils/formatting'
+import { OrderStatus } from './OrderStatus'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +58,15 @@ export default async function OrderConfirmationPage({
             </code>
           </p>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <OrderStatus
+          initialOrder={order}
+          token={token}
+          vendorSlug={vendorSlug}
+          accent={accent}
+        />
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">

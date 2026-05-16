@@ -57,7 +57,12 @@ export interface StorefrontOrderView {
   deliveryAddress: string
   city: string
   customerPhone: string
+  clientName: string | null
+  clientPhone: string | null
+  clientAddress: string | null
+  notes: string | null
   createdAt: Date
+  driver: { id: string; name: string; status: string | null } | null
   items: StorefrontOrderItem[]
 }
 
@@ -89,7 +94,18 @@ export async function fetchStorefrontOrder({
       deliveryAddress: true,
       city: true,
       customerPhone: true,
+      clientName: true,
+      clientPhone: true,
+      clientAddress: true,
+      notes: true,
       createdAt: true,
+      driver: {
+        select: {
+          id: true,
+          name: true,
+          driverLocation: { select: { status: true } },
+        },
+      },
       items: {
         select: {
           id: true,
@@ -113,7 +129,18 @@ export async function fetchStorefrontOrder({
     deliveryAddress: order.deliveryAddress,
     city: order.city,
     customerPhone: order.customerPhone,
+    clientName: order.clientName,
+    clientPhone: order.clientPhone,
+    clientAddress: order.clientAddress,
+    notes: order.notes,
     createdAt: order.createdAt,
+    driver: order.driver
+      ? {
+          id: order.driver.id,
+          name: order.driver.name,
+          status: order.driver.driverLocation?.status || null,
+        }
+      : null,
     items: order.items.map((i) => ({
       id: i.id,
       quantity: i.quantity,

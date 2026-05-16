@@ -1,13 +1,13 @@
 /**
  * Removes flat background from the vendor mark (PNG) — matte black, navy slate, or cool UI lines.
  * Input: apps/vendor/public/_topbar-bird-source.png (replace with new export when needed)
- * Output: apps/vendor/public/logo.png (+ copies to public/assets/albaz-logo.png)
+ * Output: apps/vendor/public/logo.png (+ public/assets/albaz-logo.png + assets/logo.png for Electron)
  *
  * Run from repo root:
  *   node apps/vendor/scripts/process-topbar-bird-logo.mjs
  */
 import sharp from "sharp"
-import { copyFileSync, unlinkSync } from "fs"
+import { copyFileSync, mkdirSync, unlinkSync } from "fs"
 import { dirname, join } from "path"
 import { fileURLToPath } from "url"
 
@@ -15,6 +15,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const inputPath = join(__dirname, "../public/_topbar-bird-source.png")
 const outLogo = join(__dirname, "../public/logo.png")
 const outAsset = join(__dirname, "../public/assets/albaz-logo.png")
+const assetsLogo = join(__dirname, "../assets/logo.png")
 const tmpPath = join(__dirname, "../public/_topbar-bird.tmp.png")
 
 /** Pixels that belong to the mark (warm phoenix, glow, dark warm outline) — not navy/cool BG. */
@@ -97,7 +98,11 @@ async function main() {
   copyFileSync(tmpPath, outAsset)
   unlinkSync(tmpPath)
 
-  console.log(`Topbar bird logo (transparent) → ${outLogo} and ${outAsset} (${w}x${h})`)
+  mkdirSync(join(__dirname, "../assets"), { recursive: true })
+  copyFileSync(outLogo, assetsLogo)
+
+  console.log(`Topbar bird logo (transparent) → ${outLogo}, ${outAsset}, ${assetsLogo} (${w}x${h})`)
+  console.log("Then run from apps/vendor: npm run setup:icons (ICO + shortcut + square PWA icons).")
 }
 
 main().catch((err) => {

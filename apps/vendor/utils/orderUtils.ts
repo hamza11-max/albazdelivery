@@ -21,6 +21,62 @@ interface UpdateOrderStatusParams {
   playSuccessSound?: () => void
 }
 
+interface AssignOrderDriverParams {
+  orderId: string
+  driverId: string | null
+  fetchOrders: (vendorId?: string) => Promise<any>
+  activeVendorId?: string
+  toast: (options: { title: string; description: string; variant?: "default" | "destructive" }) => void
+  translate: (fr: string, ar: string) => string
+  playSuccessSound?: () => void
+}
+
+export async function assignOrderDriver({
+  orderId,
+  driverId,
+  fetchOrders,
+  activeVendorId,
+  toast,
+  translate,
+  playSuccessSound,
+}: AssignOrderDriverParams) {
+  try {
+    const response = await safeFetch(`/api/vendors/orders`, {
+      method: "PATCH",
+      body: JSON.stringify({ orderId, driverId: driverId === null ? null : driverId }),
+    })
+    const data = await parseAPIResponse(response)
+    if (data.success) {
+      await fetchOrders(activeVendorId)
+      toast({
+        title: translate("Chauffeur mis à jour", "تم تحديث السائق"),
+        description: translate("La commande a été mise à jour", "تم تحديث الطلب"),
+        variant: "default",
+      })
+      playSuccessSound?.()
+    } else {
+      const apiError = new APIError(
+        data.error?.message ||
+          translate("Impossible d’assigner le chauffeur", "تعذر تعيين السائق"),
+        response.status,
+        data
+      )
+      handleError(apiError, { showToast: true, logError: true, translate, toast })
+    }
+  } catch (error) {
+    handleError(error, {
+      showToast: true,
+      logError: true,
+      translate,
+      toast,
+      fallbackMessage: {
+        fr: "Erreur lors de l’assignation du chauffeur",
+        ar: "خطأ أثناء تعيين السائق",
+      },
+    })
+  }
+}
+
 export async function updateOrderStatus({
   orderId,
   status,

@@ -8,6 +8,7 @@ import { emitOrderCreated } from '@/root/lib/events'
 import { sendOrderPlacedCustomerEmail } from '@/root/lib/mail/notify-customer-transactional'
 import { OrderStatus } from '@/lib/constants'
 import { resolveVendorOwnerContextId } from '@/lib/vendor-staff-access'
+import { createStorefrontOrder } from '@/lib/storefront/create-order'
 
 // GET /api/orders - Get all orders or filter by customer
 export async function GET(request: NextRequest) {
@@ -154,6 +155,15 @@ export async function POST(request: NextRequest) {
   try {
     await applyRateLimit(request, rateLimitConfigs.api)
 
+    const body = await request.json()
+    if (isStorefrontOrderPayload(body)) {
+      const result = await createStorefrontOrder({
+        rawBody: body,
+        tenantHost: request.headers.get('x-tenant-host'),
+      })
+      return successResponse(result, 201)
+    }
+
     // Get authenticated user
     const session = await auth()
     if (!session?.user) {
@@ -161,7 +171,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse and validate request body
-    const body = await request.json()
     const validatedData = createOrderSchema.parse(body)
     const {
       storeId,
@@ -275,4 +284,16 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return errorResponse(error)
   }
+}
+
+function isStorefrontOrderPayload(body: any): boolean {
+  if (!body || !Array.isArray(body.items)) return false
+  return Boolean(
+    body.vendorSlug ||
+      body.customer ||
+      body.clientName ||
+      body.clientPhone ||
+      body.clientAddress ||
+      body.notes
+  )
 }

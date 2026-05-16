@@ -73,25 +73,28 @@ export default function SignUpPage() {
 
     // Submit registration request
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          role: selectedRole ? selectedRole.toUpperCase() : undefined,
+      const { submitRegistrationRequest, normalizeAlgerianPhone } = await import(
+        "@/root/lib/auth/register-client"
+      )
+      const result = await submitRegistrationRequest(
+        {
+          role: (selectedRole ? selectedRole.toUpperCase() : "CUSTOMER") as
+            | "CUSTOMER"
+            | "VENDOR"
+            | "DRIVER",
           name,
-          phone: normalizePhone(phone),
+          phone: normalizeAlgerianPhone(phone),
           email,
           password,
           licenseNumber: selectedRole === "driver" ? licenseNumber : undefined,
           vehicleType: selectedRole === "driver" ? vehicleType : undefined,
           photoUrl: photoUrl || undefined,
           shopType: selectedRole === "vendor" ? shopType : undefined,
-        }),
-      })
+        },
+        { registrationChannel: "web" }
+      )
 
-      const data = await response.json()
-
-      if (data.success) {
+      if (result.success) {
         toast({
           title: "Demande envoyée",
           description:
@@ -99,8 +102,11 @@ export default function SignUpPage() {
         })
         router.push("/login")
       } else {
-        const message = typeof data.error === "string" ? data.error : data.error?.message || "Une erreur s'est produite"
-        toast({ title: "Erreur", description: message, variant: "destructive" })
+        toast({
+          title: "Erreur",
+          description: result.error || "Une erreur s'est produite",
+          variant: "destructive",
+        })
       }
     } catch {
       toast({
