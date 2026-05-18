@@ -25,6 +25,7 @@ describe('domain utilities', () => {
 
   it('validates subdomains and blocks reserved labels', () => {
     expect(normalizeSubdomainInput('my-store')).toBe('my-store')
+    expect(normalizeSubdomainInput('live')).toBeNull()
     expect(normalizeSubdomainInput('admin')).toBeNull()
     expect(normalizeSubdomainInput('INVALID_LABEL')).toBeNull()
     expect(normalizeSubdomainInput('-bad')).toBeNull()
@@ -34,6 +35,7 @@ describe('domain utilities', () => {
   it('detects reserved platform subdomains (case-insensitive)', () => {
     expect(isReservedSubdomain('api')).toBe(true)
     expect(isReservedSubdomain('WWW')).toBe(true)
+    expect(isReservedSubdomain('live')).toBe(true)
     expect(isReservedSubdomain('vendor')).toBe(true)
     expect(isReservedSubdomain('drivers')).toBe(true)
     expect(isReservedSubdomain('my-shop')).toBe(false)

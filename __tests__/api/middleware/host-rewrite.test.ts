@@ -210,6 +210,46 @@ describe('middleware storefront host rewrite', () => {
     expect(getRewriteTarget(response)).toBeNull()
   })
 
+  it('rewrites live. marketing host root to /live', async () => {
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('live.albazdelivery.com', '/')
+    const response = await middleware(request)
+
+    const rewrite = getRewriteTarget(response)
+    expect(rewrite).not.toBeNull()
+    expect(new URL(rewrite!).pathname).toBe('/live')
+  })
+
+  it('does not rewrite live. host to vendor storefront /s/live', async () => {
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('live.albazdelivery.com', '/')
+    const response = await middleware(request)
+
+    const rewrite = getRewriteTarget(response)
+    expect(rewrite).not.toBeNull()
+    expect(new URL(rewrite!).pathname).not.toBe('/s/live')
+  })
+
+  it('does not rewrite live. host /signup to /live/signup', async () => {
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('live.albazdelivery.com', '/signup')
+    const response = await middleware(request)
+
+    expect(getRewriteTarget(response)).toBeNull()
+  })
+
+  it('rewrites live. host with al-baz.app BASE_DOMAIN', async () => {
+    process.env.BASE_DOMAIN = 'al-baz.app'
+
+    const middleware = (await import('@/middleware')).default
+    const request = buildRequest('live.al-baz.app', '/')
+    const response = await middleware(request)
+
+    const rewrite = getRewriteTarget(response)
+    expect(rewrite).not.toBeNull()
+    expect(new URL(rewrite!).pathname).toBe('/live')
+  })
+
   it('does not rewrite /api/ paths', async () => {
     const middleware = (await import('@/middleware')).default
     const request = buildRequest('demo.albazdelivery.com', '/api/public/storefront/demo/profile')

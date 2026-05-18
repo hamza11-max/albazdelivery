@@ -1,5 +1,6 @@
 const RESERVED_SUBDOMAINS = new Set([
   'www',
+  'live',
   'api',
   'admin',
   'app',

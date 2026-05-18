@@ -137,9 +137,10 @@ MAX_CART_VALUE="100000"
 # ==============================================
 # VENDOR STOREFRONTS / CUSTOM DOMAINS (take.app-style)
 # ==============================================
-# Apex domain used for vendor subdomains, e.g. "albazdelivery.com"
+# Apex domain used for vendor subdomains, e.g. "al-baz.app"
 # Customers will reach a vendor at `<vendorSubdomain>.${BASE_DOMAIN}`.
-BASE_DOMAIN="albazdelivery.com"
+# Reserved label `live` → project landing at live.${BASE_DOMAIN} (rewrites to /live).
+BASE_DOMAIN="al-baz.app"
 
 # CNAME target vendors should point their custom apex/www at. On Vercel this
 # is typically "cname.vercel-dns.com".

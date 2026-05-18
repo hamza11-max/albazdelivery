@@ -109,6 +109,25 @@ export default async function middleware(request: NextRequest) {
     }
   }
 
+  const isLiveMarketingHost =
+    tenantSubdomain === 'live' || normalizedHost === `live.${baseDomain}`
+
+  // -----------------------------------------------------------------
+  // Marketing landing (live.al-baz.app → /live). Edge-safe: no DB access.
+  // Only rewrite / and /live/* so /signup, /login, etc. stay on platform routes.
+  // -----------------------------------------------------------------
+  if (
+    isLiveMarketingHost &&
+    !shouldBypassStorefrontRewrite(pathname) &&
+    (pathname === '/' || pathname.startsWith('/live'))
+  ) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname === '/' ? '/live' : pathname
+    return applySecurityHeaders(
+      NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+    )
+  }
+
   // -----------------------------------------------------------------
   // Storefront rewrite (e.g. demo.al-baz.app). Edge-safe: no DB access here.
   // Vendor resolution by host happens inside app/s/[vendorSlug]/layout.tsx.
