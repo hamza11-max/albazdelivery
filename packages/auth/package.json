@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "next-auth": "^5.0.0-beta.25",
-    "zod": "3.25.76"
+    "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",

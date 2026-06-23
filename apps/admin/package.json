@@ -18,12 +18,12 @@
     "@albaz/auth": "*",
     "next": "^16.0.7",
     "next-auth": "^5.0.0-beta.25",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "lucide-react": "^0.454.0",
-    "tailwind-merge": "^2.5.5",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "lucide-react": "^1.21.0",
+    "tailwind-merge": "^3.6.0",
     "clsx": "^2.1.1",
-    "recharts": "^3.3.0"
+    "recharts": "^3.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
