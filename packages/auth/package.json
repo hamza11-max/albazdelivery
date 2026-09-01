@@ -11,8 +11,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "next-auth": "^5.0.0-beta.25",
-    "zod": "3.25.76"
+    "next-auth": "^5.0.0-beta.32",
+    "zod": "4.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
