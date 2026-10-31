@@ -3,7 +3,9 @@ import type Database from 'better-sqlite3'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
-import { LANGUAGES, type Language } from '../shared/ipc'
+import { LANGUAGES, type LabelLayout, type Language } from '../shared/ipc'
+import { labelsHtml, type LabelData } from './labels/html'
+import { previewFirstPage, printLabels, renderLabelSamples } from './labels/print'
 import { commitImport, planImport, templateWorkbook, type ImportPlan } from './catalog/import'
 import { CatalogRepo } from './catalog/repo'
 import { readSpreadsheet } from './catalog/spreadsheet'
@@ -57,6 +59,16 @@ function wireIpc(db: Database.Database, dbFile: string) {
   const pendingImports = new Map<string, { plan: ImportPlan; expires: number }>()
   const parentWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
 
+  /** Expands copies, renders the label document, and lists variants without a printable barcode. */
+  const buildLabels = (job: { items: { variantId: string; copies: number }[]; layout: LabelLayout; skip: number; showPrice: boolean }) => {
+    const data = catalog.labelData(job.items.map((i) => i.variantId))
+    const labels = data.flatMap((d, i) => Array<LabelData>(job.items[i]!.copies).fill(d))
+    const missing = data.filter((d) => !d.barcode).map((d) => d.variantId)
+    const currency = language(db) === 'ar' ? 'د.ج' : 'DA'
+    const { html, pages } = labelsHtml(labels, { layout: job.layout, skip: job.skip, showPrice: job.showPrice, currency })
+    return { html, pages, labels: labels.length, missing }
+  }
+
   registerHandlers({
     'import:template': async () => {
       const options = { defaultPath: path.join(app.getPath('documents'), 'albaz-produits.xlsx'), filters: [{ name: 'Excel', extensions: ['xlsx'] }] }
@@ -84,6 +96,16 @@ function wireIpc(db: Database.Database, dbFile: string) {
       pendingImports.set(token, { plan, expires: Date.now() + 30 * 60_000 })
       return { ...plan.preview, token, fileName: path.basename(file) }
     },
+    'labels:preview': async (job) => {
+      const built = buildLabels(job)
+      return { dataUrl: await previewFirstPage(built.html, job.layout), pages: built.pages, labels: built.labels, missingBarcodes: built.missing }
+    },
+    'labels:print': async (job) => {
+      const built = buildLabels(job)
+      await printLabels(built.html, job.layout, job.printer)
+      return { pages: built.pages, labels: built.labels }
+    },
+    'labels:assignBarcodes': ({ variantIds }) => ({ assigned: catalog.assignMissingBarcodes(variantIds) }),
     'import:commit': ({ token }) => {
       const pending = pendingImports.get(token)
       if (!pending || pending.expires < Date.now()) throw new AppError('IMPORT_EXPIRED', 'Choose the file again')
@@ -190,6 +212,16 @@ async function smoketest(win: BrowserWindow) {
       const dup = await window.pos.invoke('catalog:saveProduct', { name: 'X', costPrice: 0, salePrice: 100, variants: [{ barcode }] })
       const catalog = saved.ok && found.ok && found.data.rows.some((r) => r.id === saved.data.id)
         && byCode.ok && byCode.data?.product.id === saved.data.id && !dup.ok && dup.error.code === 'DUPLICATE_BARCODE'
+      // Labels: the L variant has no barcode until we assign one.
+      const job = (items) => ({ items, layout: 'a4-3x8', skip: 2, showPrice: true })
+      const items = saved.data.variants.map((v) => ({ variantId: v.id, copies: 3 }))
+      const before = await window.pos.invoke('labels:preview', job(items))
+      const assigned = await window.pos.invoke('labels:assignBarcodes', { variantIds: before.data.missingBarcodes })
+      const after = await window.pos.invoke('labels:preview', job(items))
+      const tooMany = await window.pos.invoke('labels:preview', job([{ variantId: items[0].variantId, copies: 500 }, { variantId: items[1].variantId, copies: 500 }, { variantId: items[0].variantId, copies: 500 }, { variantId: items[1].variantId, copies: 501 }]))
+      const labels = before.ok && before.data.labels === 6 && before.data.missingBarcodes.length === 1 && before.data.dataUrl.startsWith('data:image/png')
+        && assigned.ok && assigned.data.assigned === 1 && after.ok && after.data.missingBarcodes.length === 0
+        && !tooMany.ok && tooMany.error.code === 'INVALID_INPUT'
       // Import round trip (only with --import-file; otherwise a file dialog would open).
       let imported = null
       if (${JSON.stringify(Boolean(argValue('import-file')))}) {
@@ -198,7 +230,7 @@ async function smoketest(win: BrowserWindow) {
         const jean = await window.pos.invoke('catalog:products', { query: 'jean slim' })
         imported = commit.ok && jean.ok && jean.data.rows.length > 0 ? commit.data : { error: commit.error ?? preview.data?.errors }
       }
-      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, catalog, imported }
+      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, catalog, labels, imported }
     })()
   `)
   console.log('smoketest', JSON.stringify({ ...result, info: result.info?.ok }))
@@ -215,6 +247,11 @@ async function smoketest(win: BrowserWindow) {
     await capture(shot.replace(/\.png$/, '-products.png'))
     await win.webContents.executeJavaScript(`document.querySelector('.grid tbody tr')?.click()`)
     await capture(shot.replace(/\.png$/, '-editor.png'))
+    // Labels dialog from the editor (button next to "archive").
+    await win.webContents.executeJavaScript(`[...document.querySelectorAll('.drawer-foot button')].find((b) => !b.classList.contains('danger') && !b.classList.contains('primary') && b.type === 'button' && b.previousElementSibling?.classList.contains('danger'))?.click()`)
+    await new Promise((r) => setTimeout(r, 1200))
+    await capture(shot.replace(/\.png$/, '-labels.png'))
+    await win.webContents.executeJavaScript(`document.querySelectorAll('.drawer-head button')[1]?.click()`)
     if (argValue('import-file')) {
       await win.webContents.executeJavaScript(`document.querySelector('.drawer-head button')?.click()`)
       await win.webContents.executeJavaScript(`[...document.querySelectorAll('.toolbar button')].find((b) => !b.classList.contains('primary'))?.click()`)
@@ -223,7 +260,7 @@ async function smoketest(win: BrowserWindow) {
     }
   }
   const importOk = !argValue('import-file') || (result.imported && result.imported.products >= 1)
-  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 2 && result.badCode === 'INVALID_INPUT' && result.rendered && result.catalog && importOk
+  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 2 && result.badCode === 'INVALID_INPUT' && result.rendered && result.catalog && result.labels && importOk
   app.exit(ok ? 0 : 1)
 }
 
@@ -236,7 +273,9 @@ app.on('web-contents-created', (_e, contents) => {
 app.whenReady().then(async () => {
   if (isSelftest) {
     try {
-      await renderAllReceipts(path.resolve(argValue('out') ?? path.join(app.getPath('userData'), 'selftest')))
+      const out = path.resolve(argValue('out') ?? path.join(app.getPath('userData'), 'selftest'))
+      await renderAllReceipts(out)
+      await renderLabelSamples(out)
       app.quit()
     } catch (err) {
       console.error('selftest failed:', err)

@@ -6,6 +6,8 @@
  */
 import { z } from 'zod'
 
+import { LABEL_LAYOUTS } from './constants'
+
 export const LANGUAGES = ['ar', 'fr'] as const
 export type Language = (typeof LANGUAGES)[number]
 
@@ -80,6 +82,18 @@ const productInput = z
     })
   })
 
+export { LABEL_LAYOUTS, type LabelLayout } from './constants'
+
+const labelJob = z
+  .object({
+    items: z.array(z.object({ variantId: id, copies: z.number().int().min(1).max(500) })).min(1).max(500),
+    layout: z.enum(LABEL_LAYOUTS),
+    /** Labels already used on the first A4 sheet. */
+    skip: z.number().int().min(0).max(64).default(0),
+    showPrice: z.boolean().default(true),
+  })
+  .refine((j) => j.items.reduce((s, i) => s + i.copies, 0) <= 2000, { message: 'at most 2000 labels per job', path: ['items'] })
+
 export const inputs = {
   'app:info': z.undefined(),
   'settings:get': z.undefined(),
@@ -108,6 +122,9 @@ export const inputs = {
   'import:template': z.undefined(),
   'import:preview': z.undefined(),
   'import:commit': z.object({ token: z.string().uuid() }),
+  'labels:preview': labelJob,
+  'labels:print': labelJob.and(z.object({ printer: printerName })),
+  'labels:assignBarcodes': z.object({ variantIds: z.array(id).min(1).max(500) }),
 } as const
 
 export type ChannelName = keyof typeof inputs
@@ -195,6 +212,10 @@ export interface Outputs {
   'import:template': { path: string } | null
   'import:preview': ImportPreview | null
   'import:commit': { products: number; variants: number }
+  /** First page as an image; `missingBarcodes` lists variants that would print without bars. */
+  'labels:preview': { dataUrl: string; pages: number; labels: number; missingBarcodes: string[] }
+  'labels:print': { pages: number; labels: number }
+  'labels:assignBarcodes': { assigned: number }
 }
 
 /** One problem in an imported file. `code` is translated in the UI; `detail` is a value or row number. */

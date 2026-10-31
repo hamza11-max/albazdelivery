@@ -275,6 +275,45 @@ export class CatalogRepo {
     })()
   }
 
+  /** What goes on a label for each variant, in the order asked. */
+  labelData(variantIds: readonly string[]): { variantId: string; name: string; variantLabel: string; price: number; barcode: string }[] {
+    const get = this.db.prepare(
+      `SELECT v.id, p.name, v.option1_value, v.option2_value, coalesce(v.sale_price, p.sale_price) AS price, coalesce(v.barcode, '') AS barcode
+       FROM variants v JOIN products p ON p.id = v.product_id
+       WHERE v.id = ? AND v.archived_at IS NULL AND p.archived_at IS NULL`,
+    )
+    return variantIds.map((id) => {
+      const r = get.get(id) as { id: string; name: string; option1_value: string | null; option2_value: string | null; price: number; barcode: string } | undefined
+      if (!r) throw new AppError('NOT_FOUND', 'Variant not found')
+      return {
+        variantId: r.id,
+        name: r.name,
+        variantLabel: [r.option1_value, r.option2_value].filter(Boolean).join(' / '),
+        price: r.price,
+        barcode: r.barcode,
+      }
+    })
+  }
+
+  /** Gives an in-store EAN-13 to each listed variant that has no barcode yet. */
+  assignMissingBarcodes(variantIds: readonly string[]): number {
+    const ctx = this.ctx()
+    return this.db.transaction(() => {
+      let assigned = 0
+      const touched = new Set<string>()
+      for (const id of variantIds) {
+        const v = this.db.prepare('SELECT product_id, barcode FROM variants WHERE id = ? AND archived_at IS NULL').get(id) as { product_id: string; barcode: string | null } | undefined
+        if (!v) throw new AppError('NOT_FOUND', 'Variant not found')
+        if (v.barcode) continue
+        this.db.prepare('UPDATE variants SET barcode = ?, updated_at = ? WHERE id = ?').run(this.newBarcode(), ctx.now, id)
+        touched.add(v.product_id)
+        assigned++
+      }
+      for (const productId of touched) outbox(ctx, 'product', productId, this.product(productId))
+      return assigned
+    })()
+  }
+
   private assertCodeFree(kind: 'sku' | 'barcode', value: string, variantId: string) {
     const other = this.db
       .prepare(`SELECT p.name FROM variants v JOIN products p ON p.id = v.product_id WHERE v.${kind} = ? AND v.id <> ?`)
