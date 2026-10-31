@@ -29,6 +29,7 @@ function argValue(name: string): string | undefined {
 async function openAndMigrate(): Promise<{ db: Database.Database; file: string }> {
   const dataDir = argValue('data-dir') ? path.resolve(argValue('data-dir')!) : app.getPath('userData')
   const file = path.join(dataDir, 'pos.db')
+  await fs.mkdir(dataDir, { recursive: true })
   const db = openDatabase(file)
   try {
     const result = await migrate(db, loadMigrations(MIGRATIONS_DIR), { backupDir: path.join(dataDir, 'backups') })
