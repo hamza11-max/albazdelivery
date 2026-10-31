@@ -79,7 +79,7 @@ datasource db {
 
 Then update `.env`:
 ```bash
-DATABASE_URL="postgresql://postgres:albaz96hamza@db.lftmnkziovagctibmwff.supabase.co:6543/postgres?pgbouncer=true&sslmode=require"
+DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@db.lftmnkziovagctibmwff.supabase.co:6543/postgres?pgbouncer=true&sslmode=require"
 ```
 
 **Note**: Pooled connections have limitations for migrations, but work for `prisma db push`.
