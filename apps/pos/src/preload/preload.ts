@@ -22,6 +22,9 @@ const CHANNELS = [
   'catalog:archiveProduct',
   'catalog:findByCode',
   'catalog:newBarcode',
+  'import:template',
+  'import:preview',
+  'import:commit',
 ] as const satisfies readonly ChannelName[]
 
 type Missing = Exclude<ChannelName, (typeof CHANNELS)[number]>

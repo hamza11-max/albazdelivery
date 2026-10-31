@@ -4,7 +4,11 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { LANGUAGES, type Language } from '../shared/ipc'
+import { commitImport, planImport, templateWorkbook, type ImportPlan } from './catalog/import'
 import { CatalogRepo } from './catalog/repo'
+import { readSpreadsheet } from './catalog/spreadsheet'
+import { AppError } from './errors'
+import { uuidv7 } from './ids'
 import { getSetting, openDatabase, setSetting } from './db/database'
 import { appliedMigrations, loadMigrations, migrate } from './db/migrate'
 import { registerHandlers } from './ipc'
@@ -49,7 +53,43 @@ function language(db: Database.Database): Language {
 
 function wireIpc(db: Database.Database, dbFile: string) {
   const catalog = new CatalogRepo(db)
+  /** Parsed imports waiting for "Import": token → plan. One at a time, expires after 30 minutes. */
+  const pendingImports = new Map<string, { plan: ImportPlan; expires: number }>()
+  const parentWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+
   registerHandlers({
+    'import:template': async () => {
+      const options = { defaultPath: path.join(app.getPath('documents'), 'albaz-produits.xlsx'), filters: [{ name: 'Excel', extensions: ['xlsx'] }] }
+      const win = parentWindow()
+      const result = win ? await dialog.showSaveDialog(win, options) : await dialog.showSaveDialog(options)
+      if (result.canceled || !result.filePath) return null
+      await fs.writeFile(result.filePath, await templateWorkbook())
+      return { path: result.filePath }
+    },
+    'import:preview': async () => {
+      // Smoke test only: read a given file instead of showing the dialog.
+      let file = isSmoketest ? argValue('import-file') : undefined
+      if (!file) {
+        const options = { properties: ['openFile' as const], filters: [{ name: 'Excel / CSV', extensions: ['xlsx', 'csv'] }] }
+        const win = parentWindow()
+        const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+        if (result.canceled || !result.filePaths[0]) return null
+        file = result.filePaths[0]
+      }
+      const stat = await fs.stat(file)
+      if (stat.size > 10 * 1024 * 1024) throw new AppError('FILE_TOO_LARGE', 'File is larger than 10 MB')
+      const plan = planImport(await readSpreadsheet(await fs.readFile(file), path.basename(file)), catalog, db)
+      const token = uuidv7()
+      pendingImports.clear()
+      pendingImports.set(token, { plan, expires: Date.now() + 30 * 60_000 })
+      return { ...plan.preview, token, fileName: path.basename(file) }
+    },
+    'import:commit': ({ token }) => {
+      const pending = pendingImports.get(token)
+      if (!pending || pending.expires < Date.now()) throw new AppError('IMPORT_EXPIRED', 'Choose the file again')
+      pendingImports.delete(token)
+      return commitImport(pending.plan, catalog, db)
+    },
     'catalog:categories': () => catalog.categories(),
     'catalog:saveCategory': (input) => catalog.saveCategory(input),
     'catalog:archiveCategory': ({ id }) => {
@@ -150,7 +190,15 @@ async function smoketest(win: BrowserWindow) {
       const dup = await window.pos.invoke('catalog:saveProduct', { name: 'X', costPrice: 0, salePrice: 100, variants: [{ barcode }] })
       const catalog = saved.ok && found.ok && found.data.rows.some((r) => r.id === saved.data.id)
         && byCode.ok && byCode.data?.product.id === saved.data.id && !dup.ok && dup.error.code === 'DUPLICATE_BARCODE'
-      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, catalog }
+      // Import round trip (only with --import-file; otherwise a file dialog would open).
+      let imported = null
+      if (${JSON.stringify(Boolean(argValue('import-file')))}) {
+        const preview = await window.pos.invoke('import:preview')
+        const commit = preview.ok && preview.data.errorCount === 0 ? await window.pos.invoke('import:commit', { token: preview.data.token }) : preview
+        const jean = await window.pos.invoke('catalog:products', { query: 'jean slim' })
+        imported = commit.ok && jean.ok && jean.data.rows.length > 0 ? commit.data : { error: commit.error ?? preview.data?.errors }
+      }
+      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, catalog, imported }
     })()
   `)
   console.log('smoketest', JSON.stringify({ ...result, info: result.info?.ok }))
@@ -167,8 +215,15 @@ async function smoketest(win: BrowserWindow) {
     await capture(shot.replace(/\.png$/, '-products.png'))
     await win.webContents.executeJavaScript(`document.querySelector('.grid tbody tr')?.click()`)
     await capture(shot.replace(/\.png$/, '-editor.png'))
+    if (argValue('import-file')) {
+      await win.webContents.executeJavaScript(`document.querySelector('.drawer-head button')?.click()`)
+      await win.webContents.executeJavaScript(`[...document.querySelectorAll('.toolbar button')].find((b) => !b.classList.contains('primary'))?.click()`)
+      await win.webContents.executeJavaScript(`document.querySelector('.drawer .buttons .primary')?.click()`)
+      await capture(shot.replace(/\.png$/, '-import.png'))
+    }
   }
-  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 2 && result.badCode === 'INVALID_INPUT' && result.rendered && result.catalog
+  const importOk = !argValue('import-file') || (result.imported && result.imported.products >= 1)
+  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 2 && result.badCode === 'INVALID_INPUT' && result.rendered && result.catalog && importOk
   app.exit(ok ? 0 : 1)
 }
 
