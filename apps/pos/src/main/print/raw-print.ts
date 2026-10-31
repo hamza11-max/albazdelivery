@@ -5,28 +5,9 @@ import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 
-export type RawTarget =
-  | { kind: 'windows'; printer: string }
-  | { kind: 'tcp'; host: string; port: number }
+import type { RawTarget } from '../../shared/ipc'
 
-const HOST_RE = /^(?:[a-zA-Z0-9-]{1,63}\.)*[a-zA-Z0-9-]{1,63}$|^\d{1,3}(?:\.\d{1,3}){3}$/
-
-/** Throws unless `value` is a well-formed RawTarget. Renderer input is untrusted. */
-export function parseRawTarget(value: unknown): RawTarget {
-  const v = value as Record<string, unknown> | null
-  if (v?.kind === 'windows' && typeof v.printer === 'string') {
-    const printer = v.printer
-    // eslint-disable-next-line no-control-regex
-    if (printer.length > 0 && printer.length <= 256 && !/[\u0000-\u001f]/.test(printer)) return { kind: 'windows', printer }
-  }
-  if (v?.kind === 'tcp' && typeof v.host === 'string' && typeof v.port === 'number') {
-    if (HOST_RE.test(v.host) && Number.isInteger(v.port) && v.port > 0 && v.port < 65536) {
-      return { kind: 'tcp', host: v.host, port: v.port }
-    }
-  }
-  throw new Error('Invalid printer target')
-}
-
+/** `target` must already be validated (see `inputs` in src/shared/ipc.ts). */
 export async function sendRaw(target: RawTarget, data: Buffer, scriptPath: string): Promise<void> {
   if (target.kind === 'tcp') return sendTcp(target.host, target.port, data)
   return sendWindows(target.printer, data, scriptPath)

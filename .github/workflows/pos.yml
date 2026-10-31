@@ -46,8 +46,8 @@ jobs:
           npm test -w @albaz/pos-core
           npm test -w @albaz/pos
 
-  selftest:
-    name: Render receipts (Electron, Windows)
+  electron:
+    name: Database, smoke test and receipts (Electron, Windows)
     runs-on: windows-latest
     needs: check
     steps:
@@ -63,8 +63,21 @@ jobs:
           npm ci --workspace=@albaz/pos --ignore-scripts
           node node_modules/electron/install.js
 
+      # better-sqlite3 for Electron's ABI (prebuilt download, compiles if none).
+      - name: Build native modules for Electron
+        run: npm run rebuild:native -w @albaz/pos
+
+      - name: Database tests (migrations and schema rules)
+        run: npm run test:db -w @albaz/pos
+
+      - name: Build app
+        run: npm run build -w @albaz/pos
+
+      - name: Smoke test (window, preload bridge, IPC, migrations)
+        run: npx electron apps/pos --smoketest --data-dir=apps/pos/receipts/smoke-data --screenshot=apps/pos/receipts/shell.png
+
       - name: Render every receipt variant
-        run: npm run selftest -w @albaz/pos -- --out=receipts
+        run: npx electron apps/pos --selftest --out=apps/pos/receipts
 
       - name: Check output
         shell: bash
@@ -77,6 +90,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pos-receipts
+          name: pos-output
           path: apps/pos/receipts/
           if-no-files-found: warn

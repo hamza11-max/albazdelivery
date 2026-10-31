@@ -1,18 +1,34 @@
 {
   "name": "@albaz/pos",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
-  "description": "AL-baz POS - Phase 2 spike: Arabic/French receipt printing and cash drawer",
-  "main": "dist/main.js",
+  "description": "AL-baz POS: offline-first retail point of sale (Windows, Electron)",
+  "main": "dist/main/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.renderer.json",
+    "build:main": "tsc -p tsconfig.json",
+    "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:renderer",
     "start": "npm run build && electron .",
     "selftest": "npm run build && electron . --selftest",
-    "test": "npm run build && node --test dist/escpos.test.js",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3 -m ../..",
+    "test": "npm run build:main && node --test \"dist/main/print/*.test.js\"",
+    "test:db": "npm run build:main && node scripts/electron-node.cjs --test \"dist/main/db/*.test.js\"",
     "type-check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
   },
+  "dependencies": {
+    "better-sqlite3": "12.8.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "zod": "3.25.76"
+  },
   "devDependencies": {
+    "@electron/rebuild": "3.7.2",
+    "@types/better-sqlite3": "7.6.13",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "@vitejs/plugin-react": "4.4.1",
     "electron": "39.8.6",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "6.3.5"
   }
 }
