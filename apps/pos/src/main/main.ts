@@ -4,6 +4,7 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { LANGUAGES, type Language } from '../shared/ipc'
+import { CatalogRepo } from './catalog/repo'
 import { getSetting, openDatabase, setSetting } from './db/database'
 import { appliedMigrations, loadMigrations, migrate } from './db/migrate'
 import { registerHandlers } from './ipc'
@@ -47,7 +48,23 @@ function language(db: Database.Database): Language {
 }
 
 function wireIpc(db: Database.Database, dbFile: string) {
+  const catalog = new CatalogRepo(db)
   registerHandlers({
+    'catalog:categories': () => catalog.categories(),
+    'catalog:saveCategory': (input) => catalog.saveCategory(input),
+    'catalog:archiveCategory': ({ id }) => {
+      catalog.archiveCategory(id)
+      return null
+    },
+    'catalog:products': (query) => catalog.products(query),
+    'catalog:product': ({ id }) => catalog.product(id),
+    'catalog:saveProduct': (input) => catalog.saveProduct(input),
+    'catalog:archiveProduct': ({ id }) => {
+      catalog.archiveProduct(id)
+      return null
+    },
+    'catalog:findByCode': ({ code }) => catalog.findByCode(code),
+    'catalog:newBarcode': () => ({ barcode: catalog.newBarcode() }),
     'app:info': () => ({
       appVersion: app.getVersion(),
       electronVersion: process.versions.electron,
@@ -122,17 +139,36 @@ async function smoketest(win: BrowserWindow) {
       const info = bridge ? await window.pos.invoke('app:info') : null
       const bad = bridge ? await window.pos.invoke('settings:setLanguage', { lang: 'xx' }) : null
       const root = document.getElementById('root')?.childElementCount ?? 0
-      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir }
+      // Catalog round trip through the real bridge, with a barcode unique to this run.
+      const barcode = (await window.pos.invoke('catalog:newBarcode')).data.barcode
+      const saved = await window.pos.invoke('catalog:saveProduct', {
+        name: 'قميص أبيض', nameAlt: 'Chemise blanche', costPrice: 1200, salePrice: 2500,
+        option1Name: 'Taille', variants: [{ option1Value: 'M', barcode }, { option1Value: 'L' }],
+      })
+      const found = await window.pos.invoke('catalog:products', { query: 'ابيض' })
+      const byCode = await window.pos.invoke('catalog:findByCode', { code: barcode })
+      const dup = await window.pos.invoke('catalog:saveProduct', { name: 'X', costPrice: 0, salePrice: 100, variants: [{ barcode }] })
+      const catalog = saved.ok && found.ok && found.data.rows.some((r) => r.id === saved.data.id)
+        && byCode.ok && byCode.data?.product.id === saved.data.id && !dup.ok && dup.error.code === 'DUPLICATE_BARCODE'
+      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, catalog }
     })()
   `)
-  console.log('smoketest', JSON.stringify(result))
+  console.log('smoketest', JSON.stringify({ ...result, info: result.info?.ok }))
   const shot = argValue('screenshot')
   if (shot) {
-    await new Promise((r) => setTimeout(r, 300))
-    const image = await win.webContents.capturePage(undefined, { stayHidden: true })
-    await fs.writeFile(path.resolve(shot), image.toPNG())
+    const capture = async (file: string) => {
+      await new Promise((r) => setTimeout(r, 400))
+      const image = await win.webContents.capturePage(undefined, { stayHidden: true })
+      await fs.writeFile(path.resolve(file), image.toPNG())
+    }
+    await capture(shot)
+    // Products list, then the editor for the first product.
+    await win.webContents.executeJavaScript(`document.querySelectorAll('.rail-item')[2]?.click()`)
+    await capture(shot.replace(/\.png$/, '-products.png'))
+    await win.webContents.executeJavaScript(`document.querySelector('.grid tbody tr')?.click()`)
+    await capture(shot.replace(/\.png$/, '-editor.png'))
   }
-  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 1 && result.badCode === 'INVALID_INPUT' && result.rendered
+  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 2 && result.badCode === 'INVALID_INPUT' && result.rendered && result.catalog
   app.exit(ok ? 0 : 1)
 }
 

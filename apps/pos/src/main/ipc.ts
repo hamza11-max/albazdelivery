@@ -9,15 +9,7 @@ type Parsed<K extends ChannelName> = import('zod').infer<(typeof inputs)[K]>
 
 export type Handlers = { [K in ChannelName]: (input: Parsed<K>) => Promise<Outputs[K]> | Outputs[K] }
 
-/** An error whose code and message are safe to show in the UI. */
-export class AppError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message)
-  }
-}
+export { AppError } from './errors'
 
 function toResult(err: unknown): IpcResult<never> {
   if (err instanceof ZodError) {
