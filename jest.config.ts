@@ -5,7 +5,6 @@ const ignoreHeavyTrees = [
   '<rootDir>/apps/vendor/.next/',
   '<rootDir>/apps/admin/.next/',
   '<rootDir>/apps/customer/.next/',
-  '<rootDir>/apps/driver/.next/',
   '<rootDir>/.next/',
   '<rootDir>/dist/',
 ];
