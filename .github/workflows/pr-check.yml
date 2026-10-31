@@ -7,6 +7,12 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # prisma.config.ts requires DATABASE_URL even for `prisma generate`.
+    # Placeholder only: these checks use mocks and do not connect to a database.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      NEXTAUTH_SECRET: test_secret
+      NEXTAUTH_URL: http://localhost:3000
     strategy:
       matrix:
         node-version: [20]
