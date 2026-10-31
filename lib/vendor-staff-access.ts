@@ -1,5 +1,34 @@
-import { prisma } from '@/root/lib/prisma'
-import { ForbiddenError } from '@/root/lib/errors'
+import { prisma } from '@/lib/prisma'
+import { ForbiddenError } from '@/lib/errors'
+
+/** API-enforced permissions (aligned with apps/vendor/utils/permissionsUtils catalog). */
+export type StaffApiPermission =
+  | 'orders.view'
+  | 'orders.edit'
+  | 'sales.create'
+  | 'sales.view'
+  | 'customers.create'
+  | 'customers.view'
+  | 'inventory.mutate'
+  | 'suppliers.mutate'
+
+const MANAGER_PERMISSIONS: ReadonlySet<StaffApiPermission> = new Set([
+  'orders.view',
+  'orders.edit',
+  'sales.create',
+  'sales.view',
+  'customers.create',
+  'customers.view',
+  'inventory.mutate',
+  'suppliers.mutate',
+])
+
+const CASHIER_PERMISSIONS: ReadonlySet<StaffApiPermission> = new Set([
+  'sales.create',
+  'sales.view',
+  'customers.create',
+  'customers.view',
+])
 
 /**
  * Resolves the vendor **owner** user id for scoped data (orders, ERP inventory).
@@ -42,9 +71,23 @@ export async function assertVendorMayMutateInventoryCatalog(
   actorUserId: string,
   vendorOwnerId: string
 ): Promise<void> {
+  await assertStaffPermission(actorUserId, vendorOwnerId, 'inventory.mutate')
+}
+
+/**
+ * Enforce Prisma staff role against an API permission.
+ * Owner (actor === vendorOwnerId) always allowed.
+ * localStorage role catalogs remain display-only in the UI.
+ */
+export async function assertStaffPermission(
+  actorUserId: string,
+  vendorOwnerId: string,
+  permission: StaffApiPermission
+): Promise<void> {
   if (actorUserId === vendorOwnerId) {
     return
   }
+
   const m = await prisma.vendorStaffMember.findUnique({
     where: {
       vendorOwnerId_staffUserId: {
@@ -54,10 +97,19 @@ export async function assertVendorMayMutateInventoryCatalog(
     },
     select: { role: true },
   })
+
   if (!m) {
     throw new ForbiddenError('You are not a staff member of this vendor')
   }
-  if (m.role === 'CASHIER') {
-    throw new ForbiddenError('Inventory catalog changes require a manager role')
+
+  const allowed =
+    m.role === 'MANAGER'
+      ? MANAGER_PERMISSIONS.has(permission)
+      : m.role === 'CASHIER'
+        ? CASHIER_PERMISSIONS.has(permission)
+        : false
+
+  if (!allowed) {
+    throw new ForbiddenError(`Missing permission: ${permission}`)
   }
 }

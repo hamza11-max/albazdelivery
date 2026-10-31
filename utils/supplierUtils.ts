@@ -31,9 +31,9 @@ export async function saveSupplier({
       ...supplierForm,
       id: `supplier-${Date.now()}`,
       vendorId: activeVendorId || 'local-vendor',
-      productsSupplied: [] as string[],
-      createdAt: new Date(),
-    } as Supplier
+      createdAt: new Date().toISOString(),
+      productsSupplied: [],
+    }
     
     const storedSuppliers = safeLocalStorageGet<Supplier[]>('electron-suppliers', [])
     storedSuppliers.push(supplierData)

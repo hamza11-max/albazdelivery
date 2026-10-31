@@ -6,6 +6,7 @@ import { Toaster } from "@albaz/ui"
 import { ThemeInitializer } from "../../../components/ThemeInitializer"
 import { ErrorBoundary } from "../../../components/ErrorBoundary"
 import { SessionProvider } from "@/root/components/providers/SessionProvider"
+import { MuiProvider } from "../components/providers/MuiProvider"
 import { PwaRegistration } from "../components/PwaRegistration"
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
@@ -37,15 +38,17 @@ export default function VendorLayout({
     <html lang="fr" suppressHydrationWarning>
       <body className={inter.variable}>
         <SessionProvider>
-          <PwaRegistration />
-          <ThemeInitializer />
-          <ErrorBoundary>
-            <div className="min-h-screen bg-transparent text-foreground">
-              {/* Sidebar is handled inside the vendor page component */}
-              {children}
-            </div>
-          </ErrorBoundary>
-          <Toaster />
+          <MuiProvider>
+            <PwaRegistration />
+            <ThemeInitializer />
+            <ErrorBoundary>
+              <div className="min-h-screen bg-transparent text-foreground">
+                {/* Sidebar is handled inside the vendor page component */}
+                {children}
+              </div>
+            </ErrorBoundary>
+            <Toaster />
+          </MuiProvider>
         </SessionProvider>
       </body>
     </html>

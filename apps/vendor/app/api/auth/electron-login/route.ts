@@ -2,9 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
+import { getElectronJwtSecret } from '@/root/lib/electron-jwt-secret'
+import { errorResponse } from '@/root/lib/errors'
 
 export async function POST(request: NextRequest) {
   try {
+    await applyRateLimit(request, rateLimitConfigs.auth)
+
     const { email, password } = await request.json()
 
     if (!email || !password) {
@@ -14,7 +19,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find user
+    let secret: string
+    try {
+      secret = getElectronJwtSecret()
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Server auth secret is not configured' },
+        { status: 503 }
+      )
+    }
+
     const user = await prisma.user.findUnique({
       where: { email },
       select: {
@@ -34,7 +48,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check password
     const isValid = await bcrypt.compare(password, user.password)
     if (!isValid) {
       return NextResponse.json(
@@ -43,7 +56,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is vendor or admin
     if (user.role !== 'VENDOR' && user.role !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Access denied. Vendor or Admin role required.' },
@@ -51,7 +63,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if approved
     if (user.status !== 'APPROVED' && user.role !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Account not approved yet' },
@@ -59,8 +70,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate JWT token for Electron
-    const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'fallback-secret'
     const token = jwt.sign(
       {
         userId: user.id,
@@ -86,10 +95,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Electron Login] Error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    )
+    return errorResponse(error)
   }
 }
-

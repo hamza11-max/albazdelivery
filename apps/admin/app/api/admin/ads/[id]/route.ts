@@ -6,19 +6,17 @@ import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../../lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../../lib/audit'
 import { z } from 'zod'
-import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const updateAdSchema = z.object({
   title: z.string().min(1).optional(),
-  titleFr: z.string().min(1).optional(),
-  titleAr: z.string().min(1).optional(),
   description: z.string().optional(),
-  descriptionFr: z.string().optional(),
-  descriptionAr: z.string().optional(),
   imageUrl: z.string().url().optional(),
   linkUrl: z.string().url().optional().or(z.literal('')),
-  displayOrder: z.number().int().min(0).optional(),
+  position: z.enum(['HOME_BANNER', 'HOME_SIDEBAR', 'CATEGORY_TOP', 'CATEGORY_SIDEBAR', 'PRODUCT_PAGE', 'CHECKOUT_PAGE', 'MOBILE_BANNER'] as const).optional(),
+  priority: z.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
+  startDate: z.string().datetime().optional().nullable(),
+  endDate: z.string().datetime().optional().nullable(),
 })
 
 // GET /api/admin/ads/[id] - Get specific ad
@@ -27,14 +25,14 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can access ads')
     }
 
@@ -67,14 +65,14 @@ export async function PUT(
   }
 
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can update ads')
     }
 
@@ -95,22 +93,19 @@ export async function PUT(
 
     // Prepare update data
     const updateData: any = {}
-    if (validatedData.title !== undefined) {
-      updateData.titleFr = validatedData.title
-      updateData.titleAr = validatedData.title
-    }
-    if (validatedData.titleFr !== undefined) updateData.titleFr = validatedData.titleFr
-    if (validatedData.titleAr !== undefined) updateData.titleAr = validatedData.titleAr
-    if (validatedData.description !== undefined) {
-      updateData.descriptionFr = validatedData.description
-      updateData.descriptionAr = validatedData.description
-    }
-    if (validatedData.descriptionFr !== undefined) updateData.descriptionFr = validatedData.descriptionFr
-    if (validatedData.descriptionAr !== undefined) updateData.descriptionAr = validatedData.descriptionAr
+    if (validatedData.title !== undefined) updateData.title = validatedData.title
+    if (validatedData.description !== undefined) updateData.description = validatedData.description
     if (validatedData.imageUrl !== undefined) updateData.imageUrl = validatedData.imageUrl
     if (validatedData.linkUrl !== undefined) updateData.linkUrl = validatedData.linkUrl || null
-    if (validatedData.displayOrder !== undefined) updateData.displayOrder = validatedData.displayOrder
+    if (validatedData.position !== undefined) updateData.position = validatedData.position
+    if (validatedData.priority !== undefined) updateData.priority = validatedData.priority
     if (validatedData.isActive !== undefined) updateData.isActive = validatedData.isActive
+    if (validatedData.startDate !== undefined) {
+      updateData.startDate = validatedData.startDate ? new Date(validatedData.startDate) : null
+    }
+    if (validatedData.endDate !== undefined) {
+      updateData.endDate = validatedData.endDate ? new Date(validatedData.endDate) : null
+    }
 
     const updatedAd = await prisma.ad.update({
       where: { id },
@@ -127,8 +122,8 @@ export async function PUT(
       details: {
         changes: updateData,
         previous: {
-          titleFr: existingAd.titleFr,
-          displayOrder: existingAd.displayOrder,
+          title: existingAd.title,
+          position: existingAd.position,
           isActive: existingAd.isActive,
         },
       },
@@ -156,14 +151,14 @@ export async function DELETE(
   }
 
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can delete ads')
     }
 
@@ -192,8 +187,8 @@ export async function DELETE(
       resourceId: id,
       details: {
         deletedAd: {
-          titleFr: ad.titleFr,
-          displayOrder: ad.displayOrder,
+          title: ad.title,
+          position: ad.position,
         },
       },
       status: 'SUCCESS',

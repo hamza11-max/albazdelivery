@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, useMemo, useRef, useCallback, FormEvent, Suspense } from "react"
 import type { ChangeEvent } from "react"
@@ -123,18 +123,18 @@ import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
 import { VendorSecuritySettingsPanel } from "../../components/security/VendorSecuritySettingsPanel"
 import { VendorStorefrontWebPanel } from "../../components/VendorStorefrontWebPanel"
+import { FinanceSubscriptionCard } from "../../components/finance/FinanceSubscriptionCard"
 import { vendorMenuItems } from "../../components/navigation/vendor-menu-items"
 import { NotificationsPanel, type VendorNotificationItem } from "../../components/navigation/NotificationsPanel"
 import { StaffSwitchDialog } from "../../components/navigation/StaffSwitchDialog"
 import { getTabIdForShortcut, getVendorTabShortcut } from "../../components/navigation/tab-shortcuts"
 import {
-  getTabsForShopType,
   isSettingsSectionVisible,
   type ShopType,
 } from "../../config/shopTypes"
 import { getVendorFeatureFlags } from "../../config/vendorFeatures"
 import { listAccessibleTabIds } from "../../config/vendorEntitlements"
-import { VendorShell } from "../../components/layout/VendorShell"
+import { VendorShell, type VendorShellProps } from "../../components/layout/VendorShell"
 import { setLightDarkTheme } from "@/root/lib/theme"
 import { useSubscription } from "@/root/hooks/useSubscription"
 import {
@@ -309,6 +309,9 @@ function VendorDashboardContent() {
         "pos",
         "inventory",
         "orders",
+        "kitchen",
+        "dine-qr",
+        "accounting",
         "drivers",
         "sales",
         "reports",
@@ -328,35 +331,7 @@ function VendorDashboardContent() {
   )
 
   const queryString = searchParams.toString()
-  useEffect(() => {
-    const params = new URLSearchParams(queryString)
-    const tab = params.get("tab")
-    const orderId = params.get("orderId")
-    const customerId = params.get("customerId")
-    if (tab && vendorTabIds.has(tab)) setActiveTab(tab)
-    if (orderId) {
-      setActiveTab("orders")
-      setHighlightOrderId(orderId)
-    }
-    if (customerId) {
-      setActiveTab("orders")
-      setOrdersCustomerFilter(customerId)
-    }
-  }, [queryString, setActiveTab, vendorTabIds])
-
-  useEffect(() => {
-    const onSwitchTab = (e: Event) => {
-      const tab = (e as CustomEvent<string>).detail
-      if (typeof tab !== "string" || !vendorTabIds.has(tab)) return
-      setActiveTab(tab)
-      const p = new URLSearchParams(searchParams.toString())
-      p.set("tab", tab)
-      router.replace(`${pathname}?${p.toString()}`, { scroll: false })
-    }
-    if (typeof window === "undefined") return
-    window.addEventListener("switchTab", onSwitchTab as EventListener)
-    return () => window.removeEventListener("switchTab", onSwitchTab as EventListener)
-  }, [pathname, router, searchParams, setActiveTab, vendorTabIds])
+  // Deep-link / switchTab handlers register after allowedTabIds is computed.
 
   const clearOrdersCustomerFilter = useCallback(() => {
     setOrdersCustomerFilter(null)
@@ -395,17 +370,61 @@ function VendorDashboardContent() {
     }
   }, [isElectronRuntime, isLoading, status, isAuthenticated, user, router])
 
-  // Shop type: from Electron store (setup) or default 'other' for web
+  // Shop type: User.shopType (web/API), Electron locked flavor override, else Electron store / 'other'
   const [shopType, setShopType] = useState<ShopType | "other">("other")
   useEffect(() => {
-    const auth = (typeof window !== "undefined" && window.electronAPI?.auth) as { getShopType?: () => Promise<string> } | undefined
-    if (!auth?.getShopType) return
-    auth.getShopType().then((type: string) => {
-      if (type && ["restaurant", "retail", "grocery", "other"].includes(type)) {
-        setShopType(type as ShopType)
+    let cancelled = false
+    const applyType = (type: string | null | undefined) => {
+      if (!type || cancelled) return
+      const normalized = String(type).trim().toLowerCase()
+      if (["restaurant", "retail", "grocery", "other"].includes(normalized)) {
+        setShopType(normalized as ShopType)
       }
-    }).catch(() => {})
-  }, [isElectronRuntime])
+    }
+    const loadShopType = async () => {
+      const auth = typeof window !== "undefined" ? window.electronAPI?.auth : undefined
+      try {
+        const setup = await auth?.getSetup?.()
+        if (setup?.shopTypeLocked && setup.lockedShopType) {
+          applyType(setup.lockedShopType)
+          return
+        }
+      } catch {
+        /* ignore */
+      }
+
+      const userId = effectiveUser?.id ? String(effectiveUser.id) : ""
+      const isLocalOffline =
+        isElectronRuntime &&
+        (userId.startsWith("local-") || userId.startsWith("electron-"))
+
+      if (userId && !isLocalOffline) {
+        try {
+          const res = await fetch("/api/vendor/me/shop-type", { credentials: "include" })
+          if (res.ok) {
+            const json = await res.json()
+            const fromApi = json?.data?.shopType ?? json?.shopType
+            if (fromApi) {
+              applyType(String(fromApi))
+              return
+            }
+          }
+        } catch {
+          /* fall through */
+        }
+      }
+
+      try {
+        applyType(await auth?.getShopType?.())
+      } catch {
+        /* keep default */
+      }
+    }
+    void loadShopType()
+    return () => {
+      cancelled = true
+    }
+  }, [isElectronRuntime, effectiveUser?.id])
 
   const domainVendorId = useMemo(
     () =>
@@ -461,6 +480,39 @@ function VendorDashboardContent() {
     }
   }, [allowedTabIds, activeTab])
 
+  useEffect(() => {
+    const params = new URLSearchParams(queryString)
+    const tab = params.get("tab")
+    const orderId = params.get("orderId")
+    const customerId = params.get("customerId")
+    if (tab && vendorTabIds.has(tab) && allowedTabIds.includes(tab)) {
+      setActiveTab(tab)
+    }
+    if (orderId && allowedTabIds.includes("orders")) {
+      setActiveTab("orders")
+      setHighlightOrderId(orderId)
+    }
+    if (customerId && allowedTabIds.includes("orders")) {
+      setActiveTab("orders")
+      setOrdersCustomerFilter(customerId)
+    }
+  }, [queryString, setActiveTab, vendorTabIds, allowedTabIds])
+
+  useEffect(() => {
+    const onSwitchTab = (e: Event) => {
+      const tab = (e as CustomEvent<string>).detail
+      if (typeof tab !== "string" || !vendorTabIds.has(tab)) return
+      if (tab !== "menu" && !allowedTabIds.includes(tab)) return
+      setActiveTab(tab)
+      const p = new URLSearchParams(searchParams.toString())
+      p.set("tab", tab)
+      router.replace(`${pathname}?${p.toString()}`, { scroll: false })
+    }
+    if (typeof window === "undefined") return
+    window.addEventListener("switchTab", onSwitchTab as EventListener)
+    return () => window.removeEventListener("switchTab", onSwitchTab as EventListener)
+  }, [pathname, router, searchParams, setActiveTab, vendorTabIds, allowedTabIds])
+
   // Check Electron auth on mount and load offline data
   useEffect(() => {
     if (isElectronRuntime && !electronAuthChecked) {
@@ -505,6 +557,17 @@ function VendorDashboardContent() {
   }, [isDarkMode])
 
   const [settingsSubTab, setSettingsSubTab] = useState("shop")
+  const showHoursSettings =
+    isSettingsSectionVisible(shopType, "schedule") ||
+    isSettingsSectionVisible(shopType, "prepTime")
+  const showPayoutsSettings = isSettingsSectionVisible(shopType, "payouts")
+  const showStaffSettings = isSettingsSectionVisible(shopType, "staff")
+
+  useEffect(() => {
+    if (settingsSubTab === "hours" && !showHoursSettings) {
+      setSettingsSubTab("shop")
+    }
+  }, [settingsSubTab, showHoursSettings])
   const [isUpdatingStoreStatus, setIsUpdatingStoreStatus] = useState(false)
   const [prepTimeMinutes, setPrepTimeMinutes] = useState(() => {
     if (typeof window === 'undefined') return 20
@@ -2340,7 +2403,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         isAdmin={isAdmin}
         selectedVendorId={selectedVendorId}
         setSelectedVendorId={setSelectedVendorId}
-        availableVendors={availableVendors}
+        availableVendors={availableVendors satisfies VendorShellProps["availableVendors"]}
         isLoadingVendors={isLoadingVendors}
         subscription={subscription}
         subscriptionLoading={subscriptionLoading}
@@ -2349,6 +2412,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         }}
       >
           {/* Dashboard Tab */}
+          {allowedTabIds.includes("dashboard") && (
           <TabsContent value="dashboard" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <DashboardTab
               todaySales={todaySales}
@@ -2361,9 +2425,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               setShowProductDialog={setShowProductDialog}
             />
           </TabsContent>
+          )}
 
 
           {/* POS Tab - Modern ALBAZ Design */}
+          {allowedTabIds.includes("pos") && (
           <TabsContent value="pos" className="space-y-0 p-0 -mx-2 sm:-mx-4 lg:-mx-5 2xl:-mx-6">
       <POSView
               products={products}
@@ -2404,8 +2470,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               isElectronFullscreen={isElectronFullscreen}
             />
           </TabsContent>
+          )}
 
           {/* Inventory Tab */}
+          {allowedTabIds.includes("inventory") && (
           <TabsContent value="inventory" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <InventoryTab
               products={products}
@@ -2454,8 +2522,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               }
             />
           </TabsContent>
+          )}
 
           {/* Orders Tab */}
+          {allowedTabIds.includes("orders") && (
           <TabsContent value="orders" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <OrdersTab
               orders={orders}
@@ -2471,7 +2541,9 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onClearCustomerFilter={clearOrdersCustomerFilter}
             />
           </TabsContent>
+          )}
 
+          {allowedTabIds.includes("kitchen") && (
           <TabsContent value="kitchen" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <KitchenTab
               orders={orders}
@@ -2480,16 +2552,22 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               handleUpdateOrderStatus={handleUpdateOrderStatus}
             />
           </TabsContent>
+          )}
 
+          {allowedTabIds.includes("dine-qr") && (
           <TabsContent value="dine-qr" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <DineQrTab translate={translate} />
           </TabsContent>
+          )}
 
+          {allowedTabIds.includes("accounting") && (
           <TabsContent value="accounting" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <AccountingTab translate={translate} />
           </TabsContent>
+          )}
 
           {/* Drivers Tab */}
+          {allowedTabIds.includes("drivers") && (
           <TabsContent value="drivers" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <DriversTab
               loadingDrivers={loadingDrivers}
@@ -2502,8 +2580,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onDriverDispatchChange={handleDriverDispatchChange}
             />
           </TabsContent>
+          )}
 
           {/* RFID Tab */}
+          {allowedTabIds.includes("rfid") && (
           <TabsContent value="rfid" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <RfidDashboardTab
               translate={translate}
@@ -2511,9 +2591,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onLinkProduct={(tagId) => setActiveTab("inventory")}
             />
           </TabsContent>
+          )}
 
 
           {/* Sales History Tab */}
+          {allowedTabIds.includes("sales") && (
           <TabsContent value="sales" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <SalesTab
               sales={sales}
@@ -2522,8 +2604,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               shopInfo={shopInfo}
             />
           </TabsContent>
+          )}
 
           {/* Reports Tab */}
+          {allowedTabIds.includes("reports") && (
           <TabsContent value="reports" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <ReportsTab
               sales={sales}
@@ -2531,26 +2615,34 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               translate={translate}
             />
           </TabsContent>
+          )}
 
           {/* Coupons Tab */}
+          {allowedTabIds.includes("coupons") && (
           <TabsContent value="coupons" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <CouponsTab
               translate={translate}
               isArabic={isArabic}
             />
           </TabsContent>
+          )}
 
           {/* Sync & Save Tab (merged Backup + Cloud Sync) */}
+          {allowedTabIds.includes("sync-save") && (
           <TabsContent value="sync-save" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <SyncSaveTab translate={translate} vendorId={activeVendorId} />
           </TabsContent>
+          )}
 
           {/* Email Tab */}
+          {allowedTabIds.includes("email") && (
           <TabsContent value="email" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <EmailTab translate={translate} />
           </TabsContent>
+          )}
 
           {/* Staff & Permissions Tab (merged: staff add + permissions) */}
+          {allowedTabIds.includes("staff-permissions") && (
           <TabsContent value="staff-permissions" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <StaffPermissionsTab
               translate={translate}
@@ -2570,8 +2662,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onConfirmElectronPinReset={(id: string | null) => id && handleResetStaffPin(id)}
             />
           </TabsContent>
+          )}
 
           {/* Clients & Loyalty Tab (merged) */}
+          {allowedTabIds.includes("clients-loyalty") && (
           <TabsContent value="clients-loyalty" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <ClientsLoyaltyTab
               customers={customers}
@@ -2580,8 +2674,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               onViewCustomerOrders={onViewCustomerOrders}
             />
           </TabsContent>
+          )}
 
           {/* Suppliers Tab */}
+          {allowedTabIds.includes("suppliers") && (
           <TabsContent value="suppliers" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <SuppliersTab
               suppliers={suppliers}
@@ -2589,8 +2685,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               setShowSupplierDialog={setShowSupplierDialog}
             />
           </TabsContent>
+          )}
 
           {/* AI Insights Tab */}
+          {allowedTabIds.includes("ai") && (
           <TabsContent value="ai" className="space-y-6 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">Insights AlimentÃ©s par l'IA</h2>
 
@@ -2685,8 +2783,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </CardContent>
             </Card>
           </TabsContent>
+          )}
 
           {/* Web-only: public storefront domains (vendor + per-store) */}
+          {allowedTabIds.includes("storefront") && (
           <TabsContent value="storefront" className="space-y-6 pb-8">
             <VendorStorefrontWebPanel
               translate={translate}
@@ -2697,8 +2797,10 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               }}
             />
           </TabsContent>
+          )}
 
           {/* Settings Tab â€” nested sub-tabs */}
+          {allowedTabIds.includes("settings") && (
           <TabsContent value="settings" className="space-y-4 -mx-2 px-2 sm:-mx-4 sm:px-4 lg:px-5 2xl:px-6">
             <h2 className="text-2xl font-bold">{translate("ParamÃ¨tres", "Ø§Ù„Ø¥Ø¹Ø¯Ø§Ø¯Ø§Øª")}</h2>
 
@@ -2720,10 +2822,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                   <Users className="size-4 shrink-0" />
                   <span className="truncate">{translate("Ã‰quipe & commandes", "Ø§Ù„ÙØ±ÙŠÙ‚ ÙˆØ§Ù„Ø·Ù„Ø¨Ø§Øª")}</span>
                 </TabsTrigger>
+                {showHoursSettings && (
                 <TabsTrigger value="hours" className="gap-1.5 px-2 sm:flex-none">
                   <Clock className="size-4 shrink-0" />
                   <span className="truncate">{translate("Horaires & prÃ©paration", "Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯ ÙˆØ§Ù„ØªØ­Ø¶ÙŠØ±")}</span>
                 </TabsTrigger>
+                )}
                 <TabsTrigger value="finance" className="gap-1.5 px-2 sm:flex-none">
                   <Wallet className="size-4 shrink-0" />
                   <span className="truncate">{translate("Paiements", "Ø§Ù„Ù…Ø¯ÙÙˆØ¹Ø§Øª")}</span>
@@ -2883,7 +2987,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             </Card>
           )}
 
-          {/* Staff Roles & Permissions */}
+          {showStaffSettings && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -2923,10 +3027,12 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </div>
             </CardContent>
           </Card>
+          )}
 
           {/* Staff add is in Staff & Permissions tab (sidebar) */}
               </TabsContent>
 
+              {showHoursSettings && (
               <TabsContent value="hours" className="mt-4 space-y-6 outline-none">
 
           {/* Schedule & Capacity â€” only for restaurant / grocery / other */}
@@ -3081,11 +3187,11 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           </Card>
           )}
               </TabsContent>
+              )}
 
               <TabsContent value="finance" className="mt-4 space-y-6 outline-none">
 
-          <VendorSubscriptionTrialPanel
-            variant="card"
+          <FinanceSubscriptionCard
             translate={translate}
             subscription={subscription}
             loading={subscriptionLoading}
@@ -3094,7 +3200,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
             }}
           />
 
-          {/* Payouts & disputes (DB-backed via /api/vendor/finance/*) */}
+          {showPayoutsSettings && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -3208,6 +3314,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </div>
             </CardContent>
           </Card>
+          )}
               </TabsContent>
 
               <TabsContent value="display" className="mt-4 space-y-6 outline-none">
@@ -3474,6 +3581,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               </TabsContent>
             </Tabs>
           </TabsContent>
+          )}
 
       </VendorShell>
 

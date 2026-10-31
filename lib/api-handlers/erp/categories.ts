@@ -1,32 +1,41 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
-import { auth } from '@/lib/auth'
+import { getSessionFromRequest } from '@/lib/get-session-from-request'
+import {
+  resolveVendorOwnerContextId,
+  userActsAsVendorOwner,
+} from '@/lib/vendor-staff-access'
 
 // GET - Fetch all unique categories from inventory products
 export async function GET(request: NextRequest) {
   try {
     await applyRateLimit(request, rateLimitConfigs.api)
 
-    // DISABLED for Electron app (no authentication)
-    // const session = await auth()
-    // if (!session?.user) {
-    //   throw new UnauthorizedError()
-    // }
+    const session = await getSessionFromRequest(request)
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
 
-    // For Electron app, default to admin mode
-    const isAdmin = true // session.user.role === 'ADMIN'
-    const isVendor = false // session.user.role === 'VENDOR'
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
 
-    // if (!isAdmin && !isVendor) {
-    //   throw new UnauthorizedError('Only vendors or admins can access categories')
-    // }
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can access categories')
+    }
 
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
-    let vendorId = isAdmin ? vendorIdParam : null // session.user.id
+    let vendorId: string | null = isAdmin ? vendorIdParam : null
 
-    // If no vendorId provided in admin mode, get first approved vendor
+    if (!isAdmin && session.user.id) {
+      vendorId = await resolveVendorOwnerContextId(session.user.id)
+    }
+
+    if (isAdmin && vendorIdParam) {
+      vendorId = vendorIdParam
+    }
+
     if (isAdmin && !vendorId) {
       try {
         const firstVendor = await prisma.user.findFirst({
@@ -38,25 +47,31 @@ export async function GET(request: NextRequest) {
         }
       } catch (e) {
         console.warn('[API/categories] Error fetching first vendor:', e)
-        // Continue without vendorId - will return empty categories below
       }
     }
 
-    // If still no vendorId, return empty categories
+    if (isVendor && vendorIdParam && vendorIdParam !== vendorId) {
+      const allowed = await userActsAsVendorOwner({
+        actorId: session.user.id,
+        vendorOwnerId: vendorIdParam,
+      })
+      if (!allowed) {
+        throw new ForbiddenError('Not allowed to access categories for this vendor')
+      }
+      vendorId = vendorIdParam
+    }
+
     if (!vendorId) {
       return successResponse({
         categories: [],
       })
     }
 
-    // Build where clause
-    const where: any = {}
-    if (vendorId) {
-      where.vendorId = vendorId
+    const where: any = {
+      vendorId,
+      category: { not: null },
     }
-    where.category = { not: null }
 
-    // Get all products with categories
     let products: any[] = []
     try {
       products = await prisma.inventoryProduct.findMany({
@@ -71,19 +86,18 @@ export async function GET(request: NextRequest) {
       products = []
     }
 
-    // Extract unique categories and filter out nulls
     const categories = products
       .map((p) => p.category)
       .filter((cat): cat is string => cat !== null && cat !== undefined)
-      .filter((cat, index, self) => self.indexOf(cat) === index) // Remove duplicates
+      .filter((cat, index, self) => self.indexOf(cat) === index)
       .sort()
 
     return successResponse({
       categories: categories.map((name) => ({
         id: name,
         name,
-        nameAr: name, // You can add Arabic translations later
-        nameFr: name, // You can add French translations later
+        nameAr: name,
+        nameFr: name,
       })),
     })
   } catch (error) {
@@ -91,7 +105,4 @@ export async function GET(request: NextRequest) {
     return errorResponse(error)
   }
 }
-
-
-
 

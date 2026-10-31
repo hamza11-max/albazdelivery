@@ -6,9 +6,7 @@ import { auth } from '@/root/lib/auth'
 import { hashPassword } from '@/root/lib/password'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../admin/lib/audit'
 import { csrfProtection } from '../../../../admin/lib/csrf'
-import { deleteUserRelatedData } from '@/root/lib/admin/cascade-delete-user'
 import { z } from 'zod'
-import { isFullAdmin, isSuperAdmin, isProtectedAdminAccount } from '@/root/lib/admin-roles'
 
 // GET /api/admin/users/[id] - Get specific user details
 export async function GET(
@@ -16,14 +14,14 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can access this resource')
     }
 
@@ -68,14 +66,14 @@ export async function PUT(
   }
 
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -88,8 +86,8 @@ export async function PUT(
       name: z.string().min(1).optional(),
       email: z.string().email().optional(),
       phone: z.string().optional(),
-      role: z.enum(['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN', 'SUPER_ADMIN', 'SUPPORT']).optional(),
-      status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).optional(),
+      role: z.enum(['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN'] as const).optional(),
+      status: z.enum(['PENDING', 'APPROVED', 'REJECTED'] as const).optional(),
       address: z.string().optional(),
       city: z.string().optional(),
     })
@@ -105,22 +103,9 @@ export async function PUT(
       throw new NotFoundError('User')
     }
 
-    const sessionIsSuper = isSuperAdmin(session.user.role)
-    const editingOther = session.user.id !== user.id
-
-    if (editingOther && isProtectedAdminAccount(user.role) && !sessionIsSuper) {
+    // Don't allow modifying super admins
+    if (user.role === 'ADMIN' && session.user.id !== user.id) {
       throw new ForbiddenError('Cannot modify other admin accounts')
-    }
-
-    if (validatedData.role !== undefined) {
-      const newRole = String(validatedData.role).toUpperCase()
-      if (newRole === 'SUPER_ADMIN' && !sessionIsSuper) {
-        throw new ForbiddenError('Only super admins can assign the super admin role')
-      }
-      const prev = String(user.role ?? '').toUpperCase()
-      if (prev === 'SUPER_ADMIN' && newRole !== 'SUPER_ADMIN' && !sessionIsSuper) {
-        throw new ForbiddenError('Cannot demote super admin')
-      }
     }
 
     // Normalize email and phone if provided
@@ -189,14 +174,14 @@ export async function DELETE(
   }
 
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can perform this action')
     }
 
@@ -212,16 +197,34 @@ export async function DELETE(
       throw new NotFoundError('User')
     }
 
+    // Don't allow deleting admins or self
+    if (user.role === 'ADMIN') {
+      throw new ForbiddenError('Cannot delete admin accounts')
+    }
+
     if (user.id === session.user.id) {
       throw new ForbiddenError('Cannot delete your own account')
     }
 
-    if (isProtectedAdminAccount(user.role) && !isSuperAdmin(session.user.role)) {
-      throw new ForbiddenError('Cannot delete admin accounts')
-    }
+    // Delete user and related data
+    await prisma.$transaction(async (tx: any) => {
+      // Delete related records first
+      if (user.role === 'VENDOR') {
+        await tx.store.deleteMany({ where: { vendorId: id } })
+        await tx.product.deleteMany({ where: { vendorId: id } })
+      }
+      
+      if (user.role === 'DRIVER') {
+        await tx.driverLocation.deleteMany({ where: { driverId: id } })
+        await tx.driverPerformance.deleteMany({ where: { driverId: id } })
+      }
 
-    await prisma.$transaction(async (tx) => {
-      await deleteUserRelatedData(tx, id)
+      if (user.role === 'CUSTOMER') {
+        await tx.loyaltyAccount.deleteMany({ where: { customerId: id } })
+        await tx.wallet.deleteMany({ where: { customerId: id } })
+      }
+
+      // Delete user
       await tx.user.delete({ where: { id } })
     })
 

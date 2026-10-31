@@ -15,8 +15,13 @@ export async function inviteDriverForVendor(opts: {
   vendorDisplayName: string | null | undefined
   email?: string | null
   phone?: string | null
+  request?: Request
 }): Promise<{ created: boolean; alreadyPending: boolean; connectionId: string }> {
-  const fleetOk = await checkFeatureAccess(opts.vendorId, "driverFleetManagement")
+  const fleetOk = await checkFeatureAccess(
+    opts.vendorId,
+    "driverFleetManagement",
+    opts.request
+  )
   if (!fleetOk) {
     throw new ForbiddenError(
       "Driver invitations require Professional plan or higher."

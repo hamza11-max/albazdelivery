@@ -5,6 +5,10 @@ import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { getSessionFromRequest } from '@/lib/get-session-from-request'
 import { z } from 'zod'
 import { assertPosSaleStockAvailable } from '@/lib/erp/pos-sale-stock'
+import {
+  resolveVendorOwnerContextId,
+  assertStaffPermission,
+} from '@/lib/vendor-staff-access'
 
 // Validation schema for sales
 const createSaleSchema = z.object({
@@ -61,7 +65,13 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 100)
     const vendorIdParam = searchParams.get('vendorId')
 
-    let vendorId = isAdmin ? vendorIdParam : session.user.id
+    let vendorId = isAdmin
+      ? vendorIdParam
+      : await resolveVendorOwnerContextId(session.user.id)
+
+    if (!isAdmin && vendorId) {
+      await assertStaffPermission(session.user.id, vendorId, 'sales.view')
+    }
 
     // If admin and no vendorId provided, try to pick first approved vendor
     if (isAdmin && !vendorId) {
@@ -180,10 +190,16 @@ export async function POST(request: NextRequest) {
     const validatedData = createSaleSchema.parse(body)
     const { customerId, items, subtotal, discount, total, paymentMethod, vendorId: overrideVendorId } = validatedData
 
-    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+    const vendorId = isAdmin
+      ? overrideVendorId ?? vendorIdParam
+      : await resolveVendorOwnerContextId(session.user.id)
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId is required to create a sale'), 400)
+    }
+
+    if (!isAdmin) {
+      await assertStaffPermission(session.user.id, vendorId, 'sales.create')
     }
 
     // Verify customer exists if provided

@@ -11,12 +11,12 @@ const batchOptimizeSchema = z.object({
     orderId: z.string().cuid('Invalid order ID'),
     driverId: z.string().cuid('Invalid driver ID').optional(),
   })).min(1, 'At least one order is required'),
-  optimizationStrategy: z.enum(['DISTANCE', 'TIME', 'BALANCED']).optional().default('BALANCED'),
+  optimizationStrategy: z.enum(['DISTANCE', 'TIME', 'BALANCED'] as const).optional().default('BALANCED'),
 })
 
 export async function POST(request: NextRequest) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

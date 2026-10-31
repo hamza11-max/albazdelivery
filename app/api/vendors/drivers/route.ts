@@ -1,12 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import {
-  successResponse,
-  errorResponse,
-  UnauthorizedError,
-  ForbiddenError,
-  ValidationError,
-} from '@/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { auth } from '@/lib/auth'
 import { emitNotificationSent } from '@/lib/events'
@@ -15,7 +9,7 @@ import { z } from 'zod'
 // GET /api/vendors/drivers - Get connected drivers and pending requests for vendor
 export async function GET(request: NextRequest) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -54,8 +48,6 @@ export async function GET(request: NextRequest) {
       .map((c) => ({
         id: c.id,
         connectionId: c.id,
-        connectionSource: c.connectionSource,
-        availableForDispatch: c.availableForDispatch,
         driver: c.driver,
         connectedAt: c.respondedAt || c.updatedAt,
       }))
@@ -65,7 +57,6 @@ export async function GET(request: NextRequest) {
       .map((c) => ({
         id: c.id,
         connectionId: c.id,
-        connectionSource: c.connectionSource,
         driver: c.driver,
         requestedAt: c.requestedAt,
       }))
@@ -75,7 +66,6 @@ export async function GET(request: NextRequest) {
       .map((c) => ({
         id: c.id,
         connectionId: c.id,
-        connectionSource: c.connectionSource,
         driver: c.driver,
         rejectedAt: c.respondedAt || c.updatedAt,
       }))
@@ -94,7 +84,7 @@ export async function GET(request: NextRequest) {
 // POST /api/vendors/drivers - Accept or reject connection request
 export async function POST(request: NextRequest) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
@@ -108,9 +98,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const schema = z.object({
       connectionId: z.string().cuid('Invalid connection ID'),
-      action: z.enum(['accept', 'reject'], {
-        errorMap: () => ({ message: 'Action must be accept or reject' }),
-      }),
+      action: z.enum(['accept', 'reject'] as const, 'Action must be accept or reject'),
     })
 
     const { connectionId, action } = schema.parse(body)
@@ -138,14 +126,6 @@ export async function POST(request: NextRequest) {
 
     if (connection.status !== 'PENDING') {
       return errorResponse(new Error('Connection request already responded to'), 400)
-    }
-
-    if (connection.connectionSource !== 'DRIVER_REQUESTED') {
-      return errorResponse(
-        new ValidationError(
-          'This pending link was sent by you. Wait for the driver to accept in their app.'
-        )
-      )
     }
 
     // Update connection status

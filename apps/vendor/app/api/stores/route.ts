@@ -1,10 +1,14 @@
 import { type NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
-import { successResponse, errorResponse, UnauthorizedError } from '@/root/lib/errors'
+import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
+import {
+  resolveVendorOwnerContextId,
+  userActsAsVendorOwner,
+} from '@/root/lib/vendor-staff-access'
 
-// GET /api/stores - Get stores with optional filters; returns empty when DB unavailable (e.g. packaged app)
+// GET /api/stores - Vendor app: requires session (marketplace listing lives on customer/public routes)
 export async function GET(request: NextRequest) {
   try {
     try {
@@ -13,7 +17,11 @@ export async function GET(request: NextRequest) {
       console.warn('[Stores API] Rate limit check failed:', rateLimitError)
     }
 
-    const session = await getSessionFromRequest(request).catch(() => null)
+    const session = await getSessionFromRequest(request)
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+
     const searchParams = request.nextUrl.searchParams
     const pageParam = searchParams.get('page')
     const limitParam = searchParams.get('limit')
@@ -23,21 +31,31 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, parseInt(pageParam || '1'))
     const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
+    const isAdmin = session.user.role === 'ADMIN'
+    const isVendor = session.user.role === 'VENDOR'
+    if (!isAdmin && !isVendor) {
+      throw new ForbiddenError('Only vendors or admins can list stores')
+    }
+
     const where: Record<string, unknown> = {}
     if (!vendorIdParam || !includeInactive) {
       where.isActive = true
     }
+
     if (vendorIdParam) {
       where.vendorId = vendorIdParam
-      if (!session?.user) {
-        throw new UnauthorizedError()
+      if (!isAdmin) {
+        const allowed = await userActsAsVendorOwner({
+          actorId: session.user.id,
+          vendorOwnerId: vendorIdParam,
+        })
+        if (!allowed) {
+          throw new ForbiddenError('Not allowed to list stores for this vendor')
+        }
       }
-      const isAdmin = session.user.role === 'ADMIN'
-      const isVendor = session.user.role === 'VENDOR'
-      const isSelf = session.user.id === vendorIdParam
-      if (!isAdmin && !(isVendor && isSelf)) {
-        throw new UnauthorizedError()
-      }
+    } else if (!isAdmin) {
+      const ownerId = await resolveVendorOwnerContextId(session.user.id)
+      where.vendorId = ownerId
     }
 
     let total = 0

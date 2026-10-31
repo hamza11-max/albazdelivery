@@ -14,12 +14,10 @@ export const createOrderSchema = z.object({
   subtotal: z.number().positive('Subtotal must be positive'),
   deliveryFee: z.number().nonnegative('Delivery fee cannot be negative'),
   total: z.number().positive('Total must be positive'),
-  paymentMethod: z.enum(['CASH', 'CARD', 'WALLET']),
+  paymentMethod: z.enum(['CASH', 'CARD', 'WALLET'] as const),
   deliveryAddress: z.string().min(10, 'Delivery address must be at least 10 characters'),
   city: z.string().min(2, 'City is required'),
   customerPhone: z.string().regex(algerianPhoneRegex, 'Invalid phone number'),
-  promoCode: z.string().optional(),
-  discount: z.number().nonnegative().optional(),
 })
 
 export const createPackageDeliverySchema = z.object({
@@ -31,9 +29,9 @@ export const createPackageDeliverySchema = z.object({
   customerPhone: z.string().regex(algerianPhoneRegex, 'Invalid phone number'),
   scheduledDate: z.string().datetime().optional(),
   scheduledTime: z.string().optional(),
-  whoPays: z.enum(['customer', 'receiver']).default('customer'),
+  whoPays: z.enum(['customer', 'receiver'] as const).default('customer'),
   deliveryFee: z.number().positive('Delivery fee must be positive'),
-  paymentMethod: z.enum(['CASH', 'CARD', 'WALLET']),
+  paymentMethod: z.enum(['CASH', 'CARD', 'WALLET'] as const),
 })
 
 export const updateOrderStatusSchema = z.object({
@@ -47,7 +45,7 @@ export const updateOrderStatusSchema = z.object({
     'IN_DELIVERY',
     'DELIVERED',
     'CANCELLED'
-  ]),
+  ] as const),
   driverId: z.string().cuid().optional(),
 })
 

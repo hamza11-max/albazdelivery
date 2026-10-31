@@ -44,7 +44,26 @@ npm install -g electron-icon-maker
 electron-icon-maker --input=logo.png --output=.
 ```
 
-### 2. Development Mode
+### 2. Environment (required for local Electron)
+
+Create `apps/vendor/.env.local` (or set in the repo root `.env` that Next loads):
+
+```bash
+# Required — Electron JWT mint/verify fail closed without this
+NEXTAUTH_SECRET="generate-with-openssl-rand-base64-32"
+NEXTAUTH_URL="http://localhost:3001"
+
+# Optional for pure offline POS. If set to a remote host that is down,
+# Prisma fails fast (~5s) instead of hanging ~30s.
+# DATABASE_URL="postgresql://..."
+# DATABASE_CONNECT_TIMEOUT_MS=5000
+```
+
+- **Offline POS** works without `DATABASE_URL` (SQLite + in-memory fallbacks).
+- **Cloud features** (subscriptions, sync, remote orders) need a reachable `DATABASE_URL`.
+- If Supabase/Neon is unreachable, the UI should stay usable; subscription fetch times out quickly.
+
+### 3. Development Mode
 
 Run the app in development mode:
 
@@ -58,7 +77,13 @@ This will:
 - Launch Electron window
 - Open DevTools automatically
 
-### 3. Build for Production
+**Do not commit** `dist/`, `win-unpacked/`, or `.next/` — they are gitignored. If Git still lists them, run:
+
+```bash
+git rm -r --cached apps/vendor/dist 2>nul
+```
+
+### 4. Build for Production
 
 Build the .exe installer:
 

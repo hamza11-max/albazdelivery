@@ -3,13 +3,11 @@ import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
-import { csrfProtection } from '../../../../lib/csrf'
 import { z } from 'zod'
-import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const exportSchema = z.object({
-  type: z.enum(['users', 'orders', 'audit-logs']),
-  format: z.enum(['csv', 'json']).default('csv'),
+  type: z.enum(['users', 'orders', 'audit-logs'] as const),
+  format: z.enum(['csv', 'json'] as const).default('csv'),
   filters: z.object({
     role: z.string().optional(),
     status: z.string().optional(),
@@ -20,19 +18,15 @@ const exportSchema = z.object({
 
 // POST /api/admin/export - Export data
 export async function POST(request: NextRequest) {
-  const csrfResponse = csrfProtection(request)
-  if (csrfResponse) {
-    return csrfResponse
-  }
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can export data')
     }
 

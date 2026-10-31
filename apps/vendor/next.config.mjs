@@ -1,8 +1,31 @@
+import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
+/** Map @/lib/* to apps/vendor/lib when a file exists there; otherwise repo root lib. */
+function buildLibAliases(vendorLibDir, rootLibDir) {
+  const aliases = { '@/lib': rootLibDir }
+
+  function walk(dir, prefix = '') {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const rel = prefix ? `${prefix}/${entry.name}` : entry.name
+      const abs = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        walk(abs, rel)
+        continue
+      }
+      if (!/\.(ts|tsx|js|mjs|cjs)$/.test(entry.name)) continue
+      const withoutExt = rel.replace(/\.(tsx?|mjs|cjs|js)$/, '')
+      aliases[`@/lib/${withoutExt.replace(/\\/g, '/')}`] = abs
+    }
+  }
+
+  if (fs.existsSync(vendorLibDir)) walk(vendorLibDir)
+  return aliases
+}
 
 /** @type {import('next').NextConfig} */
 const config = {
@@ -25,6 +48,10 @@ const config = {
     '@albaz/shared',
     '@albaz/ui',
     '@albaz/auth',
+    '@mui/material',
+    '@mui/material-nextjs',
+    '@emotion/react',
+    '@emotion/styled',
     // Hoisted to repo root; vendor app must resolve them for ../../lib imports
     'html2canvas',
     'jspdf',
@@ -49,13 +76,15 @@ const config = {
   },
   webpack: (config, { isServer }) => {
     const rootDir = path.resolve(__dirname, '../..')
+    const vendorLib = path.resolve(__dirname, './lib')
+    const rootLib = path.join(rootDir, 'lib')
     // Allow imports from root directories (single resolution to avoid chunk "factory" undefined)
     config.resolve.alias = {
       ...config.resolve.alias,
-      '@/root/lib': path.join(rootDir, 'lib'),
+      ...buildLibAliases(vendorLib, rootLib),
+      '@/root/lib': rootLib,
       '@/root/components': path.join(rootDir, 'components'),
       '@/root/hooks': path.join(rootDir, 'hooks'),
-      '@/lib': path.resolve(__dirname, './lib'),
       '@/components': path.resolve(__dirname, './components'),
       '@/hooks': path.resolve(__dirname, './hooks'),
     }

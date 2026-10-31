@@ -1,8 +1,10 @@
 import { PrismaClient } from '../generated/prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
+  pgPool: Pool | undefined
 }
 
 // Helper: lightweight dev fallback proxy that returns safe defaults for reads
@@ -58,6 +60,15 @@ function createDevPrismaFallback() {
   return new Proxy({}, handler)
 }
 
+function resolveConnectTimeoutMs(): number {
+  const raw = process.env.DATABASE_CONNECT_TIMEOUT_MS
+  if (raw && Number.isFinite(Number(raw)) && Number(raw) > 0) {
+    return Math.min(60_000, Math.max(1_000, Number(raw)))
+  }
+  // Fail fast in local/Electron when Supabase/host is unreachable (was ~30s+ with defaults)
+  return process.env.NODE_ENV === 'production' ? 15_000 : 5_000
+}
+
 // Initialize Prisma Client with proper singleton pattern
 let prismaClient: PrismaClient | undefined
 let prismaExport: any
@@ -69,18 +80,36 @@ if (!process.env.DATABASE_URL || String(process.env.DATABASE_URL).trim() === '')
   prismaExport = createDevPrismaFallback()
 } else {
   const connectionString = String(process.env.DATABASE_URL).trim()
+  const connectionTimeoutMillis = resolveConnectTimeoutMs()
+
+  const pool =
+    globalForPrisma.pgPool ??
+    new Pool({
+      connectionString,
+      connectionTimeoutMillis,
+      idleTimeoutMillis: 10_000,
+      max: process.env.NODE_ENV === 'production' ? 10 : 5,
+    })
+
+  if (process.env.NODE_ENV !== 'production') {
+    globalForPrisma.pgPool = pool
+  }
 
   prismaClient =
     globalForPrisma.prisma ??
     new PrismaClient({
-      // Keep adapter constructor loose to avoid pg type-version mismatch noise.
-      adapter: new PrismaPg({ connectionString } as any),
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+      adapter: new PrismaPg(pool as any),
+      log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
     })
 
   if (process.env.NODE_ENV !== 'production') {
     globalForPrisma.prisma = prismaClient
   }
+
+  // eslint-disable-next-line no-console
+  console.info(
+    `[prisma] Pool ready (connect timeout ${connectionTimeoutMillis}ms). Offline POS works if DB is unreachable.`
+  )
 
   prismaExport = prismaClient
 }

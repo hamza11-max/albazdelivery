@@ -10,6 +10,10 @@ import {
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { getSessionFromRequest } from "@/root/lib/get-session-from-request"
 import { checkFeatureAccess } from "@/root/lib/featureGate"
+import {
+  resolveVendorOwnerContextId,
+  assertStaffPermission,
+} from "@/root/lib/vendor-staff-access"
 import { z } from "zod"
 
 /**
@@ -34,7 +38,10 @@ export async function PATCH(
       return errorResponse(new Error("driverId is required"), 400)
     }
 
-    const fleetOk = await checkFeatureAccess(session.user.id, "driverFleetManagement")
+    const ownerId = await resolveVendorOwnerContextId(session.user.id)
+    await assertStaffPermission(session.user.id, ownerId, "orders.edit")
+
+    const fleetOk = await checkFeatureAccess(ownerId, "driverFleetManagement", request)
     if (!fleetOk) {
       throw new ForbiddenError("Driver dispatch controls require Professional plan or higher")
     }
@@ -48,7 +55,7 @@ export async function PATCH(
 
     const connection = await prisma.driverVendorConnection.findFirst({
       where: {
-        vendorId: session.user.id,
+        vendorId: ownerId,
         driverId,
         status: "ACCEPTED",
       },

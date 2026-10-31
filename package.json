@@ -62,7 +62,10 @@
   },
   "dependencies": {
     "@albaz/ui": "file:./packages/ui",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@hookform/resolvers": "^3.10.0",
+    "@mui/material": "^9.0.1",
     "@prisma/adapter-pg": "^7.5.0",
     "@prisma/client": "^7.5.0",
     "@radix-ui/react-accordion": "latest",

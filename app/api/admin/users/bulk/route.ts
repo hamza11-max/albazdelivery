@@ -5,13 +5,11 @@ import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { csrfProtection } from '../../../../admin/lib/csrf'
 import { createAuditLog, AuditActions, AuditResources } from '../../../../admin/lib/audit'
-import { deleteUserRelatedData } from '@/root/lib/admin/cascade-delete-user'
 import { z } from 'zod'
-import { isFullAdmin, isSuperAdmin, isProtectedAdminAccount } from '@/root/lib/admin-roles'
 
 const bulkActionSchema = z.object({
   userIds: z.array(z.string()).min(1, 'At least one user ID is required'),
-  action: z.enum(['suspend', 'delete', 'unsuspend']),
+  action: z.enum(['suspend', 'delete', 'unsuspend'] as const),
   reason: z.string().optional(),
 })
 
@@ -23,14 +21,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can perform bulk actions')
     }
 
@@ -48,29 +46,20 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error('Some users were not found'), 404)
     }
 
-    const sessionIsSuper = isSuperAdmin(session.user.role)
-
-    if (userIds.includes(session.user.id)) {
-      return errorResponse(new Error('Cannot bulk modify your own account'), 400)
-    }
-
-    const protectedTargets = users.filter((u) => isProtectedAdminAccount(u.role))
-    if (protectedTargets.length > 0 && !sessionIsSuper) {
+    // Don't allow modifying admins
+    const adminUsers = users.filter((u) => u.role === 'ADMIN')
+    if (adminUsers.length > 0) {
       return errorResponse(new Error('Cannot modify admin accounts'), 400)
     }
 
     let result: any = { affected: 0 }
 
-    const staffRoleFilter =
-      sessionIsSuper
-        ? undefined
-        : { notIn: ['ADMIN', 'SUPER_ADMIN'] as const }
-
     if (action === 'suspend') {
       result = await prisma.user.updateMany({
-        where: staffRoleFilter
-          ? { id: { in: userIds }, role: staffRoleFilter }
-          : { id: { in: userIds } },
+        where: {
+          id: { in: userIds },
+          role: { not: 'ADMIN' },
+        },
         data: {
           status: 'REJECTED',
         },
@@ -91,9 +80,10 @@ export async function POST(request: NextRequest) {
       }, request)
     } else if (action === 'unsuspend') {
       result = await prisma.user.updateMany({
-        where: staffRoleFilter
-          ? { id: { in: userIds }, role: staffRoleFilter }
-          : { id: { in: userIds } },
+        where: {
+          id: { in: userIds },
+          role: { not: 'ADMIN' },
+        },
         data: {
           status: 'APPROVED',
         },
@@ -113,16 +103,29 @@ export async function POST(request: NextRequest) {
       }, request)
     } else if (action === 'delete') {
       // Delete users and related data in transaction
-      result = await prisma.$transaction(async (tx) => {
+      result = await prisma.$transaction(async (tx: any) => {
         let deletedCount = 0
 
         for (const userId of userIds) {
-          const u = await tx.user.findUnique({ where: { id: userId } })
-          if (!u) continue
-          if (u.id === session.user.id) continue
-          if (isProtectedAdminAccount(u.role) && !sessionIsSuper) continue
+          const user = await tx.user.findUnique({ where: { id: userId } })
+          if (!user || user.role === 'ADMIN') continue
 
-          await deleteUserRelatedData(tx, userId)
+          // Delete related records
+          if (user.role === 'VENDOR') {
+            await tx.store.deleteMany({ where: { vendorId: userId } })
+            await tx.product.deleteMany({ where: { vendorId: userId } })
+          }
+
+          if (user.role === 'DRIVER') {
+            await tx.driverLocation.deleteMany({ where: { driverId: userId } })
+            await tx.driverPerformance.deleteMany({ where: { driverId: userId } })
+          }
+
+          if (user.role === 'CUSTOMER') {
+            await tx.loyaltyAccount.deleteMany({ where: { customerId: userId } })
+            await tx.wallet.deleteMany({ where: { customerId: userId } })
+          }
+
           await tx.user.delete({ where: { id: userId } })
           deletedCount++
         }

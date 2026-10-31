@@ -1,5 +1,15 @@
 import type { Config } from '@jest/types';
 
+const ignoreHeavyTrees = [
+  '<rootDir>/apps/vendor/dist/',
+  '<rootDir>/apps/vendor/.next/',
+  '<rootDir>/apps/admin/.next/',
+  '<rootDir>/apps/customer/.next/',
+  '<rootDir>/apps/driver/.next/',
+  '<rootDir>/.next/',
+  '<rootDir>/dist/',
+];
+
 const config: Config.InitialOptions = {
   preset: 'ts-jest/presets/js-with-ts',
   // Use projects to support different test environments
@@ -15,6 +25,12 @@ const config: Config.InitialOptions = {
         // apps/admin uses @/* → ./apps/admin/*; these collide with root @/lib/* in Jest
         '^@/lib/csrf$': '<rootDir>/apps/admin/lib/csrf',
         '^@/lib/audit$': '<rootDir>/apps/admin/lib/audit',
+        // apps/vendor route helpers use @/lib/* → apps/vendor/lib/*
+        '^@/lib/vendor-accounting-local$': '<rootDir>/apps/vendor/lib/vendor-accounting-local.ts',
+        '^@/lib/next-request-bridge$': '<rootDir>/apps/vendor/lib/next-request-bridge.ts',
+        '^@/lib/guest-orders-store$': '<rootDir>/apps/vendor/lib/guest-orders-store.ts',
+        '^@/lib/guest-menu-product-state$': '<rootDir>/apps/vendor/lib/guest-menu-product-state.ts',
+        '^@/lib/shop-type-access$': '<rootDir>/lib/shop-type-access.ts',
         '^@/(.*)$': '<rootDir>/$1',
       },
       transform: {
@@ -23,6 +39,10 @@ const config: Config.InitialOptions = {
       transformIgnorePatterns: [
         '/node_modules/(?!(next|@babel/runtime|msw|@mswjs|@bundled-es-modules|until-async)/)',
       ],
+      modulePathIgnorePatterns: ignoreHeavyTrees,
+      haste: {
+        throwOnModuleCollision: false,
+      },
     },
     {
       displayName: 'ui',
@@ -43,6 +63,10 @@ const config: Config.InitialOptions = {
         '/node_modules/(?!(next|@babel/runtime|msw|@mswjs|@bundled-es-modules|until-async)/)',
         '^.+\\.module\\.(css|sass|scss)$',
       ],
+      modulePathIgnorePatterns: ignoreHeavyTrees,
+      haste: {
+        throwOnModuleCollision: false,
+      },
     },
   ],
   testTimeout: 10000,
@@ -58,14 +82,10 @@ const config: Config.InitialOptions = {
     '/__tests__/test-utils.tsx',
     '/__tests__/mocks/',
     '/apps/vendor/.next/standalone/',
+    '/apps/vendor/dist/',
   ],
-  modulePathIgnorePatterns: [
-    '<rootDir>/apps/vendor/dist/',
-    '<rootDir>/apps/vendor/.next/standalone/',
-  ],
-  watchPathIgnorePatterns: [
-    '<rootDir>/apps/vendor/dist/',
-  ],
+  modulePathIgnorePatterns: ignoreHeavyTrees,
+  watchPathIgnorePatterns: ignoreHeavyTrees,
 };
 
 export default config;

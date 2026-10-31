@@ -41,8 +41,8 @@ export async function saveProduct({
       stock: productForm.stock,
       lowStockThreshold: productForm.lowStockThreshold,
       vendorId: activeVendorId || 'local-vendor',
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }
 
     // For Electron: save to localStorage directly
@@ -130,8 +130,9 @@ export async function saveProduct({
       await fetchDashboardData(activeVendorId)
       const updatedProducts = await fetchProducts(activeVendorId)
       if (updatedProducts) {
-        setProducts(updatedProducts)
-        setLowStockProducts(updatedProducts.filter((p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)))
+        const products = updatedProducts as InventoryProduct[]
+        setProducts(products)
+        setLowStockProducts(products.filter((p: InventoryProduct) => p.stock <= (p.lowStockThreshold ?? 10)))
       }
       
       toast({
@@ -163,7 +164,7 @@ export async function saveProduct({
 }
 
 interface DeleteProductParams {
-  id: number | string
+  id: number
   activeVendorId?: string
   isElectronRuntime: boolean
   setProducts: (products: InventoryProduct[]) => void

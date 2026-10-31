@@ -3,6 +3,10 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { getSessionFromRequest } from "@/root/lib/get-session-from-request"
 import { inviteDriverForVendor } from "@/root/lib/vendor-invite-driver"
+import {
+  resolveVendorOwnerContextId,
+  assertStaffPermission,
+} from "@/root/lib/vendor-staff-access"
 import { z } from "zod"
 
 const bodySchema = z
@@ -23,14 +27,18 @@ export async function POST(request: NextRequest) {
       throw new ForbiddenError("Only vendors can invite drivers")
     }
 
+    const ownerId = await resolveVendorOwnerContextId(session.user.id)
+    await assertStaffPermission(session.user.id, ownerId, "orders.edit")
+
     const body = await request.json().catch(() => ({}))
     const parsed = bodySchema.parse(body)
 
     const result = await inviteDriverForVendor({
-      vendorId: session.user.id,
+      vendorId: ownerId,
       vendorDisplayName: session.user.name,
       email: parsed.email ?? null,
       phone: parsed.phone ?? null,
+      request,
     })
 
     return successResponse({

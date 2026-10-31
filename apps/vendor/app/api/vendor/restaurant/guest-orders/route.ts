@@ -1,28 +1,23 @@
 import { NextRequest } from "next/server"
 import { getSessionFromRequest } from "@/root/lib/get-session-from-request"
 import { assertGuestDineInFileStorageSupported } from "@/root/lib/guest-orders-deployment"
-import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from "@/root/lib/errors"
+import { successResponse, errorResponse } from "@/root/lib/errors"
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { listGuestOrders, updateGuestOrderStatus } from "@/lib/guest-orders-store"
 import { asRootRequest } from "@/lib/next-request-bridge"
+import { assertVendorFeature } from "@/root/lib/shop-type-access"
 import { z } from "zod"
 
 export const dynamic = "force-dynamic"
 
 type GuestOrderRow = { status: string }
 
-function assertVendor(session: Awaited<ReturnType<typeof getSessionFromRequest>>) {
-  if (!session?.user?.id) throw new UnauthorizedError()
-  const role = String(session.user.role || "")
-  if (role !== "VENDOR" && role !== "ADMIN") throw new ForbiddenError("Vendor only")
-}
-
 export async function GET(request: NextRequest) {
   try {
     await applyRateLimit(asRootRequest(request), rateLimitConfigs.api)
     assertGuestDineInFileStorageSupported()
     const session = await getSessionFromRequest(request as never)
-    assertVendor(session)
+    await assertVendorFeature(session, "dineTablesUi")
     const status = request.nextUrl.searchParams.get("status")?.trim()
     let orders = listGuestOrders()
     if (status && ["PENDING", "ACCEPTED", "REJECTED"].includes(status)) {
@@ -44,7 +39,7 @@ export async function PATCH(request: NextRequest) {
     await applyRateLimit(asRootRequest(request), rateLimitConfigs.api)
     assertGuestDineInFileStorageSupported()
     const session = await getSessionFromRequest(request as never)
-    assertVendor(session)
+    await assertVendorFeature(session, "dineTablesUi")
     const body = patchSchema.parse(await request.json())
     const res = updateGuestOrderStatus(body.id, body.status)
     if (!res.ok) return errorResponse(new Error(res.error), 400)

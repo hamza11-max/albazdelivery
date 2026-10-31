@@ -1,9 +1,21 @@
+import { isElectronAppRequest, isLoopbackRequest } from "./electron-request"
+
 /**
  * When true, vendor driver fleet (invites, dispatch) is allowed without a paid plan.
- * - Always on when NODE_ENV is development.
- * - Otherwise opt-in via NEXT_PUBLIC_VENDOR_DEV_DRIVER_FLEET=true (e.g. local Electron + next start).
+ * - Explicit opt-in: NEXT_PUBLIC_VENDOR_DEV_DRIVER_FLEET=true
+ * - Or development + Electron loopback (local desktop), not every NODE_ENV=development deploy
  */
-export function vendorDevDriverFleetUnlocked(): boolean {
-  if (process.env.NODE_ENV === "development") return true
-  return process.env.NEXT_PUBLIC_VENDOR_DEV_DRIVER_FLEET === "true"
+export function vendorDevDriverFleetUnlocked(request?: Request): boolean {
+  if (process.env.NEXT_PUBLIC_VENDOR_DEV_DRIVER_FLEET === "true") {
+    return true
+  }
+  if (
+    process.env.NODE_ENV === "development" &&
+    request &&
+    isElectronAppRequest(request) &&
+    isLoopbackRequest(request)
+  ) {
+    return true
+  }
+  return false
 }

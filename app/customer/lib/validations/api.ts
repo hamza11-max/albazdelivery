@@ -16,7 +16,7 @@ export const createOrderSchema = z.object({
   subtotal: z.number().positive('Subtotal must be positive'),
   deliveryFee: z.number().nonnegative('Delivery fee cannot be negative'),
   total: z.number().positive('Total must be positive'),
-  paymentMethod: z.enum(['CASH', 'CARD', 'WALLET']),
+  paymentMethod: z.enum(['CASH', 'CARD', 'WALLET'] as const),
   deliveryAddress: z.string().min(10, 'Delivery address must be at least 10 characters'),
   city: z.string().min(2, 'City is required'),
   customerPhone: z.string().regex(/^0[567]\d{8}$/, 'Invalid Algerian phone number'),
@@ -27,7 +27,7 @@ export const createOrderSchema = z.object({
   recipientPhone: z.string().regex(/^0[567]\d{8}$/).optional(),
   scheduledDate: z.string().datetime().optional(),
   scheduledTime: z.string().optional(),
-  whoPays: z.enum(['customer', 'receiver']).optional().default('customer'),
+  whoPays: z.enum(['customer', 'receiver'] as const).optional().default('customer'),
 }).refine(
   (data) => {
     // Validate that total equals subtotal + deliveryFee
@@ -50,7 +50,7 @@ export const updateOrderStatusSchema = z.object({
     'IN_DELIVERY',
     'DELIVERED',
     'CANCELLED',
-  ]),
+  ] as const),
 })
 
 // ========================================
@@ -103,7 +103,7 @@ export const sendMessageSchema = z.object({
 
 export const createConversationSchema = z.object({
   participantIds: z.array(z.string().cuid('Invalid participant ID')).min(2, 'At least 2 participants are required'),
-  type: z.enum(['CUSTOMER_VENDOR', 'CUSTOMER_DRIVER', 'CUSTOMER_ADMIN', 'VENDOR_ADMIN']),
+  type: z.enum(['CUSTOMER_VENDOR', 'CUSTOMER_DRIVER', 'CUSTOMER_ADMIN', 'VENDOR_ADMIN'] as const),
   relatedOrderId: z.string().cuid('Invalid order ID').optional(),
 })
 
@@ -114,12 +114,12 @@ export const createConversationSchema = z.object({
 export const createSupportTicketSchema = z.object({
   subject: z.string().min(5, 'Subject must be at least 5 characters').max(200),
   description: z.string().min(20, 'Description must be at least 20 characters').max(2000),
-  category: z.enum(['ORDER', 'DELIVERY', 'PAYMENT', 'ACCOUNT', 'OTHER']).optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional().default('MEDIUM'),
+  category: z.enum(['ORDER', 'DELIVERY', 'PAYMENT', 'ACCOUNT', 'OTHER'] as const).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as const).optional().default('MEDIUM'),
 })
 
 export const updateSupportTicketSchema = z.object({
-  status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']).optional(),
+  status: z.enum(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const).optional(),
   assignedTo: z.string().optional(),
 })
 
@@ -130,7 +130,7 @@ export const updateSupportTicketSchema = z.object({
 export const walletTransactionSchema = z.object({
   amount: z.number().positive('Amount must be positive'),
   description: z.string().min(5, 'Description is required').max(200),
-  type: z.enum(['CREDIT', 'DEBIT']).optional(), // Type is determined by amount sign
+  type: z.enum(['CREDIT', 'DEBIT'] as const).optional(), // Type is determined by amount sign
 })
 
 // ========================================
@@ -152,7 +152,7 @@ export const updateDriverLocationSchema = z.object({
   heading: z.number().min(0).max(360).optional(),
   speed: z.number().nonnegative().optional(),
   isActive: z.boolean().optional(),
-  status: z.enum(['offline', 'online', 'delivering']).optional(),
+  status: z.enum(['offline', 'online', 'delivering'] as const).optional(),
   currentOrderId: z.string().optional(),
 })
 
@@ -168,7 +168,7 @@ export const createPackageDeliverySchema = z.object({
   packageDescription: z.string().min(10, 'Package description is required').max(500),
   scheduledDate: z.string().datetime().optional(),
   scheduledTime: z.string().optional(),
-  whoPays: z.enum(['customer', 'receiver']).default('customer'),
+  whoPays: z.enum(['customer', 'receiver'] as const).default('customer'),
   deliveryFee: z.number().nonnegative('Delivery fee cannot be negative'),
 })
 
@@ -231,8 +231,8 @@ export const updateInventoryProductSchema = z.object({
 // ========================================
 
 export const paginationSchema = z.object({
-  page: z.string().regex(/^\d+$/).transform(Number).optional().default('1'),
-  limit: z.string().regex(/^\d+$/).transform(Number).optional().default('10'),
+  page: z.string().regex(/^\d+$/).transform(Number).optional().default(1),
+  limit: z.string().regex(/^\d+$/).transform(Number).optional().default(10),
 })
 
 export const orderQuerySchema = z.object({
@@ -281,9 +281,7 @@ export type OrderQueryInput = z.infer<typeof orderQuerySchema>
 export const createPaymentSchema = z.object({
   orderId: z.string().cuid('Invalid order ID'),
   amount: z.number().positive('Amount must be positive'),
-  method: z.enum(['CASH', 'CARD', 'WALLET'], {
-    errorMap: () => ({ message: 'Payment method must be CASH, CARD, or WALLET' }),
-  }),
+  method: z.enum(['CASH', 'CARD', 'WALLET'] as const, 'Invalid payment method'),
   transactionId: z.string().optional(),
 })
 
@@ -318,9 +316,7 @@ export const getMessagesSchema = z.object({
 // Note: orderId is optional here because it can come from route params
 // The route handler should validate the orderId from params separately
 export const updateOrderStatusBodySchema = z.object({
-  status: z.enum(['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'IN_DELIVERY', 'DELIVERED', 'CANCELLED'], {
-    errorMap: () => ({ message: 'Invalid order status' }),
-  }),
+  status: z.enum(['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'IN_DELIVERY', 'DELIVERED', 'CANCELLED'] as const, 'Invalid order status'),
   driverId: z.string().cuid('Invalid driver ID').optional(),
 })
 
@@ -354,7 +350,7 @@ export const walletTransactionsSchema = z.object({
   customerId: z.string().cuid('Invalid customer ID').optional(),
   page: z.number().int().min(1).optional().default(1),
   limit: z.number().int().min(1).max(100).optional().default(50),
-  type: z.enum(['CREDIT', 'DEBIT', 'ALL']).optional().default('ALL'),
+  type: z.enum(['CREDIT', 'DEBIT', 'ALL'] as const).optional().default('ALL'),
 })
 
 // ========================================
@@ -365,7 +361,7 @@ export const loyaltyTransactionsSchema = z.object({
   customerId: z.string().cuid('Invalid customer ID').optional(),
   page: z.number().int().min(1).optional().default(1),
   limit: z.number().int().min(1).max(100).optional().default(50),
-  type: z.enum(['EARNED', 'REDEEMED', 'ALL']).optional().default('ALL'),
+  type: z.enum(['EARNED', 'REDEEMED', 'ALL'] as const).optional().default('ALL'),
 })
 
 // ========================================
@@ -373,7 +369,7 @@ export const loyaltyTransactionsSchema = z.object({
 // ========================================
 
 export const adminOrdersSchema = z.object({
-  status: z.enum(['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'IN_DELIVERY', 'DELIVERED', 'CANCELLED']).optional(),
+  status: z.enum(['PENDING', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'IN_DELIVERY', 'DELIVERED', 'CANCELLED'] as const).optional(),
   vendorId: z.string().cuid('Invalid vendor ID').optional(),
   customerId: z.string().cuid('Invalid customer ID').optional(),
   driverId: z.string().cuid('Invalid driver ID').optional(),

@@ -194,17 +194,43 @@ function readNextAuthSecretFromVendorEnvLocal() {
 }
 
 /**
+ * Machine-unique JWT secret for packaged Electron (persisted under userData).
+ * Never use a guessable shared default like electron-offline-secret-default.
+ */
+function getOrCreatePackagedJwtSecret() {
+  const secretPath = path.join(app.getPath('userData'), 'jwt-secret.txt')
+  try {
+    if (fs.existsSync(secretPath)) {
+      const existing = fs.readFileSync(secretPath, 'utf8').trim()
+      if (existing.length >= 32) return existing
+    }
+  } catch (_) {
+    /* fall through to mint */
+  }
+  const crypto = require('crypto')
+  const secret = crypto.randomBytes(32).toString('hex')
+  try {
+    fs.writeFileSync(secretPath, secret, { encoding: 'utf8', mode: 0o600 })
+  } catch (e) {
+    console.error('[Electron] Failed to persist JWT secret:', e && e.message)
+  }
+  return secret
+}
+
+/**
  * Secret for JWTs minted in the main process — must match verification in
  * lib/get-session-from-request.ts and signing in apps/vendor electron-login route.
- * Packaged standalone spawns Next with NEXTAUTH_SECRET defaulting to electron-offline-…
+ * Fail closed: no hardcoded fallback-secret.
  */
 function getVendorJwtSecretForMain() {
   const fromEnv = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || readNextAuthSecretFromVendorEnvLocal()
   if (fromEnv) return fromEnv
   if (app.isPackaged) {
-    return 'electron-offline-secret-' + (process.env.ALBAZ_ELECTRON_PASSKEY || 'default')
+    return getOrCreatePackagedJwtSecret()
   }
-  return 'fallback-secret'
+  throw new Error(
+    'NEXTAUTH_SECRET or AUTH_SECRET is required for Electron JWT auth in development. Set it in apps/vendor/.env.local'
+  )
 }
 
 let _vendorJwtLib = null
@@ -698,6 +724,14 @@ function startNextStandaloneServer() {
       console.warn('[Electron]', msg)
     }
 
+    const jwtSecretForSpawn = (() => {
+      try {
+        return getVendorJwtSecretForMain()
+      } catch (e) {
+        logStartup('JWT secret missing for Next spawn: ' + (e && e.message))
+        return process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || ''
+      }
+    })()
     const spawnEnv = {
       ...process.env,
       PORT: '3001',
@@ -706,7 +740,8 @@ function startNextStandaloneServer() {
       VENDOR_USER_DATA_PATH: app.getPath('userData'),
       // Ensure auth vars for offline mode (session endpoint won't 500 when secret is set)
       NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3001',
-      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'electron-offline-secret-' + (process.env.ALBAZ_ELECTRON_PASSKEY || 'default'),
+      NEXTAUTH_SECRET: jwtSecretForSpawn,
+      AUTH_SECRET: process.env.AUTH_SECRET || jwtSecretForSpawn,
     }
     if (isPackaged && process.platform === 'win32') {
       const exeDir = path.dirname(app.getPath('exe'))
@@ -1436,6 +1471,31 @@ app.whenReady().then(() => {
       /* ignore */
     }
   }
+
+  // Local DX: surface missing auth/DB config early (do not block offline POS)
+  try {
+    const hasJwtSecret = !!(
+      process.env.NEXTAUTH_SECRET ||
+      process.env.AUTH_SECRET ||
+      readNextAuthSecretFromVendorEnvLocal()
+    )
+    if (!app.isPackaged && !hasJwtSecret) {
+      console.error(
+        '[Electron] NEXTAUTH_SECRET is missing. Set it in apps/vendor/.env.local — Electron JWT login will fail. See ELECTRON_SETUP.md'
+      )
+    } else if (!hasJwtSecret && app.isPackaged) {
+      logStartup('Using machine-unique JWT secret from userData')
+    }
+    const hasDb = !!(process.env.DATABASE_URL && String(process.env.DATABASE_URL).trim())
+    if (!hasDb) {
+      console.warn(
+        '[Electron] DATABASE_URL not set — offline POS OK; cloud sync/subscriptions unavailable'
+      )
+    }
+  } catch (e) {
+    console.warn('[Electron] Env check failed:', e && e.message)
+  }
+
   try {
     configureCSP()
     if (app.isPackaged) writeEarlyLog('configureCSP ok')
