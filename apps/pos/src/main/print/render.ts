@@ -3,14 +3,14 @@ import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { PAPER_DOTS, receiptJob, toMonochrome, type MonoImage, type PaperWidth } from './escpos'
-import { receiptHtml, type ReceiptLang, type ReceiptOptions } from './receipt'
+import { receiptHtml, SAMPLE_RECEIPT, type ReceiptData, type ReceiptLang, type ReceiptOptions } from './receipt'
 
 function htmlUrl(html: string): string {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
 }
 
 /** Loads receipt HTML in a hidden window sized to the paper and returns it with its content height. */
-async function loadReceiptWindow(opts: ReceiptOptions) {
+async function loadReceiptWindow(opts: ReceiptOptions, data: ReceiptData) {
   const width = PAPER_DOTS[opts.paper]
   const win = new BrowserWindow({
     show: false,
@@ -22,15 +22,15 @@ async function loadReceiptWindow(opts: ReceiptOptions) {
     paintWhenInitiallyHidden: true,
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   })
-  await win.loadURL(htmlUrl(receiptHtml(opts)))
+  await win.loadURL(htmlUrl(receiptHtml(data, opts)))
   await win.webContents.executeJavaScript('document.fonts.ready.then(() => true)')
   const height = Number(await win.webContents.executeJavaScript('Math.ceil(document.documentElement.scrollHeight)'))
   return { win, width, height }
 }
 
 /** Renders the receipt exactly as the raster route prints it: one bitmap, paper width in dots. */
-export async function renderReceiptImage(opts: ReceiptOptions): Promise<NativeImage> {
-  const { win, width, height } = await loadReceiptWindow(opts)
+export async function renderReceiptImage(opts: ReceiptOptions, data: ReceiptData = SAMPLE_RECEIPT): Promise<NativeImage> {
+  const { win, width, height } = await loadReceiptWindow(opts, data)
   try {
     win.setContentSize(width, height)
     // Let the compositor paint at the new size before capturing.
@@ -64,8 +64,8 @@ export function monoToImage(mono: MonoImage): NativeImage {
 }
 
 /** Driver route: let the Windows driver render the HTML page. */
-export async function printWithDriver(opts: ReceiptOptions, deviceName: string): Promise<void> {
-  const { win, width, height } = await loadReceiptWindow(opts)
+export async function printWithDriver(opts: ReceiptOptions, deviceName: string, data: ReceiptData = SAMPLE_RECEIPT): Promise<void> {
+  const { win, width, height } = await loadReceiptWindow(opts, data)
   try {
     const microns = opts.paper * 1000
     await new Promise<void>((resolve, reject) => {

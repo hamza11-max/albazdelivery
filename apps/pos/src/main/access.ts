@@ -31,6 +31,7 @@ export const ACCESS: Record<ChannelName, Access> = {
   'catalog:products': 'user',
   'catalog:product': 'user',
   'catalog:findByCode': 'user',
+  'catalog:variantInfo': 'user',
   'catalog:saveCategory': 'owner',
   'catalog:archiveCategory': 'owner',
   'catalog:saveProduct': 'owner',
@@ -43,7 +44,21 @@ export const ACCESS: Record<ChannelName, Access> = {
   'labels:print': 'owner',
   'labels:assignBarcodes': 'owner',
 
-  // Printer test lives in Settings (owner). Receipt printing for sales will be 'user'.
+  // Selling and the cash drawer: any signed-in user. Discounts above the cap
+  // need the owner's PIN inside sell:complete.
+  'sell:complete': 'user',
+  'sell:printReceipt': 'user',
+  'sell:hold': 'user',
+  'sell:held': 'user',
+  'sell:recall': 'user',
+  'shift:status': 'user',
+  'shift:open': 'user',
+  'shift:cash': 'user',
+  'shift:close': 'user',
+  'settings:sales': 'user',
+  'settings:saveSales': 'owner',
+
+  // Printer test lives in Settings (owner).
   'print:printers': 'owner',
   'print:preview': 'owner',
   'print:raster': 'owner',

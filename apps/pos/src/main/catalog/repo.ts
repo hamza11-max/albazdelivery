@@ -1,7 +1,7 @@
 import { ftsQuery, inStoreEan13, normaliseCode } from '@albaz/pos-core'
 import type Database from 'better-sqlite3'
 
-import type { Category, ProductDetail, ProductInput, ProductQuery, ProductSummary, VariantDetail } from '../../shared/ipc'
+import type { Category, ProductDetail, ProductInput, ProductQuery, ProductSummary, VariantDetail, VariantInfo } from '../../shared/ipc'
 import { nextCounter } from '../db/database'
 import { uuidv7 } from '../ids'
 import { AppError } from '../errors'
@@ -294,6 +294,18 @@ export class CatalogRepo {
         barcode: r.barcode,
       }
     })
+  }
+
+  /** Display info for cart lines (active variants only, in the order asked; missing ones are left out). */
+  variantInfo(variantIds: readonly string[]): VariantInfo[] {
+    const get = this.db.prepare(
+      `SELECT v.id AS variantId, p.name, coalesce(p.name_alt, '') AS nameAlt,
+              trim(coalesce(v.option1_value, '') || CASE WHEN v.option2_value IS NOT NULL THEN ' / ' || v.option2_value ELSE '' END) AS variantLabel,
+              coalesce(v.sale_price, p.sale_price) AS price, v.stock_qty AS stockQty
+       FROM variants v JOIN products p ON p.id = v.product_id
+       WHERE v.id = ? AND v.archived_at IS NULL AND p.archived_at IS NULL`,
+    )
+    return variantIds.map((id) => get.get(id) as VariantInfo | undefined).filter((v): v is VariantInfo => !!v)
   }
 
   /** Gives an in-store EAN-13 to each listed variant that has no barcode yet. */

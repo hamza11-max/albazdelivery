@@ -1,4 +1,7 @@
+import type { ReceiptData } from '../../shared/ipc'
 import { PAPER_DOTS, type PaperWidth } from './escpos'
+
+export type { ReceiptData }
 
 export type ReceiptLang = 'ar' | 'fr' | 'mixed'
 
@@ -7,35 +10,33 @@ export interface ReceiptOptions {
   paper: PaperWidth
 }
 
-interface Line {
-  ar: string
-  fr: string
-  variant: string
-  qty: number
-  unitPrice: number
-}
-
-/** Fixed sample sale used by the spike. Amounts are whole DZD. */
-const SAMPLE = {
-  shop: { ar: 'متجر الباز للملابس', fr: 'AL-baz Boutique', phone: '0550 12 34 56', address: { ar: 'شارع العربي بن مهيدي، وهران', fr: 'Rue Larbi Ben M’hidi, Oran' } },
+/** Sample sale for the printer test and --selftest (same as the Phase 2 spike). */
+export const SAMPLE_RECEIPT: ReceiptData = {
+  shop: {
+    name: 'متجر الباز للملابس — AL-baz Boutique',
+    phone: '0550 12 34 56',
+    address: 'شارع العربي بن مهيدي، وهران',
+    footer: 'شكراً لزيارتكم! الاستبدال خلال 7 أيام مع الوصل. — Merci ! Échange sous 7 jours avec ce ticket.',
+  },
   number: 'R-0001-000123',
+  createdAt: '2026-10-31T12:00:00.000Z',
   cashier: 'Amina',
   lines: [
-    { ar: 'قميص قطن أبيض', fr: 'Chemise coton blanche', variant: 'L / أبيض', qty: 2, unitPrice: 2500 },
-    { ar: 'حذاء رياضي', fr: 'Baskets sport', variant: '42', qty: 1, unitPrice: 6800 },
-    { ar: 'حزام جلد بني', fr: 'Ceinture cuir marron', variant: '', qty: 1, unitPrice: 1200 },
-  ] satisfies Line[],
-  discount: 500,
-  paid: 15000,
-  footer: {
-    ar: 'شكراً لزيارتكم! الاستبدال خلال 7 أيام مع الوصل.',
-    fr: 'Merci de votre visite ! Échange sous 7 jours avec ce ticket.',
-  },
+    { name: 'قميص قطن أبيض', nameAlt: 'Chemise coton blanche', variant: 'L / أبيض', qty: 2, unitPrice: 2500, lineDiscount: 0, lineTotal: 5000 },
+    { name: 'حذاء رياضي', nameAlt: 'Baskets sport', variant: '42', qty: 1, unitPrice: 6800, lineDiscount: 0, lineTotal: 6800 },
+    { name: 'حزام جلد بني', nameAlt: 'Ceinture cuir marron', variant: '', qty: 1, unitPrice: 1200, lineDiscount: 0, lineTotal: 1200 },
+  ],
+  subtotal: 13000,
+  discountTotal: 500,
+  total: 12500,
+  cashTendered: 15000,
+  card: 0,
+  change: 2500,
 }
 
 const LABELS = {
-  ar: { receipt: 'وصل رقم', date: 'التاريخ', cashier: 'البائع', subtotal: 'المجموع الفرعي', discount: 'تخفيض', total: 'المجموع', paid: 'المدفوع نقداً', change: 'الباقي', currency: 'د.ج' },
-  fr: { receipt: 'Ticket n°', date: 'Date', cashier: 'Caissier', subtotal: 'Sous-total', discount: 'Remise', total: 'TOTAL', paid: 'Espèces', change: 'Rendu', currency: 'DA' },
+  ar: { receipt: 'وصل رقم', date: 'التاريخ', cashier: 'البائع', subtotal: 'المجموع الفرعي', discount: 'تخفيض', total: 'المجموع', paid: 'المدفوع نقداً', card: 'بطاقة', change: 'الباقي', currency: 'د.ج' },
+  fr: { receipt: 'Ticket n°', date: 'Date', cashier: 'Caissier', subtotal: 'Sous-total', discount: 'Remise', total: 'TOTAL', paid: 'Espèces', card: 'Carte', change: 'Rendu', currency: 'DA' },
 }
 
 function esc(s: string): string {
@@ -65,44 +66,38 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
 
-export function receiptTotals() {
-  const subtotal = SAMPLE.lines.reduce((s, l) => s + l.qty * l.unitPrice, 0)
-  const total = subtotal - SAMPLE.discount
-  return { subtotal, total, change: SAMPLE.paid - total }
+function localDate(iso: string): string {
+  const d = new Date(iso)
+  return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
-export function receiptHtml({ lang, paper }: ReceiptOptions, now = new Date()): string {
+/** Product name in the receipt's language: French uses the other-language name when there is one. */
+function itemName(lang: ReceiptLang, l: ReceiptData['lines'][number]): string {
+  if (lang === 'fr') return esc(l.nameAlt || l.name)
+  if (lang === 'ar' || !l.nameAlt) return esc(l.name)
+  return `${esc(l.name)}<div class="sub"><bdi>${esc(l.nameAlt)}</bdi></div>`
+}
+
+export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions): string {
   const width = PAPER_DOTS[paper]
   const base = paper === 80 ? 22 : 16
   const dir = lang === 'fr' ? 'ltr' : 'rtl'
-  const { subtotal, total, change } = receiptTotals()
-  const date = `${pad2(now.getDate())}/${pad2(now.getMonth() + 1)}/${now.getFullYear()} ${pad2(now.getHours())}:${pad2(now.getMinutes())}`
 
-  const shopName =
-    lang === 'fr' ? esc(SAMPLE.shop.fr)
-    : lang === 'ar' ? esc(SAMPLE.shop.ar)
-    : `${esc(SAMPLE.shop.ar)}<br><bdi>${esc(SAMPLE.shop.fr)}</bdi>`
-  const address = lang === 'fr' ? SAMPLE.shop.address.fr : SAMPLE.shop.address.ar
-
-  const items = SAMPLE.lines
+  const items = data.lines
     .map((l) => {
-      const name =
-        lang === 'fr' ? esc(l.fr)
-        : lang === 'ar' ? esc(l.ar)
-        : `${esc(l.ar)}<div class="sub"><bdi>${esc(l.fr)}</bdi></div>`
       const variant = l.variant ? `<div class="sub"><bdi>${esc(l.variant)}</bdi></div>` : ''
+      const disc = l.lineDiscount > 0 ? `<div class="sub"><bdi>${label(lang, 'discount')} ${money(lang, -l.lineDiscount)}</bdi></div>` : ''
       return `<div class="item">
-        <div class="name">${name}${variant}</div>
+        <div class="name">${itemName(lang, l)}${variant}${disc}</div>
         <div class="qty"><bdi>${l.qty} × ${amount(l.unitPrice)}</bdi></div>
-        <div class="amt">${money(lang, l.qty * l.unitPrice)}</div>
+        <div class="amt">${money(lang, l.lineTotal)}</div>
       </div>`
     })
     .join('')
 
-  const footer =
-    lang === 'fr' ? esc(SAMPLE.footer.fr)
-    : lang === 'ar' ? esc(SAMPLE.footer.ar)
-    : `${esc(SAMPLE.footer.ar)}<br><bdi>${esc(SAMPLE.footer.fr)}</bdi>`
+  const lineDiscounts = data.lines.reduce((s, l) => s + l.lineDiscount, 0)
+  const saleDiscount = data.discountTotal - lineDiscounts
+  const row = (key: keyof typeof LABELS.ar, value: string, cls = 'row') => `<div class="${cls}"><span>${label(lang, key)}</span>${value}</div>`
 
   return `<!doctype html>
 <html lang="${lang === 'fr' ? 'fr' : 'ar'}" dir="${dir}">
@@ -135,23 +130,24 @@ export function receiptHtml({ lang, paper }: ReceiptOptions, now = new Date()): 
 </style>
 </head>
 <body>
-  <div class="center shop">${shopName}</div>
-  <div class="center muted">${esc(address)}<br><bdi>${esc(SAMPLE.shop.phone)}</bdi></div>
+  <div class="center shop">${esc(data.shop.name)}</div>
+  ${data.shop.address || data.shop.phone ? `<div class="center muted">${esc(data.shop.address)}${data.shop.address && data.shop.phone ? '<br>' : ''}<bdi>${esc(data.shop.phone)}</bdi></div>` : ''}
   <hr>
-  <div class="meta"><span>${label(lang, 'receipt')}</span><bdi>${esc(SAMPLE.number)}</bdi></div>
-  <div class="meta"><span>${label(lang, 'date')}</span><bdi>${date}</bdi></div>
-  <div class="meta"><span>${label(lang, 'cashier')}</span><bdi>${esc(SAMPLE.cashier)}</bdi></div>
+  <div class="meta"><span>${label(lang, 'receipt')}</span><bdi>${esc(data.number)}</bdi></div>
+  <div class="meta"><span>${label(lang, 'date')}</span><bdi>${localDate(data.createdAt)}</bdi></div>
+  <div class="meta"><span>${label(lang, 'cashier')}</span><bdi>${esc(data.cashier)}</bdi></div>
   <hr>
   ${items}
   <hr>
-  <div class="row"><span>${label(lang, 'subtotal')}</span>${money(lang, subtotal)}</div>
-  <div class="row"><span>${label(lang, 'discount')}</span>${money(lang, -SAMPLE.discount)}</div>
-  <div class="row total"><span>${label(lang, 'total')}</span>${money(lang, total)}</div>
-  <div class="row"><span>${label(lang, 'paid')}</span>${money(lang, SAMPLE.paid)}</div>
-  <div class="row"><span>${label(lang, 'change')}</span>${money(lang, change)}</div>
+  ${data.discountTotal > 0 ? row('subtotal', money(lang, data.subtotal)) : ''}
+  ${saleDiscount > 0 ? row('discount', money(lang, -saleDiscount)) : ''}
+  ${row('total', money(lang, data.total), 'row total')}
+  ${data.cashTendered > 0 ? row('paid', money(lang, data.cashTendered)) : ''}
+  ${data.card > 0 ? row('card', money(lang, data.card)) : ''}
+  ${data.change > 0 ? row('change', money(lang, data.change)) : ''}
   <hr>
-  <div class="center muted">${footer}</div>
-  <div class="center number">${esc(SAMPLE.number)}</div>
+  ${data.shop.footer ? `<div class="center muted">${esc(data.shop.footer)}</div>` : ''}
+  <div class="center number">${esc(data.number)}</div>
 </body>
 </html>`
 }
