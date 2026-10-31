@@ -13,6 +13,15 @@ const CHANNELS = [
   'print:raster',
   'print:driver',
   'print:drawer',
+  'catalog:categories',
+  'catalog:saveCategory',
+  'catalog:archiveCategory',
+  'catalog:products',
+  'catalog:product',
+  'catalog:saveProduct',
+  'catalog:archiveProduct',
+  'catalog:findByCode',
+  'catalog:newBarcode',
 ] as const satisfies readonly ChannelName[]
 
 type Missing = Exclude<ChannelName, (typeof CHANNELS)[number]>

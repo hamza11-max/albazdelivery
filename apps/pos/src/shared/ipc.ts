@@ -23,6 +23,63 @@ const rawTarget = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('tcp'), host: z.string().regex(HOST_RE, 'invalid host'), port: z.number().int().min(1).max(65535) }),
 ])
 
+const id = z.string().uuid()
+const money = z.number().int().min(0).max(10_000_000_000)
+const price = money.refine((n) => n > 0, 'must be more than 0')
+const optText = (max: number) => z.string().trim().max(max).default('')
+// Scanner/typed codes: no control characters, no spaces.
+// eslint-disable-next-line no-control-regex
+const code = z.string().trim().max(48).regex(/^[^\s\u0000-\u001f]*$/, 'no spaces or control characters').default('')
+
+const variantInput = z.object({
+  id: id.optional(),
+  option1Value: optText(40),
+  option2Value: optText(40),
+  /** Empty = generate one. */
+  sku: code,
+  /** Empty = no barcode yet. */
+  barcode: code,
+  /** null = use the product price. */
+  salePrice: price.nullable().default(null),
+  lowStockThreshold: z.number().int().min(0).max(1_000_000).nullable().default(null),
+})
+
+const productInput = z
+  .object({
+    id: id.optional(),
+    /** Required when updating; a mismatch means someone else changed it. */
+    version: z.number().int().min(0).optional(),
+    name: z.string().trim().min(1).max(120),
+    nameAlt: optText(120),
+    categoryId: id.nullable().default(null),
+    brand: optText(60),
+    costPrice: money,
+    salePrice: price,
+    option1Name: optText(30),
+    option2Name: optText(30),
+    variants: z.array(variantInput).min(1).max(200),
+  })
+  .superRefine((p, ctx) => {
+    if (p.id && p.version === undefined) ctx.addIssue({ code: 'custom', path: ['version'], message: 'required when updating' })
+    if (!p.option1Name && p.option2Name) ctx.addIssue({ code: 'custom', path: ['option2Name'], message: 'set option 1 first' })
+    const combos = new Set<string>()
+    const skus = new Set<string>()
+    const barcodes = new Set<string>()
+    p.variants.forEach((v, i) => {
+      if (!p.option1Name && v.option1Value) ctx.addIssue({ code: 'custom', path: ['variants', i, 'option1Value'], message: 'no option 1 on this product' })
+      if (!p.option2Name && v.option2Value) ctx.addIssue({ code: 'custom', path: ['variants', i, 'option2Value'], message: 'no option 2 on this product' })
+      if (p.option1Name && !v.option1Value) ctx.addIssue({ code: 'custom', path: ['variants', i, 'option1Value'], message: 'required' })
+      if (p.option2Name && !v.option2Value) ctx.addIssue({ code: 'custom', path: ['variants', i, 'option2Value'], message: 'required' })
+      const combo = `${v.option1Value.toLowerCase()}\u0000${v.option2Value.toLowerCase()}`
+      if (combos.has(combo)) ctx.addIssue({ code: 'custom', path: ['variants', i], message: 'duplicate variant' })
+      combos.add(combo)
+      if (v.sku && skus.has(v.sku)) ctx.addIssue({ code: 'custom', path: ['variants', i, 'sku'], message: 'duplicate SKU' })
+      if (v.sku) skus.add(v.sku)
+      if (v.barcode && barcodes.has(v.barcode)) ctx.addIssue({ code: 'custom', path: ['variants', i, 'barcode'], message: 'duplicate barcode' })
+      if (v.barcode) barcodes.add(v.barcode)
+    })
+  })
+
 export const inputs = {
   'app:info': z.undefined(),
   'settings:get': z.undefined(),
@@ -32,12 +89,75 @@ export const inputs = {
   'print:raster': z.object({ options: receiptOptions, target: rawTarget, openDrawer: z.boolean() }),
   'print:driver': z.object({ options: receiptOptions, printer: printerName }),
   'print:drawer': z.object({ target: rawTarget }),
+  'catalog:categories': z.undefined(),
+  'catalog:saveCategory': z.object({ id: id.optional(), name: z.string().trim().min(1).max(60) }),
+  'catalog:archiveCategory': z.object({ id }),
+  'catalog:products': z.object({
+    query: z.string().max(100).default(''),
+    categoryId: id.nullable().default(null),
+    stock: z.enum(['all', 'low', 'out']).default('all'),
+    limit: z.number().int().min(1).max(200).default(100),
+    offset: z.number().int().min(0).default(0),
+  }),
+  'catalog:product': z.object({ id }),
+  'catalog:saveProduct': productInput,
+  'catalog:archiveProduct': z.object({ id }),
+  'catalog:findByCode': z.object({ code: z.string().trim().min(1).max(48) }),
+  'catalog:newBarcode': z.undefined(),
 } as const
 
 export type ChannelName = keyof typeof inputs
 export type Inputs = { [K in ChannelName]: z.input<(typeof inputs)[K]> }
 export type ReceiptOptions = z.infer<typeof receiptOptions>
 export type RawTarget = z.infer<typeof rawTarget>
+export type ProductInput = z.output<typeof productInput>
+export type ProductQuery = z.output<(typeof inputs)['catalog:products']>
+
+export interface Category {
+  id: string
+  name: string
+  productCount: number
+}
+
+export interface ProductSummary {
+  id: string
+  name: string
+  nameAlt: string
+  categoryId: string | null
+  categoryName: string | null
+  brand: string
+  minPrice: number
+  maxPrice: number
+  variantCount: number
+  stockTotal: number
+  lowStockVariants: number
+  outOfStockVariants: number
+}
+
+export interface VariantDetail {
+  id: string
+  option1Value: string
+  option2Value: string
+  sku: string
+  barcode: string
+  salePrice: number | null
+  stockQty: number
+  lowStockThreshold: number | null
+}
+
+export interface ProductDetail {
+  id: string
+  version: number
+  name: string
+  nameAlt: string
+  categoryId: string | null
+  brand: string
+  costPrice: number
+  salePrice: number
+  option1Name: string
+  option2Name: string
+  variants: VariantDetail[]
+}
 
 export interface AppInfo {
   appVersion: string
@@ -58,6 +178,15 @@ export interface Outputs {
   'print:raster': { bytes: number }
   'print:driver': null
   'print:drawer': null
+  'catalog:categories': Category[]
+  'catalog:saveCategory': Category
+  'catalog:archiveCategory': null
+  'catalog:products': { rows: ProductSummary[]; total: number }
+  'catalog:product': ProductDetail
+  'catalog:saveProduct': ProductDetail
+  'catalog:archiveProduct': null
+  'catalog:findByCode': { product: ProductDetail; variantId: string } | null
+  'catalog:newBarcode': { barcode: string }
 }
 
 /** Handlers never throw across IPC; they return this envelope. */

@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { useI18n, type MessageKey } from './i18n'
 import { Placeholder } from './pages/Placeholder'
+import { Products } from './pages/Products'
 import { Settings } from './pages/Settings'
 
 const PAGES = ['sell', 'history', 'products', 'stock', 'reports', 'settings'] as const
@@ -48,7 +49,7 @@ export function App() {
       </header>
 
       <main className="content">
-        {page === 'settings' ? <Settings /> : <Placeholder text={t(`empty.${page}` as MessageKey)} />}
+        {page === 'settings' ? <Settings /> : page === 'products' ? <Products /> : <Placeholder text={t(`empty.${page}` as MessageKey)} />}
       </main>
     </div>
   )

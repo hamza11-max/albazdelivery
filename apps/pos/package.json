@@ -5,17 +5,18 @@
   "description": "AL-baz POS: offline-first retail point of sale (Windows, Electron)",
   "main": "dist/main/main.js",
   "scripts": {
-    "build:main": "tsc -p tsconfig.json",
+    "build:main": "tsc -p ../../packages/pos-core/tsconfig.json && tsc -p tsconfig.json",
     "build:renderer": "vite build",
     "build": "npm run build:main && npm run build:renderer",
     "start": "npm run build && electron .",
     "selftest": "npm run build && electron . --selftest",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3 -m ../..",
     "test": "npm run build:main && node --test \"dist/main/print/*.test.js\"",
-    "test:db": "npm run build:main && node scripts/electron-node.cjs --test \"dist/main/db/*.test.js\"",
-    "type-check": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
+    "test:db": "npm run build:main && node scripts/electron-node.cjs --test \"dist/main/db/*.test.js\" \"dist/main/catalog/*.test.js\"",
+    "type-check": "tsc -p ../../packages/pos-core/tsconfig.json && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
   },
   "dependencies": {
+    "@albaz/pos-core": "0.0.1",
     "better-sqlite3": "12.8.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",

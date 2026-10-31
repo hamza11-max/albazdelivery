@@ -154,3 +154,77 @@ button:disabled { opacity: 0.55; cursor: progress; }
 .receipt-preview { display: block; max-width: 100%; background: #fff; box-shadow: 0 1px 6px rgb(0 0 0 / 0.25); image-rendering: pixelated; }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- shared controls ---------- */
+input:not([type=checkbox]):not([type=radio]) {
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  width: 100%;
+}
+button {
+  min-height: 40px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+}
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+button.ghost { background: transparent; border-color: transparent; }
+button.small { min-height: 32px; padding: 2px 8px; font-size: 13px; }
+button.danger { color: var(--err); }
+.spacer { flex: 1; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.strong { font-weight: 600; }
+.inline { display: flex; gap: 6px; align-items: center; }
+.badge { display: inline-block; min-width: 2em; padding: 0 8px; border-radius: 999px; text-align: center; }
+.badge.warn { background: #fff3d6; color: #8a5a00; }
+.badge.err { background: #fde4e1; color: var(--err); }
+
+/* ---------- products list ---------- */
+.toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-block-end: 12px; }
+.toolbar .search { flex: 1 1 320px; max-width: 520px; }
+.toolbar select { min-width: 160px; }
+.count { margin: 4px 0 8px; }
+.grid { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.grid th, .grid td { padding: 10px 12px; text-align: start; border-block-end: 1px solid var(--border); vertical-align: middle; }
+.grid th { font-size: 13px; color: var(--muted); font-weight: 600; background: var(--bg); }
+.grid .num { text-align: end; }
+.grid tbody tr { cursor: pointer; }
+.grid tbody tr:hover, .grid tbody tr:focus-visible { background: var(--accent-soft); }
+.grid.compact td { padding: 4px 6px; }
+.grid.compact tbody tr { cursor: default; }
+.grid.compact tbody tr:hover { background: transparent; }
+.grid.compact input { min-height: 34px; min-width: 70px; }
+.load-more { display: block; margin: 12px auto; }
+
+/* ---------- side drawer ---------- */
+.drawer-backdrop { position: fixed; inset: 0; background: rgb(10 15 25 / 0.45); display: flex; justify-content: flex-end; z-index: 10; }
+.drawer {
+  width: min(980px, 92vw);
+  height: 100%;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 24px rgb(0 0 0 / 0.3);
+}
+.drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; background: var(--surface); border-block-end: 1px solid var(--border); }
+.drawer-head h2 { margin: 0; font-size: 18px; }
+.drawer-body { flex: 1; overflow: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.drawer-body h3 { margin: 4px 0 0; font-size: 15px; }
+.drawer-body fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.drawer-body legend { padding: 0 4px; font-weight: 600; }
+.fields { display: grid; gap: 10px 14px; width: 100%; }
+.fields.two { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.fields.options { grid-template-columns: 1fr 2fr 1fr 2fr; }
+.fields label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.fields label input, .fields label select { color: var(--text); font-size: 15px; }
+.table-scroll { overflow-x: auto; }
+.drawer-foot { position: sticky; bottom: -16px; display: flex; gap: 10px; align-items: center; padding: 12px 0; background: var(--bg); border-block-start: 1px solid var(--border); }
+/* Drawer sections keep their natural height; the drawer body scrolls instead. */
+.drawer-body > * { flex-shrink: 0; }
+.grid.compact .inline input { min-width: 150px; }
