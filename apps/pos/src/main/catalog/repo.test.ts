@@ -150,3 +150,23 @@ test('categories: unique names, cannot archive while in use', () => {
   const [row] = repo.products(inputs['catalog:products'].parse({ categoryId: cat.id })).rows
   assert.equal(row!.categoryName, 'Chemises')
 })
+
+test('labelData: name, "size / colour" label, effective price, in the order asked', () => {
+  const p = repo.saveProduct(shirt())
+  const [l, m] = repo.labelData([p.variants[1]!.id, p.variants[0]!.id])
+  assert.deepEqual(l, { variantId: p.variants[1]!.id, name: 'قميص قطن أبيض', variantLabel: 'L / Blanc', price: 2700, barcode: '' })
+  assert.equal(m!.price, 2500)
+  assert.equal(m!.barcode, '6130000000015')
+  assert.throws(() => repo.labelData(['00000000-0000-7000-8000-000000000000']), code('NOT_FOUND'))
+})
+
+test('assignMissingBarcodes only fills empty barcodes, with unique in-store codes', () => {
+  const p = repo.saveProduct(shirt())
+  const ids = p.variants.map((v) => v.id)
+  assert.equal(repo.assignMissingBarcodes(ids), 1)
+  const after = repo.product(p.id).variants
+  assert.equal(after[0]!.barcode, '6130000000015', 'existing barcode kept')
+  assert.match(after[1]!.barcode, /^2\d{12}$/)
+  assert.equal(repo.assignMissingBarcodes(ids), 0, 'nothing left to assign')
+  assert.equal(repo.findByCode(after[1]!.barcode)?.variantId, after[1]!.id, 'searchable by the new code')
+})

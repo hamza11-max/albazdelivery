@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Category, Inputs, ProductDetail } from '../../shared/ipc'
 import { call } from '../api'
 import { useI18n } from '../i18n'
+import { LabelsDialog } from './LabelsDialog'
 
 interface VariantRow {
   key: string
@@ -72,6 +73,8 @@ export function ProductEditor(props: {
   const [form, setForm] = useState<Form>(EMPTY)
   const [version, setVersion] = useState<number | undefined>(undefined)
   const [loading, setLoading] = useState(props.productId !== null)
+  /** Saved product shown in the labels dialog (labels always use saved data). */
+  const [labelsFor, setLabelsFor] = useState<ProductDetail | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [newCategory, setNewCategory] = useState<string | null>(null)
@@ -284,6 +287,11 @@ export function ProductEditor(props: {
 
             <footer className="drawer-foot">
               {props.productId && <button type="button" className="danger ghost" disabled={busy} onClick={() => void archive()}>{t('editor.archive')}</button>}
+              {props.productId && (
+                <button type="button" disabled={busy} onClick={() => {
+                  call('catalog:product', { id: props.productId! }).then(setLabelsFor, (err) => setError(errorText(err)))
+                }}>{t('labels.button')}</button>
+              )}
               <span className="spacer" />
               <button type="button" disabled={busy} onClick={() => props.onClose(false)}>{t('common.cancel')}</button>
               <button type="submit" className="primary" disabled={busy}>{t('common.save')}</button>
@@ -291,6 +299,21 @@ export function ProductEditor(props: {
           </form>
         )}
       </section>
+      {labelsFor && (
+        <LabelsDialog
+          product={labelsFor}
+          onClose={(changed) => {
+            setLabelsFor(null)
+            // Barcodes were assigned: reload so the grid shows them and the version is current.
+            if (changed && props.productId) {
+              call('catalog:product', { id: props.productId }).then((p) => {
+                setForm(fromDetail(p))
+                setVersion(p.version)
+              }, (err) => setError(errorText(err)))
+            }
+          }}
+        />
+      )}
     </div>
   )
 }
