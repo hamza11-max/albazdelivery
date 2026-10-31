@@ -67,6 +67,7 @@
     "--template",
     "temp",
     "scripts",
-    "apps/pos"
+    "apps/pos",
+    "packages/pos-core"
   ]
 }

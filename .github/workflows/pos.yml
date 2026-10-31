@@ -1,17 +1,19 @@
 name: POS
 
-# Checks for apps/pos only. Runs separately from ci.yml / pr-check.yml, whose root
+# Checks for apps/pos and packages/pos-core only. Runs separately from ci.yml / pr-check.yml, whose root
 # type-check still fails on legacy code (see docs/PRODUCT_SPEC_AND_ANALYSIS.md, Pass 2).
 on:
   push:
     branches: [ main ]
     paths:
       - 'apps/pos/**'
+      - 'packages/pos-core/**'
       - 'package-lock.json'
       - '.github/workflows/pos.yml'
   pull_request:
     paths:
       - 'apps/pos/**'
+      - 'packages/pos-core/**'
       - 'package-lock.json'
       - '.github/workflows/pos.yml'
 
@@ -30,15 +32,19 @@ jobs:
           node-version: 22
           cache: npm
 
-      # Only this workspace's dependencies; skips the root postinstall (Prisma).
+      # Only these workspaces' dependencies; skips the root postinstall (Prisma).
       - name: Install dependencies
-        run: npm ci --workspace=@albaz/pos --ignore-scripts
+        run: npm ci --workspace=@albaz/pos --workspace=@albaz/pos-core --ignore-scripts
 
       - name: Type-check
-        run: npm run type-check -w @albaz/pos
+        run: |
+          npm run type-check -w @albaz/pos-core
+          npm run type-check -w @albaz/pos
 
       - name: Unit tests
-        run: npm test -w @albaz/pos
+        run: |
+          npm test -w @albaz/pos-core
+          npm test -w @albaz/pos
 
   selftest:
     name: Render receipts (Electron, Windows)
