@@ -271,3 +271,38 @@ button.big { min-height: 52px; font-size: 17px; }
 .grid tbody tr.readonly { cursor: default; }
 .user-form { margin-top: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; }
 .users > button { margin-top: 12px; }
+
+/* ---------- sell screen ---------- */
+.sell { display: flex; flex-direction: column; gap: 10px; height: 100%; }
+.shift-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.sell-main { flex: 1; display: grid; grid-template-columns: 1fr 340px; gap: 14px; min-height: 0; }
+.cart { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: auto; }
+.scan .search { font-size: 18px; min-height: 52px; }
+.results { display: flex; flex-direction: column; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px; }
+.result { display: flex; align-items: center; gap: 10px; text-align: start; border: 0; min-height: 44px; }
+.result:hover, .result:focus-visible { background: var(--accent-soft); }
+.cart-lines .qty { display: inline-flex; align-items: center; gap: 4px; }
+.cart-lines .qty input { width: 56px; min-width: 0 !important; text-align: center; }
+.cart-lines .disc { width: 90px; min-width: 0 !important; }
+.cart-lines tbody tr { cursor: default; }
+.totals { display: flex; flex-direction: column; gap: 12px; align-self: start; position: sticky; top: 0; }
+.grand-total { display: flex; justify-content: space-between; align-items: baseline; font-size: 26px; font-weight: 800; }
+.grand-total.ok { color: var(--ok); }
+.grand-total.error { color: var(--err); }
+.sold { border: 1px solid var(--ok); border-radius: 8px; padding: 10px 12px; background: rgb(23 102 58 / 0.06); }
+.sold p { margin: 0 0 6px; }
+.sold .change { font-size: 22px; font-weight: 800; }
+.open-shift { display: flex; flex-direction: column; gap: 12px; }
+.open-shift h2 { margin: 0; color: var(--text); }
+
+/* ---------- centered dialogs ---------- */
+.drawer-backdrop.center { justify-content: center; align-items: center; }
+.modal { width: min(520px, 92vw); max-height: 90vh; overflow: auto; background: var(--bg); border-radius: var(--radius); box-shadow: 0 8px 32px rgb(0 0 0 / 0.35); }
+.modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.modal .fields, .pay { display: flex; flex-direction: column; gap: 10px; }
+.modal label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.modal label input { font-size: 18px; color: var(--text); }
+.variant-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.variant-picker button { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 72px; }
+.facts.z { grid-template-columns: 1fr auto; }
+.facts.z dd { text-align: end; font-weight: 600; }

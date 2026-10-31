@@ -19,6 +19,9 @@ import { DRAWER_KICK, receiptJob } from './print/escpos'
 import { sendRaw } from './print/raw-print'
 import { monochrome, monoToImage, printWithDriver, renderAllReceipts, renderReceiptImage } from './print/render'
 import { APP_ORIGIN, registerAppScheme, serveAppScheme } from './protocol'
+import { SalesService } from './sales/sales'
+import { saveSalesSettings, salesSettings } from './sales/settings'
+import { ShiftService } from './sales/shifts'
 
 const APP_ROOT = app.getAppPath()
 const RAW_PRINT_SCRIPT = path.join(APP_ROOT, 'resources', 'raw-print.ps1')
@@ -56,6 +59,8 @@ function language(db: Database.Database): Language {
 
 function wireIpc(db: Database.Database, dbFile: string) {
   const auth = new AuthService(db)
+  const shifts = new ShiftService(db)
+  const sales = new SalesService(db, shifts)
   const catalog = new CatalogRepo(db, undefined, () => auth.current()?.userId ?? null)
   /** Parsed imports waiting for "Import": token → plan. One at a time, expires after 30 minutes. */
   const pendingImports = new Map<string, { plan: ImportPlan; expires: number }>()
@@ -129,6 +134,7 @@ function wireIpc(db: Database.Database, dbFile: string) {
     },
     'catalog:findByCode': ({ code }) => catalog.findByCode(code),
     'catalog:newBarcode': () => ({ barcode: catalog.newBarcode() }),
+    'catalog:variantInfo': ({ variantIds }) => catalog.variantInfo(variantIds),
     'app:info': () => ({
       appVersion: app.getVersion(),
       electronVersion: process.versions.electron,
@@ -183,6 +189,36 @@ function wireIpc(db: Database.Database, dbFile: string) {
       auth.setActive(id, active)
       return null
     },
+    'sell:complete': (input) => sales.completeSale(auth.requireUser(), input),
+    'sell:printReceipt': async ({ saleId }) => {
+      const s = salesSettings(db).receipt
+      if (!s.printer) return { printed: false, reason: 'NO_PRINTER' }
+      const data = sales.receiptData(saleId)
+      const openDrawer = s.openDrawer && data.cashTendered > 0
+      const target = { kind: 'windows' as const, printer: s.printer }
+      if (s.route === 'raster') {
+        await sendRaw(target, receiptJob(monochrome(await renderReceiptImage({ lang: s.lang, paper: s.paper }, data)), { openDrawer }), RAW_PRINT_SCRIPT)
+      } else {
+        await printWithDriver({ lang: s.lang, paper: s.paper }, s.printer, data)
+        if (openDrawer) await sendRaw(target, DRAWER_KICK, RAW_PRINT_SCRIPT)
+      }
+      return { printed: true }
+    },
+    'sell:hold': ({ cart }) => ({ id: sales.hold(auth.requireUser(), cart) }),
+    'sell:held': () => sales.held(),
+    'sell:recall': ({ id }) => sales.recall(id),
+    'shift:status': () => shifts.status(auth.requireUser()),
+    'shift:open': ({ openingFloat }) => {
+      shifts.open(auth.requireUser(), openingFloat)
+      return shifts.status(auth.requireUser())
+    },
+    'shift:cash': ({ type, amount, reason }) => {
+      shifts.cashMovement(auth.requireUser(), type, amount, reason)
+      return shifts.status(auth.requireUser())
+    },
+    'shift:close': ({ countedCash, reason }) => shifts.close(auth.requireUser(), countedCash, reason),
+    'settings:sales': () => salesSettings(db),
+    'settings:saveSales': (input) => saveSalesSettings(db, input),
     'shop:get': () => auth.shop(),
     'shop:save': (input) => auth.saveShop(input),
   }, { role: () => auth.current()?.role ?? null })
@@ -227,7 +263,7 @@ async function smoketest(win: BrowserWindow) {
   if (shot) await capture(shot.replace(/\.png$/, '-start.png'))
 
   const result = await win.webContents.executeJavaScript(`
-    (async () => {
+    (async () => { try {
       const bridge = typeof window.pos?.invoke === 'function'
       const info = bridge ? await window.pos.invoke('app:info') : null
       const bad = bridge ? await window.pos.invoke('settings:setLanguage', { lang: 'xx' }) : null
@@ -279,6 +315,32 @@ async function smoketest(win: BrowserWindow) {
       const labels = before.ok && before.data.labels === 6 && before.data.missingBarcodes.length === 1 && before.data.dataUrl.startsWith('data:image/png')
         && assigned.ok && assigned.data.assigned === 1 && after.ok && after.data.missingBarcodes.length === 0
         && !tooMany.ok && tooMany.error.code === 'INVALID_INPUT'
+      // Selling: open the register if needed, sell both variants, check stock and receipt.
+      let st = (await window.pos.invoke('shift:status')).data
+      if (!st.open) st = (await window.pos.invoke('shift:open', { openingFloat: 5000 })).data
+      const v0 = saved.data.variants[0].id, v1 = saved.data.variants[1].id
+      const info0 = (await window.pos.invoke('catalog:variantInfo', { variantIds: [v0] })).data[0]
+      const sold = await window.pos.invoke('sell:complete', {
+        id: crypto.randomUUID(), lines: [{ variantId: v0, qty: 2 }, { variantId: v1, qty: 1 }], tenders: [{ method: 'CASH', amount: 10000 }],
+      })
+      const after0 = (await window.pos.invoke('catalog:variantInfo', { variantIds: [v0] })).data[0]
+      const printed = await window.pos.invoke('sell:printReceipt', { saleId: sold.data.saleId })
+      // A cashier's 50 % discount needs the owner's PIN.
+      await window.pos.invoke('auth:logout')
+      await window.pos.invoke('auth:login', { userId: cashier.data.id, pin: '5678' })
+      const big = { lines: [{ variantId: v0, qty: 1 }], saleDiscount: 1250, tenders: [{ method: 'CASH', amount: 2000 }] }
+      const needsOwner = await window.pos.invoke('sell:complete', { id: crypto.randomUUID(), ...big })
+      const withOwner = await window.pos.invoke('sell:complete', { id: crypto.randomUUID(), ...big, ownerPin: '1234' })
+      await window.pos.invoke('auth:logout')
+      await window.pos.invoke('auth:login', { userId: owner.data.userId, pin: '1234' })
+      // Close on the expected cash (the owner sees it), then open a fresh register for the UI.
+      const shiftNow = (await window.pos.invoke('shift:status')).data
+      const closed = await window.pos.invoke('shift:close', { countedCash: shiftNow.expectedCash })
+      await window.pos.invoke('shift:open', { openingFloat: 5000 })
+      const selling = sold.ok && sold.data.total === 7500 && sold.data.change === 2500 && sold.data.receipt.lines.length === 2
+        && after0.stockQty === info0.stockQty - 2 && printed.ok && printed.data.printed === false && printed.data.reason === 'NO_PRINTER'
+        && !needsOwner.ok && needsOwner.error.code === 'DISCOUNT_NEEDS_OWNER' && withOwner.ok && withOwner.data.total === 1250
+        && closed.ok && closed.data.difference === 0 && closed.data.salesCount >= 2
       // Import round trip (only with --import-file; otherwise a file dialog would open).
       let imported = null
       if (${JSON.stringify(Boolean(argValue('import-file')))}) {
@@ -287,8 +349,8 @@ async function smoketest(win: BrowserWindow) {
         const jean = await window.pos.invoke('catalog:products', { query: 'jean slim' })
         imported = commit.ok && jean.ok && jean.data.rows.length > 0 ? commit.data : { error: commit.error ?? preview.data?.errors }
       }
-      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, auth, catalog, labels, imported }
-    })()
+      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, auth, catalog, labels, selling, barcode, sellDebug: selling ? null : { sold, printed, needsOwner: needsOwner.error, closed: closed.error ?? closed.data?.difference }, imported }
+    } catch (e) { return { thrown: String((e && e.stack) || e) } } })()
   `)
   console.log('smoketest', JSON.stringify({ ...result, info: result.info?.ok }))
   if (shot) {
@@ -296,6 +358,17 @@ async function smoketest(win: BrowserWindow) {
     win.webContents.reload()
     await new Promise<void>((resolve) => win.webContents.once('did-finish-load', () => resolve()))
     await capture(shot)
+    // Sell: scan the product's barcode into the scan field (as a scanner would type it), then open payment.
+    await win.webContents.executeJavaScript(`(() => {
+      const input = document.querySelector('.scan input')
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, ${JSON.stringify(result.barcode)})
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.form.requestSubmit()
+    })()`)
+    await capture(shot.replace(/\.png$/, '-sell.png'))
+    await win.webContents.executeJavaScript(`document.querySelector('.totals .primary.big')?.click()`)
+    await capture(shot.replace(/\.png$/, '-pay.png'))
+    await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`)
     // Products list, then the editor for the first product.
     await win.webContents.executeJavaScript(`document.querySelectorAll('.rail-item')[2]?.click()`)
     await capture(shot.replace(/\.png$/, '-products.png'))
@@ -321,7 +394,7 @@ async function smoketest(win: BrowserWindow) {
   }
   const importOk = !argValue('import-file') || (result.imported && result.imported.products >= 1)
   const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 3 && result.badCode === 'INVALID_INPUT' && result.rendered
-    && result.auth && result.catalog && result.labels && importOk
+    && result.auth && result.catalog && result.labels && result.selling && importOk
   app.exit(ok ? 0 : 1)
 }
 
@@ -360,7 +433,13 @@ app.whenReady().then(async () => {
   wireIpc(opened.db, opened.file)
   const win = createMainWindow()
   app.on('before-quit', () => opened.db.close())
-  if (isSmoketest) void smoketest(win)
+  if (isSmoketest) {
+    // A script error in the page must fail the run, not hang it.
+    smoketest(win).catch((err) => {
+      console.error('smoketest error:', err)
+      app.exit(1)
+    })
+  }
 })
 
 // Hidden receipt windows open and close during rendering; in selftest mode that
