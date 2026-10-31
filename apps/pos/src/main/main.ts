@@ -6,6 +6,7 @@ import path from 'node:path'
 import { LANGUAGES, type LabelLayout, type Language } from '../shared/ipc'
 import { labelsHtml, type LabelData } from './labels/html'
 import { previewFirstPage, printLabels, renderLabelSamples } from './labels/print'
+import { AuthService } from './auth/service'
 import { commitImport, planImport, templateWorkbook, type ImportPlan } from './catalog/import'
 import { CatalogRepo } from './catalog/repo'
 import { readSpreadsheet } from './catalog/spreadsheet'
@@ -54,7 +55,8 @@ function language(db: Database.Database): Language {
 }
 
 function wireIpc(db: Database.Database, dbFile: string) {
-  const catalog = new CatalogRepo(db)
+  const auth = new AuthService(db)
+  const catalog = new CatalogRepo(db, undefined, () => auth.current()?.userId ?? null)
   /** Parsed imports waiting for "Import": token → plan. One at a time, expires after 30 minutes. */
   const pendingImports = new Map<string, { plan: ImportPlan; expires: number }>()
   const parentWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -163,7 +165,27 @@ function wireIpc(db: Database.Database, dbFile: string) {
       await sendRaw(target, DRAWER_KICK, RAW_PRINT_SCRIPT)
       return null
     },
-  })
+    'auth:status': () => ({
+      setupDone: auth.isSetUp(),
+      shopName: auth.isSetUp() ? auth.shop().name : null,
+      session: auth.current(),
+    }),
+    'auth:setup': (input) => auth.setup(input),
+    'auth:users': () => auth.signInUsers(),
+    'auth:login': ({ userId, pin }) => auth.login(userId, pin),
+    'auth:logout': () => {
+      auth.logout()
+      return null
+    },
+    'users:list': () => auth.users(),
+    'users:save': (input) => auth.saveUser(input),
+    'users:setActive': ({ id, active }) => {
+      auth.setActive(id, active)
+      return null
+    },
+    'shop:get': () => auth.shop(),
+    'shop:save': (input) => auth.saveShop(input),
+  }, { role: () => auth.current()?.role ?? null })
 }
 
 function createMainWindow(): BrowserWindow {
@@ -195,12 +217,47 @@ function createMainWindow(): BrowserWindow {
  */
 async function smoketest(win: BrowserWindow) {
   await new Promise<void>((resolve) => win.webContents.once('did-finish-load', () => resolve()))
+  const shot = argValue('screenshot')
+  const capture = async (file: string) => {
+    await new Promise((r) => setTimeout(r, 500))
+    const image = await win.webContents.capturePage(undefined, { stayHidden: true })
+    await fs.writeFile(path.resolve(file), image.toPNG())
+  }
+  // First screen: setup on a fresh database, the PIN screen afterwards.
+  if (shot) await capture(shot.replace(/\.png$/, '-start.png'))
+
   const result = await win.webContents.executeJavaScript(`
     (async () => {
       const bridge = typeof window.pos?.invoke === 'function'
       const info = bridge ? await window.pos.invoke('app:info') : null
       const bad = bridge ? await window.pos.invoke('settings:setLanguage', { lang: 'xx' }) : null
       const root = document.getElementById('root')?.childElementCount ?? 0
+
+      // Auth: nothing but public channels before sign-in; set up or sign in as the owner (PIN 1234).
+      const deniedBefore = await window.pos.invoke('catalog:products', {})
+      const status = await window.pos.invoke('auth:status')
+      let owner
+      if (!status.data.setupDone) {
+        owner = await window.pos.invoke('auth:setup', { shopName: 'Boutique Test', lang: 'ar', ownerName: 'Amina', pin: '1234' })
+      } else {
+        const users = await window.pos.invoke('auth:users')
+        owner = await window.pos.invoke('auth:login', { userId: users.data.find((u) => u.role === 'OWNER').id, pin: '1234' })
+      }
+      // A cashier can look products up but not change them.
+      const cashierName = 'Caisse ' + Math.random().toString(36).slice(2, 7)
+      const cashier = await window.pos.invoke('users:save', { name: cashierName, role: 'CASHIER', pin: '5678' })
+      await window.pos.invoke('auth:logout')
+      const asCashier = await window.pos.invoke('auth:login', { userId: cashier.data.id, pin: '5678' })
+      const cashierList = await window.pos.invoke('catalog:products', {})
+      const cashierWrite = await window.pos.invoke('catalog:saveProduct', { name: 'X', costPrice: 0, salePrice: 100, variants: [{}] })
+      const cashierUsers = await window.pos.invoke('users:list')
+      await window.pos.invoke('auth:logout')
+      const wrongPin = await window.pos.invoke('auth:login', { userId: owner.data.userId, pin: '0000' })
+      await window.pos.invoke('auth:login', { userId: owner.data.userId, pin: '1234' })
+      const auth = !deniedBefore.ok && deniedBefore.error.code === 'UNAUTHENTICATED' && owner.ok && owner.data.role === 'OWNER'
+        && asCashier.ok && cashierList.ok && !cashierWrite.ok && cashierWrite.error.code === 'FORBIDDEN'
+        && !cashierUsers.ok && cashierUsers.error.code === 'FORBIDDEN' && !wrongPin.ok && wrongPin.error.code === 'WRONG_PIN'
+
       // Catalog round trip through the real bridge, with a barcode unique to this run.
       const barcode = (await window.pos.invoke('catalog:newBarcode')).data.barcode
       const saved = await window.pos.invoke('catalog:saveProduct', {
@@ -230,17 +287,14 @@ async function smoketest(win: BrowserWindow) {
         const jean = await window.pos.invoke('catalog:products', { query: 'jean slim' })
         imported = commit.ok && jean.ok && jean.data.rows.length > 0 ? commit.data : { error: commit.error ?? preview.data?.errors }
       }
-      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, catalog, labels, imported }
+      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, auth, catalog, labels, imported }
     })()
   `)
   console.log('smoketest', JSON.stringify({ ...result, info: result.info?.ok }))
-  const shot = argValue('screenshot')
   if (shot) {
-    const capture = async (file: string) => {
-      await new Promise((r) => setTimeout(r, 400))
-      const image = await win.webContents.capturePage(undefined, { stayHidden: true })
-      await fs.writeFile(path.resolve(file), image.toPNG())
-    }
+    // The owner is signed in now: reload so the UI shows the app.
+    win.webContents.reload()
+    await new Promise<void>((resolve) => win.webContents.once('did-finish-load', () => resolve()))
     await capture(shot)
     // Products list, then the editor for the first product.
     await win.webContents.executeJavaScript(`document.querySelectorAll('.rail-item')[2]?.click()`)
@@ -258,9 +312,16 @@ async function smoketest(win: BrowserWindow) {
       await win.webContents.executeJavaScript(`document.querySelector('.drawer .buttons .primary')?.click()`)
       await capture(shot.replace(/\.png$/, '-import.png'))
     }
+    // Settings (shop + users), then the PIN screen after locking.
+    await win.webContents.executeJavaScript(`document.querySelector('.drawer-head button')?.click()`)
+    await win.webContents.executeJavaScript(`document.querySelectorAll('.rail-item')[5]?.click()`)
+    await capture(shot.replace(/\.png$/, '-settings.png'))
+    await win.webContents.executeJavaScript(`document.querySelector('.topbar-end button.lang')?.click()`)
+    await capture(shot.replace(/\.png$/, '-pin.png'))
   }
   const importOk = !argValue('import-file') || (result.imported && result.imported.products >= 1)
-  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 2 && result.badCode === 'INVALID_INPUT' && result.rendered && result.catalog && result.labels && importOk
+  const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 3 && result.badCode === 'INVALID_INPUT' && result.rendered
+    && result.auth && result.catalog && result.labels && importOk
   app.exit(ok ? 0 : 1)
 }
 

@@ -26,6 +26,7 @@ const rawTarget = z.discriminatedUnion('kind', [
 ])
 
 const id = z.string().uuid()
+const pin = z.string().regex(/^\d{4,6}$/, 'PIN must be 4 to 6 digits')
 const money = z.number().int().min(0).max(10_000_000_000)
 const price = money.refine((n) => n > 0, 'must be more than 0')
 const optText = (max: number) => z.string().trim().max(max).default('')
@@ -125,6 +126,34 @@ export const inputs = {
   'labels:preview': labelJob,
   'labels:print': labelJob.and(z.object({ printer: printerName })),
   'labels:assignBarcodes': z.object({ variantIds: z.array(id).min(1).max(500) }),
+  'auth:status': z.undefined(),
+  'auth:setup': z.object({
+    shopName: z.string().trim().min(1).max(80),
+    phone: z.string().trim().max(30).default(''),
+    address: z.string().trim().max(160).default(''),
+    lang: z.enum(LANGUAGES),
+    ownerName: z.string().trim().min(1).max(40),
+    pin,
+  }),
+  'auth:users': z.undefined(),
+  'auth:login': z.object({ userId: id, pin: z.string().max(6) }),
+  'auth:logout': z.undefined(),
+  'users:list': z.undefined(),
+  'users:save': z.object({
+    id: id.optional(),
+    name: z.string().trim().min(1).max(40),
+    role: z.enum(['OWNER', 'CASHIER']),
+    /** Required for a new user; on an existing user it resets the PIN. */
+    pin: pin.optional(),
+  }),
+  'users:setActive': z.object({ id, active: z.boolean() }),
+  'shop:get': z.undefined(),
+  'shop:save': z.object({
+    name: z.string().trim().min(1).max(80),
+    phone: z.string().trim().max(30).default(''),
+    address: z.string().trim().max(160).default(''),
+    receiptFooter: z.string().trim().max(300).default(''),
+  }),
 } as const
 
 export type ChannelName = keyof typeof inputs
@@ -216,6 +245,39 @@ export interface Outputs {
   'labels:preview': { dataUrl: string; pages: number; labels: number; missingBarcodes: string[] }
   'labels:print': { pages: number; labels: number }
   'labels:assignBarcodes': { assigned: number }
+  'auth:status': { setupDone: boolean; shopName: string | null; session: Session | null }
+  'auth:setup': Session
+  'auth:users': UserSummary[]
+  'auth:login': Session
+  'auth:logout': null
+  'users:list': UserSummary[]
+  'users:save': UserSummary
+  'users:setActive': null
+  'shop:get': ShopInfo
+  'shop:save': ShopInfo
+}
+
+export type Role = 'OWNER' | 'CASHIER'
+
+export interface Session {
+  userId: string
+  name: string
+  role: Role
+  since: string
+}
+
+export interface UserSummary {
+  id: string
+  name: string
+  role: Role
+  isActive: boolean
+}
+
+export interface ShopInfo {
+  name: string
+  phone: string
+  address: string
+  receiptFooter: string
 }
 
 /** One problem in an imported file. `code` is translated in the UI; `detail` is a value or row number. */

@@ -12,7 +12,7 @@
     "selftest": "npm run build && electron . --selftest",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3 -m ../..",
     "test": "npm run build:main && node --test \"dist/main/print/*.test.js\" \"dist/main/labels/*.test.js\"",
-    "test:db": "npm run build:main && node scripts/electron-node.cjs --test \"dist/main/db/*.test.js\" \"dist/main/catalog/*.test.js\"",
+    "test:db": "npm run build:main && node scripts/electron-node.cjs --test \"dist/main/db/*.test.js\" \"dist/main/catalog/*.test.js\" \"dist/main/auth/*.test.js\"",
     "type-check": "tsc -p ../../packages/pos-core/tsconfig.json && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.renderer.json --noEmit"
   },
   "dependencies": {
