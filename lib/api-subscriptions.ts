@@ -105,6 +105,15 @@ export async function handleSubscriptionsGet(request: Request) {
 
     return successResponse({ subscription, entitlements })
   } catch (error) {
+    // Shape empty payload for clients when DB is down (errorResponse may return data: null in dev)
+    const code =
+      error && typeof error === "object" && "code" in error
+        ? String((error as { code: unknown }).code)
+        : ""
+    if (["P1001", "P1002", "P1012", "P2021", "P2022"].includes(code)) {
+      console.warn("[subscriptions GET] Database unreachable — returning null subscription")
+      return successResponse({ subscription: null, entitlements: null })
+    }
     return errorResponse(error)
   }
 }

@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { getSessionFromRequest } from '@/lib/get-session-from-request'
+import {
+  resolveVendorOwnerContextId,
+  assertStaffPermission,
+  userActsAsVendorOwner,
+} from '@/lib/vendor-staff-access'
 import { z } from 'zod'
 
 // Validation schema for suppliers
@@ -41,7 +46,13 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get('city')
     const vendorIdParam = searchParams.get('vendorId')
 
-    let vendorId = isAdmin ? vendorIdParam : session.user.id
+    let vendorId = isAdmin
+      ? vendorIdParam
+      : await resolveVendorOwnerContextId(session.user.id)
+
+    if (!isAdmin && vendorId) {
+      await assertStaffPermission(session.user.id, vendorId, 'suppliers.mutate')
+    }
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !vendorId) {
@@ -160,10 +171,16 @@ export async function POST(request: NextRequest) {
     const validatedData = createSupplierSchema.parse(body)
     const { name, contactPerson, phone, email, address, vendorId: overrideVendorId } = validatedData
 
-    const vendorId = isAdmin ? overrideVendorId ?? vendorIdParam : session.user.id
+    const vendorId = isAdmin
+      ? overrideVendorId ?? vendorIdParam
+      : await resolveVendorOwnerContextId(session.user.id)
 
     if (!vendorId) {
       return errorResponse(new Error('vendorId is required to create a supplier'), 400)
+    }
+
+    if (!isAdmin) {
+      await assertStaffPermission(session.user.id, vendorId, 'suppliers.mutate')
     }
 
     // Create supplier
@@ -228,8 +245,15 @@ export async function PUT(request: NextRequest) {
       return errorResponse(new Error('Supplier not found'), 404)
     }
 
-    if (isVendor && existingSupplier.vendorId !== session.user.id) {
-      throw new ForbiddenError('You can only update your own suppliers')
+    if (isVendor) {
+      const allowed = await userActsAsVendorOwner({
+        actorId: session.user.id,
+        vendorOwnerId: existingSupplier.vendorId,
+      })
+      if (!allowed) {
+        throw new ForbiddenError('You can only update your own suppliers')
+      }
+      await assertStaffPermission(session.user.id, existingSupplier.vendorId, 'suppliers.mutate')
     }
 
     // Update supplier
@@ -299,8 +323,15 @@ export async function DELETE(request: NextRequest) {
       return errorResponse(new Error('Supplier not found'), 404)
     }
 
-    if (isVendor && existingSupplier.vendorId !== session.user.id) {
-      throw new ForbiddenError('You can only delete your own suppliers')
+    if (isVendor) {
+      const allowed = await userActsAsVendorOwner({
+        actorId: session.user.id,
+        vendorOwnerId: existingSupplier.vendorId,
+      })
+      if (!allowed) {
+        throw new ForbiddenError('You can only delete your own suppliers')
+      }
+      await assertStaffPermission(session.user.id, existingSupplier.vendorId, 'suppliers.mutate')
     }
 
     // Check if supplier has products

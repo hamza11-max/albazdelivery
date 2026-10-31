@@ -10,6 +10,11 @@ import {
 import { applyRateLimit, rateLimitConfigs } from "@/root/lib/rate-limit"
 import { getSessionFromRequest } from "@/root/lib/get-session-from-request"
 import { emitNotificationSent } from "@/root/lib/events"
+import { checkFeatureAccess } from "@/root/lib/featureGate"
+import {
+  resolveVendorOwnerContextId,
+  assertStaffPermission,
+} from "@/root/lib/vendor-staff-access"
 import { z } from "zod"
 
 /** Vendor desktop + web session (same behavior as root `app/api/vendors/drivers`). */
@@ -26,8 +31,16 @@ export async function GET(request: NextRequest) {
       throw new ForbiddenError("Only vendors can access this endpoint")
     }
 
+    const ownerId = await resolveVendorOwnerContextId(session.user.id)
+    await assertStaffPermission(session.user.id, ownerId, "orders.edit")
+
+    const fleetOk = await checkFeatureAccess(ownerId, "driverFleetManagement", request)
+    if (!fleetOk) {
+      throw new ForbiddenError("Driver fleet requires Professional plan or higher")
+    }
+
     const connections = await prisma.driverVendorConnection.findMany({
-      where: { vendorId: session.user.id },
+      where: { vendorId: ownerId },
       include: {
         driver: {
           select: {
@@ -100,6 +113,14 @@ export async function POST(request: NextRequest) {
       throw new ForbiddenError("Only vendors can accept/reject connections")
     }
 
+    const ownerId = await resolveVendorOwnerContextId(session.user.id)
+    await assertStaffPermission(session.user.id, ownerId, "orders.edit")
+
+    const fleetOk = await checkFeatureAccess(ownerId, "driverFleetManagement", request)
+    if (!fleetOk) {
+      throw new ForbiddenError("Driver fleet requires Professional plan or higher")
+    }
+
     const body = await request.json()
     const schema = z.object({
       connectionId: z.string().cuid("Invalid connection ID"),
@@ -126,7 +147,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(new Error("Connection request not found"), 404)
     }
 
-    if (connection.vendorId !== session.user.id) {
+    if (connection.vendorId !== ownerId) {
       throw new ForbiddenError("You can only respond to your own connection requests")
     }
 

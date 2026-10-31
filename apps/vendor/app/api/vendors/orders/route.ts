@@ -6,6 +6,11 @@ import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 import { emitOrderUpdated } from '@/root/lib/events'
 import { checkFeatureAccess } from '@/root/lib/featureGate'
 import { orderQuerySchema } from '@/root/lib/validations/api'
+import {
+  resolveVendorOwnerContextId,
+  assertStaffPermission,
+  userActsAsVendorOwner,
+} from '@/root/lib/vendor-staff-access'
 import { z } from 'zod'
 
 export async function GET(request: NextRequest) {
@@ -30,7 +35,11 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get('limit')
     const vendorIdParam = searchParams.get('vendorId')
 
-    let vendorId = isAdmin ? vendorIdParam : session.user.id
+    let vendorId = isAdmin ? vendorIdParam : await resolveVendorOwnerContextId(session.user.id)
+
+    if (isVendor && vendorId) {
+      await assertStaffPermission(session.user.id, vendorId, 'orders.view')
+    }
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !vendorId) {
@@ -214,12 +223,26 @@ export async function PATCH(request: NextRequest) {
       throw new NotFoundError('Order')
     }
 
-    if (isVendor && order.vendorId !== session.user.id) {
-      throw new ForbiddenError('You can only update your own orders')
+    if (isVendor) {
+      if (!order.vendorId) {
+        throw new ForbiddenError('Order has no vendor')
+      }
+      const orderVendorId = order.vendorId
+      const allowed = await userActsAsVendorOwner({
+        actorId: session.user.id,
+        vendorOwnerId: orderVendorId,
+      })
+      if (!allowed) {
+        throw new ForbiddenError('You can only update your own orders')
+      }
+      await assertStaffPermission(session.user.id, orderVendorId, 'orders.edit')
     }
 
     const vendorScopeId =
-      order.vendorId || (session.user.role === 'VENDOR' ? session.user.id : null)
+      order.vendorId ||
+      (session.user.role === 'VENDOR'
+        ? await resolveVendorOwnerContextId(session.user.id)
+        : null)
 
     const updateData: Record<string, unknown> = {}
 
@@ -255,7 +278,7 @@ export async function PATCH(request: NextRequest) {
       if (!vendorScopeId) {
         return errorResponse(new Error('Order has no vendor for driver assignment'), 400)
       }
-      const fleetOk = await checkFeatureAccess(vendorScopeId, 'driverFleetManagement')
+      const fleetOk = await checkFeatureAccess(vendorScopeId, 'driverFleetManagement', request)
       if (!fleetOk) {
         throw new ForbiddenError('Driver assignment requires Professional plan or higher')
       }

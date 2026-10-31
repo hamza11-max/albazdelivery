@@ -65,7 +65,18 @@ describe('vendor-staff-access', () => {
     mockFindUnique.mockResolvedValue({ role: 'CASHIER' })
     const { assertVendorMayMutateInventoryCatalog } = await import('@/lib/vendor-staff-access')
     await expect(assertVendorMayMutateInventoryCatalog('staff_1', 'owner_1')).rejects.toThrow(
-      'manager role'
+      'inventory.mutate'
+    )
+  })
+
+  it('assertStaffPermission allows CASHIER sales.create and rejects orders.edit', async () => {
+    mockFindUnique.mockResolvedValue({ role: 'CASHIER' })
+    const { assertStaffPermission } = await import('@/lib/vendor-staff-access')
+    await expect(assertStaffPermission('staff_1', 'owner_1', 'sales.create')).resolves.toBeUndefined()
+    mockFindUnique.mockResolvedValue({ role: 'CASHIER' })
+    await expect(assertStaffPermission('staff_1', 'owner_1', 'orders.edit')).rejects.toThrow(
+      'orders.edit'
     )
   })
 })
+

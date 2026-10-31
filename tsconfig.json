@@ -64,9 +64,7 @@
   "exclude": [
     "node_modules",
     "**/.next/**",
-    "mobile-app-templates",
     "--template",
-    "mobile-apps",
     "temp",
     "scripts"
   ]

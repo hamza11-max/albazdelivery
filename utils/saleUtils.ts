@@ -65,7 +65,6 @@ export async function completeSale({
   toast,
   translate,
   isArabic = false,
-  setOfflineQueueCount,
 }: CompleteSaleParams) {
   if (posCart.length === 0) {
     toast({
@@ -299,9 +298,8 @@ export async function completeSale({
         console.warn('[Sale] Failed to check inventory alerts:', alertError)
       }
       
-      const completed = data.sale as Sale
-      setLastSale(completed)
-      setCompletedSale(completed)
+      setLastSale(data.sale)
+      setCompletedSale(data.sale)
       setShowSaleSuccessDialog(true)
       clearCart()
       setPosTax(0)
@@ -341,8 +339,8 @@ export async function completeSale({
         createdAt: new Date().toISOString(),
         status: 'pending',
       })
-      if (safeLocalStorageSet('offline-sales-queue', queued) && setOfflineQueueCount) {
-        setOfflineQueueCount(queued.length)
+      if (safeLocalStorageSet('offline-sales-queue', queued) && (globalThis as any).setOfflineQueueCount) {
+        ;(globalThis as any).setOfflineQueueCount(queued.length)
       }
     } catch (queueError) {
       console.warn('[POS] Unable to queue offline sale', queueError)

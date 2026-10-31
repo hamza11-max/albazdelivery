@@ -1,6 +1,0 @@
-{
-  "_comment": "Edit DATABASE_URL with your PostgreSQL connection string for cloud sync. Restart the app after changes.",
-  "DATABASE_URL": "postgresql://user:password@localhost:5432/albazdelivery?schema=public",
-  "ALBAZ_API_URL": "https://al-baz.app",
-  "BACKEND_URL": "https://api.al-baz.app"
-}

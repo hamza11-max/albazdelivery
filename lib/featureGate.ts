@@ -5,9 +5,10 @@ import { vendorDevDriverFleetUnlocked } from "./vendor-dev-flags"
 
 export async function checkFeatureAccess(
   userId: string,
-  feature: keyof PlanFeatures
+  feature: keyof PlanFeatures,
+  request?: Request
 ): Promise<boolean> {
-  if (feature === "driverFleetManagement" && vendorDevDriverFleetUnlocked()) {
+  if (feature === "driverFleetManagement" && vendorDevDriverFleetUnlocked(request)) {
     return true
   }
 
@@ -74,4 +75,3 @@ export async function getFeatureLimit(
   const limit = entitlements[feature]
   return typeof limit === "number" ? limit : 0
 }
-

@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import jwt from 'jsonwebtoken'
+import { tryGetElectronJwtSecret } from '@/root/lib/electron-jwt-secret'
+import { isElectronAppRequest, isLoopbackRequest } from '@/root/lib/electron-request'
 
 interface ElectronUser {
   userId: string
@@ -8,18 +10,26 @@ interface ElectronUser {
   vendorId?: string
 }
 
+/**
+ * Thin helper for Electron Bearer tokens.
+ * Prefer {@link getSessionFromRequest} for API routes (includes DB status revalidation).
+ */
 export function verifyElectronToken(request: NextRequest): ElectronUser | null {
-  const authHeader = request.headers.get('authorization')
-  const isElectronApp = request.headers.get('x-electron-app') === 'true'
+  if (!isElectronAppRequest(request)) {
+    return null
+  }
 
-  if (!isElectronApp || !authHeader?.startsWith('Bearer ')) {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) {
     return null
   }
 
   const token = authHeader.substring(7)
-  
-  // Dev tokens bypass verification
+
   if (token.startsWith('electron-dev-')) {
+    if (process.env.NODE_ENV !== 'development' || !isLoopbackRequest(request)) {
+      return null
+    }
     return {
       userId: 'electron-dev',
       email: 'dev@electron.local',
@@ -27,10 +37,13 @@ export function verifyElectronToken(request: NextRequest): ElectronUser | null {
     }
   }
 
+  const secret = tryGetElectronJwtSecret()
+  if (!secret) {
+    return null
+  }
+
   try {
-    const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || 'fallback-secret'
-    const decoded = jwt.verify(token, secret) as ElectronUser
-    return decoded
+    return jwt.verify(token, secret) as ElectronUser
   } catch (error) {
     console.error('[Electron Auth] Token verification failed:', error)
     return null
@@ -38,5 +51,5 @@ export function verifyElectronToken(request: NextRequest): ElectronUser | null {
 }
 
 export function isElectronRequest(request: NextRequest): boolean {
-  return request.headers.get('x-electron-app') === 'true'
+  return isElectronAppRequest(request)
 }

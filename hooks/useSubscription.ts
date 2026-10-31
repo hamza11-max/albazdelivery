@@ -43,7 +43,10 @@ export function useSubscription() {
     try {
       setLoading(true)
       setError(null)
-      const res = await apiFetch("/api/subscriptions")
+      // Cap wait when cloud DB is slow/unreachable so Electron UI stays responsive
+      const res = await apiFetch("/api/subscriptions", {
+        signal: AbortSignal.timeout(12_000),
+      })
       const data = await res.json()
       if (data.success) {
         const d = data.data as
@@ -56,14 +59,28 @@ export function useSubscription() {
             "entitlements" in d ? (d as { entitlements?: PlanFeatures | null }).entitlements ?? null : null
           )
         } else {
-          setSubscription((d as Subscription) ?? null)
+          // Dev DB-down path returns success with data: null — treat as offline / no sub
+          setSubscription(null)
           setEntitlements(null)
         }
       } else {
-        setError(data.error || "Failed to fetch subscription")
+        const msg =
+          typeof data.error === "object" && data.error?.message
+            ? data.error.message
+            : data.error || "Failed to fetch subscription"
+        setError(String(msg))
+        setSubscription(null)
+        setEntitlements(null)
       }
     } catch (err: any) {
-      setError(err.message || "Failed to fetch subscription")
+      const timedOut = err?.name === "TimeoutError" || err?.name === "AbortError"
+      setError(
+        timedOut
+          ? "Subscription service timed out (database may be unreachable). Offline POS still works."
+          : err.message || "Failed to fetch subscription"
+      )
+      setSubscription(null)
+      setEntitlements(null)
     } finally {
       setLoading(false)
     }

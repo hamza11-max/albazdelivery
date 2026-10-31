@@ -8,7 +8,6 @@ import { VendorMenuGrid } from "../navigation/VendorMenuGrid"
 import { VendorSubscriptionTrialPanel } from "../VendorSubscriptionTrialPanel"
 import { AdminVendorSelector } from "../AdminVendorSelector"
 import { setLightDarkTheme } from "@/root/lib/theme"
-import type { User as UserType } from "@/root/lib/types"
 
 export interface VendorShellProps {
   isArabic: boolean
@@ -28,7 +27,8 @@ export interface VendorShellProps {
   isAdmin: boolean
   selectedVendorId: string | null
   setSelectedVendorId: (id: string | null) => void
-  availableVendors: UserType[]
+  /** Admin vendor picker — id/name only (matches AdminVendorSelector). */
+  availableVendors: Array<{ id: string; name: string }>
   isLoadingVendors: boolean
   subscription: unknown
   subscriptionLoading: boolean

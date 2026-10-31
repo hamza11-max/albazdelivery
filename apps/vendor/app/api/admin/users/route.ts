@@ -2,50 +2,38 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/root/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/root/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
-import { auth } from '@/root/lib/auth'
+import { getSessionFromRequest } from '@/root/lib/get-session-from-request'
 
 // GET /api/admin/users - Get all users (admin only)
 export async function GET(request: NextRequest) {
   try {
-    // Apply rate limiting
     await applyRateLimit(request, rateLimitConfigs.api)
 
-    const session = await auth()
-    const allowUnauthenticatedAdminUsers =
-      process.env.NODE_ENV === "development" &&
-      process.env.ALLOW_VENDOR_ADMIN_USERS_WITHOUT_AUTH === "1"
-
-    if (!allowUnauthenticatedAdminUsers) {
-      if (!session?.user) {
-        throw new UnauthorizedError()
-      }
-      if (session.user.role !== "ADMIN") {
-        throw new ForbiddenError("Only admins can access this resource")
-      }
+    const session = await getSessionFromRequest(request)
+    if (!session?.user) {
+      throw new UnauthorizedError()
+    }
+    if (session.user.role !== 'ADMIN') {
+      throw new ForbiddenError('Only admins can access this resource')
     }
 
-    // Get query parameters
     const searchParams = request.nextUrl.searchParams
     const role = searchParams.get('role')
     const status = searchParams.get('status')
     const pageParam = searchParams.get('page')
     const limitParam = searchParams.get('limit')
 
-    // Validate pagination parameters
     const page = Math.max(1, parseInt(pageParam || '1'))
-    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100) // Max 100 per page
+    const limit = Math.min(Math.max(1, parseInt(limitParam || '50')), 100)
 
-    // Validate role if provided
     if (role && !['CUSTOMER', 'VENDOR', 'DRIVER', 'ADMIN'].includes(role.toUpperCase())) {
       return errorResponse(new Error('Invalid role'), 400)
     }
 
-    // Validate status if provided
     if (status && !['PENDING', 'APPROVED', 'REJECTED'].includes(status.toUpperCase())) {
       return errorResponse(new Error('Invalid status'), 400)
     }
 
-    // Build where clause
     const where: any = {}
     if (role) {
       where.role = role.toUpperCase()
@@ -54,10 +42,8 @@ export async function GET(request: NextRequest) {
       where.status = status.toUpperCase()
     }
 
-    // Get total count
     const total = await prisma.user.count({ where })
 
-    // Get paginated users
     const users = await prisma.user.findMany({
       where,
       select: {
@@ -92,13 +78,10 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[API] Admin Users GET error:', error)
-    // Preserve auth/errors that should surface to callers
     if (error instanceof UnauthorizedError || error instanceof ForbiddenError) {
       return errorResponse(error)
     }
 
-    // For other unexpected errors (DB down / Prisma issues), return a safe empty
-    // result so the admin/vendor UI doesn't receive a 500 and crash.
     try {
       const searchParams = request.nextUrl?.searchParams ?? new URL(request.url).searchParams
       const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
@@ -113,7 +96,7 @@ export async function GET(request: NextRequest) {
           pages: 0,
         },
       })
-    } catch (e) {
+    } catch {
       return successResponse({
         users: [],
         pagination: { page: 1, limit: 50, total: 0, pages: 0 },
@@ -121,7 +104,3 @@ export async function GET(request: NextRequest) {
     }
   }
 }
-
-
-
-

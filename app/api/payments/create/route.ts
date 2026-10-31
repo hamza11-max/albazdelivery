@@ -9,15 +9,13 @@ import { z } from 'zod'
 const createPaymentSchema = z.object({
   orderId: z.string().cuid('Invalid order ID'),
   amount: z.number().positive('Amount must be positive'),
-  method: z.enum(['CASH', 'CARD', 'WALLET'], {
-    errorMap: () => ({ message: 'Payment method must be CASH, CARD, or WALLET' }),
-  }),
+  method: z.enum(['CASH', 'CARD', 'WALLET'] as const, 'Payment method must be CASH, CARD, or WALLET'),
   transactionId: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {

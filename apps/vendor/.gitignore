@@ -2,8 +2,15 @@
 bundled-flavor.json
 node_modules/
 dist/
+dist/**
+win-unpacked/
+**/win-unpacked/
+.next/
+**/.next/
 build/
 *.exe
 # Electron pack outputs (never commit)
 *.asar
 **/app.asar.unpacked/
+.env.local
+.env*.local

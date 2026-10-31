@@ -3,6 +3,10 @@ import { prisma } from '@/lib/prisma'
 import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } from '@/lib/errors'
 import { applyRateLimit, rateLimitConfigs } from '@/lib/rate-limit'
 import { getSessionFromRequest } from '@/lib/get-session-from-request'
+import {
+  resolveVendorOwnerContextId,
+  assertStaffPermission,
+} from '@/lib/vendor-staff-access'
 
 function maxDate(a: Date | null | undefined, b: Date | null | undefined): Date | null {
   const ta = a?.getTime() ?? 0
@@ -34,7 +38,13 @@ export async function GET(request: NextRequest) {
     const sortParam = searchParams.get('sort') // 'totalPurchases' | 'lastPurchaseDate'
     const vendorIdParam = searchParams.get('vendorId')
 
-    let vendorId = isAdmin ? vendorIdParam : session.user.id
+    let vendorId = isAdmin
+      ? vendorIdParam
+      : await resolveVendorOwnerContextId(session.user.id)
+
+    if (!isAdmin && vendorId) {
+      await assertStaffPermission(session.user.id, vendorId, 'customers.view')
+    }
 
     // If no vendorId provided in admin mode, get first approved vendor
     if (isAdmin && !vendorId) {

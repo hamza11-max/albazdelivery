@@ -11,13 +11,18 @@ Copy the variables below into your `.env` file and fill in your actual values.
 # DATABASE CONFIGURATION
 # ==============================================
 DATABASE_URL="postgresql://postgres:password@localhost:5432/albazdelivery?schema=public"
+# Fail-fast when the DB host is unreachable (ms). Default: 5000 in development, 15000 in production.
+# DATABASE_CONNECT_TIMEOUT_MS=5000
 
 # ==============================================
 # AUTHENTICATION & SECURITY
 # ==============================================
 # Generate secret with: openssl rand -base64 32
+# Vendor Electron (apps/vendor): REQUIRED in .env.local for JWT login — no fallback-secret.
 NEXTAUTH_SECRET="your-nextauth-secret-key-here"
 NEXTAUTH_URL="http://localhost:3000"
+# Vendor Electron local URL:
+# NEXTAUTH_URL="http://localhost:3001"
 JWT_SECRET="your-jwt-secret-key-here"
 JWT_EXPIRES_IN="7d"
 

@@ -11,6 +11,7 @@ import {
   assertVendorMayMutateInventoryCatalog,
 } from '@/lib/vendor-staff-access'
 import { checkUsageLimit } from '@/lib/featureGate'
+import { allowElectronOfflineBypass } from '@/lib/electron-request'
 
 // In-memory fallback storage for when database is unavailable
 const fallbackProducts: Map<string, any> = new Map()
@@ -25,18 +26,26 @@ async function isDatabaseAvailable(): Promise<boolean> {
   }
 }
 
+function isLocalOrElectronVendorId(vendorId: unknown): vendorId is string {
+  return (
+    typeof vendorId === 'string' &&
+    (vendorId.startsWith('local-') || vendorId.startsWith('electron-'))
+  )
+}
+
 // GET - Fetch all inventory products
 export async function GET(request: NextRequest) {
   try {
     await applyRateLimit(request, rateLimitConfigs.api)
 
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
-    const isDev = process.env.NODE_ENV === 'development'
-    const isLocalVendorId = typeof vendorIdParam === 'string' && (vendorIdParam.startsWith('local-') || vendorIdParam.startsWith('electron-'))
+    const isLocalVendorId = isLocalOrElectronVendorId(vendorIdParam)
 
-    // When using local/electron vendor (no DB user), return fallback so import + POS see same data.
-    // Allow in both dev and production so Electron packaged app works offline without auth.
+    // Offline Electron fallback: only with X-Electron-App on loopback
     if (isLocalVendorId) {
+      if (!allowElectronOfflineBypass(request)) {
+        throw new UnauthorizedError()
+      }
       const all = Array.from(fallbackProducts.values())
       const products = vendorIdParam ? all.filter((p: any) => p.vendorId === vendorIdParam) : all
       return successResponse({ products, fallback: true })
@@ -46,7 +55,9 @@ export async function GET(request: NextRequest) {
     const dbAvailable = await isDatabaseAvailable()
     
     if (!dbAvailable) {
-      // Return fallback data
+      if (!allowElectronOfflineBypass(request)) {
+        throw new UnauthorizedError()
+      }
       console.log('[API/inventory] Database unavailable, using fallback storage')
       const all = Array.from(fallbackProducts.values())
       const products = vendorIdParam ? all.filter((p: any) => p.vendorId === vendorIdParam) : all
@@ -185,27 +196,28 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const vendorIdParam = request.nextUrl.searchParams.get('vendorId')
     const bodyVendorId = body?.vendorId ?? vendorIdParam
-    const isLocalVendorId = typeof bodyVendorId === 'string' && (bodyVendorId.startsWith('local-') || bodyVendorId.startsWith('electron-'))
+    const isLocalVendorId = isLocalOrElectronVendorId(bodyVendorId)
+    const electronOffline = allowElectronOfflineBypass(request)
 
-    // Bypass auth for Electron/local vendor (offline mode) - same as GET
-    const isDev = process.env.NODE_ENV === 'development'
-    let session = null
-    if (!isLocalVendorId) {
-      try {
-        session = await getSessionFromRequest(request)
-      } catch (e) {
-        // Auth might fail in Electron
-      }
+    // Local/electron vendor ids: Electron loopback only (no cloud unauth)
+    if (isLocalVendorId && !electronOffline) {
+      throw new UnauthorizedError()
     }
 
-    if (!isLocalVendorId && !isDev && !session?.user) {
+    let session = null
+    if (!isLocalVendorId || !electronOffline) {
+      session = await getSessionFromRequest(request)
+    }
+
+    // Real vendorIds always require a session (no NODE_ENV=development skip)
+    if (!isLocalVendorId && !session?.user) {
       throw new UnauthorizedError()
     }
 
     const isAdmin = session?.user?.role === 'ADMIN'
     const isVendor = session?.user?.role === 'VENDOR'
 
-    if (!isLocalVendorId && !isDev && !isAdmin && !isVendor) {
+    if (!isLocalVendorId && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can create products')
     }
     
@@ -213,7 +225,9 @@ export async function POST(request: NextRequest) {
     const dbAvailable = await isDatabaseAvailable()
     
     if (!dbAvailable) {
-      // Use fallback storage
+      if (!electronOffline) {
+        throw new UnauthorizedError()
+      }
       console.log('[API/inventory] Database unavailable, using fallback storage for POST')
       const id = `fallback-${fallbackIdCounter++}`
       const product = {
@@ -261,8 +275,11 @@ export async function POST(request: NextRequest) {
     }
 
     // When vendorId is a local/Electron id (no DB user), use in-memory fallback so Excel import works
-    const isLocalVendorIdForCreate = typeof vendorId === 'string' && (vendorId.startsWith('local-') || vendorId.startsWith('electron-'))
+    const isLocalVendorIdForCreate = isLocalOrElectronVendorId(vendorId)
     if (isLocalVendorIdForCreate) {
+      if (!electronOffline) {
+        throw new UnauthorizedError()
+      }
       const id = `fallback-${fallbackIdCounter++}`
       const product = {
         id,
@@ -381,27 +398,29 @@ export async function PUT(request: NextRequest) {
     }
 
     const isFallbackId = typeof id === 'string' && id.startsWith('fallback-')
-    const isDev = process.env.NODE_ENV === 'development'
+    const electronOffline = allowElectronOfflineBypass(request)
 
     let session = null
-    if (!isFallbackId) {
-      try {
-        session = await getSessionFromRequest(request)
-      } catch (e) {}
+    if (!isFallbackId || !electronOffline) {
+      session = await getSessionFromRequest(request)
     }
 
-    if (!isFallbackId && !isDev && !session?.user) {
+    if (!isFallbackId && !session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    if (isFallbackId && !electronOffline) {
       throw new UnauthorizedError()
     }
 
     const isAdmin = session?.user?.role === 'ADMIN'
     const isVendor = session?.user?.role === 'VENDOR'
 
-    if (!isFallbackId && !isDev && !isAdmin && !isVendor) {
+    if (!isFallbackId && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can update products')
     }
 
-    // Handle fallback product ids (from Excel import / Electron) - allow in dev and production
+    // Handle fallback product ids (from Excel import / Electron) — Electron loopback only
     if (isFallbackId) {
       const existing = fallbackProducts.get(id)
       if (!existing) {
@@ -519,27 +538,29 @@ export async function DELETE(request: NextRequest) {
     }
 
     const isFallbackId = id.startsWith('fallback-')
-    const isDev = process.env.NODE_ENV === 'development'
+    const electronOffline = allowElectronOfflineBypass(request)
 
     let session = null
-    if (!isFallbackId) {
-      try {
-        session = await getSessionFromRequest(request)
-      } catch (e) {}
+    if (!isFallbackId || !electronOffline) {
+      session = await getSessionFromRequest(request)
     }
 
-    if (!isFallbackId && !isDev && !session?.user) {
+    if (!isFallbackId && !session?.user) {
+      throw new UnauthorizedError()
+    }
+
+    if (isFallbackId && !electronOffline) {
       throw new UnauthorizedError()
     }
 
     const isAdmin = session?.user?.role === 'ADMIN'
     const isVendor = session?.user?.role === 'VENDOR'
 
-    if (!isFallbackId && !isDev && !isAdmin && !isVendor) {
+    if (!isFallbackId && !isAdmin && !isVendor) {
       throw new ForbiddenError('Only vendors or admins can delete products')
     }
 
-    // Handle fallback product ids (from Excel import / Electron)
+    // Handle fallback product ids (from Excel import / Electron) — Electron loopback only
     if (isFallbackId) {
       const existing = fallbackProducts.get(id)
       if (!existing) {

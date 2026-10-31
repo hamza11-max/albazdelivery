@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # prisma.config.ts requires DATABASE_URL even for `prisma generate`.
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
 
     services:
       postgres:

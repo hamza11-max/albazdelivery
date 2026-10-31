@@ -19,11 +19,19 @@ const HISTORY_ORDER_STATUSES = new Set(["DELIVERED", "CANCELLED"])
 
 export type OrdersSegment = "active" | "history" | "all"
 
+type ConnectedDriverForDispatch = {
+  availableForDispatch?: boolean
+  driver?: { id?: string; name?: string | null } | null
+}
+
 interface OrdersTabProps {
   orders: Order[]
   loadingState: { orders: boolean }
   translate: (fr: string, ar: string) => string
   handleUpdateOrderStatus: (order: Order, status: string) => Promise<void>
+  connectedDrivers?: ConnectedDriverForDispatch[]
+  driverFleetAllowed?: boolean
+  handleAssignOrderDriver?: (order: Order, driverUserId: string | null) => Promise<void>
   prepTimeMinutes: number
   filterCustomerId?: string | null
   highlightOrderId?: string | null
@@ -35,6 +43,9 @@ export function OrdersTab({
   loadingState,
   translate,
   handleUpdateOrderStatus,
+  connectedDrivers: _connectedDrivers = [],
+  driverFleetAllowed: _driverFleetAllowed = false,
+  handleAssignOrderDriver: _handleAssignOrderDriver,
   prepTimeMinutes,
   filterCustomerId = null,
   highlightOrderId = null,

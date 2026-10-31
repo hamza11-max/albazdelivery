@@ -103,14 +103,14 @@ export function getTabsForShopType(shopType: ShopType | null | undefined): strin
 }
 
 /** Settings section ids used to show/hide blocks in the Settings tab */
-export const SETTINGS_SECTION_IDS = ['staff', 'schedule', 'prepTime', 'ordersPerHour', 'payouts'] as const
+export const SETTINGS_SECTION_IDS = ['staff', 'schedule', 'prepTime', 'payouts'] as const
 export type SettingsSectionId = (typeof SETTINGS_SECTION_IDS)[number]
 
 const SETTINGS_SECTIONS_BY_SHOP_TYPE: Record<ShopType, SettingsSectionId[]> = {
-  restaurant: ['staff', 'schedule', 'prepTime', 'ordersPerHour', 'payouts'],
+  restaurant: ['staff', 'schedule', 'prepTime', 'payouts'],
   retail: ['staff', 'payouts'],
-  grocery: ['staff', 'schedule', 'prepTime', 'ordersPerHour', 'payouts'],
-  other: ['staff', 'schedule', 'prepTime', 'ordersPerHour', 'payouts'],
+  grocery: ['staff', 'schedule', 'prepTime', 'payouts'],
+  other: ['staff', 'schedule', 'prepTime', 'payouts'],
 }
 
 export function getSettingsSectionsForShopType(

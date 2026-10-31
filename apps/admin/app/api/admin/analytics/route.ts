@@ -4,25 +4,24 @@ import { successResponse, errorResponse, UnauthorizedError, ForbiddenError } fro
 import { applyRateLimit, rateLimitConfigs } from '@/root/lib/rate-limit'
 import { auth } from '@/root/lib/auth'
 import { z } from 'zod'
-import { isFullAdmin } from '@/root/lib/admin-roles'
 
 const analyticsQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  groupBy: z.enum(['day', 'week', 'month']).default('day'),
+  groupBy: z.enum(['day', 'week', 'month'] as const).default('day'),
 })
 
 // GET /api/admin/analytics - Get analytics data
 export async function GET(request: NextRequest) {
   try {
-    await applyRateLimit(request, rateLimitConfigs.api)
+    applyRateLimit(request, rateLimitConfigs.api)
 
     const session = await auth()
     if (!session?.user) {
       throw new UnauthorizedError()
     }
 
-    if (!isFullAdmin(session.user.role)) {
+    if (session.user.role !== 'ADMIN') {
       throw new ForbiddenError('Only admins can access analytics')
     }
 
@@ -173,11 +172,9 @@ export async function GET(request: NextRequest) {
     })
 
     // Summary statistics
-    const deliveredOrders = orders.filter((o) => o.status === 'DELIVERED')
-    const totalRevenue = deliveredOrders.reduce((sum, o) => sum + o.total, 0)
+    const totalRevenue = orders.filter((o) => o.status === 'DELIVERED').reduce((sum, o) => sum + o.total, 0)
     const totalOrders = orders.length
-    const averageOrderValue =
-      deliveredOrders.length > 0 ? totalRevenue / deliveredOrders.length : 0
+    const averageOrderValue = totalOrders > 0 ? totalRevenue / orders.filter((o) => o.status === 'DELIVERED').length : 0
     const totalUsers = users.length
 
     return successResponse({
