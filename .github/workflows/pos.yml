@@ -1,0 +1,76 @@
+name: POS
+
+# Checks for apps/pos only. Runs separately from ci.yml / pr-check.yml, whose root
+# type-check still fails on legacy code (see docs/PRODUCT_SPEC_AND_ANALYSIS.md, Pass 2).
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/pos/**'
+      - 'package-lock.json'
+      - '.github/workflows/pos.yml'
+  pull_request:
+    paths:
+      - 'apps/pos/**'
+      - 'package-lock.json'
+      - '.github/workflows/pos.yml'
+
+jobs:
+  check:
+    name: Type-check and unit tests
+    runs-on: ubuntu-latest
+    env:
+      # Unit tests do not launch Electron.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Only this workspace's dependencies; skips the root postinstall (Prisma).
+      - name: Install dependencies
+        run: npm ci --workspace=@albaz/pos --ignore-scripts
+
+      - name: Type-check
+        run: npm run type-check -w @albaz/pos
+
+      - name: Unit tests
+        run: npm test -w @albaz/pos
+
+  selftest:
+    name: Render receipts (Electron, Windows)
+    runs-on: windows-latest
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          npm ci --workspace=@albaz/pos --ignore-scripts
+          node node_modules/electron/install.js
+
+      - name: Render every receipt variant
+        run: npm run selftest -w @albaz/pos -- --out=receipts
+
+      - name: Check output
+        shell: bash
+        run: |
+          count=$(ls apps/pos/receipts/*-mono.png | wc -l)
+          echo "rendered $count receipts"
+          test "$count" -eq 6
+
+      - name: Upload receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-receipts
+          path: apps/pos/receipts/
+          if-no-files-found: warn

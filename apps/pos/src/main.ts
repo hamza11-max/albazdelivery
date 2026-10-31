@@ -193,11 +193,12 @@ app.whenReady().then(async () => {
   if (isSelftest) {
     try {
       await selftest()
+      app.quit()
     } catch (err) {
       console.error('selftest failed:', err)
-      process.exitCode = 1
+      // app.quit() would exit 0; CI needs a failing exit code.
+      app.exit(1)
     }
-    app.quit()
     return
   }
   registerIpc()
