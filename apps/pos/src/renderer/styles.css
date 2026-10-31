@@ -228,3 +228,5 @@ button.danger { color: var(--err); }
 /* Drawer sections keep their natural height; the drawer body scrolls instead. */
 .drawer-body > * { flex-shrink: 0; }
 .grid.compact .inline input { min-width: 150px; }
+.drawer.narrow { width: min(720px, 92vw); }
+.issues td:first-child { width: 4em; }

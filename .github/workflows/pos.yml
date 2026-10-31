@@ -73,8 +73,8 @@ jobs:
       - name: Build app
         run: npm run build -w @albaz/pos
 
-      - name: Smoke test (window, preload bridge, IPC, migrations)
-        run: npx electron apps/pos --smoketest --data-dir=apps/pos/receipts/smoke-data --screenshot=apps/pos/receipts/shell.png
+      - name: Smoke test (window, bridge, IPC, migrations, catalog, import)
+        run: npx electron apps/pos --smoketest --data-dir=apps/pos/receipts/smoke-data --import-file=apps/pos/test-fixtures/import-sample.csv --screenshot=apps/pos/receipts/shell.png
 
       - name: Render every receipt variant
         run: npx electron apps/pos --selftest --out=apps/pos/receipts

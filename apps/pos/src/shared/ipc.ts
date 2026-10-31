@@ -104,6 +104,10 @@ export const inputs = {
   'catalog:archiveProduct': z.object({ id }),
   'catalog:findByCode': z.object({ code: z.string().trim().min(1).max(48) }),
   'catalog:newBarcode': z.undefined(),
+  // The main process shows the file dialogs: the renderer never passes file paths.
+  'import:template': z.undefined(),
+  'import:preview': z.undefined(),
+  'import:commit': z.object({ token: z.string().uuid() }),
 } as const
 
 export type ChannelName = keyof typeof inputs
@@ -187,6 +191,30 @@ export interface Outputs {
   'catalog:archiveProduct': null
   'catalog:findByCode': { product: ProductDetail; variantId: string } | null
   'catalog:newBarcode': { barcode: string }
+  /** null when the dialog was cancelled. */
+  'import:template': { path: string } | null
+  'import:preview': ImportPreview | null
+  'import:commit': { products: number; variants: number }
+}
+
+/** One problem in an imported file. `code` is translated in the UI; `detail` is a value or row number. */
+export interface ImportIssue {
+  row: number
+  code: string
+  field?: string
+  detail?: string
+}
+
+export interface ImportPreview {
+  token: string
+  fileName: string
+  products: number
+  variants: number
+  newCategories: string[]
+  /** First 500 issues; errorCount is the full number. */
+  errors: ImportIssue[]
+  errorCount: number
+  sample: { name: string; nameAlt: string; variants: number; salePrice: number; category: string }[]
 }
 
 /** Handlers never throw across IPC; they return this envelope. */

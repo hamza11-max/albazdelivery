@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Category, ProductSummary } from '../../shared/ipc'
 import { call } from '../api'
 import { useI18n } from '../i18n'
+import { ImportDialog } from './ImportDialog'
 import { ProductEditor } from './ProductEditor'
 
 const PAGE = 100
@@ -19,6 +20,7 @@ export function Products() {
   const [error, setError] = useState<string | null>(null)
   /** null = closed, 'new' = create, otherwise the product id being edited. */
   const [editing, setEditing] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const load = useCallback(
     async (offset = 0) => {
@@ -70,6 +72,7 @@ export function Products() {
           <option value="out">{t('products.stockOut')}</option>
         </select>
         <span className="spacer" />
+        <button onClick={() => setImporting(true)}>{t('import.button')}</button>
         <button className="primary" onClick={() => setEditing('new')}>{t('products.add')}</button>
       </div>
 
@@ -114,6 +117,18 @@ export function Products() {
             <button className="load-more" disabled={loading} onClick={() => void load(rows.length)}>{t('common.loadMore')}</button>
           )}
         </>
+      )}
+
+      {importing && (
+        <ImportDialog
+          onClose={(imported) => {
+            setImporting(false)
+            if (imported) {
+              void loadCategories()
+              void load(0)
+            }
+          }}
+        />
       )}
 
       {editing && (
