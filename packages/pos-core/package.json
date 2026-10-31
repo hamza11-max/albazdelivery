@@ -1,0 +1,17 @@
+{
+  "name": "@albaz/pos-core",
+  "version": "0.0.1",
+  "private": true,
+  "description": "AL-baz POS business rules: totals, payments, returns, stock, shifts. Pure TypeScript, no I/O.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "type-check": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
