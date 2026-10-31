@@ -66,6 +66,7 @@
     "**/.next/**",
     "--template",
     "temp",
-    "scripts"
+    "scripts",
+    "apps/pos"
   ]
 }

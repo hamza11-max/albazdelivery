@@ -1,0 +1,2 @@
+# selftest output (npm run selftest -- --out=receipts)
+receipts/
