@@ -1,5 +1,6 @@
 import { useState } from 'react'
 
+import { useAuth } from './auth'
 import { useI18n, type MessageKey } from './i18n'
 import { Placeholder } from './pages/Placeholder'
 import { Products } from './pages/Products'
@@ -19,6 +20,7 @@ const ICONS: Record<Page, string> = {
 
 export function App() {
   const { t, lang, setLang } = useI18n()
+  const { session, shopName, lock } = useAuth()
   const [page, setPage] = useState<Page>('sell')
 
   return (
@@ -41,7 +43,13 @@ export function App() {
       <header className="topbar">
         <h1>{t(`nav.${page}` as MessageKey)}</h1>
         <div className="topbar-end">
+          <span className="muted small">{shopName}</span>
           <span className="sync" title={t('status.local')}>● {t('status.local')}</span>
+          <span className="who">
+            <span className="strong">{session.name}</span>
+            <span className="muted small"> · {t(`role.${session.role}` as MessageKey)}</span>
+          </span>
+          <button className="lang" onClick={() => void lock()}>🔒 {t('session.lock')}</button>
           <button className="lang" onClick={() => void setLang(lang === 'ar' ? 'fr' : 'ar')}>
             {lang === 'ar' ? 'Français' : 'العربية'}
           </button>

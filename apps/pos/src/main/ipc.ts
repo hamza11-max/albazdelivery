@@ -2,6 +2,7 @@ import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { ZodError } from 'zod'
 
 import { inputs, type ChannelName, type IpcResult, type Outputs } from '../shared/ipc'
+import { ACCESS, type Access } from './access'
 import { APP_ORIGIN } from './protocol'
 
 /** Input after schema parsing (zod output type). */
@@ -29,13 +30,27 @@ function fromOurPage(event: IpcMainInvokeEvent): boolean {
   return url.startsWith(`${APP_ORIGIN}/`)
 }
 
-/** Registers every channel: sender check, then schema parse, then the handler. */
-export function registerHandlers(handlers: Handlers): void {
+/** Who is signed in, as far as access checks are concerned. */
+export interface AccessCheck {
+  role(): 'OWNER' | 'CASHIER' | null
+}
+
+function allowed(access: Access, role: 'OWNER' | 'CASHIER' | null): { ok: true } | { ok: false; code: string } {
+  if (access === 'public') return { ok: true }
+  if (role === null) return { ok: false, code: 'UNAUTHENTICATED' }
+  if (access === 'owner' && role !== 'OWNER') return { ok: false, code: 'FORBIDDEN' }
+  return { ok: true }
+}
+
+/** Registers every channel: sender check, role check, schema parse, then the handler. */
+export function registerHandlers(handlers: Handlers, auth: AccessCheck): void {
   for (const channel of Object.keys(inputs) as ChannelName[]) {
     const schema = inputs[channel]
     const handler = handlers[channel] as (input: unknown) => unknown
     ipcMain.handle(channel, async (event, raw: unknown): Promise<IpcResult<unknown>> => {
       if (!fromOurPage(event)) return { ok: false, error: { code: 'FORBIDDEN', message: 'Unknown sender' } }
+      const gate = allowed(ACCESS[channel], auth.role())
+      if (!gate.ok) return { ok: false, error: { code: gate.code, message: channel } }
       try {
         const data = await handler(schema.parse(raw))
         return { ok: true, data: data ?? null }

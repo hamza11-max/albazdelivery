@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
 
-import type { AppInfo, Language } from '../../shared/ipc'
+import type { AppInfo, Language, ShopInfo } from '../../shared/ipc'
 import { call } from '../api'
+import { useAuth } from '../auth'
 import { useI18n } from '../i18n'
 import { PrintTest } from './PrintTest'
+import { Users } from './Users'
 
 export function Settings() {
   const { t, lang, setLang } = useI18n()
+  const { isOwner } = useAuth()
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,6 +26,9 @@ export function Settings() {
           <option value="fr">Français</option>
         </select>
       </section>
+
+      {isOwner && <ShopCard />}
+      {isOwner && <section className="card wide"><h2>{t('users.title')}</h2><Users /></section>}
 
       <section className="card">
         <h2>{t('settings.database')}</h2>
@@ -42,10 +48,43 @@ export function Settings() {
         )}
       </section>
 
-      <section className="card wide">
-        <h2>{t('settings.printTest')}</h2>
-        <PrintTest />
-      </section>
+      {isOwner && (
+        <section className="card wide">
+          <h2>{t('settings.printTest')}</h2>
+          <PrintTest />
+        </section>
+      )}
     </div>
+  )
+}
+
+function ShopCard() {
+  const { t, errorText } = useI18n()
+  const [shop, setShop] = useState<ShopInfo | null>(null)
+  const [status, setStatus] = useState<{ tone: 'ok' | 'err'; text: string } | null>(null)
+
+  useEffect(() => {
+    call('shop:get').then(setShop, (err) => setStatus({ tone: 'err', text: errorText(err) }))
+  }, [errorText])
+
+  if (!shop) return null
+  const set = (k: keyof ShopInfo, v: string) => setShop({ ...shop, [k]: v })
+
+  return (
+    <section className="card">
+      <h2>{t('settings.shop')}</h2>
+      <form className="fields" onSubmit={(e) => {
+        e.preventDefault()
+        call('shop:save', shop).then((saved) => { setShop(saved); setStatus({ tone: 'ok', text: t('settings.saved') }) },
+          (err) => setStatus({ tone: 'err', text: errorText(err) }))
+      }}>
+        <label>{t('setup.shopName')}<input required maxLength={80} value={shop.name} onChange={(e) => set('name', e.target.value)} /></label>
+        <label>{t('setup.phone')}<input maxLength={30} value={shop.phone} onChange={(e) => set('phone', e.target.value)} /></label>
+        <label>{t('setup.address')}<input maxLength={160} value={shop.address} onChange={(e) => set('address', e.target.value)} /></label>
+        <label>{t('settings.receiptFooter')}<input maxLength={300} value={shop.receiptFooter} onChange={(e) => set('receiptFooter', e.target.value)} /></label>
+        <div className="buttons"><button type="submit" className="primary">{t('common.save')}</button></div>
+        {status && <p className={`status ${status.tone}`} role="status">{status.text}</p>}
+      </form>
+    </section>
   )
 }

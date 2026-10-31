@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import type { Category, ProductSummary } from '../../shared/ipc'
 import { call } from '../api'
+import { useAuth } from '../auth'
 import { useI18n } from '../i18n'
 import { ImportDialog } from './ImportDialog'
 import { ProductEditor } from './ProductEditor'
@@ -10,6 +11,8 @@ const PAGE = 100
 
 export function Products() {
   const { t, money, errorText } = useI18n()
+  // Cashiers can look products up; editing, import and labels are owner-only (enforced in main).
+  const { isOwner } = useAuth()
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [stock, setStock] = useState<'all' | 'low' | 'out'>('all')
@@ -72,8 +75,8 @@ export function Products() {
           <option value="out">{t('products.stockOut')}</option>
         </select>
         <span className="spacer" />
-        <button onClick={() => setImporting(true)}>{t('import.button')}</button>
-        <button className="primary" onClick={() => setEditing('new')}>{t('products.add')}</button>
+        {isOwner && <button onClick={() => setImporting(true)}>{t('import.button')}</button>}
+        {isOwner && <button className="primary" onClick={() => setEditing('new')}>{t('products.add')}</button>}
       </div>
 
       {error && <p className="error" role="alert">{error}</p>}
@@ -81,7 +84,7 @@ export function Products() {
       {!loading && rows.length === 0 && !error ? (
         <section className="empty">
           <p>{filtered ? t('products.noMatch') : t('products.empty')}</p>
-          {!filtered && <button className="primary" onClick={() => setEditing('new')}>{t('products.add')}</button>}
+          {!filtered && isOwner && <button className="primary" onClick={() => setEditing('new')}>{t('products.add')}</button>}
         </section>
       ) : (
         <>
@@ -98,7 +101,7 @@ export function Products() {
             </thead>
             <tbody>
               {rows.map((p) => (
-                <tr key={p.id} tabIndex={0} onClick={() => setEditing(p.id)} onKeyDown={(e) => e.key === 'Enter' && setEditing(p.id)}>
+                <tr key={p.id} tabIndex={isOwner ? 0 : undefined} className={isOwner ? '' : 'readonly'} onClick={() => isOwner && setEditing(p.id)} onKeyDown={(e) => isOwner && e.key === 'Enter' && setEditing(p.id)}>
                   <td>
                     <div className="strong">{p.name}</div>
                     {p.nameAlt && <div className="muted small"><bdi>{p.nameAlt}</bdi></div>}

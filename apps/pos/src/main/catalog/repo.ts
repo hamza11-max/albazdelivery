@@ -66,11 +66,12 @@ export class CatalogRepo {
   constructor(
     private readonly db: Database.Database,
     private readonly clock: () => Date = () => new Date(),
+    /** Signed-in user, recorded on audit rows. */
+    private readonly currentUserId: () => string | null = () => null,
   ) {}
 
   private ctx(): WriteContext {
-    // No signed-in user yet (PIN login comes with selling); audit rows record null.
-    return { db: this.db, now: this.clock().toISOString(), userId: null }
+    return { db: this.db, now: this.clock().toISOString(), userId: this.currentUserId() }
   }
 
   // ---------- categories ----------
