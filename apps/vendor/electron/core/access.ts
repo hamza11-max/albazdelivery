@@ -68,6 +68,8 @@ export const ACCESS: Record<ChannelName, Access> = {
   'customers:ledger': 'user',
   'customers:pay': 'user',
   'customers:adjust': 'owner',
+  // Reports: margins and costs are the owner's and managers' (sales.view).
+  'reports:period': 'manager',
   // Suppliers (suppliers.mutate).
   'suppliers:list': 'manager',
   'suppliers:save': 'manager',

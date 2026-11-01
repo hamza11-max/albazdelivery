@@ -159,6 +159,41 @@ export interface StockCount {
   lines: { variantId: string; name: string; sku: string; barcode: string; expected: number; stockNow: number; counted: number | null }[]
 }
 
+/** Reports for a period (amounts in DZD). See core/reports/reports.ts for the rules. */
+export interface Report {
+  from: string
+  to: string
+  totals: {
+    salesCount: number
+    returnsCount: number
+    /** Sales before discounts. */
+    gross: number
+    discounts: number
+    /** Refunded on returns (positive). */
+    returns: number
+    /** Net: sales after discounts minus returns. */
+    revenue: number
+    cost: number
+    margin: number
+    marginPercent: number
+    averageBasket: number
+    cash: number
+    card: number
+    credit: number
+    voidedCount: number
+    voidedTotal: number
+  }
+  daily: { date: string; count: number; revenue: number; margin: number }[]
+  products: { variantId: string; name: string; category: string; qty: number; revenue: number; cost: number; margin: number }[]
+  categories: { category: string; qty: number; revenue: number; margin: number }[]
+  cashiers: { name: string; count: number; revenue: number; discounts: number }[]
+  customers: { customerId: string; name: string; count: number; revenue: number; balance: number }[]
+  /** Net by method (refunds subtract); count = sales and returns that used it. */
+  payments: { method: 'cash' | 'card' | 'credit'; count: number; amount: number }[]
+  sales: { id: string; number: string; type: 'SALE' | 'RETURN'; createdAt: string; cashier: string; subtotal: number; discount: number; total: number; customer: string }[]
+  stockValue: { units: number; atCost: number; atPrice: number }
+}
+
 /** A completed sale or return with its lines, shaped for the vendor screens (amounts in DZD). */
 export interface RecentSale {
   id: string
@@ -318,6 +353,8 @@ export const inputs = {
   'customers:pay': z.object({ id, customerId: id, amount: price, method: z.enum(['CASH', 'CARD_EXTERNAL']), note: optText(120) }),
   'customers:adjust': z.object({ customerId: id, amount: z.number().int().min(-10_000_000_000).max(10_000_000_000).refine((n) => n !== 0, 'must not be 0'), note: z.string().trim().min(1).max(120) }),
   'suppliers:list': z.undefined(),
+  /** `from` inclusive, `to` exclusive; the screen sends the local day boundaries. */
+  'reports:period': z.object({ from: z.string().datetime(), to: z.string().datetime() }).refine((r) => r.from < r.to, 'from must be before to'),
   'suppliers:save': supplierInput,
   'suppliers:archive': z.object({ id }),
   // The main process shows the file dialogs: the renderer never passes file paths.
@@ -507,6 +544,7 @@ export interface Outputs {
   'customers:pay': CustomerRow
   'customers:adjust': CustomerRow
   'suppliers:list': Supplier[]
+  'reports:period': Report
   'suppliers:save': Supplier
   'suppliers:archive': null
   /** null when the dialog was cancelled. */

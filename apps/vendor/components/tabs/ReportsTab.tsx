@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/root/components/ui/card"
 import { Button } from "@/root/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/root/components/ui/select"
@@ -10,6 +10,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Download, Calendar, TrendingUp, TrendingDown, DollarSign, Package, Users, BarChart3, ShoppingBag } from "lucide-react"
 import type { Sale } from "@/root/lib/types"
 import type { InventoryProduct } from "@/root/lib/types"
+import type { Report } from "../../electron/shared/ipc"
+import { engine, hasEngine } from "../../lib/engine"
+
+/** Local-day boundaries of a YYYY-MM-DD range, as ISO instants: [start of first day, start of the day after the last). */
+function periodOf(range: { start: string; end: string }) {
+  const [y1, m1, d1] = range.start.split("-").map(Number)
+  const [y2, m2, d2] = range.end.split("-").map(Number)
+  return { from: new Date(y1!, m1! - 1, d1!).toISOString(), to: new Date(y2!, m2! - 1, d2! + 1).toISOString() }
+}
+
+const csvCell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`
+const csvRows = (rows: unknown[][]) => rows.map((r) => r.map(csvCell).join(";")).join("\r\n")
 
 interface ReportsTabProps {
   sales: Sale[]
@@ -37,6 +49,17 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
     }
   })
   const [preset, setPreset] = useState<string>("last30")
+  // Desktop app: figures come from the local engine (SQL over the sale records), not from the loaded list.
+  const [engineReport, setEngineReport] = useState<Report | null>(null)
+  const [engineError, setEngineError] = useState("")
+  useEffect(() => {
+    if (!hasEngine() || !dateRange.start || !dateRange.end || dateRange.start > dateRange.end) return
+    let live = true
+    engine("reports:period", periodOf(dateRange))
+      .then((rep) => { if (live) { setEngineReport(rep); setEngineError("") } })
+      .catch((e) => { if (live) setEngineError(e instanceof Error ? e.message : String(e)) })
+    return () => { live = false }
+  }, [dateRange])
 
   const filteredSales = useMemo(() => {
     return sales.filter((sale) => {
@@ -45,7 +68,7 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
     })
   }, [sales, dateRange])
 
-  const salesReport = useMemo(() => {
+  const localSalesReport = useMemo(() => {
     const totalRevenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0)
     const totalSales = filteredSales.length
     const averageSale = totalSales > 0 ? totalRevenue / totalSales : 0
@@ -72,7 +95,7 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
     }
   }, [filteredSales])
 
-  const productReport = useMemo(() => {
+  const localProductReport = useMemo(() => {
     const productSales: Record<string, { 
       productId: string
       productName: string
@@ -105,7 +128,7 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
       .slice(0, 20) // Top 20 products
   }, [filteredSales])
 
-  const customerReport = useMemo(() => {
+  const localCustomerReport = useMemo(() => {
     const customerSales: Record<string, {
       customerId: string | null
       customerName: string
@@ -134,7 +157,7 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
       .slice(0, 20) // Top 20 customers
   }, [filteredSales, translate])
 
-  const financialReport = useMemo(() => {
+  const localFinancialReport = useMemo(() => {
     const totalRevenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0)
     const totalDiscount = filteredSales.reduce((sum, sale) => sum + sale.discount, 0)
     const totalSubtotal = filteredSales.reduce((sum, sale) => sum + sale.subtotal, 0)
@@ -159,6 +182,20 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
       paymentBreakdown: Object.values(paymentBreakdown),
     }
   }, [filteredSales])
+
+  const r = engineReport
+  const salesReport = r
+    ? { totalRevenue: r.totals.revenue, totalSales: r.totals.salesCount, averageSale: r.totals.averageBasket, dailyData: r.daily.map((d) => ({ date: d.date, revenue: d.revenue, count: d.count })) }
+    : localSalesReport
+  const productReport = r
+    ? r.products.slice(0, 20).map((p) => ({ productId: p.variantId, productName: p.name, quantity: p.qty, revenue: p.revenue, price: p.qty ? Math.round(p.revenue / p.qty) : 0 }))
+    : localProductReport
+  const customerReport = r
+    ? r.customers.map((c) => ({ customerId: c.customerId as string | null, customerName: c.name, purchaseCount: c.count, totalSpent: c.revenue }))
+    : localCustomerReport
+  const financialReport = r
+    ? { totalRevenue: r.totals.revenue, totalDiscount: r.totals.discounts, totalSubtotal: r.totals.gross, netRevenue: r.totals.revenue, paymentBreakdown: r.payments as { method: string; count: number; amount: number }[] }
+    : localFinancialReport
 
   const handlePresetChange = (value: string) => {
     setPreset(value)
@@ -246,6 +283,30 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
   const handleExportCSV = () => {
     let csvContent = ""
     let filename = ""
+
+    // Desktop app: full engine figures, ";" separated with a BOM so Excel (FR/AR) opens it as columns.
+    if (r) {
+      const tables: Record<ReportType, unknown[][]> = {
+        sales: [["N°", "Type", "Date", "Caissier", "Client", "Sous-total", "Remise", "Total"], ...r.sales.map((s) => [s.number, s.type, new Date(s.createdAt).toLocaleString("fr-FR"), s.cashier, s.customer, s.subtotal, s.discount, s.total])],
+        products: [["Produit", "Catégorie", "Qté", "CA", "Coût", "Marge"], ...r.products.map((p) => [p.name, p.category, p.qty, p.revenue, p.cost, p.margin])],
+        customers: [["Client", "Achats", "CA", "Doit"], ...r.customers.map((c) => [c.name, c.count, c.revenue, c.balance])],
+        financial: [
+          ["Indicateur", "Montant"],
+          ["Ventes brutes", r.totals.gross], ["Remises", r.totals.discounts], ["Retours", r.totals.returns], ["CA net", r.totals.revenue],
+          ["Coût", r.totals.cost], ["Marge", r.totals.margin], ["Marge %", r.totals.marginPercent],
+          ["Espèces", r.totals.cash], ["Carte", r.totals.card], ["Crédit", r.totals.credit],
+          ["Ventes annulées", r.totals.voidedTotal], ["Stock au coût", r.stockValue.atCost], ["Stock au prix de vente", r.stockValue.atPrice],
+        ],
+      }
+      const blob = new Blob(["\uFEFF" + csvRows(tables[reportType])], { type: "text/csv;charset=utf-8;" })
+      const link = document.createElement("a")
+      link.href = URL.createObjectURL(blob)
+      link.download = `rapport-${reportType}-${dateRange.start}-${dateRange.end}.csv`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      return
+    }
 
     switch (reportType) {
       case "sales":
@@ -524,6 +585,9 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
       )}
 
       {/* Financial Report */}
+      {engineError && <p className="text-sm text-red-600">{engineError}</p>}
+      {r && (reportType === "financial" || reportType === "sales") && <EngineFigures report={r} translate={translate} />}
+
       {reportType === "financial" && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -609,3 +673,48 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
   )
 }
 
+
+/** Desktop app: margin, returns, voids and stock value, plus who sold what and by category. */
+function EngineFigures({ report: r, translate }: { report: Report; translate: (fr: string, ar: string) => string }) {
+  const da = (n: number) => `${n.toLocaleString("fr-FR")} ${translate("DA", "د.ج")}`
+  const cards: [string, string, string, string?][] = [
+    [translate("Coût des ventes", "تكلفة المبيعات"), da(r.totals.cost), ""],
+    [translate("Marge", "الهامش"), `${da(r.totals.margin)} · ${r.totals.marginPercent} %`, "text-green-600", "report-margin"],
+    [translate("Retours", "المرتجعات"), `${da(r.totals.returns)} (${r.totals.returnsCount})`, "text-red-600"],
+    [translate("Ventes annulées", "مبيعات ملغاة"), `${da(r.totals.voidedTotal)} (${r.totals.voidedCount})`, "text-muted-foreground"],
+    [translate("Vendu à crédit", "مبيعات بالدين"), da(r.totals.credit), ""],
+    [translate("Stock (coût / vente)", "المخزون (تكلفة / بيع)"), `${da(r.stockValue.atCost)} / ${da(r.stockValue.atPrice)}`, ""],
+  ]
+  return (
+    <div className="space-y-4" data-testid="engine-figures">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {cards.map(([title, value, tone, testId]) => (
+          <Card key={title}>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle></CardHeader>
+            <CardContent><p className={`text-xl font-bold ${tone}`} data-testid={testId}>{value}</p></CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader><CardTitle>{translate("Par caissier", "حسب البائع")}</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow><TableHead>{translate("Caissier", "البائع")}</TableHead><TableHead>{translate("Ventes", "المبيعات")}</TableHead><TableHead>{translate("CA net", "صافي")}</TableHead><TableHead>{translate("Remises", "الخصومات")}</TableHead></TableRow></TableHeader>
+              <TableBody>{r.cashiers.map((c) => <TableRow key={c.name}><TableCell>{c.name}</TableCell><TableCell>{c.count}</TableCell><TableCell>{da(c.revenue)}</TableCell><TableCell>{da(c.discounts)}</TableCell></TableRow>)}</TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader><CardTitle>{translate("Par catégorie", "حسب الصنف")}</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader><TableRow><TableHead>{translate("Catégorie", "الصنف")}</TableHead><TableHead>{translate("Qté", "الكمية")}</TableHead><TableHead>{translate("CA net", "صافي")}</TableHead><TableHead>{translate("Marge", "الهامش")}</TableHead></TableRow></TableHeader>
+              <TableBody>{r.categories.map((c) => <TableRow key={c.category}><TableCell>{c.category || translate("Sans catégorie", "بدون صنف")}</TableCell><TableCell>{c.qty}</TableCell><TableCell>{da(c.revenue)}</TableCell><TableCell>{da(c.margin)}</TableCell></TableRow>)}</TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}

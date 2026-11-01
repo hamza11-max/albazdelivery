@@ -27,6 +27,7 @@ import { saveSalesSettings, salesSettings } from './sales/settings'
 import { ShiftService } from './sales/shifts'
 import { StockService } from './stock/stock'
 import { CustomerService, SupplierService } from './customers/customers'
+import { report } from './reports/reports'
 
 /**
  * The shop's local engine: one SQLite database owned by the main process,
@@ -199,6 +200,7 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
     'customers:pay': (input) => customers.pay(auth.requireUser(), input),
     'customers:adjust': (input) => customers.adjust(input, auth.requireUser().userId),
     'suppliers:list': () => suppliers.list(),
+    'reports:period': ({ from, to }) => report(db, from, to),
     'suppliers:save': (input) => suppliers.save(input, auth.requireUser().userId),
     'suppliers:archive': ({ id }) => {
       suppliers.archive(id, auth.requireUser().userId)
