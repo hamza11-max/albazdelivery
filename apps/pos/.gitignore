@@ -1,2 +1,4 @@
 # selftest output (npm run selftest -- --out=receipts)
 receipts/
+# installers (npm run dist)
+release/

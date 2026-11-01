@@ -1,0 +1,54 @@
+# Windows installer for the POS: npm run dist -w @albaz/pos → apps/pos/release/
+appId: com.albaz.pos
+productName: AlBaz POS
+copyright: Copyright © 2026 AlBaz
+
+directories:
+  buildResources: installer
+  output: release
+
+files:
+  - package.json
+  - dist/main/**/*
+  - dist/preload/**/*
+  - dist/shared/**/*
+  - dist/renderer/**/*
+  - migrations/**/*
+  - resources/**/*
+  - '!**/*.test.js'
+  - '!**/*.map'
+
+# raw-print.ps1 is run by PowerShell, which can't read inside app.asar;
+# better-sqlite3's .node binary must be a real file to load.
+asarUnpack:
+  - resources/**/*
+  - node_modules/better-sqlite3/**/*
+
+# The native module is already built for Electron (npm run rebuild:native);
+# rebuilding here would need Visual Studio build tools.
+npmRebuild: false
+
+win:
+  executableName: AlBazPOS
+  icon: installer/icon.ico
+  # Unsigned local builds: skips winCodeSign, which needs symlink privilege on Windows.
+  signAndEditExecutable: false
+  requestedExecutionLevel: asInvoker
+  artifactName: AlBazPOS-${version}-${arch}.${ext}
+  target:
+    - target: nsis
+      arch: x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: AlBaz POS
+  installerIcon: installer/icon.ico
+  uninstallerIcon: installer/icon.ico
+  # The shop's database lives in %APPDATA%; uninstalling must never delete sales.
+  deleteAppDataOnUninstall: false
+
+publish: null

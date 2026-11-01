@@ -86,6 +86,14 @@ jobs:
           echo "rendered $count receipts"
           test "$count" -eq 6
 
+      - name: Package Windows installer
+        working-directory: apps/pos
+        run: npx electron-builder --win --config electron-builder.yml --publish never
+
+      # Same smoke test against the packaged exe: asar, unpacked native module and print script.
+      - name: Smoke test the packaged app
+        run: apps/pos/release/win-unpacked/AlBazPOS.exe --smoketest --data-dir=apps/pos/receipts/packaged-data --import-file=apps/pos/test-fixtures/import-sample.csv --screenshot=apps/pos/receipts/packaged.png
+
       - name: Upload receipts
         if: always()
         uses: actions/upload-artifact@v4
@@ -93,3 +101,10 @@ jobs:
           name: pos-output
           path: apps/pos/receipts/
           if-no-files-found: warn
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: pos-installer
+          path: apps/pos/release/AlBazPOS-*.exe
+          if-no-files-found: error

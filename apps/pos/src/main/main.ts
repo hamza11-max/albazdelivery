@@ -26,7 +26,8 @@ import { saveSalesSettings, salesSettings } from './sales/settings'
 import { ShiftService } from './sales/shifts'
 
 const APP_ROOT = app.getAppPath()
-const RAW_PRINT_SCRIPT = path.join(APP_ROOT, 'resources', 'raw-print.ps1')
+// PowerShell can't read inside app.asar: the installer unpacks resources/ next to it.
+const RAW_PRINT_SCRIPT = path.join(APP_ROOT.replace(/app\.asar$/, 'app.asar.unpacked'), 'resources', 'raw-print.ps1')
 const RENDERER_DIR = path.join(APP_ROOT, 'dist', 'renderer')
 const MIGRATIONS_DIR = path.join(APP_ROOT, 'migrations')
 
