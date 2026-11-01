@@ -3,7 +3,7 @@
 import type { Sale } from "@/root/lib/types"
 import type { TopProductData } from "../app/vendor/types"
 import { safeLocalStorageGet, safeLocalStorageSet, handleError, StorageError } from "./errorHandling"
-import { engineInventory, engineSales, hasEngine } from "../lib/engine"
+import { engineCustomers, engineInventory, engineSales, engineSuppliers, hasEngine } from "../lib/engine"
 
 type OfflineQueueEntryReschedule = { id: string; payload?: any; createdAt?: string; status?: string }
 
@@ -144,12 +144,16 @@ export function loadElectronOfflineData({
     const mergedSales = engine ? [] : getMergedLocalSalesHistory()
     if (!engine) setSales(mergedSales)
 
-    const storedSuppliers = safeLocalStorageGet<any[]>('electron-suppliers', [])
+    if (engine) {
+      engineCustomers().then(setCustomers).catch((e) => handleError(e, { showToast: false, logError: true }))
+      engineSuppliers().then(setSuppliers).catch((e) => handleError(e, { showToast: false, logError: true }))
+    }
+    const storedSuppliers = engine ? [] : safeLocalStorageGet<any[]>('electron-suppliers', [])
     if (storedSuppliers.length > 0) {
       setSuppliers(storedSuppliers)
     }
     
-    const storedCustomers = safeLocalStorageGet<any[]>('electron-customers', [])
+    const storedCustomers = engine ? [] : safeLocalStorageGet<any[]>('electron-customers', [])
     if (storedCustomers.length > 0) {
       setCustomers(storedCustomers)
     }

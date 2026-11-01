@@ -28,8 +28,8 @@ export class StockService {
       const variant = this.db.prepare('SELECT v.id, v.cost_price AS own, p.cost_price AS productCost, (SELECT COUNT(*) FROM variants w WHERE w.product_id = p.id AND w.archived_at IS NULL) AS siblings, p.id AS productId FROM variants v JOIN products p ON p.id = v.product_id WHERE v.id = ? AND v.archived_at IS NULL')
       const move = this.db.prepare("INSERT INTO stock_movements (id, variant_id, type, qty_delta, unit_cost, ref_type, ref_id, reason, user_id, created_at) VALUES (?, ?, 'RECEIVE', ?, ?, 'receipt', ?, NULL, ?, ?)")
       const bump = this.db.prepare('UPDATE variants SET stock_qty = stock_qty + ?, updated_at = ? WHERE id = ?')
-      this.db.prepare('INSERT INTO stock_receipts (id, supplier_name, reference, note, user_id, total_cost, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)')
-        .run(input.id, input.supplierName || null, input.reference || null, input.note || null, userId, now)
+      this.db.prepare('INSERT INTO stock_receipts (id, supplier_id, supplier_name, reference, note, user_id, total_cost, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)')
+        .run(input.id, input.supplierId ?? null, input.supplierName || null, input.reference || null, input.note || null, userId, now)
       let totalCost = 0
       let units = 0
       const costChanges: { variantId: string; from: number; to: number }[] = []

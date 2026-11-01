@@ -40,6 +40,9 @@ test('vendor login bridge: accounts are mirrored by stable id, cannot use PIN lo
   assert.equal((db.prepare('SELECT COUNT(*) n FROM users').get() as { n: number }).n, 3)
   assert.equal(auth.shop().name, 'Boutique Amina', 'shop row is created once')
   await assert.rejects(auth.login('owner', '1234'), code('WRONG_PIN'), 'mirrored accounts have no PIN')
+  // A manager is stored as a cashier with the manager flag; the session says MANAGER.
+  assert.equal(auth.signInExternal({ id: 'staff-3', name: 'Yacine', role: 'MANAGER', shopName: '' }).role, 'MANAGER')
+  assert.deepEqual(db.prepare("SELECT role, is_manager AS m FROM users WHERE id = 'staff-3'").get(), { role: 'CASHIER', m: 1 })
 })
 
 test('PIN hashes are salted scrypt and verify only the right PIN', async () => {
@@ -137,10 +140,11 @@ test('user and setup changes are audited, PIN hashes never are', async () => {
   assert.ok(rows.every((r) => !/scrypt|5678/.test(r.after_json)))
 })
 
-test('access policy: catalog writes, imports, labels and users are owner-only', () => {
-  for (const ch of ['catalog:saveProduct', 'catalog:archiveProduct', 'import:commit', 'labels:print', 'users:save', 'shop:save'] as const) {
-    assert.equal(ACCESS[ch], 'owner', ch)
+test('access policy: users, shop and balance corrections are owner-only; catalog, stock and suppliers manager+', () => {
+  for (const ch of ['users:save', 'shop:save', 'customers:adjust', 'settings:saveSales'] as const) assert.equal(ACCESS[ch], 'owner', ch)
+  for (const ch of ['catalog:saveProduct', 'catalog:archiveProduct', 'import:commit', 'labels:print', 'stock:receive', 'stock:countFinish', 'suppliers:save'] as const) {
+    assert.equal(ACCESS[ch], 'manager', ch)
   }
-  for (const ch of ['catalog:products', 'catalog:findByCode', 'auth:logout'] as const) assert.equal(ACCESS[ch], 'user', ch)
+  for (const ch of ['catalog:products', 'catalog:findByCode', 'auth:logout', 'customers:save', 'customers:pay', 'sell:complete'] as const) assert.equal(ACCESS[ch], 'user', ch)
   for (const ch of ['auth:login', 'auth:users', 'auth:setup', 'auth:status'] as const) assert.equal(ACCESS[ch], 'public', ch)
 })

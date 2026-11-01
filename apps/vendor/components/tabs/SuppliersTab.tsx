@@ -3,6 +3,7 @@
 import { Button } from "@/root/components/ui/button"
 import { Card, CardContent } from "@/root/components/ui/card"
 import { Plus, Truck } from "lucide-react"
+import type { EngineSupplierRow } from "../../lib/engine"
 import type { Supplier } from "@/root/lib/types"
 
 interface SuppliersTabProps {
@@ -44,6 +45,12 @@ export function SuppliersTab({
                       <span className="text-muted-foreground">{translate("Tél", "هاتف")}:</span>
                       <span>{supplier.phone}</span>
                     </p>
+                    {"deliveries" in supplier && (
+                      <p className="flex items-center gap-2" data-testid="supplier-stats">
+                        <span className="text-muted-foreground">{translate("Réceptions", "الاستلامات")}:</span>
+                        <span>{String((supplier as unknown as EngineSupplierRow).deliveries)} · {String((supplier as unknown as EngineSupplierRow).purchasesTotal)} DA</span>
+                      </p>
+                    )}
                     {supplier.email && (
                       <p className="flex items-center gap-2">
                         <span className="text-muted-foreground">{translate("Email", "البريد")}:</span>

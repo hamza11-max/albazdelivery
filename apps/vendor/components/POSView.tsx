@@ -42,6 +42,9 @@ interface POSViewProps {
   onManualTotalChange: (value: number | null) => void
   onAddCustomItem: (name: string, price: number) => void
   onCompleteSale: (paymentMethod: "cash" | "card") => void
+  /** Desktop app: customers that can buy on account (carnet), and the "on credit" checkout. */
+  creditCustomers?: { id: string; name: string; phone: string; balance: number; creditLimit: number | null }[]
+  onCreditSale?: (customerId: string) => void
   posCouponCode?: string
   posAppliedCoupon?: any
   onCouponCodeChange?: (code: string) => void
@@ -81,6 +84,8 @@ export function POSView({
   onManualTotalChange,
   onAddCustomItem,
   onCompleteSale,
+  creditCustomers,
+  onCreditSale,
   posCouponCode = "",
   posAppliedCoupon = null,
   onCouponCodeChange = () => {},
@@ -88,6 +93,7 @@ export function POSView({
   onRemoveCoupon = () => {},
   isElectronFullscreen = false,
 }: POSViewProps) {
+  const [creditCustomerId, setCreditCustomerId] = useState("")
   const [showCustomItemDialog, setShowCustomItemDialog] = useState(false)
   const [customItemName, setCustomItemName] = useState("")
   const [customItemPrice, setCustomItemPrice] = useState("")
@@ -434,6 +440,31 @@ export function POSView({
               {translate("Confirmer", "تأكيد")}
             </Button>
           </div>
+          {creditCustomers && onCreditSale && (
+            <div className="flex gap-2">
+              <select
+                data-testid="credit-customer"
+                className="h-11 flex-1 rounded-md border border-gray-300 bg-background px-2 text-sm dark:border-gray-700"
+                value={creditCustomerId}
+                onChange={(e) => setCreditCustomerId(e.target.value)}
+              >
+                <option value="">{translate("Client (vente à crédit)…", "العميل (بيع بالدين)…")}</option>
+                {creditCustomers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}{c.phone ? ` · ${c.phone}` : ""}{c.balance > 0 ? ` · ${translate("doit", "عليه")} ${c.balance} DA` : ""}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                className="h-11"
+                disabled={posCart.length === 0 || !creditCustomerId}
+                onClick={() => onCreditSale(creditCustomerId)}
+              >
+                {translate("À crédit", "بالدين")}
+              </Button>
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Button
               variant="outline"

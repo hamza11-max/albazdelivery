@@ -1,7 +1,7 @@
 "use client"
 
-import type { InventoryProduct, Sale } from "@/root/lib/types"
-import type { FlatItem, Outputs, RecentSale } from "../electron/shared/ipc"
+import type { Customer, InventoryProduct, Sale, Supplier } from "@/root/lib/types"
+import type { CustomerRow, FlatItem, Outputs, RecentSale, Supplier as EngineSupplier } from "../electron/shared/ipc"
 
 /**
  * The desktop app's local engine (electron/core): one SQLite database in the main
@@ -65,6 +65,38 @@ export function toSale(s: RecentSale): Sale {
   }
 }
 
+/** A customer as the vendor screens show it, plus their credit book. */
+export type EngineCustomer = Customer & { balance: number; creditLimit: number | null; note: string }
+
+export function toCustomer(c: CustomerRow): EngineCustomer {
+  return {
+    id: c.id,
+    name: c.name,
+    phone: c.phone,
+    totalPurchases: c.salesTotal,
+    orderCount: c.salesCount,
+    lastPurchaseDate: c.lastSaleAt ? new Date(c.lastSaleAt) : undefined,
+    createdAt: new Date(c.createdAt),
+    balance: c.balance,
+    creditLimit: c.creditLimit,
+    note: c.note,
+  }
+}
+
+export type EngineSupplierRow = Supplier & { deliveries: number; purchasesTotal: number; note: string }
+
+export function toSupplier(s: EngineSupplier): EngineSupplierRow {
+  return { id: s.id, name: s.name, contactPerson: "", phone: s.phone, productsSupplied: [], createdAt: new Date(), deliveries: s.deliveries, purchasesTotal: s.purchasesTotal, note: s.note }
+}
+
+export async function engineCustomers(): Promise<EngineCustomer[]> {
+  return (await engine("customers:list", { query: "", withDebtOnly: false })).map(toCustomer)
+}
+
+export async function engineSuppliers(): Promise<EngineSupplierRow[]> {
+  return (await engine("suppliers:list")).map(toSupplier)
+}
+
 export async function engineInventory(): Promise<InventoryProduct[]> {
   return (await engine("catalog:items")).map(toInventoryProduct)
 }
@@ -102,7 +134,9 @@ export async function engineCompleteSale(input: {
   id: string
   lines: { variantId: string; qty: number; lineDiscount?: number }[]
   saleDiscount?: number
-  paymentMethod: "cash" | "card"
+  /** credit = the whole sale on the customer's account (carnet). */
+  paymentMethod: "cash" | "card" | "credit"
+  customerId?: string
   /** Cash handed over; defaults to the exact total. */
   cashTendered?: number
 }): Promise<Outputs["sell:complete"]> {
@@ -115,11 +149,13 @@ export async function engineCompleteSale(input: {
   const preview = await engine("catalog:variantInfo", { variantIds: [...new Set(lines.map((l) => l.variantId))] })
   const priceOf = new Map(preview.map((v) => [v.variantId, v.price]))
   const expected = Math.max(0, lines.reduce((s, l) => s + (priceOf.get(l.variantId) ?? 0) * l.qty - l.lineDiscount, 0) - saleDiscount)
-  const amount = input.paymentMethod === "card" ? expected : Math.max(expected, dinars(input.cashTendered ?? expected))
+  const amount = input.paymentMethod === "cash" ? Math.max(expected, dinars(input.cashTendered ?? expected)) : expected
+  const method = input.paymentMethod === "card" ? "CARD_EXTERNAL" : input.paymentMethod === "credit" ? "CREDIT" : "CASH"
   return engine("sell:complete", {
     id: input.id,
     lines,
     saleDiscount,
-    tenders: amount > 0 ? [{ method: input.paymentMethod === "card" ? "CARD_EXTERNAL" : "CASH", amount }] : [],
+    customerId: input.customerId,
+    tenders: amount > 0 ? [{ method, amount }] : [],
   })
 }

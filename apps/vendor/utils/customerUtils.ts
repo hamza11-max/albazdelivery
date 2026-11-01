@@ -3,6 +3,7 @@
 import type { Customer, CustomerForm } from "../app/vendor/types"
 import { fetchCustomers } from "../app/vendor/refresh-data"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError } from "./errorHandling"
+import { engine, engineCustomers, hasEngine } from "../lib/engine"
 
 interface SaveCustomerParams {
   customerForm: CustomerForm
@@ -25,6 +26,20 @@ export async function saveCustomer({
   toast,
   translate,
 }: SaveCustomerParams) {
+  // Desktop app: customers live in the local engine (with their credit book).
+  if (hasEngine()) {
+    try {
+      await engine("customers:save", { name: customerForm.name, phone: customerForm.phone, note: [customerForm.email, customerForm.address].filter(Boolean).join(" · ") })
+      setCustomers(await engineCustomers())
+      setShowCustomerDialog(false)
+      resetCustomerForm()
+      toast({ title: translate("Client ajouté", "تم إضافة العميل"), description: customerForm.name })
+    } catch (error) {
+      handleError(error, { showToast: true, logError: true, translate, toast })
+    }
+    return
+  }
+
   // Electron offline mode
   if (isElectronRuntime) {
     const customerData = {

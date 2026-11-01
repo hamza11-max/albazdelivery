@@ -76,6 +76,16 @@ export class SalesService {
 
     const settlement = settle(totals.total, input.tenders)
     const now = this.clock().toISOString()
+    // A customer on the sale: must exist; credit (on account) needs one and stays within their limit.
+    if (settlement.creditTotal > 0 && !input.customerId) throw new AppError('CREDIT_NEEDS_CUSTOMER', 'Choose the customer for a credit sale')
+    if (input.customerId) {
+      const c = this.db.prepare(`SELECT credit_limit AS creditLimit, coalesce((SELECT SUM(amount) FROM customer_ledger WHERE customer_id = customers.id), 0) AS balance
+        FROM customers WHERE id = ? AND archived_at IS NULL`).get(input.customerId) as { creditLimit: number | null; balance: number } | undefined
+      if (!c) throw new AppError('NOT_FOUND', 'Customer not found')
+      if (settlement.creditTotal > 0 && c.creditLimit !== null && c.balance + settlement.creditTotal > c.creditLimit) {
+        throw new AppError('CREDIT_LIMIT', String(Math.max(0, c.creditLimit - c.balance)))
+      }
+    }
 
     this.db.transaction(() => {
       // Checked again inside the transaction: nothing can slip in between.
@@ -83,10 +93,10 @@ export class SalesService {
       const number = this.nextNumber()
       this.db
         .prepare(
-          `INSERT INTO sales (id, number, type, shift_id, user_id, subtotal, discount_total, total, paid_total, change_given, created_at)
-           VALUES (?, ?, 'SALE', ?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO sales (id, number, type, shift_id, user_id, customer_id, subtotal, discount_total, total, paid_total, change_given, created_at)
+           VALUES (?, ?, 'SALE', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         )
-        .run(input.id, number, shift.id, session.userId, totals.subtotal, totals.discountTotal, totals.total, settlement.paidTotal, settlement.change, now)
+        .run(input.id, number, shift.id, session.userId, input.customerId ?? null, totals.subtotal, totals.discountTotal, totals.total, settlement.paidTotal, settlement.change, now)
 
       const insertLine = this.db.prepare(
         `INSERT INTO sale_lines (id, sale_id, variant_id, name_snapshot, variant_label_snapshot, qty, unit_price, unit_cost, line_discount, allocated_sale_discount, line_total)
@@ -121,6 +131,11 @@ export class SalesService {
       // Cash is recorded as what stays in the drawer (tendered − change), so payments add up to the total.
       if (settlement.cashKept > 0) insertPayment.run(uuidv7(), input.id, 'CASH', settlement.cashKept)
       if (settlement.cardTotal > 0) insertPayment.run(uuidv7(), input.id, 'CARD_EXTERNAL', settlement.cardTotal)
+      if (settlement.creditTotal > 0) {
+        insertPayment.run(uuidv7(), input.id, 'CREDIT', settlement.creditTotal)
+        this.db.prepare("INSERT INTO customer_ledger (id, customer_id, type, amount, sale_id, user_id, created_at) VALUES (?, ?, 'CREDIT_SALE', ?, ?, ?, ?)")
+          .run(uuidv7(), input.customerId!, settlement.creditTotal, input.id, session.userId, now)
+      }
 
       if (approvedBy) {
         this.db
@@ -306,6 +321,12 @@ export class SalesService {
         .run(now, reason, session.userId, saleId)
       if (r.changes === 0) throw new AppError('NOT_VOIDABLE', 'This sale was already voided')
       this.restock(session, saleId, sale.lines.map((l) => ({ variantId: l.variantId, qty: l.qty })), 'void', now)
+      // What went on the customer's account comes off again.
+      const credit = this.db.prepare("SELECT customer_id AS customerId, amount FROM customer_ledger WHERE sale_id = ? AND type = 'CREDIT_SALE'").get(saleId) as { customerId: string; amount: number } | undefined
+      if (credit) {
+        this.db.prepare("INSERT INTO customer_ledger (id, customer_id, type, amount, sale_id, note, user_id, created_at) VALUES (?, ?, 'CREDIT_RETURN', ?, ?, ?, ?, ?)")
+          .run(uuidv7(), credit.customerId, -credit.amount, saleId, `Annulation ${sale.number}`, session.userId, now)
+      }
       this.db
         .prepare("INSERT INTO audit_events (id, user_id, action, entity, entity_id, after_json, created_at) VALUES (?, ?, 'VOID_SALE', 'sale', ?, ?, ?)")
         .run(uuidv7(), session.userId, saleId, JSON.stringify({ number: sale.number, total: sale.total, reason, approvedBy }), now)
@@ -351,6 +372,9 @@ export class SalesService {
     if (input.refundMethod === 'CASH' && built.refundTotal > this.shifts.expectedCash(shift)) {
       throw new AppError('NOT_ENOUGH_CASH', 'There is not that much cash in the drawer')
     }
+    // Returns of a customer's sale stay on that customer; CREDIT puts the refund back on their account.
+    const customerId = (this.db.prepare('SELECT customer_id AS c FROM sales WHERE id = ?').get(original.id) as { c: string | null }).c
+    if (input.refundMethod === 'CREDIT' && !customerId) throw new AppError('CREDIT_NEEDS_CUSTOMER', 'This sale has no customer')
 
     const byLine = new Map(original.lines.map((l) => [l.lineId, l]))
     const now = this.clock().toISOString()
@@ -360,10 +384,10 @@ export class SalesService {
       const total = -built.refundTotal
       this.db
         .prepare(
-          `INSERT INTO sales (id, number, type, original_sale_id, shift_id, user_id, subtotal, discount_total, total, paid_total, change_given, created_at)
-           VALUES (?, ?, 'RETURN', ?, ?, ?, ?, 0, ?, ?, 0, ?)`,
+          `INSERT INTO sales (id, number, type, original_sale_id, shift_id, user_id, customer_id, subtotal, discount_total, total, paid_total, change_given, created_at)
+           VALUES (?, ?, 'RETURN', ?, ?, ?, ?, ?, 0, ?, ?, 0, ?)`,
         )
-        .run(input.id, number, original.id, shift.id, session.userId, total, total, total, now)
+        .run(input.id, number, original.id, shift.id, session.userId, customerId, total, total, total, now)
       const insertLine = this.db.prepare(
         `INSERT INTO sale_lines (id, sale_id, variant_id, original_line_id, name_snapshot, variant_label_snapshot, qty, unit_price, unit_cost, line_total)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT unit_cost FROM sale_lines WHERE id = ?), ?)`,
@@ -373,6 +397,10 @@ export class SalesService {
         insertLine.run(uuidv7(), input.id, r.variantId, r.lineId, o.name, o.variant || null, -r.qty, o.unitPrice, r.lineId, -r.refund)
       }
       this.db.prepare('INSERT INTO payments (id, sale_id, method, amount) VALUES (?, ?, ?, ?)').run(uuidv7(), input.id, input.refundMethod, total)
+      if (input.refundMethod === 'CREDIT') {
+        this.db.prepare("INSERT INTO customer_ledger (id, customer_id, type, amount, sale_id, user_id, created_at) VALUES (?, ?, 'CREDIT_RETURN', ?, ?, ?, ?)")
+          .run(uuidv7(), customerId!, total, input.id, session.userId, now)
+      }
       this.restock(session, input.id, built.lines.map((r) => ({ variantId: r.variantId, qty: r.qty })), 'return', now)
       this.db
         .prepare("INSERT INTO audit_events (id, user_id, action, entity, entity_id, after_json, created_at) VALUES (?, ?, 'RETURN', 'sale', ?, ?, ?)")

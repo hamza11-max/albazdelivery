@@ -119,7 +119,7 @@ import { usePOSHandlers } from "../../hooks/usePOSHandlers"
 import { LoadingScreen } from "@/root/components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisionalSale } from "../../utils/electronUtils"
-import { engineSales, hasEngine } from "../../lib/engine"
+import { engineSales, hasEngine, type EngineCustomer } from "../../lib/engine"
 import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
 import { VendorSecuritySettingsPanel } from "../../components/security/VendorSecuritySettingsPanel"
@@ -513,6 +513,10 @@ function VendorDashboardContent() {
     window.addEventListener("switchTab", onSwitchTab as EventListener)
     return () => window.removeEventListener("switchTab", onSwitchTab as EventListener)
   }, [pathname, router, searchParams, setActiveTab, vendorTabIds, allowedTabIds])
+
+  // Desktop app with the local engine (set after mount: the bridge only exists in the browser).
+  const [engineMode, setEngineMode] = useState(false)
+  useEffect(() => setEngineMode(hasEngine()), [])
 
   // Check Electron auth on mount and load offline data
   useEffect(() => {
@@ -2170,7 +2174,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
   }, [recentOrderTimestamps, trimRecentOrders])
 
   // Complete Sale - using utility function
-  const completeSale = async (paymentMethod: "cash" | "card") => {
+  const completeSale = async (paymentMethod: "cash" | "card" | "credit", creditCustomerId?: string) => {
     if (!guardOrderWindow()) return
     
     // Track coupon usage if a coupon was applied
@@ -2187,6 +2191,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     
     const success = await completeSaleUtil({
       paymentMethod,
+      creditCustomerId,
       posCart,
       posDiscount,
       posTaxPercent,
@@ -2437,6 +2442,8 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
           {allowedTabIds.includes("pos") && (
           <TabsContent value="pos" className="space-y-0 p-0 -mx-2 sm:-mx-4 lg:-mx-5 2xl:-mx-6">
       <POSView
+              creditCustomers={engineMode ? (customers as EngineCustomer[]) : undefined}
+              onCreditSale={(customerId) => completeSale("credit", customerId)}
               products={products}
               categories={categories}
               posCart={posCart}

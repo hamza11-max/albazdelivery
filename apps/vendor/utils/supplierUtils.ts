@@ -3,6 +3,7 @@
 import type { Supplier, SupplierForm } from "../app/vendor/types"
 import { fetchSuppliers } from "../app/vendor/refresh-data"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError } from "./errorHandling"
+import { engine, engineSuppliers, hasEngine } from "../lib/engine"
 
 interface SaveSupplierParams {
   supplierForm: SupplierForm
@@ -25,6 +26,20 @@ export async function saveSupplier({
   toast,
   translate,
 }: SaveSupplierParams) {
+  // Desktop app: suppliers live in the local engine (deliveries are linked to them).
+  if (hasEngine()) {
+    try {
+      await engine("suppliers:save", { name: supplierForm.name, phone: supplierForm.phone, note: [supplierForm.contactPerson, supplierForm.email, supplierForm.address].filter(Boolean).join(" · ") })
+      setSuppliers(await engineSuppliers())
+      setShowSupplierDialog(false)
+      setSupplierForm({ name: "", contactPerson: "", phone: "", email: "", address: "" })
+      toast({ title: translate("Fournisseur ajouté", "تمت إضافة المورد"), description: supplierForm.name })
+    } catch (error) {
+      handleError(error, { showToast: true, logError: true, translate, toast })
+    }
+    return
+  }
+
   // Electron offline mode
   if (isElectronRuntime) {
     const supplierData = {
