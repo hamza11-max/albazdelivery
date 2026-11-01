@@ -2614,6 +2614,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
               translate={translate}
               user={effectiveUser}
               shopInfo={shopInfo}
+              onSalesChanged={() => { engineSales().then(setSales).catch((e) => console.error("[Vendor] sales from engine", e)) }}
             />
           </TabsContent>
           )}

@@ -77,6 +77,18 @@ test('recent sales for the vendor screens: lines with names, returns negative, v
   assert.deepEqual(recentSales(db, 1, new Date(Date.now() + 3 * 86_400_000)), [], 'outside the window')
 })
 
+test('a manager voids without the owner PIN; a cashier still needs it', async () => {
+  shifts.open(cashier, 5000)
+  const manager: Session = { ...cashier, role: 'MANAGER' }
+  const a = await sales.completeSale(cashier, sale())
+  const b = await sales.completeSale(cashier, sale())
+  await assert.rejects(sales.voidSale(cashier, a.saleId, 'erreur'), code('VOID_NEEDS_OWNER'))
+  assert.equal((await sales.voidSale(manager, b.saleId, 'erreur')).status, 'VOIDED')
+  assert.notEqual(shifts.status(manager), null)
+  assert.equal((shifts.status(manager) as { expectedCash: number | null }).expectedCash !== null, true, 'managers see the expected cash')
+  assert.equal((shifts.status(cashier) as { expectedCash: number | null }).expectedCash, null, 'cashiers count blind')
+})
+
 test('no sale without an open cash register; only one register open at a time', async () => {
   await assert.rejects(sales.completeSale(cashier, sale()), code('NO_OPEN_SHIFT'))
   shifts.open(cashier, 5000)

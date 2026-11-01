@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/root/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
 import { Badge } from "@/root/components/ui/badge"
@@ -8,6 +8,8 @@ import { Button } from "@/root/components/ui/button"
 import { Receipt, FileText } from "lucide-react"
 import type { Sale } from "@/root/lib/types"
 import { InvoiceView } from "../InvoiceView"
+import { hasEngine } from "../../lib/engine"
+import { RegisterBar, SaleDetailDialog } from "./SaleActions"
 
 interface SalesTabProps {
   sales: Sale[]
@@ -20,6 +22,8 @@ interface SalesTabProps {
     address?: string
     logo?: string
   }
+  /** Desktop app: reload the list after a return, a void or closing the register. */
+  onSalesChanged?: () => void
 }
 
 export function SalesTab({
@@ -27,9 +31,14 @@ export function SalesTab({
   translate,
   user,
   shopInfo,
+  onSalesChanged = () => {},
 }: SalesTabProps) {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
   const [showInvoice, setShowInvoice] = useState(false)
+  // Desktop app (set after mount: the bridge only exists in the browser).
+  const [engineMode, setEngineMode] = useState(false)
+  useEffect(() => setEngineMode(hasEngine()), [])
+  const [detailId, setDetailId] = useState<string | null>(null)
 
   const handlePrintInvoice = (sale: Sale) => {
     setSelectedSale(sale)
@@ -45,6 +54,7 @@ export function SalesTab({
     <>
       <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
         <h2 className="text-2xl font-bold">{translate("Historique des Ventes", "سجل المبيعات")}</h2>
+        {engineMode && <RegisterBar translate={translate} onChanged={onSalesChanged} />}
 
         <Card>
           <CardContent className="p-6">
@@ -64,7 +74,10 @@ export function SalesTab({
               <TableBody>
                 {sales.map((sale) => (
                   <TableRow key={sale.id}>
-                    <TableCell className="font-mono text-sm">{sale.id.slice(0, 8)}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {(sale as { number?: string }).number ?? sale.id.slice(0, 8)}
+                      {(sale as { type?: string }).type === "RETURN" && <Badge variant="outline" className="ml-2">{translate("Retour", "إرجاع")}</Badge>}
+                    </TableCell>
                     <TableCell>{new Date(sale.createdAt).toLocaleString("fr-FR")}</TableCell>
                     <TableCell>{sale.items.length}</TableCell>
                     <TableCell>{sale.subtotal.toFixed(2)} {translate("DZD", "دج")}</TableCell>
@@ -75,7 +88,12 @@ export function SalesTab({
                         {sale.paymentMethod === "cash" ? translate("Espèces", "نقد") : translate("Carte", "بطاقة")}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="flex gap-2">
+                      {engineMode && (
+                        <Button variant="outline" size="sm" className="h-8" onClick={() => setDetailId(sale.id)}>
+                          {translate("Détails", "التفاصيل")}
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
@@ -101,6 +119,8 @@ export function SalesTab({
           </CardContent>
         </Card>
       </div>
+
+      {engineMode && <SaleDetailDialog saleId={detailId} translate={translate} onClose={() => setDetailId(null)} onChanged={onSalesChanged} />}
 
       {selectedSale && (
         <InvoiceView

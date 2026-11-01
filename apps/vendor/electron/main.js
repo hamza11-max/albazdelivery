@@ -1610,8 +1610,37 @@ async function runSmoketest() {
       return { added: sales.length - salesBefore, stockBefore: target.stock, stockAfter: after.stock, number: sales[0] && sales[0].number, toasts }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('pos')
-    // History lists sales by the start of their id, not by product.
-    pages.sales = await open('http://localhost:3001/vendor?tab=sales', engine.saleRef)
+    // History lists sales by receipt number.
+    pages.sales = await open('http://localhost:3001/vendor?tab=sales', engine.number)
+    // Sale actions from history: return 1 item of the first sale, void the second (POS) sale.
+    pages.saleActions = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const call = async (ch, input) => { const r = await window.electronAPI.core.invoke(ch, input); if (!r.ok) throw new Error(ch + ': ' + r.error.code); return r.data }
+      const waitFor = async (fn, what) => { for (let i = 0; i < 120; i++) { const v = await fn(); if (v) return v; await sleep(250) } throw new Error('not found: ' + what) }
+      const byText = (sel, text) => [...document.querySelectorAll(sel)].find((el) => el.innerText && el.innerText.trim().startsWith(text))
+      window.prompt = (_m, value) => value || 'Erreur de saisie'
+      const openDetail = async (number) => {
+        const row = await waitFor(() => [...document.querySelectorAll('tr')].find((tr) => tr.innerText.includes(number)), 'row ' + number)
+        ;[...row.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Détails').click()
+        return waitFor(() => document.querySelector('[data-testid="sale-detail"]'), 'detail ' + number)
+      }
+      const recent = await call('sales:recent', { days: 1 })
+      const first = recent.find((s) => s.number.endsWith('-000001'))
+      const second = recent.find((s) => s.number.endsWith('-000002'))
+      const detail = await openDetail(first.number)
+      const qty = detail.querySelector('input')
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(qty, '1')
+      qty.dispatchEvent(new Event('input', { bubbles: true }))
+      ;(await waitFor(() => { const b = byText('button', 'Retourner'); return b && !b.disabled && b }, 'return button')).click()
+      const returned = await waitFor(async () => (await call('sales:recent', { days: 1 })).find((s) => s.type === 'RETURN'), 'return recorded')
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      await waitFor(() => !document.querySelector('[data-testid="sale-detail"]'), 'detail closed')
+      await openDetail(second.number)
+      ;(await waitFor(() => { const b = byText('button', 'Annuler la vente'); return b && !b.disabled && b }, 'void button')).click()
+      const voided = await waitFor(async () => (await call('sales:detail', { id: second.id })).status === 'VOIDED', 'void recorded')
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      return { returnTotal: returned.total, returnOf: first.number, voided }
+    })()`).catch((e) => ({ error: String(e) }))
     await capture('sales')
     // Stock screen (Inventory → Stock): receive 5 through the delivery form, then count the shelf at 2.
     pages.stock = await mainWindow.webContents.executeJavaScript(`(async () => {
@@ -1698,6 +1727,18 @@ async function runSmoketest() {
       return { revenue: report.totals.revenue, recorded, margin, sales: report.totals.salesCount, credit: report.totals.credit }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('reports')
+    // End of day: close the register from history and read the Z report.
+    await open('http://localhost:3001/vendor?tab=sales', 'Clôturer la caisse')
+    pages.zReport = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const waitFor = async (fn, what) => { for (let i = 0; i < 120; i++) { const v = await fn(); if (v) return v; await sleep(250) } throw new Error('not found: ' + what) }
+      window.prompt = (_m, value) => value || 'Écart de test'
+      ;[...document.querySelectorAll('button')].find((b) => b.innerText.includes('Clôturer la caisse')).click()
+      const z = await waitFor(() => document.querySelector('[data-testid="z-report"]'), 'Z report')
+      const status = (await window.electronAPI.core.invoke('shift:status')).data
+      return { text: z.innerText.replace(/\\s+/g, ' '), open: status.open }
+    })()`).catch((e) => ({ error: String(e) }))
+    await capture('z-report')
     clearTimeout(deadline)
     const ok = engine.items > 0 && engine.stockAfter === engine.stockBefore - 1 && engine.recent >= 1 && /-\d{6}$/.test(engine.number)
       && pages.inventory && pages.pos && pages.sales
@@ -1705,6 +1746,8 @@ async function runSmoketest() {
       && pages.stock.afterCount === 2 && pages.stock.received === pages.stock.before + 5
       && pages.credit.owed > 0 && pages.credit.balanceAfter === 0 && /Réceptions/.test(pages.credit.suppliers)
       && pages.reports.revenue > 0 && pages.reports.revenue === pages.reports.recorded && pages.reports.credit === pages.credit.owed
+      && pages.saleActions.returnTotal < 0 && pages.saleActions.voided === true
+      && pages.zReport.open === false && /Annulations/.test(pages.zReport.text)
     finish(ok, { ...engine, pages })
   } catch (e) {
     clearTimeout(deadline)
