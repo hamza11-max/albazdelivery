@@ -5,6 +5,7 @@ import type { HeldCart, ProductSummary, SaleResult, ShiftStatus, VariantInfo } f
 import { ApiError, call } from '../api'
 import { useAuth } from '../auth'
 import { useI18n } from '../i18n'
+import { useKeyboardWedge } from '../scanner'
 import { CashDialog, CloseShiftDialog, Modal, OpenShift } from './ShiftPanels'
 
 interface Line extends VariantInfo {
@@ -72,8 +73,8 @@ export function Sell() {
     else setPicker(infos)
   }
 
-  async function onScan() {
-    const text = scan.trim()
+  async function onScan(code = scan) {
+    const text = code.trim()
     if (!text) return
     setMessage(null)
     try {
@@ -137,6 +138,9 @@ export function Sell() {
       setMessage({ tone: 'err', text: errorText(err) })
     }
   }
+
+  // A scan lands in the cart even when the scan field doesn't have focus.
+  useKeyboardWedge((code) => { setScan(code); void onScan(code) }, Boolean(shift?.open) && !paying && !dialog)
 
   // F12 pays, F8 holds; the scan field keeps focus otherwise.
   useEffect(() => {

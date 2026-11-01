@@ -316,7 +316,7 @@ export interface Outputs {
   /** null when the dialog was cancelled. */
   'import:template': { path: string } | null
   'import:preview': ImportPreview | null
-  'import:commit': { products: number; variants: number }
+  'import:commit': { products: number; variants: number; stockUnits: number }
   /** First page as an image; `missingBarcodes` lists variants that would print without bars. */
   'labels:preview': { dataUrl: string; pages: number; labels: number; missingBarcodes: string[] }
   'labels:print': { pages: number; labels: number }
@@ -538,6 +538,8 @@ export interface ImportPreview {
   /** First 500 issues; errorCount is the full number. */
   errors: ImportIssue[]
   errorCount: number
+  /** Opening stock units in the file (all variants). */
+  stockUnits: number
   sample: { name: string; nameAlt: string; variants: number; salePrice: number; category: string }[]
 }
 

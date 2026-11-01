@@ -85,6 +85,7 @@ export function ImportDialog({ onClose }: { onClose: (imported: boolean) => void
               <p className={canImport ? 'status ok' : ''}>
                 {canImport && `${t('import.ready')}: `}
                 <strong>{preview.products}</strong> {t('import.products')} · <strong>{preview.variants}</strong> {t('import.variants')}
+                {preview.stockUnits > 0 && <> · <strong>{preview.stockUnits}</strong> {t('import.stockUnits')}</>}
               </p>
               {preview.newCategories.length > 0 && (
                 <p className="muted">{t('import.newCategories')}: <bdi>{preview.newCategories.join('، ')}</bdi></p>
@@ -130,7 +131,7 @@ export function ImportDialog({ onClose }: { onClose: (imported: boolean) => void
             <button disabled={busy} onClick={() => onClose(false)}>{t('common.close')}</button>
             <button className="primary" disabled={busy || !canImport} onClick={() => run(async () => {
               const done = await call('import:commit', { token: preview!.token })
-              setMessage({ tone: 'ok', text: `${t('import.done')} ${done.products} ${t('import.products')}, ${done.variants} ${t('import.variants')}` })
+              setMessage({ tone: 'ok', text: `${t('import.done')} ${done.products} ${t('import.products')}, ${done.variants} ${t('import.variants')}${done.stockUnits ? `, ${done.stockUnits} ${t('import.stockUnits')}` : ''}` })
               setPreview(null)
               setTimeout(() => onClose(true), 900)
             })}>
