@@ -1845,6 +1845,12 @@ app.whenReady().then(() => {
     if (app.isPackaged) writeEarlyLog('configureCSP error: ' + (e && e.message))
   }
 
+  // A service worker from an older version (web PWA code) would keep serving its cached pages and
+  // scripts instead of the current UI. The desktop app needs none: clear them before any window loads.
+  session.defaultSession.clearStorageData({ storages: ['serviceworkers', 'cachestorage'] })
+    .then(() => writeEarlyLog('service workers and cache storage cleared'))
+    .catch((e) => logStartup('clearing service workers failed: ' + (e && e.message)))
+
   // The shop's engine: one SQLite database, sales/stock/catalog over typed IPC (electron/core).
   startCoreEngine()
 
