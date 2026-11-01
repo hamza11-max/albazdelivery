@@ -27,6 +27,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setPasskey: (passkey) => ipcRenderer.invoke('auth-set-passkey', passkey),
   },
   
+  // Local engine (electron/core): `core.invoke('sell:complete', input)` → { ok, data } | { ok: false, error }.
+  // Main checks the sender, the signed-in role and the input schema of every channel.
+  core: {
+    invoke: (channel, input) => {
+      if (typeof channel !== 'string' || !/^[a-z]+:[A-Za-z]+$/.test(channel)) throw new TypeError('bad channel')
+      return ipcRenderer.invoke(channel, input)
+    },
+  },
+
   // Store operations via IPC
   store: {
     get: (key) => ipcRenderer.invoke('store-get', key),
