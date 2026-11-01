@@ -129,7 +129,7 @@ export class ShiftService {
       salesCount: sales.count,
       salesTotal: sales.total,
       cardTotal: pay.card,
-      expectedCash: session.role === 'OWNER' ? this.expected(shift) : null,
+      expectedCash: session.role === 'OWNER' || session.role === 'MANAGER' ? this.expected(shift) : null,
     }
   }
 

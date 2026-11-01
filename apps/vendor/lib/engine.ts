@@ -53,9 +53,14 @@ export function toInventoryProduct(i: FlatItem): InventoryProduct {
   }
 }
 
-export function toSale(s: RecentSale): Sale {
+/** A sale as the screens show it, with its receipt number and type (returns are negative). */
+export type EngineSale = Sale & { number: string; type: "SALE" | "RETURN" }
+
+export function toSale(s: RecentSale): EngineSale {
   return {
     id: s.id,
+    number: s.number,
+    type: s.type,
     items: s.items,
     subtotal: s.subtotal,
     discount: s.discount,
@@ -101,7 +106,7 @@ export async function engineInventory(): Promise<InventoryProduct[]> {
   return (await engine("catalog:items")).map(toInventoryProduct)
 }
 
-export async function engineSales(days = 90): Promise<Sale[]> {
+export async function engineSales(days = 90): Promise<EngineSale[]> {
   return (await engine("sales:recent", { days })).map(toSale)
 }
 

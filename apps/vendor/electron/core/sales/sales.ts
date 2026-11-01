@@ -205,7 +205,8 @@ export class SalesService {
    * the owner, otherwise the id of the active owner whose PIN was given.
    */
   private async ownerApproval(session: Session, ownerPin: string | undefined, missingCode: string): Promise<string | null> {
-    if (session.role === 'OWNER') return null
+    // Managers have the vendor app's sales rights (sales.view / sales.create): no PIN needed.
+    if (session.role === 'OWNER' || session.role === 'MANAGER') return null
     if (!ownerPin) throw new AppError(missingCode, 'Owner PIN required')
     const owners = this.db.prepare("SELECT id, pin_hash FROM users WHERE role = 'OWNER' AND is_active = 1").all() as { id: string; pin_hash: string }[]
     for (const o of owners) if (await verifyPin(ownerPin, o.pin_hash)) return o.id
@@ -256,14 +257,16 @@ export class SalesService {
   detail(saleId: string): SaleDetail {
     const s = this.db
       .prepare(
-        `SELECT s.*, u.name AS cashier, vb.name AS voided_by_name, o.number AS original_number
+        `SELECT s.*, u.name AS cashier, vb.name AS voided_by_name, o.number AS original_number, c.name AS customer_name
          FROM sales s JOIN users u ON u.id = s.user_id LEFT JOIN users vb ON vb.id = s.voided_by LEFT JOIN sales o ON o.id = s.original_sale_id
+         LEFT JOIN customers c ON c.id = s.customer_id
          WHERE s.id = ?`,
       )
       .get(saleId) as
       | { id: string; number: string; type: 'SALE' | 'RETURN'; status: 'COMPLETED' | 'VOIDED'; created_at: string; cashier: string; shift_id: string
           subtotal: number; discount_total: number; total: number; paid_total: number; change_given: number; voided_at: string | null
-          void_reason: string | null; voided_by_name: string | null; original_sale_id: string | null; original_number: string | null }
+          void_reason: string | null; voided_by_name: string | null; original_sale_id: string | null; original_number: string | null
+          customer_id: string | null; customer_name: string | null }
       | undefined
     if (!s) throw new AppError('NOT_FOUND', 'Sale not found')
     const lines = this.db
@@ -299,6 +302,7 @@ export class SalesService {
       voided: s.voided_at ? { at: s.voided_at, by: s.voided_by_name ?? '', reason: s.void_reason ?? '' } : null,
       originalId: s.original_sale_id,
       originalNumber: s.original_number ?? '',
+      customer: s.customer_id ? { id: s.customer_id, name: s.customer_name ?? '' } : null,
       returns,
       canVoid: s.type === 'SALE' && s.status === 'COMPLETED' && open?.id === s.shift_id && returns.length === 0,
       canReturn: s.type === 'SALE' && s.status === 'COMPLETED' && lines.some((l) => l.qty - l.returnedQty > 0),

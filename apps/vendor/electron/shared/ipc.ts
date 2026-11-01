@@ -627,10 +627,12 @@ export interface SaleDetail {
     returnedQty: number
     refunded: number
   }[]
-  payments: { method: 'CASH' | 'CARD_EXTERNAL'; amount: number }[]
+  payments: { method: 'CASH' | 'CARD_EXTERNAL' | 'CREDIT'; amount: number }[]
   voided: { at: string; by: string; reason: string } | null
   originalId: string | null
   originalNumber: string
+  /** The customer on the sale, if any: a return can then go back on their account. */
+  customer: { id: string; name: string } | null
   returns: { id: string; number: string; createdAt: string; total: number }[]
   canVoid: boolean
   canReturn: boolean
