@@ -13,7 +13,7 @@
     "build:electron": "cross-env ELECTRON_BUILD=true next build --webpack",
     "start": "next start -p 3001",
     "electron": "electron .",
-    "build:core": "tsc -p electron/tsconfig.json",
+    "build:core": "tsc -p ../../packages/pos-core/tsconfig.json && tsc -p electron/tsconfig.json",
     "test:core": "npm run build:core && node scripts/electron-node.cjs --test \"electron/dist/core/**/*.test.js\"",
     "smoketest:desktop": "npm run build:core && cross-env NODE_ENV=development electron . --smoketest --data-dir=smoke-data --import-file=test-fixtures/inventory-sample.csv --screenshot=smoke-data/vendor.png",
     "selftest:desktop": "npm run build:core && electron . --selftest --out=smoke-data/selftest",

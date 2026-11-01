@@ -39,7 +39,7 @@ jobs:
       - name: Type-check
         run: |
           npm run type-check -w @albaz/pos-core
-          npx tsc -p apps/vendor/electron/tsconfig.json --noEmit
+          npm run build:core -w @albaz/vendor
 
       - name: pos-core tests
         run: npm test -w @albaz/pos-core
