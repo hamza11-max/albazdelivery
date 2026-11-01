@@ -76,7 +76,7 @@ export function RfidGateActivity({
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        {translate("Activité par lecteur / porte. Derniers scans par appareil.", "النشاط حسب القارئ / البوابة.")}
+        {translate("Activité par lecteur / porte. Derniers scans par appareil.", "النشاط حسب القارئ / البوابة. آخر عمليات المسح لكل جهاز.")}
       </p>
       {loading && events.length === 0 ? (
         <Card>
@@ -96,7 +96,7 @@ export function RfidGateActivity({
                     {reader.type}
                   </Badge>
                   <span className="text-muted-foreground font-normal text-sm">
-                    {readerEvents.length} {translate("lectures", "قراءة")}
+                    {readerEvents.length} {translate("lectures", "قراءات")}
                   </span>
                 </CardTitle>
               </CardHeader>

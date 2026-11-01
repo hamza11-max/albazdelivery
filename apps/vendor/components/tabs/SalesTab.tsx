@@ -53,7 +53,7 @@ export function SalesTab({
   return (
     <>
       <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-        <h2 className="text-2xl font-bold">{translate("Historique des Ventes", "سجل المبيعات")}</h2>
+        <h2 className="text-2xl font-bold">{translate("Historique des ventes", "سجل المبيعات")}</h2>
         {engineMode && <RegisterBar translate={translate} onChanged={onSalesChanged} />}
 
         <Card>

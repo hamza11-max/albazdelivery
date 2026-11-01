@@ -387,7 +387,7 @@ export function KitchenTab({ orders, loadingState, translate, handleUpdateOrderS
               <Badge className={`text-sm font-semibold ${statusColors[status] || ""}`}>
                 {status === "PENDING" && translate("Nouveau", "جديد")}
                 {status === "ACCEPTED" && translate("Acceptée", "مقبولة")}
-                {status === "PREPARING" && translate("En prep.", "قيد التحضير")}
+                {status === "PREPARING" && translate("En prépa.", "قيد التحضير")}
                 {status === "READY" && translate("Prête", "جاهزة")}
               </Badge>
             </div>
@@ -479,7 +479,7 @@ export function KitchenTab({ orders, loadingState, translate, handleUpdateOrderS
                 onClick={() => bumpReady(order.id)}
               >
                 <UtensilsCrossed className="w-6 h-6 mr-2 shrink-0" />
-                {translate("Bump (retirer l’écran)", "إزالة من الشاشة")}
+                {translate("Retirer de l’écran", "إزالة من الشاشة")}
               </Button>
             )}
             {(status === "PENDING" || status === "ACCEPTED" || status === "PREPARING") && (
@@ -676,13 +676,13 @@ export function KitchenTab({ orders, loadingState, translate, handleUpdateOrderS
           {column(
             "ready",
             translate("Prêtes", "جاهزة"),
-            translate("À servir — Bump pour retirer", "للتقديم — Bump للإخفاء"),
+            translate("À servir — retirer de l’écran", "للتقديم — إزالة من الشاشة"),
             byStatus.ready,
             <CheckCircle2 className="h-6 w-6 text-emerald-600" />,
             recallStack.length > 0 ? (
               <Button type="button" size="sm" variant="outline" className="shrink-0 gap-1" onClick={recallLast}>
                 <RotateCcw className="h-4 w-4" />
-                {translate("Recall", "استرجاع")}
+                {translate("Rappeler", "استرجاع")}
               </Button>
             ) : null,
           )}

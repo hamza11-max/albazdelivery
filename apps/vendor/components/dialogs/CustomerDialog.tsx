@@ -28,7 +28,7 @@ export function CustomerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{translate("Ajouter un Client", "إضافة عميل")}</DialogTitle>
+          <DialogTitle>{translate("Ajouter un client", "إضافة عميل")}</DialogTitle>
           <DialogDescription>
             {translate("Ajoutez un nouveau client à votre base de données", "أضف عميلاً جديداً إلى قاعدة البيانات الخاصة بك")}
           </DialogDescription>

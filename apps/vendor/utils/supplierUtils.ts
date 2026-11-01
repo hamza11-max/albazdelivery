@@ -60,7 +60,7 @@ export async function saveSupplier({
     setShowSupplierDialog(false)
     setSupplierForm({ name: "", contactPerson: "", phone: "", email: "", address: "" })
     toast({
-      title: translate("Fournisseur ajouté", "تم إضافة المورد"),
+      title: translate("Fournisseur ajouté", "تمت إضافة المورد"),
       description: translate("Sauvegardé localement", "تم الحفظ محلياً"),
     })
     return
@@ -80,7 +80,7 @@ export async function saveSupplier({
       setShowSupplierDialog(false)
       setSupplierForm({ name: "", contactPerson: "", phone: "", email: "", address: "" })
       toast({
-        title: translate("Fournisseur ajouté", "تم إضافة المورد"),
+        title: translate("Fournisseur ajouté", "تمت إضافة المورد"),
         description: translate("Le fournisseur a été ajouté avec succès", "تمت إضافة المورد بنجاح."),
       })
     } else {

@@ -346,7 +346,7 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4" id="report-content">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{translate("Rapports & Analytics", "التقارير والتحليلات")}</h2>
+        <h2 className="text-2xl font-bold">{translate("Rapports & analyses", "التقارير والتحليلات")}</h2>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleExportCSV}>
             <Download className="w-4 h-4 mr-2" />
@@ -362,7 +362,7 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>{translate("Filtres", "المرشحات")}</CardTitle>
+          <CardTitle>{translate("Filtres", "التصفية")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -390,8 +390,8 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
                   <SelectItem value="today">{translate("Aujourd'hui", "اليوم")}</SelectItem>
                   <SelectItem value="yesterday">{translate("Hier", "أمس")}</SelectItem>
                   <SelectItem value="last7">{translate("7 derniers jours", "آخر 7 أيام")}</SelectItem>
-                  <SelectItem value="last30">{translate("30 derniers jours", "آخر 30 يوم")}</SelectItem>
-                  <SelectItem value="last90">{translate("90 derniers jours", "آخر 90 يوم")}</SelectItem>
+                  <SelectItem value="last30">{translate("30 derniers jours", "آخر 30 يومًا")}</SelectItem>
+                  <SelectItem value="last90">{translate("90 derniers jours", "آخر 90 يومًا")}</SelectItem>
                   <SelectItem value="thisMonth">{translate("Ce mois", "هذا الشهر")}</SelectItem>
                   <SelectItem value="lastMonth">{translate("Mois dernier", "الشهر الماضي")}</SelectItem>
                   <SelectItem value="thisYear">{translate("Cette année", "هذه السنة")}</SelectItem>
@@ -549,7 +549,7 @@ export function ReportsTab({ sales, products, translate }: ReportsTabProps) {
       {reportType === "customers" && (
         <Card>
           <CardHeader>
-            <CardTitle>{translate("Top clients", "أفضل العملاء")}</CardTitle>
+            <CardTitle>{translate("Meilleurs clients", "أفضل العملاء")}</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -700,7 +700,7 @@ function EngineFigures({ report: r, translate }: { report: Report; translate: (f
           <CardHeader><CardTitle>{translate("Par caissier", "حسب البائع")}</CardTitle></CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead>{translate("Caissier", "البائع")}</TableHead><TableHead>{translate("Ventes", "المبيعات")}</TableHead><TableHead>{translate("CA net", "صافي")}</TableHead><TableHead>{translate("Remises", "الخصومات")}</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>{translate("Caissier", "البائع")}</TableHead><TableHead>{translate("Ventes", "المبيعات")}</TableHead><TableHead>{translate("CA net", "صافي المبيعات")}</TableHead><TableHead>{translate("Remises", "الخصومات")}</TableHead></TableRow></TableHeader>
               <TableBody>{r.cashiers.map((c) => <TableRow key={c.name}><TableCell>{c.name}</TableCell><TableCell>{c.count}</TableCell><TableCell>{da(c.revenue)}</TableCell><TableCell>{da(c.discounts)}</TableCell></TableRow>)}</TableBody>
             </Table>
           </CardContent>
@@ -709,7 +709,7 @@ function EngineFigures({ report: r, translate }: { report: Report; translate: (f
           <CardHeader><CardTitle>{translate("Par catégorie", "حسب الصنف")}</CardTitle></CardHeader>
           <CardContent>
             <Table>
-              <TableHeader><TableRow><TableHead>{translate("Catégorie", "الصنف")}</TableHead><TableHead>{translate("Qté", "الكمية")}</TableHead><TableHead>{translate("CA net", "صافي")}</TableHead><TableHead>{translate("Marge", "الهامش")}</TableHead></TableRow></TableHeader>
+              <TableHeader><TableRow><TableHead>{translate("Catégorie", "الصنف")}</TableHead><TableHead>{translate("Qté", "الكمية")}</TableHead><TableHead>{translate("CA net", "صافي المبيعات")}</TableHead><TableHead>{translate("Marge", "الهامش")}</TableHead></TableRow></TableHeader>
               <TableBody>{r.categories.map((c) => <TableRow key={c.category}><TableCell>{c.category || translate("Sans catégorie", "بدون صنف")}</TableCell><TableCell>{c.qty}</TableCell><TableCell>{da(c.revenue)}</TableCell><TableCell>{da(c.margin)}</TableCell></TableRow>)}</TableBody>
             </Table>
           </CardContent>

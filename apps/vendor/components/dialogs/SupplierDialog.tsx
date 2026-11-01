@@ -29,21 +29,21 @@ export function SupplierDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{translate("Ajouter un Fournisseur", "إضافة مورد")}</DialogTitle>
+          <DialogTitle>{translate("Ajouter un fournisseur", "إضافة مورد")}</DialogTitle>
           <DialogDescription>
             {translate("Ajoutez un nouveau fournisseur pour gérer vos approvisionnements", "أضف مورداً جديداً لإدارة التوريدات الخاصة بك")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{translate("Nom de l'Entreprise", "اسم الشركة")}</Label>
+            <Label>{translate("Nom de l'entreprise", "اسم الشركة")}</Label>
             <Input
               value={supplierForm.name}
               onChange={(e: ChangeEvent<HTMLInputElement>) => onFormChange({ ...supplierForm, name: e.target.value })}
             />
           </div>
           <div className="space-y-2">
-            <Label>{translate("Personne de Contact", "الشخص المسؤول")}</Label>
+            <Label>{translate("Personne de contact", "الشخص المسؤول")}</Label>
             <Input
               value={supplierForm.contactPerson}
               onChange={(e) => onFormChange({ ...supplierForm, contactPerson: e.target.value })}

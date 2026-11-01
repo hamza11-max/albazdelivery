@@ -115,7 +115,7 @@ export function StaffPermissionsTab({
     setShowStaffDialog(true)
   }
   const handleDeleteStaff = (id: string) => {
-    if (confirm(translate("Êtes-vous sûr de vouloir supprimer ce membre du personnel?", "هل أنت متأكد من حذف هذا الموظف?"))) {
+    if (confirm(translate("Êtes-vous sûr de vouloir supprimer ce membre du personnel ?", "هل أنت متأكد من حذف هذا الموظف؟"))) {
       const updated = staff.filter((s) => s.id !== id)
       setStaff(updated)
       localStorage.setItem("vendor-staff", JSON.stringify(updated))
@@ -191,7 +191,7 @@ export function StaffPermissionsTab({
 
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-      <h2 className="text-2xl font-bold">{translate("Personnel & Permissions", "الموظفون والصلاحيات")}</h2>
+      <h2 className="text-2xl font-bold">{translate("Personnel & permissions", "الموظفون والصلاحيات")}</h2>
 
       {/* Electron: Comptes du personnel (device staff with PIN) */}
       {isElectronRuntime && onElectronStaffFormChange && onAddElectronStaff && onRemoveElectronStaff && (
@@ -236,7 +236,7 @@ export function StaffPermissionsTab({
                   onChange={(e) => onElectronStaffFormChange((prev) => ({ ...prev, role: e.target.value }))}
                 >
                   <option value="owner">{translate("Propriétaire", "مالك")}</option>
-                  <option value="manager">{translate("Manager", "مدير")}</option>
+                  <option value="manager">{translate("Gérant", "مدير")}</option>
                   <option value="cashier">{translate("Caissier", "أمين صندوق")}</option>
                 </select>
               </div>
@@ -343,7 +343,7 @@ export function StaffPermissionsTab({
             <DialogHeader>
               <DialogTitle>{translate("Confirmer la réinitialisation", "تأكيد إعادة التعيين")}</DialogTitle>
               <DialogDescription>
-                {translate("Réinitialiser le PIN de ce membre du personnel ?", "هل تريد إعادة تعيين رقم PIN لهذا الموظف؟")}
+                {translate("Réinitialiser le PIN de ce membre du personnel ?", "هل تريد إعادة تعيين رقم PIN لهذا الموظف؟")}
               </DialogDescription>
             </DialogHeader>
             <div className="text-sm text-muted-foreground">{electronPinResetTarget.name || translate("Compte sélectionné", "الحساب المحدد")}</div>
@@ -375,7 +375,7 @@ export function StaffPermissionsTab({
           {staff.length === 0 ? (
             <div className="text-center py-8">
               <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground mb-4">{translate("Aucun membre du personnel", "لا يوجد موظفين")}</p>
+              <p className="text-muted-foreground mb-4">{translate("Aucun membre du personnel", "لا يوجد موظفون")}</p>
               <p className="text-xs text-muted-foreground">
                 {translate("Ajoutez des membres via la boîte de dialogue du personnel.", "أضف الموظفين من خلال مربع حوار الموظفين.")}
               </p>
@@ -422,7 +422,7 @@ export function StaffPermissionsTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="w-5 h-5" />
-            {translate("Rôles et Permissions", "الأدوار والصلاحيات")}
+            {translate("Rôles et permissions", "الأدوار والصلاحيات")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -479,7 +479,7 @@ export function StaffPermissionsTab({
       <Dialog open={showPermissionsDialog} onOpenChange={setShowPermissionsDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{translate("Modifier les Permissions", "تعديل الصلاحيات")} - {editingStaff?.name}</DialogTitle>
+            <DialogTitle>{translate("Modifier les permissions", "تعديل الصلاحيات")} - {editingStaff?.name}</DialogTitle>
             <DialogDescription>{translate("Personnalisez les permissions pour ce membre du personnel.", "قم بتخصيص الصلاحيات لهذا الموظف.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

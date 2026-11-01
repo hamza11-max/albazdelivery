@@ -80,7 +80,7 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
   }
 
   const handleDeleteTier = (tierId: string) => {
-    if (confirm(translate("Êtes-vous sûr de vouloir supprimer ce niveau?", "هل أنت متأكد من حذف هذا المستوى?"))) {
+    if (confirm(translate("Êtes-vous sûr de vouloir supprimer ce niveau ?", "هل أنت متأكد من حذف هذا المستوى؟"))) {
       const updated = tiers.filter((t) => t.id !== tierId)
       setTiers(updated)
       saveLoyaltyTiers(updated)
@@ -130,7 +130,7 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
 
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-      <h2 className="text-2xl font-bold">{translate("Programme de Fidélité", "برنامج الولاء")}</h2>
+      <h2 className="text-2xl font-bold">{translate("Programme de fidélité", "برنامج الولاء")}</h2>
 
       <Tabs defaultValue="customers" className="space-y-4">
         <TabsList>
@@ -154,7 +154,7 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                {translate("Clients Fidèles", "العملاء المخلصون")}
+                {translate("Clients fidèles", "العملاء المخلصون")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -169,8 +169,8 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
                       <TableHead>{translate("Client", "العميل")}</TableHead>
                       <TableHead>{translate("Points", "النقاط")}</TableHead>
                       <TableHead>{translate("Niveau", "المستوى")}</TableHead>
-                      <TableHead>{translate("Dépenses", "المصروفات")}</TableHead>
-                      <TableHead>{translate("Dernière achat", "آخر شراء")}</TableHead>
+                      <TableHead>{translate("Dépenses", "الإنفاق")}</TableHead>
+                      <TableHead>{translate("Dernier achat", "آخر شراء")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -212,7 +212,7 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Award className="w-5 h-5" />
-                  {translate("Niveaux de Fidélité", "مستويات الولاء")}
+                  {translate("Niveaux de fidélité", "مستويات الولاء")}
                 </CardTitle>
                 <Button onClick={() => {
                   setEditingTier(null)
@@ -273,7 +273,7 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Settings className="w-5 h-5" />
-                  {translate("Règles de Points", "قواعد النقاط")}
+                  {translate("Règles de points", "قواعد النقاط")}
                 </CardTitle>
                 <Button onClick={() => {
                   setEditingRule(null)
@@ -341,7 +341,7 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
               <Input
                 value={tierForm.name || ''}
                 onChange={(e) => setTierForm({ ...tierForm, name: e.target.value })}
-                placeholder={translate("Ex: Or", "مثال: ذهبي")}
+                placeholder={translate("Ex : Or", "مثال: ذهبي")}
               />
             </div>
             <div className="space-y-2">
@@ -402,7 +402,7 @@ export function LoyaltyTab({ translate }: LoyaltyTabProps) {
               <Input
                 value={ruleForm.name || ''}
                 onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })}
-                placeholder={translate("Ex: Règle standard", "مثال: قاعدة قياسية")}
+                placeholder={translate("Ex : Règle standard", "مثال: قاعدة قياسية")}
               />
             </div>
             <div className="space-y-2">

@@ -81,7 +81,7 @@ export function EmailTab({ translate }: EmailTabProps) {
 
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-      <h2 className="text-2xl font-bold">{translate("Configuration Email", "إعدادات البريد الإلكتروني")}</h2>
+      <h2 className="text-2xl font-bold">{translate("Configuration e-mail", "إعدادات البريد الإلكتروني")}</h2>
 
       {/* Email Settings */}
       <Card>

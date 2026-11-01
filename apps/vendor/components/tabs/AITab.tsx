@@ -22,7 +22,7 @@ export function AITab({
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex items-center gap-2">
         <Sparkles className="w-6 h-6 text-purple-500" />
-        <h2 className="text-2xl font-bold">{translate("Insights Alimentés par l'IA", "رؤى مدعومة بالذكاء الاصطناعي")}</h2>
+        <h2 className="text-2xl font-bold">{translate("Analyses par l'IA", "رؤى مدعومة بالذكاء الاصطناعي")}</h2>
       </div>
 
       {/* Sales Forecast */}
@@ -30,7 +30,7 @@ export function AITab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
-            {translate("Prévisions des Ventes", "توقعات المبيعات")}
+            {translate("Prévisions des ventes", "توقعات المبيعات")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -38,11 +38,11 @@ export function AITab({
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{translate("Semaine Prochaine", "الأسبوع القادم")}</p>
+                  <p className="text-sm text-muted-foreground mb-1">{translate("Semaine prochaine", "الأسبوع القادم")}</p>
                   <p className="text-2xl font-bold">{salesForecast.week?.toFixed(2)} {translate("DZD", "دج")}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground mb-1">{translate("Mois Prochain", "الشهر القادم")}</p>
+                  <p className="text-sm text-muted-foreground mb-1">{translate("Mois prochain", "الشهر القادم")}</p>
                   <p className="text-2xl font-bold">{salesForecast.month?.toFixed(2)} {translate("DZD", "دج")}</p>
                 </div>
               </div>
@@ -75,7 +75,7 @@ export function AITab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            {translate("Recommandations de Stock", "توصيات المخزون")}
+            {translate("Recommandations de stock", "توصيات المخزون")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -104,7 +104,7 @@ export function AITab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShoppingBag className="w-5 h-5" />
-            {translate("Suggestions de Bundles", "اقتراحات الباقات")}
+            {translate("Suggestions de lots", "اقتراحات الباقات")}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -112,7 +112,7 @@ export function AITab({
             <div className="space-y-3">
               {productBundles.map((bundle, index) => (
                 <div key={index} className="p-3 bg-muted rounded-lg">
-                  <p className="font-medium mb-2">{translate("Bundle", "باقة")} #{index + 1}</p>
+                  <p className="font-medium mb-2">{translate("Lot", "باقة")} #{index + 1}</p>
                   <p className="text-sm text-muted-foreground mb-2">
                     {translate("Acheté ensemble", "تم شراؤه معاً")} {bundle.frequency} {translate("fois", "مرة")}
                   </p>
@@ -124,7 +124,7 @@ export function AITab({
             </div>
           ) : (
             <p className="text-muted-foreground">
-              {translate("Aucune suggestion de bundle pour le moment", "لا توجد اقتراحات باقات في الوقت الحالي")}
+              {translate("Aucune suggestion de lot pour le moment", "لا توجد اقتراحات باقات في الوقت الحالي")}
             </p>
           )}
         </CardContent>

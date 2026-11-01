@@ -20,10 +20,10 @@ export function SuppliersTab({
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{translate("Gestion des Fournisseurs", "إدارة الموردين")}</h2>
+        <h2 className="text-2xl font-bold">{translate("Gestion des fournisseurs", "إدارة الموردين")}</h2>
         <Button onClick={() => setShowSupplierDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
-          {translate("Ajouter un Fournisseur", "إضافة مورد")}
+          {translate("Ajouter un fournisseur", "إضافة مورد")}
         </Button>
       </div>
 
@@ -74,7 +74,7 @@ export function SuppliersTab({
             </p>
             <Button onClick={() => setShowSupplierDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              {translate("Ajouter votre premier fournisseur", "أضف أول مورد لك")}
+              {translate("Ajoutez votre premier fournisseur", "أضف أول مورد لك")}
             </Button>
           </CardContent>
         </Card>

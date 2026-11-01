@@ -94,7 +94,7 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
         const stats = await (window as any).electronAPI.offline.syncNow()
         setOfflinePendingCount(typeof stats?.pendingSales === "number" ? stats.pendingSales : 0)
         if (stats?.syncedSales > 0) {
-          toast({ title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"), description: translate(`${stats.syncedSales} vente(s) envoyée(s)`, "تم إرسال عملية البيع") })
+          toast({ title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"), description: translate(`${stats.syncedSales} vente(s) envoyée(s)`, "تم إرسال ${stats.syncedSales} عملية بيع") })
           window.dispatchEvent(new CustomEvent("vendor-refresh-data"))
         }
       } else if (isOnline) {
@@ -118,7 +118,7 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
         localStorage.setItem("offline-sales-queue", JSON.stringify(remaining))
         setOfflinePendingCount(remaining.length)
         if (synced > 0) {
-          toast({ title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"), description: translate(`${synced} vente(s) envoyée(s)`, "تم إرسال عملية البيع") })
+          toast({ title: translate("Ventes synchronisées", "تمت مزامنة المبيعات"), description: translate(`${synced} vente(s) envoyée(s)`, "تم إرسال ${synced} عملية بيع") })
           window.dispatchEvent(new CustomEvent("vendor-refresh-data"))
         }
       }
@@ -151,7 +151,7 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
       toast({ title: translate("Synchronisation automatique activée", "تم تفعيل المزامنة التلقائية") })
     } else {
       syncManager.stopAutoSync()
-      toast({ title: translate("Synchronisation automatique désactivée", "تم إلغاء تفعيل المزامنة التلقائية") })
+      toast({ title: translate("Synchronisation automatique désactivée", "تم تعطيل المزامنة التلقائية") })
     }
   }
 
@@ -230,7 +230,7 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
       const backupData = await uploadBackup(selectedFile)
       const result = restoreBackup(backupData)
       if (result.success) {
-        toast({ title: translate("Sauvegarde restaurée", "تم استعادة النسخة الاحتياطية") })
+        toast({ title: translate("Sauvegarde restaurée", "تمت استعادة النسخة الاحتياطية") })
         setBackupInfo(getBackupInfo())
         setSelectedFile(null)
         setTimeout(() => window.location.reload(), 1000)
@@ -256,14 +256,14 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
 
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-      <h2 className="text-2xl font-bold">{translate("Sync & Sauvegarde", "المزامنة والنسخ الاحتياطي")}</h2>
+      <h2 className="text-2xl font-bold">{translate("Synchronisation & sauvegarde", "المزامنة والنسخ الاحتياطي")}</h2>
 
       {/* Sync Cloud */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             {isOnline ? <Wifi className="w-5 h-5 text-green-500" /> : <WifiOff className="w-5 h-5 text-red-500" />}
-            {translate("Synchronisation Cloud", "المزامنة السحابية")}
+            {translate("Synchronisation cloud", "المزامنة السحابية")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -283,7 +283,7 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
               {translate("Récupérer du cloud", "استرجاع من السحابة")}
             </Button>
           </div>
-          {syncStatus.lastSync && <p className="text-sm text-muted-foreground">{translate("Dernière sync", "آخر مزامنة")}: {formatLastSync(syncStatus.lastSync)}</p>}
+          {syncStatus.lastSync && <p className="text-sm text-muted-foreground">{translate("Dernière synchronisation", "آخر مزامنة")}: {formatLastSync(syncStatus.lastSync)}</p>}
           {syncStatus.pendingChanges > 0 && (
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center gap-2">
               <Clock className="w-4 h-4 text-blue-600" />
@@ -327,7 +327,7 @@ export function SyncSaveTab({ translate, vendorId }: SyncSaveTabProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Database className="w-5 h-5" />
-            {translate("Sauvegarde & Restauration", "النسخ الاحتياطي والاستعادة")}
+            {translate("Sauvegarde & restauration", "النسخ الاحتياطي والاستعادة")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

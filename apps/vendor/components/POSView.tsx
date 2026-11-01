@@ -499,7 +499,7 @@ export function POSView({
               <Label htmlFor="custom-item-name">{translate("Nom de l'article", "اسم العنصر")}</Label>
               <Input
                 id="custom-item-name"
-                placeholder={translate("Ex: Service spécial", "مثال: خدمة خاصة")}
+                placeholder={translate("Ex : Service spécial", "مثال: خدمة خاصة")}
                 value={customItemName}
                 onChange={(e) => setCustomItemName(e.target.value)}
                 autoFocus

@@ -374,7 +374,7 @@ export function VendorDomainsCard({
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {t(
-                    "Utilisez uniquement lettres, chiffres et tirets. Exemple: demo.",
+                    "Utilisez uniquement lettres, chiffres et tirets. Exemple : demo.",
                     "استخدم الأحرف والأرقام والشرطة فقط. مثال: demo."
                   )}
                 </p>

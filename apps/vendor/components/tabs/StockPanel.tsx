@@ -263,15 +263,15 @@ function Count({ translate, toast, onDone }: { translate: StockPanelProps["trans
           </TableBody>
         </Table>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-sm text-muted-foreground">{differences.length} {translate("écart(s) à corriger", "فرق للتصحيح")}</span>
+          <span className="text-sm text-muted-foreground">{differences.length} {translate("écart(s) à corriger", "فروق للتصحيح")}</span>
           <div className="flex gap-2">
             <Button variant="outline" disabled={busy} onClick={() => run(async () => {
-              if (!window.confirm(translate("Annuler cet inventaire ? Rien ne sera modifié.", "إلغاء هذا الجرد؟ لن يتغير شيء."))) return
+              if (!window.confirm(translate("Annuler cet inventaire ? Rien ne sera modifié.", "إلغاء هذا الجرد؟ لن يتغير شيء."))) return
               await engine("stock:countCancel", { countId: count.id })
               setCount(null)
             })}>{translate("Annuler", "إلغاء")}</Button>
             <Button disabled={busy || counted.length === 0} onClick={() => run(async () => {
-              if (!window.confirm(translate(`Corriger ${differences.length} produit(s) ?`, `تصحيح ${differences.length} منتج؟`))) return
+              if (!window.confirm(translate(`Corriger ${differences.length} produit(s) ?`, `تصحيح ${differences.length} منتج؟`))) return
               const r = await engine("stock:countFinish", { countId: count.id })
               toast({ title: translate("Inventaire terminé", "انتهى الجرد"), description: translate(`${r.adjusted} produits corrigés (${r.unitsDelta >= 0 ? "+" : ""}${r.unitsDelta})`, `تم تصحيح ${r.adjusted} منتج (${r.unitsDelta >= 0 ? "+" : ""}${r.unitsDelta})`) })
               setCount(null)

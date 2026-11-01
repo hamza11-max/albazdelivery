@@ -130,7 +130,7 @@ export function OrdersTab({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold">
-            {translate("Gestion des Commandes", "إدارة الطلبات")}
+            {translate("Gestion des commandes", "إدارة الطلبات")}
           </h2>
           <p className="text-sm text-muted-foreground">
             {translate(
@@ -165,7 +165,7 @@ export function OrdersTab({
 
       {filterCustomerId && onClearCustomerFilter && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          <span>{translate("Filtre : commandes de ce client uniquement", "تصفية: طلبات هذا العميل فقط")}</span>
+          <span>{translate("Filtre : commandes de ce client uniquement", "تصفية: طلبات هذا العميل فقط")}</span>
           <Button type="button" variant="ghost" size="sm" className="h-8 gap-1" onClick={onClearCustomerFilter}>
             <X className="h-3.5 w-3.5" />
             {translate("Effacer", "إلغاء التصفية")}
@@ -245,7 +245,7 @@ export function OrdersTab({
                               {new Date(order.createdAt || Date.now()).toLocaleString("fr-FR")}
                             </p>
                             <p>
-                              <strong>{translate("ETA préparation", "الوقت المقدر للتحضير")}:</strong>{" "}
+                              <strong>{translate("Préparation prévue", "الوقت المقدر للتحضير")}:</strong>{" "}
                               {isNaN(eta.getTime()) ? translate("N/A", "غير متاح") : eta.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                             </p>
                             <div className="mt-2">

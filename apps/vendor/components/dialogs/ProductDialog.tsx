@@ -35,7 +35,7 @@ export function ProductDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl bg-white dark:bg-gray-900">
         <DialogHeader>
-          <DialogTitle>{editingProduct ? translate("Modifier le Produit", "تعديل المنتج") : translate("Ajouter un Produit", "إضافة منتج")}</DialogTitle>
+          <DialogTitle>{editingProduct ? translate("Modifier le produit", "تعديل المنتج") : translate("Ajouter un produit", "إضافة منتج")}</DialogTitle>
           <DialogDescription>
             {editingProduct 
               ? translate("Modifiez les informations du produit", "قم بتعديل معلومات المنتج")
@@ -66,7 +66,7 @@ export function ProductDialog({
           </div>
           <div className="space-y-2">
             <Label className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <span>{translate("Code-barres", "الرمز الشريطي")}</span>
+              <span>{translate("Code-barres", "الباركود")}</span>
               {onScanBarcode && (
                 <Button type="button" variant="outline" size="sm" onClick={onScanBarcode} className="h-9 w-full px-3 sm:w-auto">
                   <ScanLine className="w-4 h-4 mr-1" />
@@ -113,7 +113,7 @@ export function ProductDialog({
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <Label>{translate("Photo du Produit", "صورة المنتج")}</Label>
+            <Label>{translate("Photo du produit", "صورة المنتج")}</Label>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               {onFileUpload ? (
                 <Input
@@ -145,8 +145,8 @@ export function ProductDialog({
             </div>
             <p className="text-xs text-muted-foreground">
               {translate(
-                "Téléchargez une image du produit. Cette photo sera visible dans l'inventaire et pour les clients.",
-                "قم بتحميل صورة المنتج. ستكون هذه الصورة مرئية في المخزون وللعملاء."
+                "Ajoutez une photo du produit. Elle sera visible dans l'inventaire et pour les clients.",
+                "أضف صورة للمنتج. ستظهر في المخزون وللعملاء."
               )}
             </p>
             {productForm.image && (

@@ -55,7 +55,7 @@ export function useBarcodeScanner({
       })
     } else {
       toast({
-        title: translate("Code-barres inconnu", "رمز غير معروف"),
+        title: translate("Code-barres inconnu", "باركود غير معروف"),
         description: `${rawValue} — ` + translate(
           "Aucun produit correspondant.",
           "لا يوجد منتج مطابق."

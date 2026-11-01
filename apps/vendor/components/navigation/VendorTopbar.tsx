@@ -129,7 +129,7 @@ export function VendorTopbar({
             />
           </Link>
           <div className="hidden min-w-0 truncate text-sm font-semibold text-foreground min-[420px]:block">
-            {translate("AlBaz Vendor", "الباز للبائع")}
+            {translate("AlBaz Vendor", "الباز للتجار")}
           </div>
         </div>
 
@@ -197,7 +197,7 @@ export function VendorTopbar({
           )}
         >
           {isElectronRuntime && (
-            <TopIconButton title={translate("Minimiser", "تصغير")} onClick={onMinimize}>
+            <TopIconButton title={translate("Réduire", "تصغير")} onClick={onMinimize}>
               <Minimize2 className={navIconSize} strokeWidth={strokeNav} />
             </TopIconButton>
           )}

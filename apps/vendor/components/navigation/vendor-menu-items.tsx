@@ -33,7 +33,7 @@ export interface VendorMenuItem {
 export const vendorMenuItems: VendorMenuItem[] = [
   { id: "dashboard", icon: LayoutDashboard, labelFr: "Tableau de bord", labelAr: "لوحة التحكم" },
   { id: "inventory", icon: Package, labelFr: "Inventaire", labelAr: "المخزون" },
-  { id: "pos", icon: ShoppingCart, labelFr: "Point de Vente", labelAr: "نقطة البيع" },
+  { id: "pos", icon: ShoppingCart, labelFr: "Point de vente", labelAr: "نقطة البيع" },
   { id: "orders", icon: ShoppingBag, labelFr: "Commandes", labelAr: "الطلبات" },
   { id: "kitchen", icon: ChefHat, labelFr: "Cuisine (KDS)", labelAr: "المطبخ (شاشة المطبخ)" },
   { id: "dine-qr", icon: QrCode, labelFr: "QR tables & invités", labelAr: "طاولات QR والضيوف" },
@@ -41,7 +41,7 @@ export const vendorMenuItems: VendorMenuItem[] = [
   { id: "sales", icon: History, labelFr: "Ventes", labelAr: "المبيعات" },
   { id: "reports", icon: BarChart3, labelFr: "Rapports", labelAr: "التقارير" },
   { id: "coupons", icon: Percent, labelFr: "Coupons", labelAr: "الكوبونات" },
-  { id: "sync-save", icon: Cloud, labelFr: "Sync & Sauvegarde", labelAr: "المزامنة والنسخ الاحتياطي" },
+  { id: "sync-save", icon: Cloud, labelFr: "Synchronisation & sauvegarde", labelAr: "المزامنة والنسخ الاحتياطي" },
   { id: "email", icon: Mail, labelFr: "Email", labelAr: "البريد الإلكتروني" },
   {
     id: "storefront",
@@ -49,7 +49,7 @@ export const vendorMenuItems: VendorMenuItem[] = [
     labelFr: "Vitrine en ligne",
     labelAr: "واجهة الويب العامة",
   },
-  { id: "staff-permissions", icon: Shield, labelFr: "Personnel & Permissions", labelAr: "الموظفون والصلاحيات" },
+  { id: "staff-permissions", icon: Shield, labelFr: "Personnel & permissions", labelAr: "الموظفون والصلاحيات" },
   { id: "clients-loyalty", icon: Gift, labelFr: "Clients & Fidélité", labelAr: "العملاء والولاء" },
   { id: "drivers", icon: UserCog, labelFr: "Chauffeurs", labelAr: "السائقون" },
   { id: "suppliers", icon: Truck, labelFr: "Fournisseurs", labelAr: "الموردون" },

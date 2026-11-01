@@ -84,10 +84,10 @@ export function CustomersTab({
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{translate("Gestion des Clients", "إدارة العملاء")}</h2>
+        <h2 className="text-2xl font-bold">{translate("Gestion des clients", "إدارة العملاء")}</h2>
         <Button onClick={() => setShowCustomerDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
-          {translate("Ajouter un Client", "إضافة عميل")}
+          {translate("Ajouter un client", "إضافة عميل")}
         </Button>
       </div>
 
@@ -164,7 +164,7 @@ export function CustomersTab({
             </p>
             <Button onClick={() => setShowCustomerDialog(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              {translate("Ajouter votre premier client", "أضف أول عميل لك")}
+              {translate("Ajoutez votre premier client", "أضف أول عميل لك")}
             </Button>
           </CardContent>
         </Card>
