@@ -61,8 +61,10 @@ test('a credit sale needs a customer, goes on their account and stays within the
   await assert.rejects(sell({ tenders: [{ method: 'CREDIT', amount: 5000 }] }), code('CREDIT_NEEDS_CUSTOMER'))
   const c = customer({ creditLimit: 6000 })
   // Part cash, part on account.
-  await sell({ customerId: c.id, tenders: [{ method: 'CASH', amount: 1000 }, { method: 'CREDIT', amount: 4000 }] })
+  const part = await sell({ customerId: c.id, tenders: [{ method: 'CASH', amount: 1000 }, { method: 'CREDIT', amount: 4000 }] })
   assert.equal(customers.get(c.id).balance, 4000)
+  // The receipt shows the customer and what went on their account.
+  assert.deepEqual([part.receipt.customer, part.receipt.credit, part.receipt.cashTendered], ['Fatima', 4000, 1000])
   await assert.rejects(sell({ customerId: c.id, tenders: [{ method: 'CREDIT', amount: 5000 }] }), (e: unknown) => code('CREDIT_LIMIT')(e) && (e as Error).message === '2000')
   assert.equal(shifts.expectedCash(shifts.requireOpen()), 1000, 'only the cash part is in the drawer')
   assert.deepEqual(customers.ledger(c.id).map((l) => [l.type, l.amount, l.balanceAfter]), [['CREDIT_SALE', 4000, 4000]])

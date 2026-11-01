@@ -269,6 +269,11 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
       const cashMoved = data.cashTendered > 0 || (data.kind === 'RETURN' && sales.detail(saleId).payments.some((p) => p.method === 'CASH'))
       return printOnReceiptPrinter(receiptHtml(data, { lang: s.lang, paper: s.paper }), s.openDrawer && cashMoved)
     },
+    'sell:receiptImage': async ({ saleId }) => {
+      const s = salesSettings(db).receipt
+      const mono = monochrome(await renderPaperImage(receiptHtml(sales.receiptData(saleId), { lang: s.lang, paper: s.paper }), s.paper))
+      return { dataUrl: monoToImage(mono).toDataURL(), width: mono.width, height: mono.height }
+    },
     'sales:history': (query) => sales.history(query),
     'sales:detail': ({ id }) => sales.detail(id),
     'sales:findByNumber': ({ number }) => sales.findByNumber(number),

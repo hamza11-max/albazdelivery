@@ -336,6 +336,8 @@ export const inputs = {
   'catalog:archiveItem': z.object({ variantId: id }),
   'stock:adjust': z.object({ variantId: id, newQty: stockQty, reason: z.string().trim().min(1).max(80) }),
   'sales:recent': z.object({ days: z.number().int().min(1).max(400).default(90) }),
+  /** The sale's receipt exactly as it prints (shop settings, black and white), for the screen. */
+  'sell:receiptImage': z.object({ saleId: id }),
   'stock:receive': stockReceiptInput,
   'stock:low': z.undefined(),
   'stock:movements': z.object({ variantId: id.optional(), limit: z.number().int().min(1).max(1000).default(200) }),
@@ -528,6 +530,7 @@ export interface Outputs {
   'catalog:archiveItem': null
   'stock:adjust': { stock: number; delta: number }
   'sales:recent': RecentSale[]
+  'sell:receiptImage': { dataUrl: string; width: number; height: number }
   'stock:receive': { receiptId: string; units: number; totalCost: number }
   'stock:low': FlatItem[]
   'stock:movements': StockMovementRow[]
@@ -660,6 +663,10 @@ export interface ReceiptData {
   /** Cash handed over (before change) and card amount. */
   cashTendered: number
   card: number
+  /** Put on the customer's account (credit sale) or back on it (credit refund). */
+  credit: number
+  /** The sale's customer, if any. */
+  customer: string
   change: number
 }
 

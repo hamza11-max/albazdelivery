@@ -160,10 +160,11 @@ export class SalesService {
     const sale = this.db
       .prepare(
         `SELECT s.type, s.number, s.created_at, s.subtotal, s.discount_total, s.total, s.paid_total, s.change_given, u.name AS cashier,
-                coalesce(o.number, '') AS original_number
-         FROM sales s JOIN users u ON u.id = s.user_id LEFT JOIN sales o ON o.id = s.original_sale_id WHERE s.id = ?`,
+                coalesce(o.number, '') AS original_number, coalesce(c.name, '') AS customer
+         FROM sales s JOIN users u ON u.id = s.user_id LEFT JOIN sales o ON o.id = s.original_sale_id
+         LEFT JOIN customers c ON c.id = s.customer_id WHERE s.id = ?`,
       )
-      .get(saleId) as { type: 'SALE' | 'RETURN'; number: string; created_at: string; subtotal: number; discount_total: number; total: number; paid_total: number; change_given: number; cashier: string; original_number: string } | undefined
+      .get(saleId) as { type: 'SALE' | 'RETURN'; number: string; created_at: string; subtotal: number; discount_total: number; total: number; paid_total: number; change_given: number; cashier: string; original_number: string; customer: string } | undefined
     if (!sale) throw new AppError('NOT_FOUND', 'Sale not found')
     const shop = this.db.prepare("SELECT name, phone, address, receipt_footer FROM shop WHERE id = 'shop'").get() as { name: string; phone: string | null; address: string | null; receipt_footer: string | null }
     const lines = this.db
@@ -177,10 +178,11 @@ export class SalesService {
     const pay = this.db
       .prepare(
         `SELECT coalesce(SUM(CASE WHEN method = 'CASH' THEN amount END), 0) AS cash,
-                coalesce(SUM(CASE WHEN method = 'CARD_EXTERNAL' THEN amount END), 0) AS card
+                coalesce(SUM(CASE WHEN method = 'CARD_EXTERNAL' THEN amount END), 0) AS card,
+                coalesce(SUM(CASE WHEN method = 'CREDIT' THEN amount END), 0) AS credit
          FROM payments WHERE sale_id = ?`,
       )
-      .get(saleId) as { cash: number; card: number }
+      .get(saleId) as { cash: number; card: number; credit: number }
     const isReturn = sale.type === 'RETURN'
     return {
       kind: sale.type,
@@ -195,7 +197,9 @@ export class SalesService {
       discountTotal: sale.discount_total,
       total: sale.total,
       cashTendered: pay.cash > 0 ? pay.cash + sale.change_given : 0,
-      card: pay.card,
+      card: Math.abs(pay.card),
+      credit: Math.abs(pay.credit),
+      customer: sale.customer,
       change: sale.change_given,
     }
   }

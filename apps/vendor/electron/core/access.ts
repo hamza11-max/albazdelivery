@@ -79,6 +79,7 @@ export const ACCESS: Record<ChannelName, Access> = {
   // need the owner's PIN inside sell:complete.
   'sell:complete': 'user',
   'sell:printReceipt': 'user',
+  'sell:receiptImage': 'user',
   'sell:hold': 'user',
   'sell:held': 'user',
   'sell:recall': 'user',

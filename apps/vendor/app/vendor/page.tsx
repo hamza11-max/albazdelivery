@@ -119,7 +119,8 @@ import { usePOSHandlers } from "../../hooks/usePOSHandlers"
 import { LoadingScreen } from "@/root/components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisionalSale } from "../../utils/electronUtils"
-import { engineSales, hasEngine, type EngineCustomer } from "../../lib/engine"
+import { enginePrintReceipt, engineReceiptImage, engineSales, hasEngine, type EngineCustomer } from "../../lib/engine"
+import { EngineReceiptSettingsCard } from "../../components/EngineReceiptSettingsCard"
 import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
 import { VendorSecuritySettingsPanel } from "../../components/security/VendorSecuritySettingsPanel"
@@ -517,6 +518,19 @@ function VendorDashboardContent() {
   // Desktop app with the local engine (set after mount: the bridge only exists in the browser).
   const [engineMode, setEngineMode] = useState(false)
   useEffect(() => setEngineMode(hasEngine()), [])
+  // The ticket on screen is the engine's receipt image: the same as the paper one and the Settings preview.
+  const [receiptImage, setReceiptImage] = useState<string | null>(null)
+  useEffect(() => {
+    if (!engineMode || !showReceipt || !completedSale) {
+      setReceiptImage(null)
+      return
+    }
+    let live = true
+    engineReceiptImage(String(completedSale.id))
+      .then((url) => { if (live) setReceiptImage(url) })
+      .catch((e) => { if (live) setReceiptImage(null); console.error("[Vendor] receipt image", e) })
+    return () => { live = false }
+  }, [engineMode, showReceipt, completedSale])
 
   // Check Electron auth on mount and load offline data
   useEffect(() => {
@@ -3526,6 +3540,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 )}
               </p>
             )}
+            {engineMode && <EngineReceiptSettingsCard translate={translate} />}
             <VendorPrinterSettingsCard
               translate={translate}
               isElectronRuntime={isElectronRuntime}
@@ -3661,6 +3676,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
 
       {/* Receipt View */}
       <ReceiptView
+        engineImage={engineMode ? receiptImage : null}
         showReceipt={showReceipt}
         completedSale={completedSale}
         user={effectiveUser}
@@ -3673,6 +3689,16 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         shopInfo={shopInfo}
         onPrint={async () => {
           if (!completedSale) return
+          // Desktop app: the engine's thermal receipt for this sale (falls back to the HTML ticket if no printer is set).
+          if (engineMode) {
+            try {
+              const r = await enginePrintReceipt(completedSale.id)
+              if (r.printed) return
+            } catch (error) {
+              toast({ title: translate("Ticket non imprimé", "لم يُطبع الوصل"), description: error instanceof Error ? error.message : String(error), variant: "destructive" })
+              return
+            }
+          }
           const userWithExtras = effectiveUser as any
           const electronAPI = window.electronAPI
           if (isElectronRuntime && electronAPI?.print?.receipt) {

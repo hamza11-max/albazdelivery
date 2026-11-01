@@ -4,15 +4,19 @@ Decides how the POS prints receipts. Spec: `docs/PRODUCT_SPEC_AND_ANALYSIS.md` �
 
 ## Run it
 
-The receipt code is the vendor app's engine (`apps/vendor/electron/core/print`). The interactive test screen
-(print A / print B / open drawer) was built in the retired `apps/pos` app and runs the same code; use it from the
-`pos-vendor-reuse` branch:
+In the vendor desktop app: **Paramètres → Appareils → Ticket de caisse**.
 
 ```bash
-git checkout pos-vendor-reuse
 npm install
-npm run start -w @albaz/pos
+npm run electron:dev -w @albaz/vendor
 ```
+
+Choose the printer, paper and language there. In the tests below, **Print B (raster)** = mode "Image ESC/POS" +
+"Imprimer un essai", **Print A (driver)** = mode "Pilote Windows" + "Imprimer un essai", **Open drawer** = "Ouvrir le
+tiroir". After a real sale, "Imprimer le reçu" prints the same receipt with the sale's lines.
+
+Network printers (test 9) are only in the old test screen of the retired `apps/pos` app
+(`git checkout pos-vendor-reuse`, `npm run start -w @albaz/pos`); the print code is the same.
 
 Without a printer, on the current code: `npm run selftest:desktop -w @albaz/vendor` writes PNGs and raw ESC/POS `.bin`
 jobs for every language and paper width to `apps/vendor/smoke-data/selftest`.

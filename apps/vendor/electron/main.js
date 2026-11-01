@@ -1704,6 +1704,10 @@ async function runSmoketest() {
       ;(tile.closest('[class*="cursor-pointer"], button') || tile).click()
       ;(await waitFor(() => { const b = byText('button', 'À crédit'); return b && !b.disabled && b }, 'credit button')).click()
       const owed = await waitFor(async () => { const c = await call('customers:get', { id: customerId }); return c.balance > 0 && c.balance }, 'balance after credit sale')
+      // "Imprimer le reçu" shows the engine's receipt image (same as paper and the Settings preview).
+      ;(await waitFor(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Imprimer le reçu'), 'print receipt button')).click()
+      const receiptWidth = await waitFor(() => { const i = document.querySelector('[data-testid="engine-receipt-view"] img'); return i && i.naturalWidth > 0 && i.naturalWidth }, 'engine receipt on screen')
+      ;[...document.querySelectorAll('[data-testid="engine-receipt-view"] button')].find((b) => b.innerText.trim() === 'Fermer').click()
       // Clients screen: "Encaisser" takes the full amount (the prompt is answered with what is owed).
       window.prompt = (_msg, value) => value
       await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'clients-loyalty' })); return document.querySelector('[data-testid="credit-book"]') }, 'credit book')
@@ -1711,7 +1715,7 @@ async function runSmoketest() {
       const after = await waitFor(async () => { const c = await call('customers:get', { id: customerId }); return c.balance === 0 ? { balance: 0 } : null }, 'paid off')
       const ledger = await call('customers:ledger', { id: customerId })
       await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'suppliers' })); return document.querySelector('[data-testid="supplier-stats"]') }, 'supplier stats')
-      return { owed, balanceAfter: after.balance, ledger: ledger.map((l) => l.type), suppliers: document.querySelector('[data-testid="supplier-stats"]').innerText }
+      return { owed, receiptWidth, balanceAfter: after.balance, ledger: ledger.map((l) => l.type), suppliers: document.querySelector('[data-testid="supplier-stats"]').innerText }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('suppliers')
     // Reports: the screen shows engine figures, and its net revenue equals the day's recorded sales.
@@ -1739,15 +1743,40 @@ async function runSmoketest() {
       return { text: z.innerText.replace(/\\s+/g, ' '), open: status.open }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('z-report')
+    // Settings: the engine's receipt card shows a real preview; 58 mm + save is stored and re-rendered.
+    pages.receiptSettings = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const call = async (ch, input) => { const r = await window.electronAPI.core.invoke(ch, input); if (!r.ok) throw new Error(ch + ': ' + r.error.code); return r.data }
+      const waitFor = async (fn, what) => { for (let i = 0; i < 120; i++) { const v = await fn(); if (v) return v; await sleep(250) } throw new Error('not found: ' + what) }
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      const card = await waitFor(() => {
+        window.dispatchEvent(new CustomEvent('switchTab', { detail: 'settings' }))
+        // Printers live under Settings → Appareils (the "devices" sub-tab).
+        document.querySelector('[role="tab"][id$="-trigger-devices"]')?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))
+        return document.querySelector('[data-testid="engine-receipt-settings"]')
+      }, 'receipt settings card')
+      const img = await waitFor(() => { const i = card.querySelector('[data-testid="receipt-preview"]'); return i && i.naturalWidth > 0 && i }, 'preview')
+      const before = img.naturalWidth
+      const paper = [...card.querySelectorAll('select')].find((s) => [...s.options].some((o) => o.value === '58'))
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(paper, '58')
+      paper.dispatchEvent(new Event('change', { bubbles: true }))
+      ;[...card.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Enregistrer').click()
+      await waitFor(async () => (await call('settings:sales')).receipt.paper === 58, 'paper saved')
+      const after = await waitFor(() => { const i = card.querySelector('[data-testid="receipt-preview"]'); return i && i.naturalWidth > 0 && i.naturalWidth !== before && i.naturalWidth }, 'preview at 58 mm')
+      card.scrollIntoView()
+      return { before, after }
+    })()`).catch((e) => ({ error: String(e) }))
+    await capture('receipt-settings')
     clearTimeout(deadline)
     const ok = engine.items > 0 && engine.stockAfter === engine.stockBefore - 1 && engine.recent >= 1 && /-\d{6}$/.test(engine.number)
       && pages.inventory && pages.pos && pages.sales
       && pages.checkout.added === 1 && pages.checkout.stockAfter === pages.checkout.stockBefore - 1
       && pages.stock.afterCount === 2 && pages.stock.received === pages.stock.before + 5
-      && pages.credit.owed > 0 && pages.credit.balanceAfter === 0 && /Réceptions/.test(pages.credit.suppliers)
+      && pages.credit.owed > 0 && pages.credit.receiptWidth === 576 && pages.credit.balanceAfter === 0 && /Réceptions/.test(pages.credit.suppliers)
       && pages.reports.revenue > 0 && pages.reports.revenue === pages.reports.recorded && pages.reports.credit === pages.credit.owed
       && pages.saleActions.returnTotal < 0 && pages.saleActions.voided === true
       && pages.zReport.open === false && /Annulations/.test(pages.zReport.text)
+      && pages.receiptSettings.before === 576 && pages.receiptSettings.after === 384
     finish(ok, { ...engine, pages })
   } catch (e) {
     clearTimeout(deadline)

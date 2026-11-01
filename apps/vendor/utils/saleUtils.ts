@@ -5,7 +5,7 @@ import type { CartItem } from "../app/vendor/types"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
 import { getMergedLocalSalesHistory } from "./electronUtils"
 import { addLoyaltyPoints, calculatePointsEarned, getLoyaltyRules } from "./loyaltyUtils"
-import { engineCompleteSale, engineInventory, engineSales, hasEngine } from "../lib/engine"
+import { engine, engineCompleteSale, engineInventory, enginePrintReceipt, engineSales, hasEngine } from "../lib/engine"
 
 function isLikelyUnreachableOrOffline(error: unknown): boolean {
   if (typeof navigator !== "undefined" && !navigator.onLine) return true
@@ -154,6 +154,10 @@ export async function completeSale({
         title: translate("Vente complétée", "تمت عملية البيع"),
         description: `${result.number} · ${result.total} DA`,
       })
+      // The sale is saved either way; a printer problem is only reported.
+      engine("settings:sales").then((s) => (s.receipt.autoPrint ? enginePrintReceipt(result.saleId) : null)).then((r) => {
+        if (r && !r.printed) toast({ title: translate("Ticket non imprimé", "لم يُطبع الوصل"), description: translate("Aucune imprimante de tickets configurée (Paramètres).", "لا توجد طابعة وصولات (الإعدادات)."), variant: "destructive" })
+      }).catch((e) => toast({ title: translate("Ticket non imprimé", "لم يُطبع الوصل"), description: e instanceof Error ? e.message : String(e), variant: "destructive" }))
       return true
     } catch (error) {
       handleError(error, {
