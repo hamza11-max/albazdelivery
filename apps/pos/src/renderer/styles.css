@@ -306,3 +306,14 @@ button.big { min-height: 52px; font-size: 17px; }
 .variant-picker button { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 72px; }
 .facts.z { grid-template-columns: 1fr auto; }
 .facts.z dd { text-align: end; font-weight: 600; }
+
+/* ---------- history ---------- */
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segmented button { border: 0; border-radius: 0; border-inline-end: 1px solid var(--border); }
+.segmented button:last-child { border-inline-end: 0; }
+.segmented button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.history .search { max-width: 260px; }
+button.linkish { border: 0; background: none; padding: 0; min-height: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font-family: Consolas, "Courier New", monospace; }
+button.linkish.block { display: block; margin: 4px 0; }
+button.danger-fill { background: var(--err); border-color: var(--err); color: #fff; }
+.modal .grid.compact input { max-width: 90px; min-width: 0; }

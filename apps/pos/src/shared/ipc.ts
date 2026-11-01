@@ -112,6 +112,16 @@ const saleInput = z.object({
   ownerPin: z.string().regex(/^\d{4,6}$/).optional(),
 })
 
+/** A return against an earlier sale: which lines, how many, refunded how. Amounts come from the sale. */
+const returnInput = z.object({
+  id,
+  originalSaleId: id,
+  lines: z.array(z.object({ lineId: id, qty: z.number().int().min(1).max(9999) })).min(1).max(200),
+  refundMethod: z.enum(['CASH', 'CARD_EXTERNAL']),
+  /** Owner PIN when a cashier takes a return after the return window. */
+  ownerPin: z.string().regex(/^\d{4,6}$/).optional(),
+})
+
 export const inputs = {
   'app:info': z.undefined(),
   'settings:get': z.undefined(),
@@ -174,10 +184,25 @@ export const inputs = {
   'shift:open': z.object({ openingFloat: money }),
   'shift:cash': z.object({ type: z.enum(['IN', 'OUT']), amount: price, reason: z.string().trim().min(1).max(120) }),
   'shift:close': z.object({ countedCash: money, reason: z.string().trim().max(200).default('') }),
+  'sales:history': z.object({
+    /** ISO times (local day boundaries computed by the screen). */
+    from: z.string().datetime().optional(),
+    to: z.string().datetime().optional(),
+    number: z.string().trim().max(30).optional(),
+    userId: id.optional(),
+    limit: z.number().int().min(1).max(200).default(100),
+    offset: z.number().int().min(0).default(0),
+  }),
+  'sales:detail': z.object({ id }),
+  'sales:findByNumber': z.object({ number: z.string().trim().min(3).max(30) }),
+  'sales:void': z.object({ id, reason: z.string().trim().min(1).max(200), ownerPin: z.string().regex(/^\d{4,6}$/).optional() }),
+  'sales:return': returnInput,
+  'shift:printZ': z.object({ shiftId: id }),
   'settings:sales': z.undefined(),
   'settings:saveSales': z.object({
     cashierDiscountCapPercent: z.number().int().min(0).max(100),
     allowNegativeStock: z.boolean(),
+    returnWindowDays: z.number().int().min(0).max(365),
     receipt: z.object({
       printer: z.string().max(256).regex(/^[^\u0000-\u001f]*$/),
       paper: z.union([z.literal(58), z.literal(80)]),
@@ -317,6 +342,66 @@ export interface Outputs {
   'shift:close': ShiftClosed
   'settings:sales': SalesSettings
   'settings:saveSales': SalesSettings
+  'sales:history': { rows: SaleSummaryRow[]; total: number }
+  'sales:detail': SaleDetail
+  'sales:findByNumber': { id: string } | null
+  'sales:void': SaleDetail
+  'sales:return': SaleResult
+  'shift:printZ': { printed: boolean; reason?: string }
+}
+
+export type HistoryQuery = z.output<(typeof inputs)['sales:history']>
+export type ReturnInput = z.output<typeof returnInput>
+
+export interface SaleSummaryRow {
+  id: string
+  number: string
+  type: 'SALE' | 'RETURN'
+  status: 'COMPLETED' | 'VOIDED'
+  createdAt: string
+  cashier: string
+  total: number
+  items: number
+  cash: number
+  card: number
+  originalNumber: string
+}
+
+export interface SaleDetail {
+  id: string
+  number: string
+  type: 'SALE' | 'RETURN'
+  status: 'COMPLETED' | 'VOIDED'
+  createdAt: string
+  cashier: string
+  subtotal: number
+  discountTotal: number
+  total: number
+  paidTotal: number
+  change: number
+  lines: {
+    lineId: string
+    variantId: string
+    name: string
+    variant: string
+    qty: number
+    unitPrice: number
+    lineDiscount: number
+    lineTotal: number
+    /** What the customer actually paid for the line (after the sale discount share). */
+    net: number
+    returnedQty: number
+    refunded: number
+  }[]
+  payments: { method: 'CASH' | 'CARD_EXTERNAL'; amount: number }[]
+  voided: { at: string; by: string; reason: string } | null
+  originalId: string | null
+  originalNumber: string
+  returns: { id: string; number: string; createdAt: string; total: number }[]
+  canVoid: boolean
+  canReturn: boolean
+  /** After this, a cashier needs the owner's PIN for a return. */
+  returnWindowEnds: string
 }
 
 export type SaleInput = z.output<typeof saleInput>
@@ -324,6 +409,9 @@ export type CartInput = z.output<typeof cartInput>
 
 /** Everything printed on a sale receipt. Amounts are whole DZD. */
 export interface ReceiptData {
+  /** A return prints a RETURN header with the original receipt number and a refund line. */
+  kind: 'SALE' | 'RETURN'
+  originalNumber: string
   shop: { name: string; phone: string; address: string; footer: string }
   number: string
   /** ISO timestamp; printed in the PC's local time. */
@@ -369,13 +457,20 @@ export type ShiftStatus =
       expectedCash: number | null
     }
 
+/** End-of-shift report (Z-report). closedAt is empty while the shift is still open. */
 export interface ShiftClosed {
   id: string
   openedAt: string
   closedAt: string
+  openedBy: string
+  closedBy: string
   openingFloat: number
   salesCount: number
   salesTotal: number
+  returnsCount: number
+  returnsTotal: number
+  voidsCount: number
+  voidsTotal: number
   cashFromSales: number
   cashRefunds: number
   cardTotal: number
@@ -384,11 +479,14 @@ export interface ShiftClosed {
   expectedCash: number
   countedCash: number
   difference: number
+  differenceReason: string
 }
 
 export interface SalesSettings {
   cashierDiscountCapPercent: number
   allowNegativeStock: boolean
+  /** Days after a sale during which a cashier may take a return without the owner. */
+  returnWindowDays: number
   receipt: {
     /** Windows printer name; empty = no receipt printer set up. */
     printer: string

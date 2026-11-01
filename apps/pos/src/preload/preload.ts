@@ -48,6 +48,12 @@ const CHANNELS = [
   'shift:open',
   'shift:cash',
   'shift:close',
+  'sales:history',
+  'sales:detail',
+  'sales:findByNumber',
+  'sales:void',
+  'sales:return',
+  'shift:printZ',
   'settings:sales',
   'settings:saveSales',
 ] as const satisfies readonly ChannelName[]

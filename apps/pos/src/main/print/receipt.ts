@@ -12,6 +12,8 @@ export interface ReceiptOptions {
 
 /** Sample sale for the printer test and --selftest (same as the Phase 2 spike). */
 export const SAMPLE_RECEIPT: ReceiptData = {
+  kind: 'SALE',
+  originalNumber: '',
   shop: {
     name: 'متجر الباز للملابس — AL-baz Boutique',
     phone: '0550 12 34 56',
@@ -35,8 +37,8 @@ export const SAMPLE_RECEIPT: ReceiptData = {
 }
 
 const LABELS = {
-  ar: { receipt: 'وصل رقم', date: 'التاريخ', cashier: 'البائع', subtotal: 'المجموع الفرعي', discount: 'تخفيض', total: 'المجموع', paid: 'المدفوع نقداً', card: 'بطاقة', change: 'الباقي', currency: 'د.ج' },
-  fr: { receipt: 'Ticket n°', date: 'Date', cashier: 'Caissier', subtotal: 'Sous-total', discount: 'Remise', total: 'TOTAL', paid: 'Espèces', card: 'Carte', change: 'Rendu', currency: 'DA' },
+  ar: { ret: 'استرجاع', original: 'الوصل الأصلي', refund: 'المبلغ المسترجع', receipt: 'وصل رقم', date: 'التاريخ', cashier: 'البائع', subtotal: 'المجموع الفرعي', discount: 'تخفيض', total: 'المجموع', paid: 'المدفوع نقداً', card: 'بطاقة', change: 'الباقي', currency: 'د.ج' },
+  fr: { ret: 'RETOUR', original: 'Ticket d’origine', refund: 'Remboursé', receipt: 'Ticket n°', date: 'Date', cashier: 'Caissier', subtotal: 'Sous-total', discount: 'Remise', total: 'TOTAL', paid: 'Espèces', card: 'Carte', change: 'Rendu', currency: 'DA' },
 }
 
 function esc(s: string): string {
@@ -133,6 +135,7 @@ export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions):
   <div class="center shop">${esc(data.shop.name)}</div>
   ${data.shop.address || data.shop.phone ? `<div class="center muted">${esc(data.shop.address)}${data.shop.address && data.shop.phone ? '<br>' : ''}<bdi>${esc(data.shop.phone)}</bdi></div>` : ''}
   <hr>
+  ${data.kind === 'RETURN' ? `<div class="center shop">${label(lang, 'ret')}</div><div class="meta"><span>${label(lang, 'original')}</span><bdi>${esc(data.originalNumber)}</bdi></div>` : ''}
   <div class="meta"><span>${label(lang, 'receipt')}</span><bdi>${esc(data.number)}</bdi></div>
   <div class="meta"><span>${label(lang, 'date')}</span><bdi>${localDate(data.createdAt)}</bdi></div>
   <div class="meta"><span>${label(lang, 'cashier')}</span><bdi>${esc(data.cashier)}</bdi></div>
@@ -141,7 +144,7 @@ export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions):
   <hr>
   ${data.discountTotal > 0 ? row('subtotal', money(lang, data.subtotal)) : ''}
   ${saleDiscount > 0 ? row('discount', money(lang, -saleDiscount)) : ''}
-  ${row('total', money(lang, data.total), 'row total')}
+  ${row(data.kind === 'RETURN' ? 'refund' : 'total', money(lang, data.kind === 'RETURN' ? -data.total : data.total), 'row total')}
   ${data.cashTendered > 0 ? row('paid', money(lang, data.cashTendered)) : ''}
   ${data.card > 0 ? row('card', money(lang, data.card)) : ''}
   ${data.change > 0 ? row('change', money(lang, data.change)) : ''}

@@ -166,3 +166,107 @@ test('held carts: hold, list, recall once', async () => {
   assert.equal(sales.recall(id).cart.lines.length, 1)
   assert.throws(() => sales.recall(id), code('NOT_FOUND'))
 })
+
+// ---------- history, void, returns ----------
+
+test('history lists newest first and filters by receipt number', async () => {
+  shifts.open(cashier, 0)
+  const a = await sales.completeSale(cashier, sale())
+  const b = await sales.completeSale(cashier, sale())
+  const all = sales.history(inputs['sales:history'].parse({}))
+  assert.equal(all.total, 2)
+  assert.deepEqual(all.rows.map((r) => r.number), [b.number, a.number])
+  assert.equal(all.rows[0]!.items, 3)
+  assert.deepEqual(sales.history(inputs['sales:history'].parse({ number: a.number.slice(-6) })).rows.map((r) => r.id), [a.saleId])
+  assert.equal(sales.findByNumber(a.number.toLowerCase())?.id, a.saleId)
+})
+
+test('void: same shift only, puts stock back, leaves the shift totals, cashier needs the owner PIN', async () => {
+  shifts.open(cashier, 5000)
+  const r = await sales.completeSale(cashier, sale())
+  assert.equal(stock(0), 3)
+  await assert.rejects(sales.voidSale(cashier, r.saleId, 'wrong item'), code('VOID_NEEDS_OWNER'))
+  const voided = await sales.voidSale(cashier, r.saleId, 'wrong item', '1234')
+  assert.equal(voided.status, 'VOIDED')
+  assert.equal(voided.voided?.reason, 'wrong item')
+  assert.equal(stock(0), 5, 'stock back')
+  const z = shifts.summary(shifts.openShift()!.id)
+  assert.equal(z.salesCount, 0)
+  assert.equal(z.voidsCount, 1)
+  assert.equal(z.expectedCash, 5000, 'voided cash is no longer expected in the drawer')
+  await assert.rejects(sales.voidSale(owner, r.saleId, 'again'), code('NOT_VOIDABLE'))
+
+  // After the register closes, a sale can only be returned.
+  const later = await sales.completeSale(owner, sale())
+  shifts.close(owner, shifts.summary(shifts.openShift()!.id).expectedCash, '')
+  shifts.open(owner, 0)
+  await assert.rejects(sales.voidSale(owner, later.saleId, 'too late'), code('SHIFT_CLOSED'))
+})
+
+test('returns refund what was paid per unit, never more than sold, and restock', async () => {
+  shifts.open(cashier, 20000)
+  // 2 × M at 2500 + 1 × L at 2700 with a 770 sale discount → paid 6930.
+  const r = await sales.completeSale(cashier, sale({ saleDiscount: 770 }))
+  assert.equal(r.total, 6930)
+  const d = sales.detail(r.saleId)
+  const m = d.lines[0]!
+  const ret = (lines: { lineId: string; qty: number }[], over: object = {}) =>
+    sales.returnSale(cashier, inputs['sales:return'].parse({ id: uuidv7(), originalSaleId: r.saleId, lines, refundMethod: 'CASH', ...over }))
+
+  const first = await ret([{ lineId: m.lineId, qty: 1 }])
+  assert.equal(first.total, -Math.floor(m.net / 2))
+  assert.equal(first.receipt.kind, 'RETURN')
+  assert.equal(first.receipt.originalNumber, r.number)
+  assert.equal(first.receipt.lines[0]!.qty, 1, 'return slip shows positive quantities')
+  assert.equal(stock(0), 4)
+
+  await assert.rejects(ret([{ lineId: m.lineId, qty: 2 }]), code('RETURN_EXCEEDS_SOLD'))
+  const second = await ret([{ lineId: m.lineId, qty: 1 }, { lineId: d.lines[1]!.lineId, qty: 1 }])
+  // Returning everything refunds exactly what was paid.
+  assert.equal(-first.total - second.total, 6930)
+  assert.equal(sales.detail(r.saleId).canReturn, false)
+  assert.equal(sales.detail(r.saleId).canVoid, false, 'a sale with returns cannot be voided')
+
+  const z = shifts.summary(shifts.openShift()!.id)
+  assert.equal(z.returnsCount, 2)
+  assert.equal(z.returnsTotal, 6930)
+  assert.equal(z.expectedCash, 20000 + 6930 - 6930)
+})
+
+test('returns: refund cannot exceed the cash in the drawer; card refunds are allowed', async () => {
+  shifts.open(cashier, 0)
+  const r = await sales.completeSale(cashier, sale({ tenders: [{ method: 'CARD_EXTERNAL', amount: 7700 }] }))
+  const line = sales.detail(r.saleId).lines[0]!
+  const input = (method: 'CASH' | 'CARD_EXTERNAL') => inputs['sales:return'].parse({ id: uuidv7(), originalSaleId: r.saleId, lines: [{ lineId: line.lineId, qty: 1 }], refundMethod: method })
+  await assert.rejects(sales.returnSale(cashier, input('CASH')), code('NOT_ENOUGH_CASH'))
+  const ok = await sales.returnSale(cashier, input('CARD_EXTERNAL'))
+  assert.equal(ok.total, -2500)
+})
+
+test('returns after the window need the owner PIN when a cashier takes them', async () => {
+  shifts.open(cashier, 10000)
+  const r = await sales.completeSale(cashier, sale())
+  const line = sales.detail(r.saleId).lines[0]!
+  // Ten days later.
+  const late = new SalesService(db, shifts, () => new Date(Date.now() + 10 * 86_400_000))
+  const input = (over: object = {}) => inputs['sales:return'].parse({ id: uuidv7(), originalSaleId: r.saleId, lines: [{ lineId: line.lineId, qty: 1 }], refundMethod: 'CASH', ...over })
+  await assert.rejects(late.returnSale(cashier, input()), code('RETURN_NEEDS_OWNER'))
+  assert.equal((await late.returnSale(cashier, input({ ownerPin: '1234' }))).total, -2500)
+  assert.equal((await late.returnSale(owner, input())).total, -2500, 'the owner needs no PIN')
+})
+
+test('a voided sale cannot be returned; a return is idempotent', async () => {
+  shifts.open(owner, 10000)
+  const r = await sales.completeSale(owner, sale())
+  const line = sales.detail(r.saleId).lines[0]!
+  const input = inputs['sales:return'].parse({ id: uuidv7(), originalSaleId: r.saleId, lines: [{ lineId: line.lineId, qty: 1 }], refundMethod: 'CASH' })
+  const a = await sales.returnSale(owner, input)
+  const b = await sales.returnSale(owner, input)
+  assert.equal(a.number, b.number)
+  assert.equal(sales.detail(r.saleId).returns.length, 1)
+
+  const v = await sales.completeSale(owner, sale())
+  await sales.voidSale(owner, v.saleId, 'test')
+  const vLine = sales.detail(v.saleId).lines[0]!
+  await assert.rejects(sales.returnSale(owner, inputs['sales:return'].parse({ id: uuidv7(), originalSaleId: v.saleId, lines: [{ lineId: vLine.lineId, qty: 1 }], refundMethod: 'CASH' })), code('NOT_RETURNABLE'))
+})

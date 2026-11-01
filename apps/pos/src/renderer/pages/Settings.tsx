@@ -115,6 +115,9 @@ export function SalesSettingsCard() {
         <label>{t('settings.discountCap')}
           <input inputMode="numeric" value={s.cashierDiscountCapPercent} onChange={(e) => setS({ ...s, cashierDiscountCapPercent: Math.min(100, Number(e.target.value.replace(/[^\d]/g, '') || 0)) })} />
         </label>
+        <label>{t('settings.returnWindow')}
+          <input inputMode="numeric" value={s.returnWindowDays} onChange={(e) => setS({ ...s, returnWindowDays: Math.min(365, Number(e.target.value.replace(/[^\d]/g, '') || 0)) })} />
+        </label>
         <label className="check-row"><input type="checkbox" checked={s.allowNegativeStock} onChange={(e) => setS({ ...s, allowNegativeStock: e.target.checked })} /> {t('settings.negativeStock')}</label>
         <label>{t('settings.receiptPrinter')}
           <select value={s.receipt.printer} onChange={(e) => setReceipt({ printer: e.target.value })}>

@@ -9,9 +9,9 @@ function htmlUrl(html: string): string {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`
 }
 
-/** Loads receipt HTML in a hidden window sized to the paper and returns it with its content height. */
-async function loadReceiptWindow(opts: ReceiptOptions, data: ReceiptData) {
-  const width = PAPER_DOTS[opts.paper]
+/** Loads receipt-width HTML in a hidden window sized to the paper and returns it with its content height. */
+async function loadPaperWindow(html: string, paper: PaperWidth) {
+  const width = PAPER_DOTS[paper]
   const win = new BrowserWindow({
     show: false,
     width,
@@ -22,15 +22,20 @@ async function loadReceiptWindow(opts: ReceiptOptions, data: ReceiptData) {
     paintWhenInitiallyHidden: true,
     webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
   })
-  await win.loadURL(htmlUrl(receiptHtml(data, opts)))
+  await win.loadURL(htmlUrl(html))
   await win.webContents.executeJavaScript('document.fonts.ready.then(() => true)')
   const height = Number(await win.webContents.executeJavaScript('Math.ceil(document.documentElement.scrollHeight)'))
   return { win, width, height }
 }
 
 /** Renders the receipt exactly as the raster route prints it: one bitmap, paper width in dots. */
-export async function renderReceiptImage(opts: ReceiptOptions, data: ReceiptData = SAMPLE_RECEIPT): Promise<NativeImage> {
-  const { win, width, height } = await loadReceiptWindow(opts, data)
+export function renderReceiptImage(opts: ReceiptOptions, data: ReceiptData = SAMPLE_RECEIPT): Promise<NativeImage> {
+  return renderPaperImage(receiptHtml(data, opts), opts.paper)
+}
+
+/** Any receipt-width document (receipt, Z-report) as one bitmap, paper width in dots. */
+export async function renderPaperImage(html: string, paper: PaperWidth): Promise<NativeImage> {
+  const { win, width, height } = await loadPaperWindow(html, paper)
   try {
     win.setContentSize(width, height)
     // Let the compositor paint at the new size before capturing.
@@ -64,10 +69,14 @@ export function monoToImage(mono: MonoImage): NativeImage {
 }
 
 /** Driver route: let the Windows driver render the HTML page. */
-export async function printWithDriver(opts: ReceiptOptions, deviceName: string, data: ReceiptData = SAMPLE_RECEIPT): Promise<void> {
-  const { win, width, height } = await loadReceiptWindow(opts, data)
+export function printWithDriver(opts: ReceiptOptions, deviceName: string, data: ReceiptData = SAMPLE_RECEIPT): Promise<void> {
+  return printPaperWithDriver(receiptHtml(data, opts), opts.paper, deviceName)
+}
+
+export async function printPaperWithDriver(html: string, paper: PaperWidth, deviceName: string): Promise<void> {
+  const { win, width, height } = await loadPaperWindow(html, paper)
   try {
-    const microns = opts.paper * 1000
+    const microns = paper * 1000
     await new Promise<void>((resolve, reject) => {
       win.webContents.print(
         {

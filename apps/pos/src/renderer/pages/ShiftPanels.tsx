@@ -88,6 +88,8 @@ export function CloseShiftDialog({ onClosed, onClose }: { onClosed: () => void; 
     const rows: [string, number][] = [
       [t('shift.openingFloat'), result.openingFloat],
       [`${t('shift.sales')} (${result.salesCount})`, result.salesTotal],
+      [t('history.return') + ' (' + result.returnsCount + ')', -result.returnsTotal],
+      [t('history.voided') + ' (' + result.voidsCount + ')', result.voidsTotal],
       [t('shift.card'), result.cardTotal],
       [t('shift.cashIn'), result.cashIn],
       [t('shift.cashOut'), result.cashOut],
@@ -105,7 +107,11 @@ export function CloseShiftDialog({ onClosed, onClose }: { onClosed: () => void; 
             </Fragment>
           ))}
         </dl>
-        <div className="buttons"><button className="primary" autoFocus onClick={onClosed}>{t('common.close')}</button></div>
+        <div className="buttons">
+          <button onClick={() => call('shift:printZ', { shiftId: result.id }).then((r) => setError(r.printed ? null : t('sale.noPrinter')), (err) => setError(errorText(err)))}>{t('shift.printZ')}</button>
+          <button className="primary" autoFocus onClick={onClosed}>{t('common.close')}</button>
+        </div>
+        {error && <p className="error" role="alert">{error}</p>}
       </Modal>
     )
   }

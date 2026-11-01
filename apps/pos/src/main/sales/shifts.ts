@@ -58,7 +58,55 @@ export class ShiftService {
          FROM cash_movements WHERE shift_id = ?`,
       )
       .get(shiftId) as { cashIn: number; cashOut: number }
-    return { sales, pay, moves }
+    const returns = this.db
+      .prepare(
+        `SELECT COUNT(*) AS count, coalesce(SUM(-total), 0) AS total
+         FROM sales WHERE shift_id = ? AND type = 'RETURN' AND status = 'COMPLETED'`,
+      )
+      .get(shiftId) as { count: number; total: number }
+    const voids = this.db
+      .prepare("SELECT COUNT(*) AS count, coalesce(SUM(total), 0) AS total FROM sales WHERE shift_id = ? AND status = 'VOIDED'")
+      .get(shiftId) as { count: number; total: number }
+    return { sales, pay, moves, returns, voids }
+  }
+
+  /** Cash that should be in the drawer now (refunds are paid out of it). */
+  expectedCash(shift: ShiftRow): number {
+    return this.expected(shift)
+  }
+
+  /** End-of-shift report for any shift, open or closed (the Z-report). */
+  summary(shiftId: string): ShiftClosed {
+    const row = this.db.prepare('SELECT * FROM shifts WHERE id = ?').get(shiftId) as
+      | (ShiftRow & { closed_at: string | null; expected_cash: number | null; counted_cash: number | null; difference: number | null; difference_reason: string | null; closed_by: string | null })
+      | undefined
+    if (!row) throw new AppError('NOT_FOUND', 'Shift not found')
+    const { sales, pay, moves, returns, voids } = this.totals(shiftId)
+    const name = (id: string | null) => (id ? ((this.db.prepare('SELECT name FROM users WHERE id = ?').get(id) as { name: string } | undefined)?.name ?? '') : '')
+    const expected = row.expected_cash ?? this.expected(row)
+    return {
+      id: row.id,
+      openedAt: row.opened_at,
+      closedAt: row.closed_at ?? '',
+      openedBy: name(row.opened_by),
+      closedBy: name(row.closed_by),
+      openingFloat: row.opening_float,
+      salesCount: sales.count,
+      salesTotal: sales.total,
+      returnsCount: returns.count,
+      returnsTotal: returns.total,
+      voidsCount: voids.count,
+      voidsTotal: voids.total,
+      cashFromSales: pay.cashIn,
+      cashRefunds: pay.cashOut,
+      cardTotal: pay.card,
+      cashIn: moves.cashIn,
+      cashOut: moves.cashOut,
+      expectedCash: expected,
+      countedCash: row.counted_cash ?? 0,
+      difference: row.difference ?? 0,
+      differenceReason: row.difference_reason ?? '',
+    }
   }
 
   private expected(shift: ShiftRow): number {
@@ -120,7 +168,6 @@ export class ShiftService {
     const expected = this.expected(shift)
     if (countedCash !== expected && !reason.trim()) throw new AppError('REASON_REQUIRED', String(countedCash - expected))
     const result = closeShift(expected, countedCash, reason)
-    const { sales, pay, moves } = this.totals(shift.id)
     const now = this.clock().toISOString()
     this.db.transaction(() => {
       this.db
@@ -131,22 +178,7 @@ export class ShiftService {
         .run(session.userId, now, expected, countedCash, result.difference, reason.trim() || null, shift.id)
       this.audit(session.userId, 'SHIFT_CLOSE', shift.id, { expected, countedCash, difference: result.difference, reason })
     })()
-    return {
-      id: shift.id,
-      openedAt: shift.opened_at,
-      closedAt: now,
-      openingFloat: shift.opening_float,
-      salesCount: sales.count,
-      salesTotal: sales.total,
-      cashFromSales: pay.cashIn,
-      cashRefunds: pay.cashOut,
-      cardTotal: pay.card,
-      cashIn: moves.cashIn,
-      cashOut: moves.cashOut,
-      expectedCash: expected,
-      countedCash,
-      difference: result.difference,
-    }
+    return this.summary(shift.id)
   }
 
   private audit(userId: string, action: string, shiftId: string, after: unknown) {
