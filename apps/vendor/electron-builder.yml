@@ -39,14 +39,12 @@ win:
     - from: build/node
       to: node
   # Copy .next/standalone and .next/static next to exe so the app finds server (avoids asar/gitignore issues)
-  # Copy vendor-config template next to exe - rename to vendor-config.json and set DATABASE_URL for cloud sync
+  # No vendor-config.json: database credentials never go on shop PCs.
   extraFiles:
     - from: .next/standalone
       to: .next/standalone
     - from: .next/static
       to: .next/static
-    - from: vendor-config.json.example
-      to: vendor-config.json
     # Written by scripts/write-bundled-flavor.js before pack (shop type preset per installer vertical)
     - from: bundled-flavor.json
       to: bundled-flavor.json
