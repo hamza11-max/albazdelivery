@@ -159,6 +159,30 @@ try {
   console.warn('RFID store not available:', e.message)
 }
 
+/** Local engine (electron/core, compiled to electron/dist). Set once its database is open and migrated. */
+let core = null
+const argValue = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3)
+
+function startCoreEngine() {
+  const { startCore } = require('./dist/core/index.js')
+  const appRoot = app.getAppPath().replace(/app\.asar$/, 'app.asar.unpacked')
+  startCore({
+    dataDir: argValue('data-dir') ? path.resolve(argValue('data-dir')) : app.getPath('userData'),
+    migrationsDir: path.join(__dirname, 'migrations'),
+    rawPrintScript: path.join(appRoot, 'electron', 'core', 'print', 'raw-print.ps1'),
+    origins: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+    importFile: process.argv.includes('--smoketest') ? argValue('import-file') : undefined,
+  }).then((started) => {
+    core = started
+    writeEarlyLog('core ready: ' + started.file)
+  }, (e) => {
+    // Without its database the shop can't sell: say so instead of running on half the data.
+    logStartup('core failed: ' + (e && e.stack || e))
+    writeEarlyLog('core failed: ' + (e && e.message))
+    dialog.showErrorBox('AlBaz Vendor', `La base de données de la boutique n'a pas pu s'ouvrir.\n\n${e && e.message}`)
+  })
+}
+
 let mainWindow = null
 let nextProcess = null
 let isAuthenticated = false
@@ -352,6 +376,21 @@ function getStaffAccounts() {
   const store = getAuthStore()
   const accounts = store.get('device_staff_accounts')
   return Array.isArray(accounts) ? accounts : []
+}
+
+/**
+ * The local engine (electron/core) keeps its own session: mirror whoever the vendor login
+ * accepted, with a stable id (the per-login ids in userProfile change every time).
+ */
+function signInCore(id, profile) {
+  if (!core) return
+  const shopInfo = getAuthStore().get('vendor-shop-info') || {}
+  const role = String(profile && profile.role || '').toUpperCase() === 'OWNER' ? 'OWNER' : 'CASHIER'
+  try {
+    core.signIn({ id: String(id), name: String(profile && profile.name || 'User'), role, shopName: String(shopInfo.name || shopInfo.shopName || 'Boutique') })
+  } catch (e) {
+    console.error('[core] sign-in failed:', e && e.message)
+  }
 }
 
 function findLocalAccount(identifier) {
@@ -975,6 +1014,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
             expiresAt: Date.now() + (12 * 60 * 60 * 1000),
             sessionId: currentSessionId,
           })
+          signInCore(staff.id || `staff-${staff.staffCode}`, userProfile)
           isAuthenticated = true
           setAuthWindowClosable(true)
           closeAuthWindow()
@@ -1011,6 +1051,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           expiresAt: Date.now() + (12 * 60 * 60 * 1000),
           sessionId: currentSessionId,
         })
+        signInCore(localAccount.type === 'owner' ? 'owner' : (localAccount.profile?.id || `staff-${localAccount.profile?.email || localAccount.profile?.phone}`), userProfile)
         isAuthenticated = true
         setAuthWindowClosable(true)
         closeAuthWindow()
@@ -1047,6 +1088,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           expiresAt: Date.now() + (12 * 60 * 60 * 1000),
           sessionId: currentSessionId,
         })
+        signInCore(localAccount.type === 'owner' ? 'owner' : (localAccount.profile?.id || `staff-${localAccount.profile?.email || localAccount.profile?.phone}`), userProfile)
         isAuthenticated = true
         setAuthWindowClosable(true)
         closeAuthWindow()
@@ -1086,7 +1128,7 @@ ipcMain.handle('auth-login', async (event, credentials) => {
           expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000), // 7 days
           sessionId: currentSessionId,
         })
-        
+        signInCore(data.user.id, data.user)
         isAuthenticated = true
         setAuthWindowClosable(true)
         closeAuthWindow()
@@ -1108,6 +1150,7 @@ ipcMain.handle('auth-logout', async () => {
   try {
     const store = getAuthStore()
     store.delete('vendor_auth_state')
+    core?.signOut()
     isAuthenticated = false
     
     // Close main window and show login (allow real close — server must stay up for auth window localhost:3001)
@@ -1503,6 +1546,9 @@ app.whenReady().then(() => {
     logStartup('configureCSP error: ' + (e && e.message))
     if (app.isPackaged) writeEarlyLog('configureCSP error: ' + (e && e.message))
   }
+
+  // The shop's engine: one SQLite database, sales/stock/catalog over typed IPC (electron/core).
+  startCoreEngine()
 
   // Initialize offline database (if available)
   if (offlineDb) {

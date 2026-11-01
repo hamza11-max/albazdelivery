@@ -27,6 +27,8 @@ asarUnpack:
   - '.next/static/**/*'
   - 'node_modules/better-sqlite3/**/*'
   - 'assets/logo.ico'
+  # Receipt printing runs this through PowerShell, which can't read inside app.asar
+  - 'electron/core/print/raw-print.ps1'
 
 extraMetadata:
   main: electron/main.js
