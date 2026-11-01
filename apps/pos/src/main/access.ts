@@ -55,6 +55,13 @@ export const ACCESS: Record<ChannelName, Access> = {
   'shift:open': 'user',
   'shift:cash': 'user',
   'shift:close': 'user',
+  'sales:history': 'user',
+  'sales:detail': 'user',
+  'sales:findByNumber': 'user',
+  // Cashiers void (same shift) and take late returns only with an owner's PIN, checked in SalesService.
+  'sales:void': 'user',
+  'sales:return': 'user',
+  'shift:printZ': 'user',
   'settings:sales': 'user',
   'settings:saveSales': 'owner',
 

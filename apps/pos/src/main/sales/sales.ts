@@ -1,8 +1,8 @@
-import { applyMovement, computeTotals, needsDiscountOverride, settle } from '@albaz/pos-core'
+import { applyMovement, buildReturn, computeTotals, needsDiscountOverride, settle } from '@albaz/pos-core'
 import type Database from 'better-sqlite3'
 import { randomBytes } from 'node:crypto'
 
-import type { HeldCart, SaleInput, SaleResult, Session } from '../../shared/ipc'
+import type { HeldCart, HistoryQuery, ReturnInput, SaleDetail, SaleInput, SaleResult, SaleSummaryRow, Session } from '../../shared/ipc'
 import { verifyPin } from '../auth/pin'
 import { getSetting, nextCounter, setSetting } from '../db/database'
 import { AppError } from '../errors'
@@ -144,10 +144,11 @@ export class SalesService {
   receiptData(saleId: string): ReceiptData {
     const sale = this.db
       .prepare(
-        `SELECT s.number, s.created_at, s.subtotal, s.discount_total, s.total, s.paid_total, s.change_given, u.name AS cashier
-         FROM sales s JOIN users u ON u.id = s.user_id WHERE s.id = ?`,
+        `SELECT s.type, s.number, s.created_at, s.subtotal, s.discount_total, s.total, s.paid_total, s.change_given, u.name AS cashier,
+                coalesce(o.number, '') AS original_number
+         FROM sales s JOIN users u ON u.id = s.user_id LEFT JOIN sales o ON o.id = s.original_sale_id WHERE s.id = ?`,
       )
-      .get(saleId) as { number: string; created_at: string; subtotal: number; discount_total: number; total: number; paid_total: number; change_given: number; cashier: string } | undefined
+      .get(saleId) as { type: 'SALE' | 'RETURN'; number: string; created_at: string; subtotal: number; discount_total: number; total: number; paid_total: number; change_given: number; cashier: string; original_number: string } | undefined
     if (!sale) throw new AppError('NOT_FOUND', 'Sale not found')
     const shop = this.db.prepare("SELECT name, phone, address, receipt_footer FROM shop WHERE id = 'shop'").get() as { name: string; phone: string | null; address: string | null; receipt_footer: string | null }
     const lines = this.db
@@ -165,12 +166,16 @@ export class SalesService {
          FROM payments WHERE sale_id = ?`,
       )
       .get(saleId) as { cash: number; card: number }
+    const isReturn = sale.type === 'RETURN'
     return {
+      kind: sale.type,
+      originalNumber: sale.original_number,
       shop: { name: shop.name, phone: shop.phone ?? '', address: shop.address ?? '', footer: shop.receipt_footer ?? '' },
       number: sale.number,
       createdAt: sale.created_at,
       cashier: sale.cashier,
-      lines,
+      // A return slip lists what came back with positive quantities and amounts.
+      lines: isReturn ? lines.map((l) => ({ ...l, qty: -l.qty, lineTotal: -l.lineTotal })) : lines,
       subtotal: sale.subtotal,
       discountTotal: sale.discount_total,
       total: sale.total,
@@ -178,6 +183,205 @@ export class SalesService {
       card: pay.card,
       change: sale.change_given,
     }
+  }
+
+  /**
+   * Who approves an action a cashier may not do alone: null when the user is
+   * the owner, otherwise the id of the active owner whose PIN was given.
+   */
+  private async ownerApproval(session: Session, ownerPin: string | undefined, missingCode: string): Promise<string | null> {
+    if (session.role === 'OWNER') return null
+    if (!ownerPin) throw new AppError(missingCode, 'Owner PIN required')
+    const owners = this.db.prepare("SELECT id, pin_hash FROM users WHERE role = 'OWNER' AND is_active = 1").all() as { id: string; pin_hash: string }[]
+    for (const o of owners) if (await verifyPin(ownerPin, o.pin_hash)) return o.id
+    throw new AppError('WRONG_PIN', 'Owner PIN is not correct')
+  }
+
+  // ---------- history (spec M13 / §5.2 History) ----------
+
+  history(q: HistoryQuery): { rows: SaleSummaryRow[]; total: number } {
+    const where: string[] = []
+    const params: unknown[] = []
+    if (q.from) {
+      where.push('s.created_at >= ?')
+      params.push(q.from)
+    }
+    if (q.to) {
+      where.push('s.created_at < ?')
+      params.push(q.to)
+    }
+    if (q.number) {
+      where.push('s.number LIKE ?')
+      params.push(`%${q.number.replace(/[%_]/g, '')}%`)
+    }
+    if (q.userId) {
+      where.push('s.user_id = ?')
+      params.push(q.userId)
+    }
+    const filter = where.length ? `WHERE ${where.join(' AND ')}` : ''
+    const total = (this.db.prepare(`SELECT COUNT(*) AS n FROM sales s ${filter}`).get(...params) as { n: number }).n
+    const rows = this.db
+      .prepare(
+        `SELECT s.id, s.number, s.type, s.status, s.created_at AS createdAt, u.name AS cashier, s.total,
+                (SELECT coalesce(SUM(abs(qty)), 0) FROM sale_lines WHERE sale_id = s.id) AS items,
+                (SELECT coalesce(SUM(amount), 0) FROM payments WHERE sale_id = s.id AND method = 'CASH') AS cash,
+                (SELECT coalesce(SUM(amount), 0) FROM payments WHERE sale_id = s.id AND method = 'CARD_EXTERNAL') AS card,
+                coalesce(o.number, '') AS originalNumber
+         FROM sales s JOIN users u ON u.id = s.user_id LEFT JOIN sales o ON o.id = s.original_sale_id
+         ${filter} ORDER BY s.created_at DESC, s.rowid DESC LIMIT ? OFFSET ?`,
+      )
+      .all(...params, q.limit, q.offset) as SaleSummaryRow[]
+    return { rows, total }
+  }
+
+  findByNumber(number: string): { id: string } | null {
+    return (this.db.prepare('SELECT id FROM sales WHERE number = ?').get(number.trim().toUpperCase()) as { id: string } | undefined) ?? null
+  }
+
+  detail(saleId: string): SaleDetail {
+    const s = this.db
+      .prepare(
+        `SELECT s.*, u.name AS cashier, vb.name AS voided_by_name, o.number AS original_number
+         FROM sales s JOIN users u ON u.id = s.user_id LEFT JOIN users vb ON vb.id = s.voided_by LEFT JOIN sales o ON o.id = s.original_sale_id
+         WHERE s.id = ?`,
+      )
+      .get(saleId) as
+      | { id: string; number: string; type: 'SALE' | 'RETURN'; status: 'COMPLETED' | 'VOIDED'; created_at: string; cashier: string; shift_id: string
+          subtotal: number; discount_total: number; total: number; paid_total: number; change_given: number; voided_at: string | null
+          void_reason: string | null; voided_by_name: string | null; original_sale_id: string | null; original_number: string | null }
+      | undefined
+    if (!s) throw new AppError('NOT_FOUND', 'Sale not found')
+    const lines = this.db
+      .prepare(
+        `SELECT l.id AS lineId, l.variant_id AS variantId, l.name_snapshot AS name, coalesce(l.variant_label_snapshot, '') AS variant,
+                l.qty, l.unit_price AS unitPrice, l.line_discount AS lineDiscount, l.line_total AS lineTotal,
+                l.line_total - l.allocated_sale_discount AS net,
+                coalesce((SELECT -SUM(r.qty) FROM sale_lines r JOIN sales rs ON rs.id = r.sale_id WHERE r.original_line_id = l.id AND rs.status = 'COMPLETED'), 0) AS returnedQty,
+                coalesce((SELECT -SUM(r.line_total) FROM sale_lines r JOIN sales rs ON rs.id = r.sale_id WHERE r.original_line_id = l.id AND rs.status = 'COMPLETED'), 0) AS refunded
+         FROM sale_lines l WHERE l.sale_id = ? ORDER BY l.rowid`,
+      )
+      .all(saleId) as SaleDetail['lines']
+    const payments = this.db.prepare('SELECT method, amount FROM payments WHERE sale_id = ? ORDER BY rowid').all(saleId) as SaleDetail['payments']
+    const returns = this.db
+      .prepare("SELECT id, number, created_at AS createdAt, total FROM sales WHERE original_sale_id = ? AND status = 'COMPLETED' ORDER BY created_at")
+      .all(saleId) as SaleDetail['returns']
+    const open = this.shifts.openShift()
+    const windowDays = salesSettings(this.db).returnWindowDays
+    return {
+      id: s.id,
+      number: s.number,
+      type: s.type,
+      status: s.status,
+      createdAt: s.created_at,
+      cashier: s.cashier,
+      subtotal: s.subtotal,
+      discountTotal: s.discount_total,
+      total: s.total,
+      paidTotal: s.paid_total,
+      change: s.change_given,
+      lines,
+      payments,
+      voided: s.voided_at ? { at: s.voided_at, by: s.voided_by_name ?? '', reason: s.void_reason ?? '' } : null,
+      originalId: s.original_sale_id,
+      originalNumber: s.original_number ?? '',
+      returns,
+      canVoid: s.type === 'SALE' && s.status === 'COMPLETED' && open?.id === s.shift_id && returns.length === 0,
+      canReturn: s.type === 'SALE' && s.status === 'COMPLETED' && lines.some((l) => l.qty - l.returnedQty > 0),
+      returnWindowEnds: new Date(new Date(s.created_at).getTime() + windowDays * 86_400_000).toISOString(),
+    }
+  }
+
+  // ---------- void (spec §8: same shift, owner) ----------
+
+  async voidSale(session: Session, saleId: string, reason: string, ownerPin?: string): Promise<SaleDetail> {
+    const sale = this.detail(saleId)
+    if (sale.type !== 'SALE' || sale.status !== 'COMPLETED') throw new AppError('NOT_VOIDABLE', 'This sale cannot be voided')
+    if (sale.returns.length > 0) throw new AppError('NOT_VOIDABLE', 'This sale has returns')
+    if (!sale.canVoid) throw new AppError('SHIFT_CLOSED', 'Only sales from the open register can be voided; take a return instead')
+    const approvedBy = await this.ownerApproval(session, ownerPin, 'VOID_NEEDS_OWNER')
+    const now = this.clock().toISOString()
+    this.db.transaction(() => {
+      const r = this.db
+        .prepare("UPDATE sales SET status = 'VOIDED', voided_at = ?, void_reason = ?, voided_by = ? WHERE id = ? AND status = 'COMPLETED'")
+        .run(now, reason, session.userId, saleId)
+      if (r.changes === 0) throw new AppError('NOT_VOIDABLE', 'This sale was already voided')
+      this.restock(session, saleId, sale.lines.map((l) => ({ variantId: l.variantId, qty: l.qty })), 'void', now)
+      this.db
+        .prepare("INSERT INTO audit_events (id, user_id, action, entity, entity_id, after_json, created_at) VALUES (?, ?, 'VOID_SALE', 'sale', ?, ?, ?)")
+        .run(uuidv7(), session.userId, saleId, JSON.stringify({ number: sale.number, total: sale.total, reason, approvedBy }), now)
+      this.db
+        .prepare("INSERT INTO outbox (event_id, entity, entity_id, op, payload_json, created_at) VALUES (?, 'sale', ?, 'UPSERT', ?, ?)")
+        .run(uuidv7(), saleId, JSON.stringify({ id: saleId, status: 'VOIDED', voidedAt: now, reason }), now)
+    })()
+    return this.detail(saleId)
+  }
+
+  /** Puts stock back for returned or voided items (RETURN movements). */
+  private restock(session: Session, saleId: string, items: { variantId: string; qty: number }[], reason: string, now: string) {
+    const track = this.db.prepare('SELECT p.track_stock FROM variants v JOIN products p ON p.id = v.product_id WHERE v.id = ?')
+    const move = this.db.prepare(
+      "INSERT INTO stock_movements (id, variant_id, type, qty_delta, ref_type, ref_id, reason, user_id, created_at) VALUES (?, ?, 'RETURN', ?, 'sale', ?, ?, ?, ?)",
+    )
+    const bump = this.db.prepare('UPDATE variants SET stock_qty = stock_qty + ?, updated_at = ? WHERE id = ?')
+    for (const i of items) {
+      if (i.qty <= 0 || !(track.get(i.variantId) as { track_stock: number } | undefined)?.track_stock) continue
+      move.run(uuidv7(), i.variantId, i.qty, saleId, reason, session.userId, now)
+      bump.run(i.qty, now, i.variantId)
+    }
+  }
+
+  // ---------- returns (spec M9) ----------
+
+  async returnSale(session: Session, input: ReturnInput): Promise<SaleResult> {
+    if (this.db.prepare('SELECT 1 FROM sales WHERE id = ?').get(input.id)) return this.result(input.id)
+    const shift = this.shifts.requireOpen()
+    const original = this.detail(input.originalSaleId)
+    if (original.type !== 'SALE' || original.status !== 'COMPLETED') throw new AppError('NOT_RETURNABLE', 'This sale cannot be returned')
+
+    const lateBy = this.clock().getTime() - new Date(original.returnWindowEnds).getTime()
+    const approvedBy = lateBy > 0 ? await this.ownerApproval(session, input.ownerPin, 'RETURN_NEEDS_OWNER') : null
+
+    // pos-core: refund what was actually paid per unit, never more than was sold (across all returns).
+    const built = buildReturn(
+      original.lines.map((l) => ({ lineId: l.lineId, variantId: l.variantId, qty: l.qty, net: l.net })),
+      new Map(original.lines.map((l) => [l.lineId, { qty: l.returnedQty, refunded: l.refunded }])),
+      input.lines,
+    )
+    if (built.refundTotal <= 0) throw new AppError('NOTHING_TO_REFUND', 'Nothing to refund')
+    if (input.refundMethod === 'CASH' && built.refundTotal > this.shifts.expectedCash(shift)) {
+      throw new AppError('NOT_ENOUGH_CASH', 'There is not that much cash in the drawer')
+    }
+
+    const byLine = new Map(original.lines.map((l) => [l.lineId, l]))
+    const now = this.clock().toISOString()
+    this.db.transaction(() => {
+      if (this.db.prepare('SELECT 1 FROM sales WHERE id = ?').get(input.id)) return
+      const number = this.nextNumber()
+      const total = -built.refundTotal
+      this.db
+        .prepare(
+          `INSERT INTO sales (id, number, type, original_sale_id, shift_id, user_id, subtotal, discount_total, total, paid_total, change_given, created_at)
+           VALUES (?, ?, 'RETURN', ?, ?, ?, ?, 0, ?, ?, 0, ?)`,
+        )
+        .run(input.id, number, original.id, shift.id, session.userId, total, total, total, now)
+      const insertLine = this.db.prepare(
+        `INSERT INTO sale_lines (id, sale_id, variant_id, original_line_id, name_snapshot, variant_label_snapshot, qty, unit_price, unit_cost, line_total)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT unit_cost FROM sale_lines WHERE id = ?), ?)`,
+      )
+      for (const r of built.lines) {
+        const o = byLine.get(r.lineId)!
+        insertLine.run(uuidv7(), input.id, r.variantId, r.lineId, o.name, o.variant || null, -r.qty, o.unitPrice, r.lineId, -r.refund)
+      }
+      this.db.prepare('INSERT INTO payments (id, sale_id, method, amount) VALUES (?, ?, ?, ?)').run(uuidv7(), input.id, input.refundMethod, total)
+      this.restock(session, input.id, built.lines.map((r) => ({ variantId: r.variantId, qty: r.qty })), 'return', now)
+      this.db
+        .prepare("INSERT INTO audit_events (id, user_id, action, entity, entity_id, after_json, created_at) VALUES (?, ?, 'RETURN', 'sale', ?, ?, ?)")
+        .run(uuidv7(), session.userId, input.id, JSON.stringify({ original: original.number, refund: built.refundTotal, method: input.refundMethod, approvedBy }), now)
+      this.db
+        .prepare("INSERT INTO outbox (event_id, entity, entity_id, op, payload_json, created_at) VALUES (?, 'sale', ?, 'UPSERT', ?, ?)")
+        .run(uuidv7(), input.id, JSON.stringify({ id: input.id, number, type: 'RETURN', originalSaleId: original.id, lines: built.lines, refund: built.refundTotal, method: input.refundMethod, createdAt: now }), now)
+    })()
+    return this.result(input.id)
   }
 
   // ---------- held carts (spec M8) ----------

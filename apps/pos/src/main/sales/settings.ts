@@ -7,6 +7,7 @@ import { getSetting, setSetting } from '../db/database'
 export const DEFAULT_SALES_SETTINGS: SalesSettings = {
   cashierDiscountCapPercent: 10,
   allowNegativeStock: true,
+  returnWindowDays: 7,
   receipt: { printer: '', paper: 80, route: 'raster', lang: 'mixed', autoPrint: true, openDrawer: true },
 }
 

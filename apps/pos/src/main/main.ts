@@ -17,7 +17,9 @@ import { appliedMigrations, loadMigrations, migrate } from './db/migrate'
 import { registerHandlers } from './ipc'
 import { DRAWER_KICK, receiptJob } from './print/escpos'
 import { sendRaw } from './print/raw-print'
-import { monochrome, monoToImage, printWithDriver, renderAllReceipts, renderReceiptImage } from './print/render'
+import { receiptHtml } from './print/receipt'
+import { monochrome, monoToImage, printPaperWithDriver, printWithDriver, renderAllReceipts, renderPaperImage, renderReceiptImage } from './print/render'
+import { zReportHtml } from './print/zreport'
 import { APP_ORIGIN, registerAppScheme, serveAppScheme } from './protocol'
 import { SalesService } from './sales/sales'
 import { saveSalesSettings, salesSettings } from './sales/settings'
@@ -65,6 +67,20 @@ function wireIpc(db: Database.Database, dbFile: string) {
   /** Parsed imports waiting for "Import": token → plan. One at a time, expires after 30 minutes. */
   const pendingImports = new Map<string, { plan: ImportPlan; expires: number }>()
   const parentWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+
+  /** Prints receipt-width HTML on the shop's receipt printer with its settings. A failure never undoes a sale. */
+  const printOnReceiptPrinter = async (html: string, openDrawer: boolean): Promise<{ printed: boolean; reason?: string }> => {
+    const s = salesSettings(db).receipt
+    if (!s.printer) return { printed: false, reason: 'NO_PRINTER' }
+    const target = { kind: 'windows' as const, printer: s.printer }
+    if (s.route === 'raster') {
+      await sendRaw(target, receiptJob(monochrome(await renderPaperImage(html, s.paper)), { openDrawer }), RAW_PRINT_SCRIPT)
+    } else {
+      await printPaperWithDriver(html, s.paper, s.printer)
+      if (openDrawer) await sendRaw(target, DRAWER_KICK, RAW_PRINT_SCRIPT)
+    }
+    return { printed: true }
+  }
 
   /** Expands copies, renders the label document, and lists variants without a printable barcode. */
   const buildLabels = (job: { items: { variantId: string; copies: number }[]; layout: LabelLayout; skip: number; showPrice: boolean }) => {
@@ -192,17 +208,19 @@ function wireIpc(db: Database.Database, dbFile: string) {
     'sell:complete': (input) => sales.completeSale(auth.requireUser(), input),
     'sell:printReceipt': async ({ saleId }) => {
       const s = salesSettings(db).receipt
-      if (!s.printer) return { printed: false, reason: 'NO_PRINTER' }
       const data = sales.receiptData(saleId)
-      const openDrawer = s.openDrawer && data.cashTendered > 0
-      const target = { kind: 'windows' as const, printer: s.printer }
-      if (s.route === 'raster') {
-        await sendRaw(target, receiptJob(monochrome(await renderReceiptImage({ lang: s.lang, paper: s.paper }, data)), { openDrawer }), RAW_PRINT_SCRIPT)
-      } else {
-        await printWithDriver({ lang: s.lang, paper: s.paper }, s.printer, data)
-        if (openDrawer) await sendRaw(target, DRAWER_KICK, RAW_PRINT_SCRIPT)
-      }
-      return { printed: true }
+      // Drawer opens for cash taken in (sales) and cash paid out (returns).
+      const cashMoved = data.cashTendered > 0 || (data.kind === 'RETURN' && sales.detail(saleId).payments.some((p) => p.method === 'CASH'))
+      return printOnReceiptPrinter(receiptHtml(data, { lang: s.lang, paper: s.paper }), s.openDrawer && cashMoved)
+    },
+    'sales:history': (query) => sales.history(query),
+    'sales:detail': ({ id }) => sales.detail(id),
+    'sales:findByNumber': ({ number }) => sales.findByNumber(number),
+    'sales:void': ({ id, reason, ownerPin }) => sales.voidSale(auth.requireUser(), id, reason, ownerPin),
+    'sales:return': (input) => sales.returnSale(auth.requireUser(), input),
+    'shift:printZ': ({ shiftId }) => {
+      const s = salesSettings(db).receipt
+      return printOnReceiptPrinter(zReportHtml(shifts.summary(shiftId), auth.shop().name, { lang: s.lang, paper: s.paper }), false)
     },
     'sell:hold': ({ cart }) => ({ id: sales.hold(auth.requireUser(), cart) }),
     'sell:held': () => sales.held(),
@@ -333,14 +351,25 @@ async function smoketest(win: BrowserWindow) {
       const withOwner = await window.pos.invoke('sell:complete', { id: crypto.randomUUID(), ...big, ownerPin: '1234' })
       await window.pos.invoke('auth:logout')
       await window.pos.invoke('auth:login', { userId: owner.data.userId, pin: '1234' })
+      // History, a return of one item, and a void of the discounted sale (same shift).
+      const detail = (await window.pos.invoke('sales:detail', { id: sold.data.saleId })).data
+      const returned = await window.pos.invoke('sales:return', {
+        id: crypto.randomUUID(), originalSaleId: sold.data.saleId, lines: [{ lineId: detail.lines[0].lineId, qty: 1 }], refundMethod: 'CASH',
+      })
+      const voided = await window.pos.invoke('sales:void', { id: withOwner.data.saleId, reason: 'smoke test' })
+      const byNumber = await window.pos.invoke('sales:findByNumber', { number: sold.data.number })
+      const today = await window.pos.invoke('sales:history', { number: sold.data.number })
+      const historyOk = returned.ok && returned.data.total === -2500 && returned.data.receipt.kind === 'RETURN'
+        && voided.ok && voided.data.status === 'VOIDED' && byNumber.data?.id === sold.data.saleId && today.ok && today.data.total >= 1
       // Close on the expected cash (the owner sees it), then open a fresh register for the UI.
       const shiftNow = (await window.pos.invoke('shift:status')).data
       const closed = await window.pos.invoke('shift:close', { countedCash: shiftNow.expectedCash })
+      const z = await window.pos.invoke('shift:printZ', { shiftId: closed.data.id })
       await window.pos.invoke('shift:open', { openingFloat: 5000 })
-      const selling = sold.ok && sold.data.total === 7500 && sold.data.change === 2500 && sold.data.receipt.lines.length === 2
+      const selling = historyOk && z.ok && z.data.reason === 'NO_PRINTER' && closed.data.returnsCount >= 1 && closed.data.voidsCount >= 1 && sold.ok && sold.data.total === 7500 && sold.data.change === 2500 && sold.data.receipt.lines.length === 2
         && after0.stockQty === info0.stockQty - 2 && printed.ok && printed.data.printed === false && printed.data.reason === 'NO_PRINTER'
         && !needsOwner.ok && needsOwner.error.code === 'DISCOUNT_NEEDS_OWNER' && withOwner.ok && withOwner.data.total === 1250
-        && closed.ok && closed.data.difference === 0 && closed.data.salesCount >= 2
+        && closed.ok && closed.data.difference === 0 && closed.data.salesCount >= 1
       // Import round trip (only with --import-file; otherwise a file dialog would open).
       let imported = null
       if (${JSON.stringify(Boolean(argValue('import-file')))}) {
@@ -349,7 +378,7 @@ async function smoketest(win: BrowserWindow) {
         const jean = await window.pos.invoke('catalog:products', { query: 'jean slim' })
         imported = commit.ok && jean.ok && jean.data.rows.length > 0 ? commit.data : { error: commit.error ?? preview.data?.errors }
       }
-      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, auth, catalog, labels, selling, barcode, sellDebug: selling ? null : { sold, printed, needsOwner: needsOwner.error, closed: closed.error ?? closed.data?.difference }, imported }
+      return { bridge, info, badCode: bad?.ok === false ? bad.error.code : null, rendered: root > 0, dir: document.documentElement.dir, auth, catalog, labels, selling, barcode, saleNumber: sold.data?.number, sellDebug: selling ? null : { sold: sold.error, printed, needsOwner: needsOwner.error, returned: returned.error, voided: voided.error, historyOk, ret: returned.data?.total, kind: returned.data?.receipt?.kind, vstatus: voided.data?.status, byNumber: byNumber.data, histTotal: today.data?.total, z, rc: closed.data?.returnsCount, vc: closed.data?.voidsCount }, imported }
     } catch (e) { return { thrown: String((e && e.stack) || e) } } })()
   `)
   console.log('smoketest', JSON.stringify({ ...result, info: result.info?.ok }))
@@ -369,6 +398,15 @@ async function smoketest(win: BrowserWindow) {
     await win.webContents.executeJavaScript(`document.querySelector('.totals .primary.big')?.click()`)
     await capture(shot.replace(/\.png$/, '-pay.png'))
     await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`)
+    // History: the sale, its side panel, and the return dialog.
+    await win.webContents.executeJavaScript(`document.querySelectorAll('.rail-item')[1]?.click()`)
+    await capture(shot.replace(/\.png$/,'-history.png'))
+    // A plain sale (no "return"/"voided" badge), so the return dialog can open.
+    await win.webContents.executeJavaScript(`[...document.querySelectorAll('.history .grid tbody tr')].find((tr) => !tr.querySelector('.badge'))?.click()`)
+    await capture(shot.replace(/\.png$/,'-sale.png'))
+    await win.webContents.executeJavaScript(`document.querySelector('.drawer-foot .primary')?.click()`)
+    await capture(shot.replace(/\.png$/,'-return.png'))
+    await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); document.querySelector('.drawer-head button')?.click()`)
     // Products list, then the editor for the first product.
     await win.webContents.executeJavaScript(`document.querySelectorAll('.rail-item')[2]?.click()`)
     await capture(shot.replace(/\.png$/, '-products.png'))
