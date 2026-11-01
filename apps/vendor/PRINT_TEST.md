@@ -4,12 +4,18 @@ Decides how the POS prints receipts. Spec: `docs/PRODUCT_SPEC_AND_ANALYSIS.md` Â
 
 ## Run it
 
+The receipt code is the vendor app's engine (`apps/vendor/electron/core/print`). The interactive test screen
+(print A / print B / open drawer) was built in the retired `apps/pos` app and runs the same code; use it from the
+`pos-vendor-reuse` branch:
+
 ```bash
-npm install -w @albaz/pos
+git checkout pos-vendor-reuse
+npm install
 npm run start -w @albaz/pos
 ```
 
-Without a printer: `npm run selftest -w @albaz/pos -- --out=receipts` writes PNGs and raw `.bin` jobs for every language and paper width.
+Without a printer, on the current code: `npm run selftest:desktop -w @albaz/vendor` writes PNGs and raw ESC/POS `.bin`
+jobs for every language and paper width to `apps/vendor/smoke-data/selftest`.
 
 ## Before you start
 

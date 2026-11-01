@@ -8,10 +8,11 @@ Offline-first point-of-sale and stock app for small Algerian retail shops (Windo
 
 ```
 app/            Root Next.js app — cloud API routes, admin and legacy marketplace pages
-apps/vendor/    Current vendor/ERP app (Next.js + Electron) — to be replaced by apps/pos
+apps/vendor/    The shop app (Next.js UI + Electron). Desktop data lives in its local engine:
+                electron/core (SQLite, typed IPC, sales/stock/customers/reports)
 apps/customer/  Legacy customer app — removal pending (see spec, Phase 0 pass 2)
 apps/admin/     Legacy admin workspace — removal pending
-packages/       Shared UI, utilities and auth
+packages/       Shared UI, utilities and auth; pos-core = money, totals, payments, returns, EAN-13
 lib/            Shared server libraries (Prisma, auth, rate limiting, …)
 prisma/         Database schema and migrations
 docs/           Spec and technical notes

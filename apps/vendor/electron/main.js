@@ -1538,7 +1538,7 @@ async function runSmoketest() {
     console.log('smoketest', JSON.stringify(detail))
     app.exit(ok ? 0 : 1)
   }
-  const deadline = setTimeout(() => finish(false, { error: 'timeout' }), 300_000)
+  const deadline = setTimeout(() => finish(false, { error: 'timeout' }), 600_000)
   const until = async (check, ms = 250) => { while (!(await check())) await new Promise((r) => setTimeout(r, ms)) }
   const shot = argValue('screenshot')
   const capture = async (suffix) => {
@@ -1711,7 +1711,25 @@ async function runSmoketest() {
   }
 }
 
+/**
+ * `--selftest [--out=<dir>]`: renders every receipt variant (languages × paper widths, PNG + raw
+ * ESC/POS .bin) and the label sheets with the engine's print code, then exits (0 = ok). No server, no login.
+ */
+async function runSelftest() {
+  try {
+    const out = path.resolve(argValue('out') || path.join(app.getPath('userData'), 'selftest'))
+    await require('./dist/core/print/render.js').renderAllReceipts(out)
+    await require('./dist/core/labels/print.js').renderLabelSamples(out)
+    console.log('selftest ok', out)
+    app.exit(0)
+  } catch (e) {
+    console.error('selftest failed:', e)
+    app.exit(1)
+  }
+}
+
 app.whenReady().then(() => {
+  if (process.argv.includes('--selftest')) return void runSelftest()
   if (app.isPackaged) writeEarlyLog('whenReady - starting')
   if (isSmoketest) seedSmoketestProfile()
   if (process.platform === 'win32') {

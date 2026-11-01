@@ -1,0 +1,101 @@
+name: Vendor desktop
+
+# The vendor app's local engine (apps/vendor/electron/core) and pos-core, plus a real run of the
+# desktop app: engine database tests, receipts/labels rendering and the end-to-end smoke test.
+# Separate from ci.yml / pr-check.yml, whose root type-check still fails on legacy code.
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/vendor/**'
+      - 'packages/pos-core/**'
+      - 'package-lock.json'
+      - '.github/workflows/vendor-desktop.yml'
+  pull_request:
+    paths:
+      - 'apps/vendor/**'
+      - 'packages/pos-core/**'
+      - 'package-lock.json'
+      - '.github/workflows/vendor-desktop.yml'
+
+jobs:
+  check:
+    name: Engine type-check and pos-core tests
+    runs-on: ubuntu-latest
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Skips the root postinstall (Prisma): not needed to compile the engine.
+      - name: Install dependencies
+        run: npm ci --workspace=@albaz/vendor --workspace=@albaz/pos-core --ignore-scripts
+
+      - name: Type-check
+        run: |
+          npm run type-check -w @albaz/pos-core
+          npx tsc -p apps/vendor/electron/tsconfig.json --noEmit
+
+      - name: pos-core tests
+        run: npm test -w @albaz/pos-core
+
+  desktop:
+    name: Engine DB tests, receipts and smoke test (Electron, Windows)
+    runs-on: windows-latest
+    needs: check
+    env:
+      # Placeholders: prisma generate needs a URL; the desktop app never connects to it.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      # Test-only secret for the desktop session token in this run.
+      NEXTAUTH_SECRET: ci-desktop-smoke-test-only
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # The full tree: the UI (next dev) imports shared code from the repository root.
+      - name: Install dependencies
+        run: |
+          npm ci --ignore-scripts
+          node node_modules/electron/install.js
+          npx prisma generate --schema=./prisma/schema.prisma
+
+      # better-sqlite3 for Electron's ABI (prebuilt download, compiles if none).
+      - name: Build native modules for Electron
+        run: npm run rebuild:native -w @albaz/vendor
+
+      - name: Engine tests (migrations, sales, stock, customers, reports)
+        run: npm run test:core -w @albaz/vendor
+
+      - name: Render every receipt and label variant
+        run: npm run selftest:desktop -w @albaz/vendor
+
+      - name: Check receipts
+        shell: bash
+        run: |
+          count=$(ls apps/vendor/smoke-data/selftest/*-mono.png | wc -l)
+          echo "rendered $count receipts"
+          test "$count" -eq 6
+
+      # Real app: login path, import, POS checkout, stock, credit book, suppliers, reports.
+      - name: Desktop smoke test
+        timeout-minutes: 15
+        run: npm run smoketest:desktop -w @albaz/vendor
+
+      - name: Upload screenshots and receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor-desktop-output
+          path: |
+            apps/vendor/smoke-data/*.png
+            apps/vendor/smoke-data/selftest/
+          if-no-files-found: warn
