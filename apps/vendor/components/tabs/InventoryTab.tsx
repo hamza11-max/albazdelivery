@@ -13,6 +13,7 @@ import { isElectronOfflineInventoryVendorId } from "../../utils/electronUtils"
 import { engine, engineInventory, hasEngine } from "../../lib/engine"
 import { electronFetch, isElectronRuntime } from "@/lib/electron-fetch"
 import { InventoryAlertsTab } from "./InventoryAlertsTab"
+import { StockPanel } from "./StockPanel"
 
 async function vendorApiFetch(url: string, init?: RequestInit): Promise<Response> {
   if (isElectronRuntime()) return electronFetch(url, init)
@@ -62,6 +63,9 @@ export function InventoryTab({
   onPrintLabels,
 }: InventoryTabProps) {
   const [qrHiddenIds, setQrHiddenIds] = useState<Set<string>>(() => new Set())
+  // Known only in the browser (desktop bridge): set after mount so server and client render the same.
+  const [engineMode, setEngineMode] = useState(false)
+  useEffect(() => setEngineMode(hasEngine()), [])
 
   const refreshQrHidden = useCallback(async () => {
     if (!dineTablesUi) return
@@ -161,6 +165,11 @@ export function InventoryTab({
           <TabsTrigger value="alerts">
             {translate("Alertes stock", "تنبيهات المخزون")}
           </TabsTrigger>
+          {engineMode && (
+            <TabsTrigger value="stock">
+              {translate("Stock", "المخزون")}
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="products" className="space-y-4 sm:space-y-6">
@@ -195,7 +204,7 @@ export function InventoryTab({
               <RotateCcw className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
               {translate("Actualiser", "تحديث")}
             </Button>
-            {hasEngine() ? (
+            {engineMode ? (
               <Button variant="outline" onClick={engineImport}>
                 <Package className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
                 {translate("Importer Excel / CSV", "استيراد Excel / CSV")}
@@ -528,6 +537,18 @@ export function InventoryTab({
         <TabsContent value="alerts">
           <InventoryAlertsTab translate={translate} />
         </TabsContent>
+        {engineMode && (
+          <TabsContent value="stock">
+            <StockPanel
+              translate={translate}
+              toast={toast}
+              onChanged={(next) => {
+                setProducts(next)
+                setLowStockProducts(next.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))
+              }}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   )

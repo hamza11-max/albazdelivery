@@ -1611,10 +1611,48 @@ async function runSmoketest() {
     await capture('pos')
     pages.sales = await open('http://localhost:3001/vendor?tab=sales', engine.name)
     await capture('sales')
+    // Stock screen (Inventory → Stock): receive 5 through the delivery form, then count the shelf at 2.
+    pages.stock = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const call = async (ch, input) => (await window.electronAPI.core.invoke(ch, input)).data
+      const waitFor = async (fn, what) => { for (let i = 0; i < 120; i++) { const v = await fn(); if (v) return v; await sleep(250) } throw new Error('not found: ' + what) }
+      const byText = (sel, text) => [...document.querySelectorAll(sel)].find((el) => el.innerText && el.innerText.trim() === text)
+      const setValue = (input, value) => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value)
+        input.dispatchEvent(new Event('input', { bubbles: true }))
+      }
+      const tab = (text) => byText('[role="tab"]', text).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))
+      window.confirm = () => true
+      const name = 'Sac à main cuir'
+      const item = (await call('catalog:items')).find((i) => i.name === name)
+      await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'inventory' })); return document.body.innerText.includes("Gestion de l'inventaire") }, 'inventory tab')
+      tab((await waitFor(() => byText('[role="tab"]', 'Stock'), 'Stock tab')) && 'Stock')
+      const search = await waitFor(() => document.querySelector('[data-testid="stock-search"]'), 'delivery search')
+      setValue(search, name)
+      ;(await waitFor(() => [...document.querySelectorAll('button')].find((b) => b.innerText.startsWith(name)), 'search match')).click()
+      setValue(await waitFor(() => document.querySelector('table input[inputmode="numeric"]'), 'qty input'), '5')
+      ;(await waitFor(() => byText('button', 'Enregistrer la réception'), 'save delivery')).click()
+      const received = await waitFor(async () => { const s = (await call('catalog:items')).find((i) => i.variantId === item.variantId).stock; return s === item.stock + 5 ? s : 0 }, 'stock +5')
+      tab('Inventaire')
+      ;(await waitFor(() => byText('button', 'Commencer un inventaire'), 'start count')).click()
+      const row = await waitFor(() => [...document.querySelectorAll('tr')].find((tr) => tr.innerText.startsWith(name)), 'count row')
+      const counted = row.querySelector('input')
+      counted.focus()
+      setValue(counted, '2')
+      counted.dispatchEvent(new FocusEvent('focusout', { bubbles: true }))
+      await waitFor(async () => (await call('stock:countOpen'))?.lines.find((l) => l.variantId === item.variantId)?.counted === 2, 'counted saved')
+      ;(await waitFor(() => { const b = byText('button', 'Terminer et corriger'); return b && !b.disabled && b }, 'finish count enabled')).click()
+      const afterCount = await waitFor(async () => { const s = (await call('catalog:items')).find((i) => i.variantId === item.variantId).stock; return s === 2 ? 2 : 0 }, 'stock = 2')
+      tab('Mouvements')
+      await waitFor(() => document.body.innerText.includes('Correction') && document.body.innerText.includes('Réception'), 'movements list')
+      return { before: item.stock, received, afterCount }
+    })()`).catch((e) => ({ error: String(e) }))
+    await capture('stock')
     clearTimeout(deadline)
     const ok = engine.items > 0 && engine.stockAfter === engine.stockBefore - 1 && engine.recent >= 1 && /-\d{6}$/.test(engine.number)
       && pages.inventory && pages.pos && pages.sales
       && pages.checkout.added === 1 && pages.checkout.stockAfter === pages.checkout.stockBefore - 1
+      && pages.stock.afterCount === 2 && pages.stock.received === pages.stock.before + 5
     finish(ok, { ...engine, pages })
   } catch (e) {
     clearTimeout(deadline)

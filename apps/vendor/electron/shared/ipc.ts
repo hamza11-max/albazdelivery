@@ -64,6 +64,45 @@ const flatItemInput = z.object({
 })
 export type FlatItemInput = z.output<typeof flatItemInput>
 
+/** A supplier delivery. `id` comes from the screen: sending it twice records it once. */
+const stockReceiptInput = z.object({
+  id,
+  supplierName: optText(80),
+  reference: optText(40),
+  note: optText(120),
+  lines: z.array(z.object({
+    variantId: id,
+    qty: z.number().int().min(1).max(100_000),
+    /** Cost per unit on this delivery; omitted = keep the item's cost. */
+    unitCost: money.optional(),
+  })).min(1).max(500),
+})
+export type StockReceiptInput = z.output<typeof stockReceiptInput>
+
+export interface StockMovementRow {
+  id: string
+  variantId: string
+  name: string
+  type: 'SALE' | 'RETURN' | 'RECEIVE' | 'ADJUST' | 'DAMAGE'
+  delta: number
+  unitCost: number | null
+  reason: string
+  supplier: string
+  reference: string
+  saleNumber: string
+  user: string
+  createdAt: string
+}
+
+export interface StockCount {
+  id: string
+  status: 'OPEN' | 'FINISHED' | 'CANCELLED'
+  note: string
+  createdAt: string
+  user: string
+  lines: { variantId: string; name: string; sku: string; barcode: string; expected: number; stockNow: number; counted: number | null }[]
+}
+
 /** A completed sale or return with its lines, shaped for the vendor screens (amounts in DZD). */
 export interface RecentSale {
   id: string
@@ -203,6 +242,14 @@ export const inputs = {
   'catalog:archiveItem': z.object({ variantId: id }),
   'stock:adjust': z.object({ variantId: id, newQty: stockQty, reason: z.string().trim().min(1).max(80) }),
   'sales:recent': z.object({ days: z.number().int().min(1).max(400).default(90) }),
+  'stock:receive': stockReceiptInput,
+  'stock:low': z.undefined(),
+  'stock:movements': z.object({ variantId: id.optional(), limit: z.number().int().min(1).max(1000).default(200) }),
+  'stock:countOpen': z.undefined(),
+  'stock:countStart': z.object({ note: optText(120) }),
+  'stock:countSet': z.object({ countId: id, variantId: id, counted: stockQty.nullable() }),
+  'stock:countFinish': z.object({ countId: id }),
+  'stock:countCancel': z.object({ countId: id }),
   // The main process shows the file dialogs: the renderer never passes file paths.
   'import:template': z.undefined(),
   'import:preview': z.undefined(),
@@ -374,6 +421,14 @@ export interface Outputs {
   'catalog:archiveItem': null
   'stock:adjust': { stock: number; delta: number }
   'sales:recent': RecentSale[]
+  'stock:receive': { receiptId: string; units: number; totalCost: number }
+  'stock:low': FlatItem[]
+  'stock:movements': StockMovementRow[]
+  'stock:countOpen': StockCount | null
+  'stock:countStart': StockCount
+  'stock:countSet': null
+  'stock:countFinish': { adjusted: number; unitsDelta: number }
+  'stock:countCancel': null
   /** null when the dialog was cancelled. */
   'import:template': { path: string } | null
   'import:preview': ImportPreview | null

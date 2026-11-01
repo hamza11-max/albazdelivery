@@ -25,6 +25,7 @@ import { recentSales } from './sales/recent'
 import { SalesService } from './sales/sales'
 import { saveSalesSettings, salesSettings } from './sales/settings'
 import { ShiftService } from './sales/shifts'
+import { StockService } from './stock/stock'
 
 /**
  * The shop's local engine: one SQLite database owned by the main process,
@@ -68,6 +69,7 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
   const shifts = new ShiftService(db)
   const sales = new SalesService(db, shifts)
   const catalog = new CatalogRepo(db, undefined, () => auth.current()?.userId ?? null)
+  const stock = new StockService(db)
   /** Parsed imports waiting for "Import": token → plan. One at a time, expires after 30 minutes. */
   const pendingImports = new Map<string, { plan: ImportPlan; expires: number }>()
   const parentWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -169,6 +171,20 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
     },
     'stock:adjust': (input) => adjustStock(db, input, auth.requireUser().userId),
     'sales:recent': ({ days }) => recentSales(db, days),
+    'stock:receive': (input) => stock.receive(input, auth.requireUser().userId),
+    'stock:low': () => stock.low(),
+    'stock:movements': (q) => stock.movements(q),
+    'stock:countOpen': () => stock.openCount(),
+    'stock:countStart': ({ note }) => stock.startCount(note, auth.requireUser().userId),
+    'stock:countSet': ({ countId, variantId, counted }) => {
+      stock.setCounted(countId, variantId, counted)
+      return null
+    },
+    'stock:countFinish': ({ countId }) => stock.finishCount(countId, auth.requireUser().userId),
+    'stock:countCancel': ({ countId }) => {
+      stock.cancelCount(countId, auth.requireUser().userId)
+      return null
+    },
     'app:info': () => ({
       appVersion: app.getVersion(),
       electronVersion: process.versions.electron,
