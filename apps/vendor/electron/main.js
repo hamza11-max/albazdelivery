@@ -1684,12 +1684,26 @@ async function runSmoketest() {
       return { owed, balanceAfter: after.balance, ledger: ledger.map((l) => l.type), suppliers: document.querySelector('[data-testid="supplier-stats"]').innerText }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('suppliers')
+    // Reports: the screen shows engine figures, and its net revenue equals the day's recorded sales.
+    pages.reports = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const call = async (ch, input) => { const r = await window.electronAPI.core.invoke(ch, input); if (!r.ok) throw new Error(ch + ': ' + r.error.code); return r.data }
+      const waitFor = async (fn, what) => { for (let i = 0; i < 120; i++) { const v = await fn(); if (v) return v; await sleep(250) } throw new Error('not found: ' + what) }
+      document.querySelector('[role="dialog"] button')?.click()
+      const margin = await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'reports' })); const m = document.querySelector('[data-testid="report-margin"]'); return m && m.innerText }, 'report margin')
+      const d = new Date()
+      const report = await call('reports:period', { from: new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString(), to: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).toISOString() })
+      const recorded = (await call('sales:recent', { days: 1 })).reduce((s, x) => s + x.total, 0)
+      return { revenue: report.totals.revenue, recorded, margin, sales: report.totals.salesCount, credit: report.totals.credit }
+    })()`).catch((e) => ({ error: String(e) }))
+    await capture('reports')
     clearTimeout(deadline)
     const ok = engine.items > 0 && engine.stockAfter === engine.stockBefore - 1 && engine.recent >= 1 && /-\d{6}$/.test(engine.number)
       && pages.inventory && pages.pos && pages.sales
       && pages.checkout.added === 1 && pages.checkout.stockAfter === pages.checkout.stockBefore - 1
       && pages.stock.afterCount === 2 && pages.stock.received === pages.stock.before + 5
       && pages.credit.owed > 0 && pages.credit.balanceAfter === 0 && /Réceptions/.test(pages.credit.suppliers)
+      && pages.reports.revenue > 0 && pages.reports.revenue === pages.reports.recorded && pages.reports.credit === pages.credit.owed
     finish(ok, { ...engine, pages })
   } catch (e) {
     clearTimeout(deadline)
