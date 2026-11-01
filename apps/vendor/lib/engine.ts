@@ -1,0 +1,125 @@
+"use client"
+
+import type { InventoryProduct, Sale } from "@/root/lib/types"
+import type { FlatItem, Outputs, RecentSale } from "../electron/shared/ipc"
+
+/**
+ * The desktop app's local engine (electron/core): one SQLite database in the main
+ * process, reached over typed IPC. Prices, totals, stock and sale numbers are decided
+ * there; this module only calls it and maps its rows to the screens' types.
+ */
+type Channel = keyof Outputs
+type Bridge = { invoke: (channel: string, input?: unknown) => Promise<{ ok: true; data: unknown } | { ok: false; error: { code: string; message: string } }> }
+
+const bridge = (): Bridge | null =>
+  typeof window !== "undefined" ? ((window as any).electronAPI?.core as Bridge | undefined) ?? null : null
+
+/** True in the desktop app: data lives in the local engine, not in localStorage or the cloud API. */
+export function hasEngine(): boolean {
+  return bridge() !== null
+}
+
+export class EngineError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message)
+    this.name = "EngineError"
+  }
+}
+
+export async function engine<K extends Channel>(channel: K, input?: unknown): Promise<Outputs[K]> {
+  const b = bridge()
+  if (!b) throw new EngineError("NO_ENGINE", "Desktop app only")
+  const result = await b.invoke(channel, input)
+  if (!result.ok) throw new EngineError(result.error.code, result.error.message)
+  return result.data as Outputs[K]
+}
+
+// ---------- mapping to the vendor screens' types ----------
+
+export function toInventoryProduct(i: FlatItem): InventoryProduct {
+  return {
+    id: i.variantId,
+    sku: i.sku,
+    name: i.displayName,
+    category: i.category,
+    costPrice: i.costPrice,
+    sellingPrice: i.salePrice,
+    price: i.salePrice,
+    stock: i.stock,
+    lowStockThreshold: i.lowStockThreshold,
+    barcode: i.barcode || undefined,
+    createdAt: new Date(i.createdAt),
+    updatedAt: new Date(i.updatedAt),
+  }
+}
+
+export function toSale(s: RecentSale): Sale {
+  return {
+    id: s.id,
+    items: s.items,
+    subtotal: s.subtotal,
+    discount: s.discount,
+    total: s.total,
+    paymentMethod: s.paymentMethod,
+    createdAt: new Date(s.createdAt),
+  }
+}
+
+export async function engineInventory(): Promise<InventoryProduct[]> {
+  return (await engine("catalog:items")).map(toInventoryProduct)
+}
+
+export async function engineSales(days = 90): Promise<Sale[]> {
+  return (await engine("sales:recent", { days })).map(toSale)
+}
+
+/** Whole dinars: the engine refuses fractions, so screens round what people type. */
+export const dinars = (n: unknown): number => Math.max(0, Math.round(Number(n) || 0))
+
+/** Saves a product form. `stock` is the counted quantity; a change becomes an ADJUST movement. */
+export async function engineSaveProduct(p: Partial<InventoryProduct> & { name: string }, stockReason = ""): Promise<InventoryProduct> {
+  const saved = await engine("catalog:saveItem", {
+    variantId: p.id ? String(p.id) : undefined,
+    name: p.name,
+    category: p.category ?? "",
+    sku: p.sku ?? "",
+    barcode: p.barcode ?? "",
+    costPrice: dinars(p.costPrice),
+    salePrice: dinars(p.sellingPrice ?? p.price),
+    lowStockThreshold: p.lowStockThreshold == null ? null : dinars(p.lowStockThreshold),
+    stock: p.stock == null ? undefined : dinars(p.stock),
+    stockReason,
+  })
+  return toInventoryProduct(saved)
+}
+
+/**
+ * Records a POS sale. The engine prices it from its own catalog; the screen sends only
+ * which items, how many, and discounts. The register is opened (float 0) on the first
+ * sale of a session if nobody opened it.
+ */
+export async function engineCompleteSale(input: {
+  id: string
+  lines: { variantId: string; qty: number; lineDiscount?: number }[]
+  saleDiscount?: number
+  paymentMethod: "cash" | "card"
+  /** Cash handed over; defaults to the exact total. */
+  cashTendered?: number
+}): Promise<Outputs["sell:complete"]> {
+  const shift = await engine("shift:status")
+  if (!shift.open) await engine("shift:open", { openingFloat: 0 })
+  const lines = input.lines.map((l) => ({ variantId: l.variantId, qty: l.qty, lineDiscount: dinars(l.lineDiscount) }))
+  const saleDiscount = dinars(input.saleDiscount)
+  // Exact amount unless told otherwise: the engine rejects a payment short of its own total
+  // with INSUFFICIENT_PAYMENT, so a stale price on screen can't record a wrong sale.
+  const preview = await engine("catalog:variantInfo", { variantIds: [...new Set(lines.map((l) => l.variantId))] })
+  const priceOf = new Map(preview.map((v) => [v.variantId, v.price]))
+  const expected = Math.max(0, lines.reduce((s, l) => s + (priceOf.get(l.variantId) ?? 0) * l.qty - l.lineDiscount, 0) - saleDiscount)
+  const amount = input.paymentMethod === "card" ? expected : Math.max(expected, dinars(input.cashTendered ?? expected))
+  return engine("sell:complete", {
+    id: input.id,
+    lines,
+    saleDiscount,
+    tenders: amount > 0 ? [{ method: input.paymentMethod === "card" ? "CARD_EXTERNAL" : "CASH", amount }] : [],
+  })
+}

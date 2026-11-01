@@ -3,6 +3,7 @@
 import type { Sale } from "@/root/lib/types"
 import type { TopProductData } from "../app/vendor/types"
 import { safeLocalStorageGet, safeLocalStorageSet, handleError, StorageError } from "./errorHandling"
+import { engineInventory, engineSales, hasEngine } from "../lib/engine"
 
 type OfflineQueueEntryReschedule = { id: string; payload?: any; createdAt?: string; status?: string }
 
@@ -110,14 +111,38 @@ export function loadElectronOfflineData({
   setTopProducts,
 }: LoadElectronOfflineDataParams) {
   try {
-    const storedProducts = safeLocalStorageGet<any[]>('electron-inventory', [])
+    // With the local engine, products and sales come only from it.
+    const engine = hasEngine()
+    if (engine) {
+      Promise.all([engineInventory(), engineSales()]).then(([products, sales]) => {
+        setProducts(products)
+        setLowStockProducts(products.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))
+        setSales(sales)
+        const now = new Date()
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const sum = (from: Date) => sales.filter((s) => new Date(s.createdAt) >= from).reduce((t, s) => t + s.total, 0)
+        setTodaySales(sum(todayStart))
+        setWeekSales(sum(new Date(todayStart.getTime() - 7 * 86_400_000)))
+        setMonthSales(sum(new Date(now.getFullYear(), now.getMonth(), 1)))
+        const byItem = new Map<string, TopProductData>()
+        for (const sale of sales) for (const item of sale.items) {
+          const row = byItem.get(String(item.productId)) ?? { productId: item.productId, productName: item.productName, totalQuantity: 0, totalSales: 0, totalSold: 0 }
+          row.totalQuantity += item.quantity
+          row.totalSold += item.quantity
+          row.totalSales += item.price * item.quantity - item.discount
+          byItem.set(String(item.productId), row)
+        }
+        setTopProducts([...byItem.values()].sort((a, b) => b.totalSales - a.totalSales).slice(0, 5))
+      }).catch((e) => handleError(e, { showToast: false, logError: true }))
+    }
+    const storedProducts = engine ? [] : safeLocalStorageGet<any[]>('electron-inventory', [])
     if (storedProducts.length > 0) {
       setProducts(storedProducts)
       setLowStockProducts(storedProducts.filter((p: any) => p.stock <= (p.lowStockThreshold ?? 10)))
     }
-    
-    const mergedSales = getMergedLocalSalesHistory()
-    setSales(mergedSales)
+
+    const mergedSales = engine ? [] : getMergedLocalSalesHistory()
+    if (!engine) setSales(mergedSales)
 
     const storedSuppliers = safeLocalStorageGet<any[]>('electron-suppliers', [])
     if (storedSuppliers.length > 0) {

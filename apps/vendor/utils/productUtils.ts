@@ -4,6 +4,7 @@ import type { InventoryProduct, ProductForm } from "../app/vendor/types"
 import { fetchInventory, fetchDashboardData, fetchProducts } from "../app/vendor/refresh-data"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
 import { isElectronOfflineInventoryVendorId } from "./electronUtils"
+import { engine, engineInventory, engineSaveProduct, hasEngine } from "../lib/engine"
 
 interface SaveProductParams {
   productForm: ProductForm
@@ -39,6 +40,35 @@ export async function saveProduct({
   translate,
 }: SaveProductParams) {
   try {
+    // Desktop app: the local engine is the source of truth (prices in whole dinars, stock changes as movements).
+    if (hasEngine()) {
+      await engineSaveProduct({
+        id: editingProduct?.id,
+        name: productForm.name,
+        category: productForm.category,
+        sku: productForm.sku,
+        barcode: productForm.barcode,
+        costPrice: Number.parseFloat(String(productForm.costPrice)) || 0,
+        sellingPrice: Number.parseFloat(String(productForm.sellingPrice)) || 0,
+        lowStockThreshold: productForm.lowStockThreshold,
+        stock: productForm.stock,
+      }, translate("Modifié dans l'inventaire", "تعديل من المخزون"))
+      const next = await engineInventory()
+      setProducts(next)
+      setLowStockProducts(next.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))
+      setProductForm({
+        sku: "", name: "", category: "", description: "", supplierId: "",
+        costPrice: "", sellingPrice: "", price: "", stock: 0, lowStockThreshold: 0, barcode: "", image: ""
+      })
+      setEditingProduct(null)
+      setShowProductDialog(false)
+      toast({
+        title: editingProduct ? translate("Produit mis à jour", "تم تحديث المنتج") : translate("Produit ajouté", "تمت إضافة المنتج"),
+        description: translate("Enregistré sur ce PC", "تم الحفظ على هذا الجهاز"),
+      })
+      return
+    }
+
     const vid = activeVendorId || 'electron-vendor'
     const productData = {
       ...productForm,
@@ -183,6 +213,19 @@ export async function deleteProduct({
   translate,
 }: DeleteProductParams) {
   try {
+    if (hasEngine()) {
+      // Archived, not deleted: past sales keep pointing at it.
+      await engine("catalog:archiveItem", { variantId: String(id) })
+      const next = await engineInventory()
+      setProducts(next)
+      setLowStockProducts(next.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))
+      toast({
+        title: translate("Produit supprimé", "تم حذف المنتج"),
+        description: translate("Le produit a été supprimé de l'inventaire", "تم حذف المنتج من المخزون"),
+      })
+      return
+    }
+
     const vid = activeVendorId ?? ''
     const useElectronLocalInventory = isElectronRuntime && isElectronOfflineInventoryVendorId(activeVendorId)
     if (useElectronLocalInventory) {

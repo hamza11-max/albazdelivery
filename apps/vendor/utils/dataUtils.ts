@@ -4,6 +4,7 @@ import type { Sale, InventoryProduct, SaleItem } from "@/root/lib/types"
 import type { SalesData, OrdersData, ProductsData, CustomersData, SuppliersData, CategoriesData, TopProductData } from "../app/vendor/types"
 import { handleError, safeLocalStorageGet } from "./errorHandling"
 import { getMergedLocalSalesHistory, isElectronOfflineInventoryVendorId } from "./electronUtils"
+import { engineInventory, engineSales, hasEngine } from "../lib/engine"
 
 /** Merge API sales with local/offline history (`electron-sales` + `offline-sales-queue`). */
 function mergeApiSalesWithLocalHistory(apiSales: Sale[]): Sale[] {
@@ -76,16 +77,20 @@ export async function handleDataLoad({
   try {
     const vid = vendorContextId ?? ''
     const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.isElectron
-    const useLocalProducts = isElectron && isElectronOfflineInventoryVendorId(vid)
+    // Desktop app with the local engine: products and sales come only from it (no cloud merge).
+    const fromEngine = hasEngine()
+    const useLocalProducts = fromEngine || (isElectron && isElectronOfflineInventoryVendorId(vid))
 
-    const productsPromise = useLocalProducts
+    const productsPromise = fromEngine
+      ? engineInventory()
+      : useLocalProducts
       ? Promise.resolve(JSON.parse(typeof localStorage !== 'undefined' ? (localStorage.getItem('electron-inventory') || '[]') : '[]') as InventoryProduct[])
       : fetchProducts(vendorContextId)
 
     const safeFetch = (p: Promise<any>) => p.catch(() => null)
     const [salesRes, ordersRes, productsRes, customersRes, suppliersRes, categoriesRes] = useLocalProducts
       ? await Promise.all([
-          safeFetch(fetchSales(vendorContextId)),
+          fromEngine ? engineSales() : safeFetch(fetchSales(vendorContextId)),
           safeFetch(fetchOrders(vendorContextId)),
           productsPromise,
           safeFetch(fetchCustomers(vendorContextId)),
@@ -104,7 +109,7 @@ export async function handleDataLoad({
     // Transform responses into proper data types (null from offline mode → empty arrays)
     const rawSales = Array.isArray(salesRes) ? salesRes : []
     const salesData = {
-      sales: mergeApiSalesWithLocalHistory(rawSales as Sale[]),
+      sales: fromEngine ? (rawSales as Sale[]) : mergeApiSalesWithLocalHistory(rawSales as Sale[]),
     } as SalesData
     const ordersData = { orders: Array.isArray(ordersRes) ? ordersRes : [] } as OrdersData
     const productsData = { products: Array.isArray(productsRes) ? productsRes : [] } as ProductsData

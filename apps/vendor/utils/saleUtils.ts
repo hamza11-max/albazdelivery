@@ -5,6 +5,7 @@ import type { CartItem } from "../app/vendor/types"
 import { handleError, safeLocalStorageGet, safeLocalStorageSet, safeFetch, parseAPIResponse, APIError, ValidationError } from "./errorHandling"
 import { getMergedLocalSalesHistory } from "./electronUtils"
 import { addLoyaltyPoints, calculatePointsEarned, getLoyaltyRules } from "./loyaltyUtils"
+import { engineCompleteSale, engineInventory, engineSales, hasEngine } from "../lib/engine"
 
 function isLikelyUnreachableOrOffline(error: unknown): boolean {
   if (typeof navigator !== "undefined" && !navigator.onLine) return true
@@ -103,6 +104,64 @@ export async function completeSale({
   // But we display total with tax in UI
   const totalForAPI = subtotal - posDiscount
   const totalWithTax = subtotal - posDiscount + tax
+
+  // Desktop app: the local engine records the sale. It prices every line from its own catalog
+  // (whole dinars), checks the payment covers its total, moves stock and numbers the receipt.
+  // Sale prices are tax-inclusive there: the cart's hidden default tax % is not added.
+  if (hasEngine()) {
+    try {
+      const result = await engineCompleteSale({
+        id: crypto.randomUUID(),
+        lines: posCart.map((item) => ({ variantId: String(item.productId), qty: item.quantity })),
+        saleDiscount: posDiscount,
+        paymentMethod,
+      })
+      const [sales, products] = await Promise.all([engineSales(), engineInventory()])
+      const saved = sales.find((s) => s.id === result.saleId) ?? null
+      setSales(sales)
+      const now = new Date()
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const weekStart = new Date(todayStart.getTime() - 7 * 86_400_000)
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+      const sum = (from: Date) => sales.filter((s) => new Date(s.createdAt) >= from).reduce((t, s) => t + s.total, 0)
+      setTodaySales(sum(todayStart))
+      setWeekSales(sum(weekStart))
+      setMonthSales(sum(monthStart))
+      setProducts(products)
+      setLowStockProducts(products.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))
+      if (posCustomerId) {
+        try {
+          const rules = getLoyaltyRules()
+          const activeRule = rules.find((r) => r.isActive) || rules[0]
+          const pointsEarned = activeRule ? calculatePointsEarned(result.total, activeRule) : 0
+          if (pointsEarned > 0) addLoyaltyPoints(String(posCustomerId), translate("Client", "عميل"), "", pointsEarned, result.total)
+        } catch (error) {
+          console.warn('[POS] Failed to award loyalty points:', error)
+        }
+      }
+      setLastSale(saved)
+      setCompletedSale(saved)
+      setShowSaleSuccessDialog(true)
+      clearCart()
+      setPosTax(0)
+      setPosCustomerId(null)
+      setPosOrderNumber(result.number)
+      toast({
+        title: translate("Vente complétée", "تمت عملية البيع"),
+        description: `${result.number} · ${result.total} DA`,
+      })
+      return true
+    } catch (error) {
+      handleError(error, {
+        showToast: true,
+        logError: true,
+        translate,
+        toast,
+        fallbackMessage: { fr: "La vente n'a pas été enregistrée", ar: "لم يتم تسجيل البيع" },
+      })
+      return false
+    }
+  }
 
   // For Electron with local products: save sale locally (and push to offline DB if available)
   if (isElectronRuntime) {

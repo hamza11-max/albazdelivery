@@ -47,6 +47,56 @@ const variantInput = z.object({
   lowStockThreshold: z.number().int().min(0).max(1_000_000).nullable().default(null),
 })
 
+const stockQty = z.number().int().min(0).max(1_000_000)
+
+/** A vendor-screen item (one variant). Stock, when sent, is the counted quantity: the difference is an ADJUST. */
+const flatItemInput = z.object({
+  variantId: id.optional(),
+  name: z.string().trim().min(1).max(120),
+  category: optText(60),
+  sku: code,
+  barcode: code,
+  costPrice: money,
+  salePrice: price,
+  lowStockThreshold: z.number().int().min(0).max(1_000_000).nullable().default(null),
+  stock: stockQty.optional(),
+  stockReason: optText(80),
+})
+export type FlatItemInput = z.output<typeof flatItemInput>
+
+/** A completed sale or return with its lines, shaped for the vendor screens (amounts in DZD). */
+export interface RecentSale {
+  id: string
+  number: string
+  type: 'SALE' | 'RETURN'
+  createdAt: string
+  cashier: string
+  subtotal: number
+  discount: number
+  total: number
+  paymentMethod: 'cash' | 'card'
+  items: { productId: string; productName: string; quantity: number; price: number; discount: number }[]
+}
+
+export interface FlatItem {
+  variantId: string
+  productId: string
+  name: string
+  nameAlt: string | null
+  variantLabel: string
+  /** Name with the size/colour when the product has several. */
+  displayName: string
+  category: string
+  sku: string
+  barcode: string
+  costPrice: number
+  salePrice: number
+  stock: number
+  lowStockThreshold: number
+  createdAt: string
+  updatedAt: string
+}
+
 const productInput = z
   .object({
     id: id.optional(),
@@ -147,6 +197,12 @@ export const inputs = {
   'catalog:findByCode': z.object({ code: z.string().trim().min(1).max(48) }),
   'catalog:newBarcode': z.undefined(),
   'catalog:variantInfo': z.object({ variantIds: z.array(id).min(1).max(200) }),
+  // Vendor screens: one flat row per sellable item (see core/catalog/flat.ts).
+  'catalog:items': z.undefined(),
+  'catalog:saveItem': flatItemInput,
+  'catalog:archiveItem': z.object({ variantId: id }),
+  'stock:adjust': z.object({ variantId: id, newQty: stockQty, reason: z.string().trim().min(1).max(80) }),
+  'sales:recent': z.object({ days: z.number().int().min(1).max(400).default(90) }),
   // The main process shows the file dialogs: the renderer never passes file paths.
   'import:template': z.undefined(),
   'import:preview': z.undefined(),
@@ -313,6 +369,11 @@ export interface Outputs {
   'catalog:findByCode': { product: ProductDetail; variantId: string } | null
   'catalog:newBarcode': { barcode: string }
   'catalog:variantInfo': VariantInfo[]
+  'catalog:items': FlatItem[]
+  'catalog:saveItem': FlatItem
+  'catalog:archiveItem': null
+  'stock:adjust': { stock: number; delta: number }
+  'sales:recent': RecentSale[]
   /** null when the dialog was cancelled. */
   'import:template': { path: string } | null
   'import:preview': ImportPreview | null

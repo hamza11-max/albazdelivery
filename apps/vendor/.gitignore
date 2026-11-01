@@ -14,3 +14,6 @@ build/
 **/app.asar.unpacked/
 .env.local
 .env*.local
+
+# Desktop smoke test profile (npm run smoketest:desktop)
+smoke-data/
