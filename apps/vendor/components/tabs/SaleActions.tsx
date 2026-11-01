@@ -8,7 +8,7 @@ import { Input } from "@/root/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/root/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/root/components/ui/table"
 import type { SaleDetail, ShiftClosed, ShiftStatus } from "../../electron/shared/ipc"
-import { dinars, engine, EngineError } from "../../lib/engine"
+import { dinars, engine, enginePrintReceipt, EngineError } from "../../lib/engine"
 
 type T = (fr: string, ar: string) => string
 
@@ -192,13 +192,22 @@ export function SaleDetailDialog({ saleId, translate: t, onClose, onChanged }: {
                     {sale.customer && <option value="CREDIT">{t("Sur le compte du client", "على حساب العميل")}</option>}
                   </select>
                   <Button disabled={busy || chosen.length === 0} onClick={() => run(async () => {
-                    await engine("sales:return", { id: crypto.randomUUID(), originalSaleId: sale.id, lines: chosen, refundMethod })
+                    const r = await engine("sales:return", { id: crypto.randomUUID(), originalSaleId: sale.id, lines: chosen, refundMethod })
                     await load(sale.id)
+                    // Return receipt (opens the drawer for a cash refund) when tickets print automatically.
+                    const s = await engine("settings:sales")
+                    if (s.receipt.autoPrint) await enginePrintReceipt(r.saleId).catch(() => {})
                   })}>
                     {t("Retourner", "إرجاع")}{refund > 0 ? ` (${da(refund)})` : ""}
                   </Button>
                 </>
               )}
+              <Button variant="outline" disabled={busy} onClick={() => run(async () => {
+                const r = await enginePrintReceipt(sale.id)
+                if (!r.printed) throw new Error(t("Aucune imprimante de tickets configurée (Paramètres).", "لا توجد طابعة وصولات (الإعدادات)."))
+              })}>
+                {t("Réimprimer", "إعادة الطباعة")}
+              </Button>
               {sale.canVoid && (
                 <Button variant="destructive" disabled={busy} onClick={() => {
                   const reason = window.prompt(t("Raison de l'annulation", "سبب الإلغاء"))

@@ -1739,6 +1739,30 @@ async function runSmoketest() {
       return { text: z.innerText.replace(/\\s+/g, ' '), open: status.open }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('z-report')
+    // Settings: the engine's receipt card shows a real preview; 58 mm + save is stored and re-rendered.
+    pages.receiptSettings = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const call = async (ch, input) => { const r = await window.electronAPI.core.invoke(ch, input); if (!r.ok) throw new Error(ch + ': ' + r.error.code); return r.data }
+      const waitFor = async (fn, what) => { for (let i = 0; i < 120; i++) { const v = await fn(); if (v) return v; await sleep(250) } throw new Error('not found: ' + what) }
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      const card = await waitFor(() => {
+        window.dispatchEvent(new CustomEvent('switchTab', { detail: 'settings' }))
+        // Printers live under Settings → Appareils (the "devices" sub-tab).
+        document.querySelector('[role="tab"][id$="-trigger-devices"]')?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }))
+        return document.querySelector('[data-testid="engine-receipt-settings"]')
+      }, 'receipt settings card')
+      const img = await waitFor(() => { const i = card.querySelector('[data-testid="receipt-preview"]'); return i && i.naturalWidth > 0 && i }, 'preview')
+      const before = img.naturalWidth
+      const paper = [...card.querySelectorAll('select')].find((s) => [...s.options].some((o) => o.value === '58'))
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(paper, '58')
+      paper.dispatchEvent(new Event('change', { bubbles: true }))
+      ;[...card.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Enregistrer').click()
+      await waitFor(async () => (await call('settings:sales')).receipt.paper === 58, 'paper saved')
+      const after = await waitFor(() => { const i = card.querySelector('[data-testid="receipt-preview"]'); return i && i.naturalWidth > 0 && i.naturalWidth !== before && i.naturalWidth }, 'preview at 58 mm')
+      card.scrollIntoView()
+      return { before, after }
+    })()`).catch((e) => ({ error: String(e) }))
+    await capture('receipt-settings')
     clearTimeout(deadline)
     const ok = engine.items > 0 && engine.stockAfter === engine.stockBefore - 1 && engine.recent >= 1 && /-\d{6}$/.test(engine.number)
       && pages.inventory && pages.pos && pages.sales
@@ -1748,6 +1772,7 @@ async function runSmoketest() {
       && pages.reports.revenue > 0 && pages.reports.revenue === pages.reports.recorded && pages.reports.credit === pages.credit.owed
       && pages.saleActions.returnTotal < 0 && pages.saleActions.voided === true
       && pages.zReport.open === false && /Annulations/.test(pages.zReport.text)
+      && pages.receiptSettings.before === 576 && pages.receiptSettings.after === 384
     finish(ok, { ...engine, pages })
   } catch (e) {
     clearTimeout(deadline)

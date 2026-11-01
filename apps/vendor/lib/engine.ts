@@ -102,6 +102,14 @@ export async function engineSuppliers(): Promise<EngineSupplierRow[]> {
   return (await engine("suppliers:list")).map(toSupplier)
 }
 
+/**
+ * Prints a sale's or return's receipt on the engine's receipt printer (Arabic as an image, ESC/POS).
+ * Returns why nothing printed (no printer set up) instead of throwing; a printer error throws.
+ */
+export async function enginePrintReceipt(saleId: string): Promise<{ printed: boolean; reason?: string }> {
+  return engine("sell:printReceipt", { saleId })
+}
+
 export async function engineInventory(): Promise<InventoryProduct[]> {
   return (await engine("catalog:items")).map(toInventoryProduct)
 }

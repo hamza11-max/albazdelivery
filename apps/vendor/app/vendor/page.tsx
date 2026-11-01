@@ -119,7 +119,8 @@ import { usePOSHandlers } from "../../hooks/usePOSHandlers"
 import { LoadingScreen } from "@/root/components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisionalSale } from "../../utils/electronUtils"
-import { engineSales, hasEngine, type EngineCustomer } from "../../lib/engine"
+import { enginePrintReceipt, engineSales, hasEngine, type EngineCustomer } from "../../lib/engine"
+import { EngineReceiptSettingsCard } from "../../components/EngineReceiptSettingsCard"
 import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
 import { VendorSecuritySettingsPanel } from "../../components/security/VendorSecuritySettingsPanel"
@@ -3526,6 +3527,7 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
                 )}
               </p>
             )}
+            {engineMode && <EngineReceiptSettingsCard translate={translate} />}
             <VendorPrinterSettingsCard
               translate={translate}
               isElectronRuntime={isElectronRuntime}
@@ -3673,6 +3675,16 @@ const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
         shopInfo={shopInfo}
         onPrint={async () => {
           if (!completedSale) return
+          // Desktop app: the engine's thermal receipt for this sale (falls back to the HTML ticket if no printer is set).
+          if (engineMode) {
+            try {
+              const r = await enginePrintReceipt(completedSale.id)
+              if (r.printed) return
+            } catch (error) {
+              toast({ title: translate("Ticket non imprimé", "لم يُطبع الوصل"), description: error instanceof Error ? error.message : String(error), variant: "destructive" })
+              return
+            }
+          }
           const userWithExtras = effectiveUser as any
           const electronAPI = window.electronAPI
           if (isElectronRuntime && electronAPI?.print?.receipt) {
