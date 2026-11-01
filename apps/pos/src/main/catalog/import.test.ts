@@ -25,6 +25,12 @@ beforeEach(async () => {
   repo = new CatalogRepo(db)
 })
 
+/** A signed-in user for imports that record stock. */
+const owner = () => {
+  const id = '00000000-0000-7000-8000-0000000000aa'
+  db.prepare("INSERT OR IGNORE INTO users (id, name, role, pin_hash, created_at, updated_at) VALUES (?, 'Owner', 'OWNER', 'x', ?, ?)").run(id, '2026-01-01', '2026-01-01')
+  return id
+}
 const code = (c: string) => (err: unknown) => err instanceof AppError && err.code === c
 const csv = (text: string) => readSpreadsheet(Buffer.from(text, 'utf8'), 'p.csv')
 
@@ -102,12 +108,38 @@ test('the template imports cleanly: rows grouped into products, categories creat
   assert.equal(plan.preview.variants, 3)
   assert.deepEqual(plan.preview.newCategories.sort(), ['Accessoires', 'Chemises'])
 
-  assert.deepEqual(commitImport(plan, repo, db), { products: 2, variants: 3 })
+  assert.equal(plan.preview.stockUnits, 10)
+  assert.throws(() => commitImport(plan, repo, db), code('UNAUTHENTICATED'), 'opening stock needs a signed-in user')
+  assert.deepEqual(commitImport(plan, repo, db, owner()), { products: 2, variants: 3, stockUnits: 10 })
   const shirt = repo.products(inputs['catalog:products'].parse({ query: 'chemise' })).rows[0]!
   assert.equal(shirt.variantCount, 2)
   assert.equal(shirt.maxPrice, 2700)
   assert.equal(shirt.categoryName, 'Chemises')
   assert.equal(repo.findByCode('6130000000015')?.product.nameAlt, 'Ceinture cuir')
+  // Opening stock: M = 6, L = 4, belt = 0; one 'import' stock receipt with RECEIVE movements.
+  assert.deepEqual(repo.product(shirt.id).variants.map((v) => v.stockQty), [6, 4])
+  const receipt = db.prepare("SELECT total_cost FROM stock_receipts WHERE reference = 'import'").get() as { total_cost: number }
+  assert.equal(receipt.total_cost, 10 * 1200)
+  assert.equal((db.prepare("SELECT COUNT(*) n FROM stock_movements WHERE type = 'RECEIVE'").get() as { n: number }).n, 2)
+})
+
+test('vendor-style inventory files import: Désignation, Code article, PA, PV, Qté, Seuil', async () => {
+  const sheet = await csv(['Code article;Désignation;Famille;PA;PV;Qté;Seuil', 'A-001;Sac à main;Maroquinerie;1.800;2.500;7;2', 'A-002;Portefeuille;Maroquinerie;600;1 200;;'].join('\n'))
+  const plan = planImport(sheet, repo, db)
+  assert.deepEqual(plan.preview.errors, [])
+  assert.equal(plan.preview.stockUnits, 7)
+  commitImport(plan, repo, db, owner())
+  const bag = repo.findByCode('A-001')!
+  assert.equal(bag.product.costPrice, 1800, '"1.800" is 1 800 dinars, not 1.8')
+  assert.equal(bag.product.salePrice, 2500)
+  assert.equal(bag.product.variants[0]!.stockQty, 7)
+  assert.equal(bag.product.variants[0]!.lowStockThreshold, 2)
+  assert.equal(repo.findByCode('A-002')!.product.variants[0]!.stockQty, 0)
+})
+
+test('opening stock must be whole units', async () => {
+  const plan = planImport(await csv('Nom,Prix de vente,Stock\nX,100,2.5'), repo, db)
+  assert.equal(plan.preview.errors[0]?.code, 'NOT_WHOLE')
 })
 
 test('errors are reported per Excel row and block the whole import', async () => {

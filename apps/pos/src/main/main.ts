@@ -133,7 +133,7 @@ function wireIpc(db: Database.Database, dbFile: string) {
       const pending = pendingImports.get(token)
       if (!pending || pending.expires < Date.now()) throw new AppError('IMPORT_EXPIRED', 'Choose the file again')
       pendingImports.delete(token)
-      return commitImport(pending.plan, catalog, db)
+      return commitImport(pending.plan, catalog, db, auth.requireUser().userId)
     },
     'catalog:categories': () => catalog.categories(),
     'catalog:saveCategory': (input) => catalog.saveCategory(input),
@@ -382,6 +382,7 @@ async function smoketest(win: BrowserWindow) {
     } catch (e) { return { thrown: String((e && e.stack) || e) } } })()
   `)
   console.log('smoketest', JSON.stringify({ ...result, info: result.info?.ok }))
+  let wedgeOk = !shot
   if (shot) {
     // The owner is signed in now: reload so the UI shows the app.
     win.webContents.reload()
@@ -395,6 +396,14 @@ async function smoketest(win: BrowserWindow) {
       input.form.requestSubmit()
     })()`)
     await capture(shot.replace(/\.png$/, '-sell.png'))
+    // Scan again with focus off the scan field: the keyboard burst is caught and the line goes to 2.
+    wedgeOk = await win.webContents.executeJavaScript(`(async () => {
+      document.querySelector('.scan input').blur()
+      for (const key of [...${JSON.stringify(String(result.barcode))}, 'Enter']) document.body.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+      await new Promise((r) => setTimeout(r, 500))
+      return document.querySelector('.cart-lines .qty input')?.value === '2'
+    })()`)
+    console.log('smoketest wedge', wedgeOk)
     await win.webContents.executeJavaScript(`document.querySelector('.totals .primary.big')?.click()`)
     await capture(shot.replace(/\.png$/, '-pay.png'))
     await win.webContents.executeJavaScript(`window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))`)
@@ -432,7 +441,7 @@ async function smoketest(win: BrowserWindow) {
   }
   const importOk = !argValue('import-file') || (result.imported && result.imported.products >= 1)
   const ok = result.bridge && result.info?.ok && result.info.data.database.schemaVersion >= 3 && result.badCode === 'INVALID_INPUT' && result.rendered
-    && result.auth && result.catalog && result.labels && result.selling && importOk
+    && result.auth && result.catalog && result.labels && result.selling && importOk && wedgeOk
   app.exit(ok ? 0 : 1)
 }
 
