@@ -1,5 +1,11 @@
 # Vendor app POS vs `apps/pos`: what to reuse
 
+> **Decision, 2026-11-01:** the vendor app is fixed in place and `apps/pos` is retired. Its engine (SQLite,
+> migrations, server-side pricing, integer DZD, idempotent sales, stock, ESC/POS printing, hardened import) now
+> lives in `apps/vendor/electron/core`, and the vendor screens use it in the desktop app. Customers with a credit
+> book, suppliers, stock counts and SQL reports were added there. `apps/pos`'s history stays on the `pos-*` branches.
+> The comparison below is kept as the record of what was reused.
+
 *2026-11-01. Compares the existing vendor app (`apps/vendor`, Next.js + Electron) with the new POS (`apps/pos`), to copy what is worth keeping instead of rebuilding it.*
 
 ## Summary

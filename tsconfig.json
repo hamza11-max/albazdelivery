@@ -67,7 +67,7 @@
     "--template",
     "temp",
     "scripts",
-    "apps/pos",
+    "apps/vendor/electron",
     "packages/pos-core"
   ]
 }
