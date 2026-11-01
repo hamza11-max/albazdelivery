@@ -33,7 +33,7 @@ export async function saveCustomer({
       setCustomers(await engineCustomers())
       setShowCustomerDialog(false)
       resetCustomerForm()
-      toast({ title: translate("Client ajouté", "تم إضافة العميل"), description: customerForm.name })
+      toast({ title: translate("Client ajouté", "تمت إضافة العميل"), description: customerForm.name })
     } catch (error) {
       handleError(error, { showToast: true, logError: true, translate, toast })
     }
@@ -60,7 +60,7 @@ export async function saveCustomer({
     setShowCustomerDialog(false)
     resetCustomerForm()
     toast({
-      title: translate("Client ajouté", "تم إضافة العميل"),
+      title: translate("Client ajouté", "تمت إضافة العميل"),
       description: translate("Sauvegardé localement", "تم الحفظ محلياً"),
       variant: "default",
     })
@@ -78,7 +78,7 @@ export async function saveCustomer({
       setShowCustomerDialog(false)
       resetCustomerForm()
       toast({
-        title: translate("Client ajouté", "تم إضافة العميل"),
+        title: translate("Client ajouté", "تمت إضافة العميل"),
         description: translate("Le client a été ajouté avec succès", "تمت إضافة العميل بنجاح."),
       })
     } else {

@@ -57,7 +57,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
       }
       setCredentials(data.data?.credentials || [])
     } catch (err: any) {
-      setError(err?.message || translate("Impossible de charger les passkeys", "تعذر تحميل مفاتيح المرور"))
+      setError(err?.message || translate("Impossible de charger les clés d'accès", "تعذر تحميل مفاتيح المرور"))
     } finally {
       setLoading(false)
     }
@@ -69,7 +69,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
 
   const handleEnroll = async () => {
     if (!passkeyFeatureEnabled) {
-      setError(translate("La fonctionnalité passkey est désactivée.", "ميزة مفتاح المرور معطلة."))
+      setError(translate("Les clés d'accès sont désactivées.", "ميزة مفتاح المرور معطلة."))
       return
     }
     if (!webAuthnSupported || !window.PublicKeyCredential) {
@@ -96,7 +96,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
       )) as PublicKeyCredential | null
 
       if (!credential) {
-        throw new Error(translate("Inscription passkey annulée", "تم إلغاء تسجيل مفتاح المرور"))
+        throw new Error(translate("Enregistrement de la clé d'accès annulé", "تم إلغاء تسجيل مفتاح المرور"))
       }
 
       const verifyRes = await safeFetch("/api/auth/passkeys/register/verify", {
@@ -116,7 +116,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
 
       await loadCredentials()
     } catch (err: any) {
-      setError(err?.message || translate("Échec de l'inscription passkey", "فشل تسجيل مفتاح المرور"))
+      setError(err?.message || translate("Échec de l'enregistrement de la clé d'accès", "فشل تسجيل مفتاح المرور"))
     } finally {
       setEnrolling(false)
     }
@@ -136,7 +136,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
       }
       await loadCredentials()
     } catch (err: any) {
-      setError(err?.message || translate("Impossible de révoquer ce passkey", "تعذر إلغاء مفتاح المرور"))
+      setError(err?.message || translate("Impossible de révoquer cette clé d'accès", "تعذر إلغاء مفتاح المرور"))
     } finally {
       setRemovingId(null)
     }
@@ -154,7 +154,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <KeyRound className="h-5 w-5" />
-          {translate("Passkeys WebAuthn", "مفاتيح WebAuthn")}
+          {translate("Clés d'accès (WebAuthn)", "مفاتيح المرور (WebAuthn)")}
         </CardTitle>
         <CardDescription>
           {translate(
@@ -189,8 +189,8 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
         <div className="flex flex-wrap gap-2">
           <Button onClick={handleEnroll} disabled={!passkeyFeatureEnabled || !webAuthnSupported || enrolling}>
             {enrolling
-              ? translate("Enrôlement...", "جاري التسجيل...")
-              : translate("Enrôler un nouveau passkey", "تسجيل مفتاح مرور جديد")}
+              ? translate("Enregistrement...", "جاري التسجيل...")
+              : translate("Enregistrer une nouvelle clé d'accès", "تسجيل مفتاح مرور جديد")}
           </Button>
           <Button variant="outline" onClick={loadCredentials} disabled={loading}>
             {loading ? translate("Chargement...", "جاري التحميل...") : translate("Rafraîchir", "تحديث")}
@@ -200,7 +200,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
         <div className="space-y-2">
           {credentials.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              {translate("Aucun passkey enregistré.", "لا توجد مفاتيح مرور مسجلة.")}
+              {translate("Aucune clé d'accès enregistrée.", "لا توجد مفاتيح مرور مسجلة.")}
             </p>
           )}
           {credentials.map((credential) => (
@@ -216,7 +216,7 @@ export function WebAuthnPasskeysCard({ translate }: WebAuthnPasskeysCardProps) {
                     <ShieldAlert className="h-4 w-4 text-amber-600" />
                   )}
                   <span className="font-medium">
-                    {credential.nickname || translate("Passkey sans nom", "مفتاح مرور بدون اسم")}
+                    {credential.nickname || translate("Clé d'accès sans nom", "مفتاح مرور بدون اسم")}
                   </span>
                   {statusBadge(credential.status)}
                 </div>

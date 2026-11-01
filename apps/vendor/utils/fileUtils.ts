@@ -57,7 +57,7 @@ export async function handleFileUpload({
   const maxSize = 5 * 1024 * 1024 // 5MB
   if (file.size > maxSize) {
     const error = new ValidationError(
-      translate("L'image est trop grande. Taille maximale: 5MB", "الصورة كبيرة جداً. الحد الأقصى: 5 ميجابايت"),
+      translate("L'image est trop grande. Taille maximale : 5 Mo", "الصورة كبيرة جداً. الحد الأقصى: 5 ميغابايت"),
       'fileSize'
     )
     handleError(error, { showToast: true, logError: true, translate, toast })

@@ -78,7 +78,7 @@ export function DayHoursInput({ dayKey, dayLabel, isWeekend, translate }: DayHou
           />
           <Label className="font-medium">
             {translate(dayLabel.fr, dayLabel.ar)}
-            {isWeekend && <span className="text-xs text-muted-foreground ml-2">({translate("Weekend", "عطلة نهاية الأسبوع")})</span>}
+            {isWeekend && <span className="text-xs text-muted-foreground ml-2">({translate("Week-end", "عطلة نهاية الأسبوع")})</span>}
           </Label>
         </div>
       </div>

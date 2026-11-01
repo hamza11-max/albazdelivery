@@ -71,7 +71,7 @@ export function ReceiptDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{translate("Reçu de Vente", "إيصال البيع")}</DialogTitle>
+          <DialogTitle>{translate("Reçu de vente", "إيصال البيع")}</DialogTitle>
           <DialogDescription>
             {translate("Détails de la transaction complétée", "تفاصيل المعاملة المكتملة")}
           </DialogDescription>
@@ -90,12 +90,12 @@ export function ReceiptDialog({
               {/* Barcode for Order */}
               <div className="mt-4 pt-4 border-t">
                 <p className="text-xs text-muted-foreground mb-2">
-                  {translate("Code-barres", "رمز شريطي")}
+                  {translate("Code-barres", "الباركود")}
                 </p>
                 <div className="bg-white p-2 rounded border border-gray-300 inline-block">
                   <img
                     src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(lastSale.id)}&code=Code128&dpi=96&dataseparator=`}
-                    alt={translate("Code-barres", "رمز شريطي")}
+                    alt={translate("Code-barres", "الباركود")}
                     className="h-12 w-auto max-w-full"
                   />
                 </div>

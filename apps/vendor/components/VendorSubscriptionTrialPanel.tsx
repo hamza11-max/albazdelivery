@@ -197,7 +197,7 @@ export function VendorSubscriptionTrialPanel({
                 >
                   {starting
                     ? translate("Démarrage…", "جاري البدء…")
-                    : translate(`Démarrer l’essai ${VENDOR_FREE_TRIAL_DAYS} jours`, `ابدأ ${VENDOR_FREE_TRIAL_DAYS} يوم تجربة`)}
+                    : translate(`Démarrer l’essai de ${VENDOR_FREE_TRIAL_DAYS} jours`, `ابدأ تجربة لمدة ${VENDOR_FREE_TRIAL_DAYS} يومًا`)}
                 </Button>
               </div>
             )}

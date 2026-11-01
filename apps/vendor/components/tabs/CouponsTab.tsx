@@ -41,7 +41,7 @@ export function CouponsTab({ translate, isArabic }: CouponsTabProps) {
   }
 
   const handleDeleteCoupon = (id: string) => {
-    if (confirm(translate("Êtes-vous sûr de vouloir supprimer ce coupon?", "هل أنت متأكد من حذف هذا الكوبون?"))) {
+    if (confirm(translate("Êtes-vous sûr de vouloir supprimer ce coupon ?", "هل أنت متأكد من حذف هذا الكوبون؟"))) {
       const updated = coupons.filter((c) => c.id !== id)
       setCoupons(updated)
     }
@@ -109,7 +109,7 @@ export function CouponsTab({ translate, isArabic }: CouponsTabProps) {
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-2">
-                  {translate("Aucun coupon", "لا يوجد كوبونات")}
+                  {translate("Aucun coupon", "لا توجد كوبونات")}
                 </h3>
                 <p className="text-muted-foreground mb-4">
                   {translate("Créez votre premier coupon pour commencer", "أنشئ أول كوبون للبدء")}

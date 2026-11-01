@@ -41,10 +41,10 @@ export function SaleSuccessDialog({
             </div>
           </div>
           <DialogTitle className="text-center text-xl text-gray-900 dark:text-white">
-            {translate("Vente complétée", "تمت العملية")}
+            {translate("Vente complétée", "تمت عملية البيع")}
           </DialogTitle>
           <DialogDescription className="text-center text-base text-gray-700 dark:text-gray-300">
-            {translate("Sale completed; the transaction has been completed successfully", "تم إتمام البيع؛ تمت العملية بنجاح")}
+            {translate("La vente a été enregistrée avec succès.", "تم تسجيل البيع بنجاح.")}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex-col sm:flex-row gap-2">

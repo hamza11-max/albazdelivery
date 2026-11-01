@@ -135,7 +135,7 @@ export function StoreDomainsSection({
         <CardDescription>
           {t(
             "Remplace la vitrine vendeur pour ce magasin (sous-domaine ou domaine sur votre marque).",
-            "تجاوز واجهة التاجر لهذا المتجر (نطاق فرعي أو نطاق مخصص لعلامتك)."
+            "يحلّ محلّ واجهة التاجر لهذا المتجر (نطاق فرعي أو نطاق باسم علامتك)."
           )}
         </CardDescription>
       </CardHeader>

@@ -140,7 +140,7 @@ export function CouponDialog({
                   id="coupon-name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder={translate("Ex: Réduction été 2024", "مثال: خصم الصيف 2024")}
+                  placeholder={translate("Ex : Réduction été 2024", "مثال: خصم الصيف 2024")}
                   required
                 />
               </div>

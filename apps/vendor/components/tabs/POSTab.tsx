@@ -49,7 +49,7 @@ export function POSTab({
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">{translate("Point de Vente", "نقطة البيع")}</h2>
+      <h2 className="text-2xl font-bold">{translate("Point de vente", "نقطة البيع")}</h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Product Selection */}
@@ -62,7 +62,7 @@ export function POSTab({
               <Input
                 placeholder={translate(
                   "Rechercher un produit ou scanner un code-barres...",
-                  "ابحث عن منتج أو امسح رمزاً شريطياً..."
+                  "ابحث عن منتج أو امسح الباركود..."
                 )}
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
@@ -161,11 +161,11 @@ export function POSTab({
 
               <div className="border-t pt-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span>{translate("Sous-total:", "المجموع الفرعي:")}</span>
+                  <span>{translate("Sous-total :", "المجموع الفرعي:")}</span>
                   <span className="font-semibold">{subtotal.toFixed(2)} DZD</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Label className="text-sm">{translate("Remise:", "الخصم:")}</Label>
+                  <Label className="text-sm">{translate("Remise :", "الخصم:")}</Label>
                   <Input
                     type="number"
                     value={discount}
@@ -175,7 +175,7 @@ export function POSTab({
                   <span className="text-sm">DZD</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-2">
-                  <span>{translate("Total:", "المجموع:")}</span>
+                  <span>{translate("Total :", "المجموع:")}</span>
                   <span className="text-primary">{total.toFixed(2)} DZD</span>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export function POSTab({
                   disabled={cart.length === 0}
                 >
                   <DollarSign className="w-4 h-4 mr-2" />
-                  {translate("Payer en Espèces", "الدفع نقداً")}
+                  {translate("Payer en espèces", "الدفع نقداً")}
                 </Button>
                 <Button
                   className="w-full bg-transparent"
@@ -195,7 +195,7 @@ export function POSTab({
                   onClick={() => onCompleteSale("card")}
                   disabled={cart.length === 0}
                 >
-                  {translate("Payer par Carte", "الدفع بالبطاقة")}
+                  {translate("Payer par carte", "الدفع بالبطاقة")}
                 </Button>
               </div>
             </CardContent>

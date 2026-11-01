@@ -100,7 +100,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
   }
 
   const handleDeleteRule = (ruleId: string) => {
-    if (confirm(translate("Êtes-vous sûr de vouloir supprimer cette règle?", "هل أنت متأكد من حذف هذه القاعدة?"))) {
+    if (confirm(translate("Êtes-vous sûr de vouloir supprimer cette règle ?", "هل أنت متأكد من حذف هذه القاعدة؟"))) {
       const updated = rules.filter((r) => r.id !== ruleId)
       setRules(updated)
       saveAlertRules(updated)
@@ -124,7 +124,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
 
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
-      <h2 className="text-2xl font-bold">{translate("Alertes d'Inventaire", "تنبيهات المخزون")}</h2>
+      <h2 className="text-2xl font-bold">{translate("Alertes d'inventaire", "تنبيهات المخزون")}</h2>
 
       <Tabs defaultValue="rules" className="space-y-4">
         <TabsList>
@@ -145,7 +145,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="w-5 h-5" />
-                  {translate("Règles d'Alerte", "قواعد التنبيه")}
+                  {translate("Règles d'alerte", "قواعد التنبيه")}
                 </CardTitle>
                 <Button onClick={() => {
                   setEditingRule(null)
@@ -186,7 +186,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {rule.threshold} {rule.thresholdUnit === "quantity" ? "" : rule.thresholdUnit === "percentage" ? "%" : translate("jours", "يوم")}
+                        {rule.threshold} {rule.thresholdUnit === "quantity" ? "" : rule.thresholdUnit === "percentage" ? "%" : translate("jours", "أيام")}
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -249,7 +249,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <History className="w-5 h-5" />
-                {translate("Historique des Alertes", "سجل التنبيهات")}
+                {translate("Historique des alertes", "سجل التنبيهات")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -327,7 +327,7 @@ export function InventoryAlertsTab({ translate }: InventoryAlertsTabProps) {
               <Input
                 value={ruleForm.name || ''}
                 onChange={(e) => setRuleForm({ ...ruleForm, name: e.target.value })}
-                placeholder={translate("Ex: Alerte stock faible", "مثال: تنبيه مخزون منخفض")}
+                placeholder={translate("Ex : Alerte stock faible", "مثال: تنبيه مخزون منخفض")}
               />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

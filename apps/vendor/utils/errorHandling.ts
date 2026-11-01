@@ -167,7 +167,7 @@ export function getErrorMessage(
       if (error.statusCode === 404) {
         return translate(
           "Ressource introuvable.",
-          "الموارد غير موجودة."
+          "العنصر المطلوب غير موجود."
         )
       }
       if (error.statusCode === 429) {

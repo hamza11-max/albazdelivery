@@ -19,8 +19,8 @@ export function VendorSecuritySettingsPanel({
     <div className="mt-4 space-y-6 outline-none">
       <p className="max-w-2xl text-sm text-muted-foreground">
         {translate(
-          "Gérez les passkeys et l'adresse web publique de votre vitrine (sous-domaine ou domaine personnalisé).",
-          "أدِر مفاتيح التحقق وعنوان واجهتك العامة (نطاق فرعي أو نطاق مخصّص)."
+          "Gérez les clés d'accès et l'adresse web publique de votre vitrine (sous-domaine ou domaine personnalisé).",
+          "أدِر مفاتيح المرور وعنوان واجهتك العامة (نطاق فرعي أو نطاق مخصّص)."
         )}
       </p>
       <WebAuthnPasskeysCard translate={translate} />

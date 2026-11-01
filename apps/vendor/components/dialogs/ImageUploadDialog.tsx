@@ -24,7 +24,7 @@ export function ImageUploadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{translate("Télécharger une image", "رفع صورة")}</DialogTitle>
+          <DialogTitle>{translate("Importer une image", "رفع صورة")}</DialogTitle>
           <DialogDescription>
             {translate("Sélectionnez une image depuis votre appareil", "اختر صورة من جهازك")}
           </DialogDescription>

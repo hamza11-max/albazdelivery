@@ -37,14 +37,14 @@ export function StaffSwitchDialog({ open, onOpenChange, translate, onSubmit }: S
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{translate("Changer de staff", "تبديل الموظف")}</DialogTitle>
+          <DialogTitle>{translate("Changer d'employé", "تبديل الموظف")}</DialogTitle>
           <DialogDescription>
-            {translate("Entrez le code staff et le PIN.", "أدخل رمز الموظف وPIN.")}
+            {translate("Entrez le code employé et le PIN.", "أدخل رمز الموظف و PIN.")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
-            <Label>{translate("Code staff", "رمز الموظف")}</Label>
+            <Label>{translate("Code employé", "رمز الموظف")}</Label>
             <Input value={staffCode} onChange={(e) => setStaffCode(e.target.value)} placeholder="1234" />
           </div>
           <div className="space-y-1">

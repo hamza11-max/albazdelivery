@@ -47,7 +47,7 @@ export function AdminVendorSelector({
           {availableVendors.length === 0 && (
             <option value="">
               {isLoadingVendors
-                ? translate("Chargement...", "جار التحميل...")
+                ? translate("Chargement...", "جاري التحميل...")
                 : translate("Aucun vendeur disponible", "لا يوجد تجار متاحون")}
             </option>
           )}

@@ -47,7 +47,7 @@ export function RegisterBar({ translate: t, onChanged }: { translate: T; onChang
         result = await engine("shift:close", { countedCash: dinars(counted), reason: "" })
       } catch (e) {
         if (!(e instanceof EngineError && e.code === "REASON_REQUIRED")) throw e
-        const reason = window.prompt(t(`Écart de ${e.message} DA : raison ?`, `فرق ${e.message} د.ج: السبب؟`))
+        const reason = window.prompt(t(`Écart de ${e.message} DA : raison ?`, `فرق ${e.message} د.ج: السبب؟`))
         if (!reason) return
         result = await engine("shift:close", { countedCash: dinars(counted), reason })
       }

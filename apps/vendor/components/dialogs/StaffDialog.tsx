@@ -106,7 +106,7 @@ export function StaffDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="owner">{translate("Propriétaire", "المالك")}</SelectItem>
-                  <SelectItem value="manager">{translate("Gestionnaire", "المدير")}</SelectItem>
+                  <SelectItem value="manager">{translate("Gérant", "المدير")}</SelectItem>
                   <SelectItem value="cashier">{translate("Caissier", "أمين الصندوق")}</SelectItem>
                   <SelectItem value="staff">{translate("Personnel", "موظف")}</SelectItem>
                 </SelectContent>

@@ -60,7 +60,7 @@ export function DriversTab({
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">
-          {translate("Gestion des Chauffeurs", "إدارة السائقين")}
+          {translate("Gestion des chauffeurs", "إدارة السائقين")}
         </h2>
       </div>
 
@@ -79,7 +79,7 @@ export function DriversTab({
                 window.dispatchEvent(new CustomEvent("switchTab", { detail: "settings" }))
               }}
             >
-              {translate("Voir les abonnements", "عرض الاشتراك")}
+              {translate("Voir les abonnements", "عرض الاشتراكات")}
             </Button>
           </CardContent>
         </Card>
@@ -190,7 +190,7 @@ export function DriversTab({
                               )}
                               {request.driver?.licenseNumber && (
                                 <p className="text-sm text-muted-foreground">
-                                  {translate("Permis", "الترخيص")}: {request.driver.licenseNumber}
+                                  {translate("Permis", "رخصة السياقة")}: {request.driver.licenseNumber}
                                 </p>
                               )}
                             </div>
@@ -271,7 +271,7 @@ export function DriversTab({
                             )}
                             {connection.driver?.licenseNumber && (
                               <p className="text-sm text-muted-foreground">
-                                {translate("Permis", "الترخيص")}: {connection.driver.licenseNumber}
+                                {translate("Permis", "رخصة السياقة")}: {connection.driver.licenseNumber}
                               </p>
                             )}
                             <Badge className="mt-2 bg-green-500">

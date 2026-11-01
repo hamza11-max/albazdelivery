@@ -52,7 +52,7 @@ export async function saveProduct({
         sellingPrice: Number.parseFloat(String(productForm.sellingPrice)) || 0,
         lowStockThreshold: productForm.lowStockThreshold,
         stock: productForm.stock,
-      }, translate("Modifié dans l'inventaire", "تعديل من المخزون"))
+      }, translate("Modifié dans l'inventaire", "عُدِّل من المخزون"))
       const next = await engineInventory()
       setProducts(next)
       setLowStockProducts(next.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))

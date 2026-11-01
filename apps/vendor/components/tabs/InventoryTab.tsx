@@ -410,7 +410,7 @@ export function InventoryTab({
                   <TableHead>Stock</TableHead>
                   {dineTablesUi ? (
                     <TableHead className="whitespace-nowrap">
-                      {translate("Menu QR (86)", "قائمة QR (نفد)")}
+                      {translate("Menu QR (épuisé)", "قائمة QR (نفد)")}
                     </TableHead>
                   ) : null}
                   <TableHead>Actions</TableHead>
@@ -480,7 +480,7 @@ export function InventoryTab({
                             setSelectedProductForImage(product.id)
                             setShowImageUploadDialog(true)
                           }}
-                          title={translate("Upload Photo", "رفع صورة")}
+                          title={translate("Ajouter une photo", "رفع صورة")}
                         >
                           <Upload className="w-4 h-4" />
                         </Button>
@@ -489,7 +489,7 @@ export function InventoryTab({
                           size="icon"
                           className="text-albaz-green-600 hover:text-albaz-green-700 dark:text-albaz-green-400"
                           onClick={() => handlePostProductToDelivery(product.id)}
-                          title={translate("Post to Delivery", "نشر للتوصيل")}
+                          title={translate("Publier pour la livraison", "نشر للتوصيل")}
                         >
                           <Send className="w-4 h-4" />
                         </Button>
@@ -526,7 +526,7 @@ export function InventoryTab({
                 </p>
                 <Button onClick={() => setShowProductDialog(true)}>
                   <Plus className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
-                  {translate("Ajouter votre premier produit", "أضف أول منتج لك")}
+                  {translate("Ajoutez votre premier produit", "أضف أول منتج لك")}
                 </Button>
               </div>
             )}

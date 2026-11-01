@@ -92,7 +92,7 @@ export function RfidDashboardTab({ translate, isElectronRuntime, onLinkProduct }
             <Card>
               <CardHeader className="pb-1">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {translate("Tags uniques (100 derniers)", "وسوم فريدة")}
+                  {translate("Tags uniques (100 derniers)", "وسوم فريدة (آخر 100)")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -144,7 +144,7 @@ export function RfidDashboardTab({ translate, isElectronRuntime, onLinkProduct }
             </TabsList>
             <TabsContent value="dashboard" className="space-y-4">
               <div className="flex flex-wrap gap-2 items-center">
-                <span className="text-sm text-muted-foreground">{translate("Lecteur:", "القارئ:")}</span>
+                <span className="text-sm text-muted-foreground">{translate("Lecteur :", "القارئ:")}</span>
                 <select
                   className="rounded border bg-background px-2 py-1 text-sm"
                   value={readerFilter ?? ""}

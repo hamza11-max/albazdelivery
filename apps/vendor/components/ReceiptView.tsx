@@ -123,12 +123,12 @@ export function ReceiptView({
             <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
               <div className="flex flex-col items-center">
                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                  {translate("Code-barres pour remboursement", "رمز شريطي للاسترداد")}
+                  {translate("Code-barres pour remboursement", "باركود الاسترداد")}
                 </p>
                 <div className="bg-white p-3 rounded border border-gray-300 dark:border-gray-700">
                   <img
                     src={`https://barcode.tec-it.com/barcode.ashx?data=${encodeURIComponent(completedSale.id)}&code=Code128&dpi=96&dataseparator=`}
-                    alt={translate("Code-barres", "رمز شريطي")}
+                    alt={translate("Code-barres", "الباركود")}
                     className="h-16 w-auto max-w-full"
                   />
                 </div>
@@ -188,7 +188,7 @@ export function ReceiptView({
           {/* Thank You Message */}
           <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              {translate("Merci pour votre achat!", "شكراً لتسوقكم معنا!")}
+              {translate("Merci pour votre achat !", "شكراً لتسوقكم معنا!")}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-500">
               {translate("Paiement", "الدفع")}: {completedSale.paymentMethod === "cash" ? translate("Espèces", "نقد") : translate("Carte", "بطاقة")}

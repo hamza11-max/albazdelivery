@@ -56,7 +56,7 @@ export function SettingsTab({
   }, [])
 
   const moduleLabel = (ok: boolean | undefined) =>
-    ok ? translate("OK", "جيد") : translate("Indisponible", "غير متوفر")
+    ok ? translate("OK", "سليم") : translate("Indisponible", "غير متوفر")
 
   return (
     <div className="space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
@@ -170,7 +170,7 @@ export function SettingsTab({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
-            {translate("Horaires & Capacité", "المواعيد والقدرة")}
+            {translate("Horaires & capacité", "المواعيد والقدرة")}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -208,7 +208,7 @@ export function SettingsTab({
           <div className="space-y-2">
             <Label>{translate("Message de pied de page", "رسالة التذييل")}</Label>
             <Input 
-              placeholder={translate("Merci pour votre achat!", "شكراً لتسوقكم!")}
+              placeholder={translate("Merci pour votre achat !", "شكراً لتسوقكم!")}
               defaultValue=""
             />
           </div>

@@ -124,7 +124,7 @@ export function RfidDeviceManagement({
             <div className="space-y-2">
               <Label>{translate("Nom", "الاسم")}</Label>
               <Input
-                placeholder={translate("ex: Porte 1", "مثال: البوابة 1")}
+                placeholder={translate("ex : Porte 1", "مثال: البوابة 1")}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 className="w-full xl:w-[180px]"

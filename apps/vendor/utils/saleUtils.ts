@@ -412,7 +412,7 @@ export async function completeSale({
       fetchInventory(activeVendorId)
       fetchSales(activeVendorId, { skipCache: true })
       toast({
-        title: translate("Vente complétée", "تمت العملية"),
+        title: translate("Vente complétée", "تمت عملية البيع"),
         description: isArabic
           ? `تم تسجيل عملية بيع بقيمة ${totalWithTax.toFixed(2)} ${translate("DZD", "دج")}.`
           : `Vente de ${totalWithTax.toFixed(2)} ${translate("DZD", "دج")} enregistrée avec succès.`,
@@ -569,7 +569,7 @@ export async function completeSale({
         title: translate("Hors ligne", "غير متصل"),
         description: translate(
           "Vente enregistrée. Elle apparaît dans l'historique et sera synchronisée à la reconnexion.",
-          "تم حفظ البيع. يظهر في السجل وسيتم المزامنة عند عودة الاتصال."
+          "تم حفظ البيع. يظهر في السجل وستتم مزامنته عند عودة الاتصال."
         ),
       })
       return true
