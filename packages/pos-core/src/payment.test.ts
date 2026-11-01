@@ -10,6 +10,7 @@ test('cash with change (sample receipt: 12 500 paid with 15 000)', () => {
     paidTotal: 15_000,
     cashTendered: 15_000,
     cardTotal: 0,
+    creditTotal: 0,
     change: 2_500,
     cashKept: 12_500,
   })
@@ -29,6 +30,13 @@ test('split card + cash: change only from cash', () => {
   assert.equal(s.change, 500)
   assert.equal(s.cashKept, 2_500)
   assert.equal(s.cardTotal, 10_000)
+})
+
+test('credit (on account): part or all of a sale, never more than the total, no change from it', () => {
+  const s = settle(12_500, [{ method: 'CREDIT', amount: 10_000 }, { method: 'CASH', amount: 3_000 }])
+  assert.deepEqual([s.creditTotal, s.change, s.cashKept], [10_000, 500, 2_500])
+  assert.equal(settle(12_500, [{ method: 'CREDIT', amount: 12_500 }]).paidTotal, 12_500)
+  assert.throws(() => settle(12_500, [{ method: 'CREDIT', amount: 8_000 }, { method: 'CARD_EXTERNAL', amount: 5_000 }]), code('CARD_OVERPAYMENT'))
 })
 
 test('card cannot exceed the total', () => {

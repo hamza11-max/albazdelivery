@@ -1,7 +1,7 @@
 import { ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { ZodError } from 'zod'
 
-import { inputs, type ChannelName, type IpcResult, type Outputs } from '../shared/ipc'
+import { inputs, type ChannelName, type IpcResult, type Outputs, type SessionRole } from '../shared/ipc'
 import { ACCESS, type Access } from './access'
 
 /** Input after schema parsing (zod output type). */
@@ -32,13 +32,14 @@ function fromOurPage(event: IpcMainInvokeEvent, origins: readonly string[]): boo
 
 /** Who is signed in, as far as access checks are concerned. */
 export interface AccessCheck {
-  role(): 'OWNER' | 'CASHIER' | null
+  role(): SessionRole | null
 }
 
-function allowed(access: Access, role: 'OWNER' | 'CASHIER' | null): { ok: true } | { ok: false; code: string } {
+function allowed(access: Access, role: SessionRole | null): { ok: true } | { ok: false; code: string } {
   if (access === 'public') return { ok: true }
   if (role === null) return { ok: false, code: 'UNAUTHENTICATED' }
   if (access === 'owner' && role !== 'OWNER') return { ok: false, code: 'FORBIDDEN' }
+  if (access === 'manager' && role !== 'OWNER' && role !== 'MANAGER') return { ok: false, code: 'FORBIDDEN' }
   return { ok: true }
 }
 

@@ -3,7 +3,7 @@ import type Database from 'better-sqlite3'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 
-import { LANGUAGES, type LabelLayout, type Language, type Session } from '../shared/ipc'
+import { LANGUAGES, type LabelLayout, type Language, type Session, type SessionRole } from '../shared/ipc'
 import { AuthService } from './auth/service'
 import { commitImport, planImport, templateWorkbook, type ImportPlan } from './catalog/import'
 import { adjustStock, archiveFlatItem, flatItems, saveFlatItem } from './catalog/flat'
@@ -26,6 +26,7 @@ import { SalesService } from './sales/sales'
 import { saveSalesSettings, salesSettings } from './sales/settings'
 import { ShiftService } from './sales/shifts'
 import { StockService } from './stock/stock'
+import { CustomerService, SupplierService } from './customers/customers'
 
 /**
  * The shop's local engine: one SQLite database owned by the main process,
@@ -36,7 +37,7 @@ export interface Core {
   db: Database.Database
   file: string
   /** Called by the vendor login once it has checked the password/PIN/staff code. */
-  signIn(account: { id: string; name: string; role: 'OWNER' | 'CASHIER'; shopName: string }): Session
+  signIn(account: { id: string; name: string; role: SessionRole; shopName: string }): Session
   signOut(): void
   close(): void
 }
@@ -70,6 +71,8 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
   const sales = new SalesService(db, shifts)
   const catalog = new CatalogRepo(db, undefined, () => auth.current()?.userId ?? null)
   const stock = new StockService(db)
+  const customers = new CustomerService(db, shifts)
+  const suppliers = new SupplierService(db)
   /** Parsed imports waiting for "Import": token → plan. One at a time, expires after 30 minutes. */
   const pendingImports = new Map<string, { plan: ImportPlan; expires: number }>()
   const parentWindow = () => BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
@@ -171,7 +174,7 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
     },
     'stock:adjust': (input) => adjustStock(db, input, auth.requireUser().userId),
     'sales:recent': ({ days }) => recentSales(db, days),
-    'stock:receive': (input) => stock.receive(input, auth.requireUser().userId),
+    'stock:receive': (input) => stock.receive(input.supplierId ? { ...input, supplierName: suppliers.name(input.supplierId) } : input, auth.requireUser().userId),
     'stock:low': () => stock.low(),
     'stock:movements': (q) => stock.movements(q),
     'stock:countOpen': () => stock.openCount(),
@@ -183,6 +186,22 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
     'stock:countFinish': ({ countId }) => stock.finishCount(countId, auth.requireUser().userId),
     'stock:countCancel': ({ countId }) => {
       stock.cancelCount(countId, auth.requireUser().userId)
+      return null
+    },
+    'customers:list': (q) => customers.list(q),
+    'customers:get': ({ id }) => customers.get(id),
+    'customers:save': (input) => customers.save(input, auth.requireUser().userId),
+    'customers:archive': ({ id }) => {
+      customers.archive(id, auth.requireUser().userId)
+      return null
+    },
+    'customers:ledger': ({ id }) => customers.ledger(id),
+    'customers:pay': (input) => customers.pay(auth.requireUser(), input),
+    'customers:adjust': (input) => customers.adjust(input, auth.requireUser().userId),
+    'suppliers:list': () => suppliers.list(),
+    'suppliers:save': (input) => suppliers.save(input, auth.requireUser().userId),
+    'suppliers:archive': ({ id }) => {
+      suppliers.archive(id, auth.requireUser().userId)
       return null
     },
     'app:info': () => ({

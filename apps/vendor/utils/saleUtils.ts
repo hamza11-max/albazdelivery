@@ -18,7 +18,9 @@ function isLikelyUnreachableOrOffline(error: unknown): boolean {
 }
 
 interface CompleteSaleParams {
-  paymentMethod: "cash" | "card"
+  /** credit: desktop app only, the whole sale on creditCustomerId's account. */
+  paymentMethod: "cash" | "card" | "credit"
+  creditCustomerId?: string
   posCart: CartItem[]
   posDiscount: number
   posTaxPercent: number
@@ -51,6 +53,7 @@ interface CompleteSaleParams {
 
 export async function completeSale({
   paymentMethod,
+  creditCustomerId,
   posCart,
   posDiscount,
   posTaxPercent,
@@ -115,6 +118,7 @@ export async function completeSale({
         lines: posCart.map((item) => ({ variantId: String(item.productId), qty: item.quantity })),
         saleDiscount: posDiscount,
         paymentMethod,
+        customerId: creditCustomerId,
       })
       const [sales, products] = await Promise.all([engineSales(), engineInventory()])
       const saved = sales.find((s) => s.id === result.saleId) ?? null
@@ -162,6 +166,8 @@ export async function completeSale({
       return false
     }
   }
+
+  if (paymentMethod === "credit") return false // only the engine records credit sales
 
   // For Electron with local products: save sale locally (and push to offline DB if available)
   if (isElectronRuntime) {

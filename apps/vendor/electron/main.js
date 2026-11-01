@@ -388,7 +388,8 @@ function getStaffAccounts() {
 function signInCore(id, profile) {
   if (!core) return
   const shopInfo = getAuthStore().get('vendor-shop-info') || {}
-  const role = String(profile && profile.role || '').toUpperCase() === 'OWNER' ? 'OWNER' : 'CASHIER'
+  const given = String(profile && profile.role || '').toUpperCase()
+  const role = given === 'OWNER' ? 'OWNER' : given === 'MANAGER' ? 'MANAGER' : 'CASHIER'
   try {
     core.signIn({ id: String(id), name: String(profile && profile.name || 'User'), role, shopName: String(shopInfo.name || shopInfo.shopName || 'Boutique') })
   } catch (e) {
@@ -1648,11 +1649,47 @@ async function runSmoketest() {
       return { before: item.stock, received, afterCount }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('stock')
+    // Credit book: a customer buys on account at the POS, then pays it off on the Clients screen.
+    // Seed a supplier delivery and a customer through the engine (the supplier and customer forms are plain dialogs).
+    await mainWindow.webContents.executeJavaScript(`(async () => {
+      const call = async (ch, input) => { const r = await window.electronAPI.core.invoke(ch, input); if (!r.ok) throw new Error(ch + ': ' + r.error.code); return r.data }
+      if ((await call('customers:list', { query: 'Fatima' })).length) return
+      const supplier = await call('suppliers:save', { name: 'Grossiste Oran', phone: '041000000' })
+      const item = (await call('catalog:items')).find((i) => i.name === 'Portefeuille')
+      await call('stock:receive', { id: crypto.randomUUID(), supplierId: supplier.id, lines: [{ variantId: item.variantId, qty: 3, unitCost: 600 }] })
+      await call('customers:save', { name: 'Fatima', phone: '0550123456' })
+    })()`)
+    // The POS loads customers when it mounts: open it again.
+    await open('http://localhost:3001/vendor?tab=pos', 'Portefeuille')
+    pages.credit = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+      const call = async (ch, input) => (await window.electronAPI.core.invoke(ch, input)).data
+      const waitFor = async (fn, what) => { for (let i = 0; i < 120; i++) { const v = await fn(); if (v) return v; await sleep(250) } throw new Error('not found: ' + what) }
+      const byText = (sel, text) => [...document.querySelectorAll(sel)].find((el) => el.innerText && el.innerText.trim() === text)
+      const customerId = (await call('customers:list', { query: 'Fatima' }))[0].id
+      const select = await waitFor(() => { const s = document.querySelector('[data-testid="credit-customer"]'); return s && s.options.length > 1 && s }, 'customer select')
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set.call(select, customerId)
+      select.dispatchEvent(new Event('change', { bubbles: true }))
+      const tile = [...document.querySelectorAll('div, button')].reverse().find((el) => el.innerText && el.innerText.startsWith('Portefeuille') && el.closest('[class*="cursor-pointer"], button'))
+      ;(tile.closest('[class*="cursor-pointer"], button') || tile).click()
+      ;(await waitFor(() => { const b = byText('button', 'À crédit'); return b && !b.disabled && b }, 'credit button')).click()
+      const owed = await waitFor(async () => { const c = await call('customers:get', { id: customerId }); return c.balance > 0 && c.balance }, 'balance after credit sale')
+      // Clients screen: "Encaisser" takes the full amount (the prompt is answered with what is owed).
+      window.prompt = (_msg, value) => value
+      await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'clients-loyalty' })); return document.querySelector('[data-testid="credit-book"]') }, 'credit book')
+      ;(await waitFor(() => { const b = byText('button', 'Encaisser'); return b && !b.disabled && b }, 'pay button')).click()
+      const after = await waitFor(async () => { const c = await call('customers:get', { id: customerId }); return c.balance === 0 ? { balance: 0 } : null }, 'paid off')
+      const ledger = await call('customers:ledger', { id: customerId })
+      await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'suppliers' })); return document.querySelector('[data-testid="supplier-stats"]') }, 'supplier stats')
+      return { owed, balanceAfter: after.balance, ledger: ledger.map((l) => l.type), suppliers: document.querySelector('[data-testid="supplier-stats"]').innerText }
+    })()`).catch((e) => ({ error: String(e) }))
+    await capture('suppliers')
     clearTimeout(deadline)
     const ok = engine.items > 0 && engine.stockAfter === engine.stockBefore - 1 && engine.recent >= 1 && /-\d{6}$/.test(engine.number)
       && pages.inventory && pages.pos && pages.sales
       && pages.checkout.added === 1 && pages.checkout.stockAfter === pages.checkout.stockBefore - 1
       && pages.stock.afterCount === 2 && pages.stock.received === pages.stock.before + 5
+      && pages.credit.owed > 0 && pages.credit.balanceAfter === 0 && /Réceptions/.test(pages.credit.suppliers)
     finish(ok, { ...engine, pages })
   } catch (e) {
     clearTimeout(deadline)

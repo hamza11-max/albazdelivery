@@ -64,9 +64,65 @@ const flatItemInput = z.object({
 })
 export type FlatItemInput = z.output<typeof flatItemInput>
 
+const customerInput = z.object({
+  id: id.optional(),
+  name: z.string().trim().min(1).max(80),
+  phone: optText(20),
+  note: optText(200),
+  /** null = no limit on what the customer may owe. */
+  creditLimit: money.nullable().default(null),
+})
+export type CustomerInput = z.output<typeof customerInput>
+
+export interface CustomerRow {
+  id: string
+  name: string
+  phone: string
+  note: string
+  creditLimit: number | null
+  /** What the customer owes now (DZD). */
+  balance: number
+  salesCount: number
+  salesTotal: number
+  lastSaleAt: string | null
+  createdAt: string
+}
+
+export interface LedgerEntry {
+  id: string
+  type: 'CREDIT_SALE' | 'PAYMENT' | 'CREDIT_RETURN' | 'ADJUST'
+  amount: number
+  method: string
+  note: string
+  saleNumber: string
+  user: string
+  createdAt: string
+  balanceAfter: number
+}
+
+const supplierInput = z.object({
+  id: id.optional(),
+  name: z.string().trim().min(1).max(80),
+  phone: optText(20),
+  note: optText(200),
+})
+export type SupplierInput = z.output<typeof supplierInput>
+
+export interface Supplier {
+  id: string
+  name: string
+  phone: string
+  note: string
+  deliveries: number
+  purchasesTotal: number
+  lastDeliveryAt: string | null
+}
+
 /** A supplier delivery. `id` comes from the screen: sending it twice records it once. */
 const stockReceiptInput = z.object({
   id,
+  /** A saved supplier; its name is also kept on the receipt. Or just a name in supplierName. */
+  supplierId: id.optional(),
   supplierName: optText(80),
   reference: optText(40),
   note: optText(120),
@@ -196,7 +252,9 @@ const saleInput = z.object({
   id,
   lines: cartInput.shape.lines,
   saleDiscount: money.default(0),
-  tenders: z.array(z.object({ method: z.enum(['CASH', 'CARD_EXTERNAL']), amount: price })).max(4),
+  tenders: z.array(z.object({ method: z.enum(['CASH', 'CARD_EXTERNAL', 'CREDIT']), amount: price })).max(4),
+  /** Required when part of the sale goes on the customer's account (CREDIT). */
+  customerId: id.optional(),
   /** Owner PIN when a cashier's discount is above the cap. */
   ownerPin: z.string().regex(/^\d{4,6}$/).optional(),
 })
@@ -206,7 +264,8 @@ const returnInput = z.object({
   id,
   originalSaleId: id,
   lines: z.array(z.object({ lineId: id, qty: z.number().int().min(1).max(9999) })).min(1).max(200),
-  refundMethod: z.enum(['CASH', 'CARD_EXTERNAL']),
+  /** CREDIT: back onto the account of the sale's customer. */
+  refundMethod: z.enum(['CASH', 'CARD_EXTERNAL', 'CREDIT']),
   /** Owner PIN when a cashier takes a return after the return window. */
   ownerPin: z.string().regex(/^\d{4,6}$/).optional(),
 })
@@ -250,6 +309,17 @@ export const inputs = {
   'stock:countSet': z.object({ countId: id, variantId: id, counted: stockQty.nullable() }),
   'stock:countFinish': z.object({ countId: id }),
   'stock:countCancel': z.object({ countId: id }),
+  'customers:list': z.object({ query: optText(60), withDebtOnly: z.boolean().default(false) }),
+  'customers:get': z.object({ id }),
+  'customers:save': customerInput,
+  'customers:archive': z.object({ id }),
+  'customers:ledger': z.object({ id }),
+  /** `id` comes from the screen: a retry records the payment once. */
+  'customers:pay': z.object({ id, customerId: id, amount: price, method: z.enum(['CASH', 'CARD_EXTERNAL']), note: optText(120) }),
+  'customers:adjust': z.object({ customerId: id, amount: z.number().int().min(-10_000_000_000).max(10_000_000_000).refine((n) => n !== 0, 'must not be 0'), note: z.string().trim().min(1).max(120) }),
+  'suppliers:list': z.undefined(),
+  'suppliers:save': supplierInput,
+  'suppliers:archive': z.object({ id }),
   // The main process shows the file dialogs: the renderer never passes file paths.
   'import:template': z.undefined(),
   'import:preview': z.undefined(),
@@ -429,6 +499,16 @@ export interface Outputs {
   'stock:countSet': null
   'stock:countFinish': { adjusted: number; unitsDelta: number }
   'stock:countCancel': null
+  'customers:list': CustomerRow[]
+  'customers:get': CustomerRow
+  'customers:save': CustomerRow
+  'customers:archive': null
+  'customers:ledger': LedgerEntry[]
+  'customers:pay': CustomerRow
+  'customers:adjust': CustomerRow
+  'suppliers:list': Supplier[]
+  'suppliers:save': Supplier
+  'suppliers:archive': null
   /** null when the dialog was cancelled. */
   'import:template': { path: string } | null
   'import:preview': ImportPreview | null
@@ -615,11 +695,13 @@ export interface SalesSettings {
 }
 
 export type Role = 'OWNER' | 'CASHIER'
+/** Who is signed in: a manager is a cashier account with the manager flag (catalog, stock, customers, suppliers). */
+export type SessionRole = Role | 'MANAGER'
 
 export interface Session {
   userId: string
   name: string
-  role: Role
+  role: SessionRole
   since: string
 }
 

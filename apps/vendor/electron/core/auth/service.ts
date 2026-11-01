@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 
-import type { Language, Session, ShopInfo, UserSummary } from '../../shared/ipc'
+import type { Language, Session, SessionRole, ShopInfo, UserSummary } from '../../shared/ipc'
 import { AppError } from '../errors'
 import { uuidv7 } from '../ids'
 import { hashPin, verifyPin } from './pin'
@@ -12,6 +12,7 @@ interface UserRow {
   id: string
   name: string
   role: 'OWNER' | 'CASHIER'
+  is_manager: number
   pin_hash: string
   is_active: number
   failed_pin_attempts: number
@@ -79,7 +80,7 @@ export class AuthService {
       throw new AppError('WRONG_PIN', String(MAX_PIN_ATTEMPTS - attempts))
     }
     this.db.prepare('UPDATE users SET failed_pin_attempts = 0, pin_locked_until = NULL WHERE id = ?').run(userId)
-    this.session = { userId: user.id, name: user.name, role: user.role, since: now.toISOString() }
+    this.session = { userId: user.id, name: user.name, role: user.role === 'CASHIER' && user.is_manager ? 'MANAGER' : user.role, since: now.toISOString() }
     return this.session
   }
 
@@ -92,22 +93,24 @@ export class AuthService {
    * The account is mirrored into users (no PIN of its own: it can't use the PIN login)
    * and a session opened for it. The first call also creates the shop row.
    */
-  signInExternal(input: { id: string; name: string; role: 'OWNER' | 'CASHIER'; shopName: string }): Session {
+  signInExternal(input: { id: string; name: string; role: SessionRole; shopName: string }): Session {
+    const stored = input.role === 'OWNER' ? 'OWNER' : 'CASHIER'
+    const manager = input.role === 'MANAGER' ? 1 : 0
     const now = this.clock().toISOString()
     this.db.transaction(() => {
       // users.name is unique: two staff with the same name get the end of their id appended.
       const clash = this.db.prepare('SELECT 1 FROM users WHERE lower(name) = lower(?) AND id <> ?').get(input.name, input.id)
       const name = clash ? `${input.name} (${input.id.slice(-4)})` : input.name
-      this.db.prepare(`INSERT INTO users (id, name, role, pin_hash, created_at, updated_at) VALUES (?, ?, ?, '!external', ?, ?)
-        ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, is_active = 1, updated_at = excluded.updated_at`)
-        .run(input.id, name, input.role, now, now)
+      this.db.prepare(`INSERT INTO users (id, name, role, is_manager, pin_hash, created_at, updated_at) VALUES (?, ?, ?, ?, '!external', ?, ?)
+        ON CONFLICT(id) DO UPDATE SET name = excluded.name, role = excluded.role, is_manager = excluded.is_manager, is_active = 1, updated_at = excluded.updated_at`)
+        .run(input.id, name, stored, manager, now, now)
       if (!this.isSetUp()) {
         this.db.prepare("INSERT INTO shop (id, name, locale, created_at, updated_at) VALUES ('shop', ?, 'ar', ?, ?)").run(input.shopName || 'Boutique', now, now)
         this.audit(input.id, 'SHOP_SETUP', 'shop', 'shop', null, { shopName: input.shopName, source: 'vendor' })
       }
     })()
-    const user = this.db.prepare('SELECT id, name, role FROM users WHERE id = ?').get(input.id) as { id: string; name: string; role: 'OWNER' | 'CASHIER' }
-    this.session = { userId: user.id, name: user.name, role: user.role, since: now }
+    const user = this.db.prepare('SELECT id, name FROM users WHERE id = ?').get(input.id) as { id: string; name: string }
+    this.session = { userId: user.id, name: user.name, role: input.role, since: now }
     return this.session
   }
 

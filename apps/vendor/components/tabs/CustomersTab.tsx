@@ -5,6 +5,68 @@ import { Card, CardContent } from "@/root/components/ui/card"
 import { Badge } from "@/root/components/ui/badge"
 import { Plus, Users, ShoppingBag, MessageCircle } from "lucide-react"
 import type { Customer } from "@/root/lib/types"
+import { useEffect, useState } from "react"
+import type { LedgerEntry } from "../../electron/shared/ipc"
+import { dinars, engine, toCustomer, type EngineCustomer } from "../../lib/engine"
+
+const LEDGER_LABEL: Record<LedgerEntry["type"], [string, string]> = {
+  CREDIT_SALE: ["Achat à crédit", "شراء بالدين"],
+  PAYMENT: ["Règlement", "تسديد"],
+  CREDIT_RETURN: ["Retour / annulation", "إرجاع / إلغاء"],
+  ADJUST: ["Correction", "تصحيح"],
+}
+
+/** Desktop app: what the customer owes, taking a payment, and their credit book (carnet). */
+function CreditBook({ customer, translate }: { customer: EngineCustomer; translate: (fr: string, ar: string) => string }) {
+  const [c, setC] = useState(customer)
+  const [ledger, setLedger] = useState<LedgerEntry[] | null>(null)
+  const [error, setError] = useState("")
+  // The list may be older than the last sale: read the current balance when shown.
+  useEffect(() => {
+    engine("customers:get", { id: customer.id }).then((r) => setC(toCustomer(r))).catch(() => {})
+  }, [customer.id])
+  const pay = async () => {
+    const raw = window.prompt(translate(`Montant reçu (doit ${c.balance} DA)`, `المبلغ المستلم (عليه ${c.balance} د.ج)`), String(c.balance))
+    if (!raw) return
+    try {
+      setError("")
+      setC(toCustomer(await engine("customers:pay", { id: crypto.randomUUID(), customerId: c.id, amount: dinars(raw), method: "CASH", note: "" })))
+      if (ledger) setLedger(await engine("customers:ledger", { id: c.id }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+  return (
+    <div className="mt-3 space-y-2" data-testid="credit-book">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">{translate("Crédit", "الدين")}</span>
+        <span className={c.balance > 0 ? "font-semibold text-red-600" : "text-muted-foreground"} data-testid="customer-balance">
+          {c.balance} DA{c.creditLimit !== null ? ` / ${c.creditLimit}` : ""}
+        </span>
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" size="sm" variant="outline" className="flex-1" disabled={c.balance <= 0} onClick={pay}>
+          {translate("Encaisser", "تحصيل")}
+        </Button>
+        <Button type="button" size="sm" variant="ghost" className="flex-1" onClick={async () => setLedger(ledger ? null : await engine("customers:ledger", { id: c.id }))}>
+          {translate("Carnet", "الدفتر")}
+        </Button>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {ledger && (
+        <ul className="space-y-1 text-xs">
+          {ledger.length === 0 && <li className="text-muted-foreground">{translate("Aucune opération", "لا توجد عمليات")}</li>}
+          {ledger.map((l) => (
+            <li key={l.id} className="flex justify-between gap-2">
+              <span>{new Date(l.createdAt).toLocaleDateString("fr-FR")} · {translate(...LEDGER_LABEL[l.type])}{l.saleNumber ? ` ${l.saleNumber}` : ""}{l.note ? ` · ${l.note}` : ""}</span>
+              <span className={l.amount > 0 ? "text-red-600" : "text-green-700"}>{l.amount > 0 ? "+" : ""}{l.amount}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 interface CustomersTabProps {
   customers: Customer[]
@@ -74,6 +136,7 @@ export function CustomersTab({
                     </p>
                   )}
                 </div>
+                {"balance" in customer && <CreditBook customer={customer as EngineCustomer} translate={translate} />}
                 {onViewCustomerOrders && (
                   <Button
                     type="button"
