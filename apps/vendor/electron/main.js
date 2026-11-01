@@ -409,12 +409,13 @@ let allowMainWindowClose = false
 // Configure CSP. In dev, Next.js HMR/hydration requires 'unsafe-eval'/'unsafe-inline' — Electron
 // will show a security warning; it does not appear in the packaged build (strict policy is used).
 function configureCSP() {
+  // Packaged: no eval and no websocket (HMR is dev-only). Next's inline bootstrap scripts still need 'unsafe-inline'.
   const localhostPolicy = [
-    "default-src 'self' http://localhost:3001 ws://localhost:3001",
-    "script-src 'self' 'unsafe-eval' 'unsafe-inline' http://localhost:3001",
+    `default-src 'self' http://localhost:3001${isDev ? ' ws://localhost:3001' : ''}`,
+    `script-src 'self' ${isDev ? "'unsafe-eval' " : ''}'unsafe-inline' http://localhost:3001`,
     "style-src 'self' 'unsafe-inline' http://localhost:3001",
     "img-src 'self' data: blob: http://localhost:3001 https://barcode.tec-it.com",
-    "connect-src 'self' http://localhost:3001 ws://localhost:3001 https://*",
+    `connect-src 'self' http://localhost:3001${isDev ? ' ws://localhost:3001' : ''} https://*`,
     "font-src 'self' data: http://localhost:3001",
     "object-src 'none'",
     "frame-ancestors 'none'",
@@ -529,7 +530,8 @@ function createWindow() {
 
   // Handle external links
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    require('electron').shell.openExternal(url)
+    // Only web and mail links leave the app; file:, ms-*, custom protocols etc. are dropped.
+    if (/^(https:|mailto:)/i.test(url)) require('electron').shell.openExternal(url)
     return { action: 'deny' }
   })
 
@@ -1247,10 +1249,8 @@ ipcMain.handle('auth-verify-passkey', async (event, passkey) => {
       return { success: false, error: 'Invalid passkey' }
     }
 
-    // Development passkey: always allow 0000-0000-0000-0000 for local/dev setups
-    // This is ONLY meant for development and internal testing builds of the
-    // desktop app. Do NOT ship production builds that rely on this.
-    if (provided === '0000-0000-0000-0000') {
+    // Development passkey 0000-0000-0000-0000: unpackaged (dev) runs only, never installed builds.
+    if (provided === '0000-0000-0000-0000' && !app.isPackaged) {
       const store = getAuthStore()
       store.set('device_passkey', provided)
       passkeyVerified = true
@@ -1682,23 +1682,24 @@ ipcMain.handle('app-health', () => {
 })
 
 // IPC handlers for store operations (used by preload)
-ipcMain.handle('store-get', (event, key) => {
-  const Store = require('electron-store').default || require('electron-store')
-  const store = new Store({ name: 'vendor-auth' })
-  return store.get(key)
-})
+// The renderer may only touch these keys of the auth store, and only while signed in.
+// Auth state, owner credentials, the device passkey and the shop type are main-process only.
+const RENDERER_STORE_KEYS = new Set(['device_staff_accounts', 'vendor-shop-info'])
+const rendererStoreKey = (key) => {
+  if (!RENDERER_STORE_KEYS.has(key)) throw new Error(`store key not allowed: ${String(key)}`)
+  if (!isAuthenticated) throw new Error('not signed in')
+  return key
+}
+
+ipcMain.handle('store-get', (event, key) => getAuthStore().get(rendererStoreKey(key)))
 
 ipcMain.handle('store-set', (event, key, value) => {
-  const Store = require('electron-store').default || require('electron-store')
-  const store = new Store({ name: 'vendor-auth' })
-  store.set(key, value)
+  getAuthStore().set(rendererStoreKey(key), value)
   return true
 })
 
 ipcMain.handle('store-delete', (event, key) => {
-  const Store = require('electron-store').default || require('electron-store')
-  const store = new Store({ name: 'vendor-auth' })
-  store.delete(key)
+  getAuthStore().delete(rendererStoreKey(key))
   return true
 })
 
@@ -1954,12 +1955,15 @@ function generateReceiptHtml(data) {
     shopEmail,
     shopCity
   } = data
+  // Everything printed comes from the shop's data: escape it, and format amounts from numbers only.
+  const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  const amount = (v) => (Number(v) || 0).toFixed(2)
   
   const itemsHtml = items.map(item => `
     <tr>
-      <td>${item.name}</td>
-      <td style="text-align:center">${item.quantity}</td>
-      <td style="text-align:right">${item.price.toFixed(2)}</td>
+      <td>${esc(item.name)}</td>
+      <td style="text-align:center">${esc(item.quantity)}</td>
+      <td style="text-align:right">${amount(item.price)}</td>
     </tr>
   `).join('')
   
@@ -1988,14 +1992,14 @@ function generateReceiptHtml(data) {
     </head>
     <body>
       <div class="header">
-        <h1>${storeName || 'AlBaz Store'}</h1>
-        ${shopAddress ? `<p class="shop-info">${shopAddress}</p>` : ''}
-        ${shopCity ? `<p class="shop-info">${shopCity}</p>` : ''}
-        ${shopPhone ? `<p class="shop-info">Tel: ${shopPhone}</p>` : ''}
-        ${shopEmail ? `<p class="shop-info">${shopEmail}</p>` : ''}
+        <h1>${esc(storeName || 'AlBaz Store')}</h1>
+        ${shopAddress ? `<p class="shop-info">${esc(shopAddress)}</p>` : ''}
+        ${shopCity ? `<p class="shop-info">${esc(shopCity)}</p>` : ''}
+        ${shopPhone ? `<p class="shop-info">Tel: ${esc(shopPhone)}</p>` : ''}
+        ${shopEmail ? `<p class="shop-info">${esc(shopEmail)}</p>` : ''}
         <div class="divider"></div>
-        <p>Order: ${orderNumber || 'N/A'}</p>
-        <p>${date || new Date().toLocaleString()}</p>
+        <p>Order: ${esc(orderNumber || 'N/A')}</p>
+        <p>${esc(date || new Date().toLocaleString())}</p>
       </div>
       <div class="divider"></div>
       <table>
@@ -2004,13 +2008,13 @@ function generateReceiptHtml(data) {
       </table>
       <div class="divider"></div>
       <table>
-        <tr><td>Subtotal:</td><td style="text-align:right">${subtotal?.toFixed(2) || '0.00'}</td></tr>
-        ${discount ? `<tr><td>Discount:</td><td style="text-align:right">-${discount.toFixed(2)}</td></tr>` : ''}
-        ${tax ? `<tr><td>Tax:</td><td style="text-align:right">${tax.toFixed(2)}</td></tr>` : ''}
-        <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${total?.toFixed(2) || '0.00'}</td></tr>
+        <tr><td>Subtotal:</td><td style="text-align:right">${amount(subtotal)}</td></tr>
+        ${discount ? `<tr><td>Discount:</td><td style="text-align:right">-${amount(discount)}</td></tr>` : ''}
+        ${tax ? `<tr><td>Tax:</td><td style="text-align:right">${amount(tax)}</td></tr>` : ''}
+        <tr class="total-row"><td>TOTAL:</td><td style="text-align:right">${amount(total)}</td></tr>
       </table>
       <div class="divider"></div>
-      <p>Payment: ${paymentMethod || 'Cash'}</p>
+      <p>Payment: ${esc(paymentMethod || 'Cash')}</p>
       <div class="footer">
         <p>Thank you for your purchase!</p>
         <p>شكراً لتسوقكم معنا</p>

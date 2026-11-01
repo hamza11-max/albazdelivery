@@ -55,7 +55,6 @@
   "exclude": [
     "node_modules",
     ".next",
-    "__tests__",
-    "app/vendor/page-original-backup.tsx"
+    "__tests__"
   ]
 }
