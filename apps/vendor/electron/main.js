@@ -162,6 +162,9 @@ try {
 /** Local engine (electron/core, compiled to electron/dist). Set once its database is open and migrated. */
 let core = null
 const argValue = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3)
+const isSmoketest = process.argv.includes('--smoketest')
+// --data-dir: a separate profile (auth store and engine database), for tests and support.
+if (argValue('data-dir')) app.setPath('userData', path.resolve(argValue('data-dir')))
 
 function startCoreEngine() {
   const { startCore } = require('./dist/core/index.js')
@@ -1505,8 +1508,123 @@ if (!vendorSingleInstanceLock) {
 }
 
 if (vendorSingleInstanceLock) {
+/**
+ * `--smoketest --data-dir=<empty dir> [--import-file=<csv>] [--screenshot=<png>]`:
+ * seeds a test owner in that profile, signs in through the same path as the login
+ * screen, then checks the real /vendor pages against the engine and exits (0 = ok).
+ */
+const SMOKE_OWNER = { name: 'Amina', phone: '0550000000', email: 'owner@smoke.test', role: 'OWNER' }
+
+function seedSmoketestProfile() {
+  const store = getAuthStore()
+  const salt = crypto.randomBytes(16).toString('hex')
+  store.set('device_owner_profile', { ...SMOKE_OWNER, createdAt: Date.now() })
+  store.set('device_owner_auth', { passwordHash: hashPassword(crypto.randomUUID(), salt), salt })
+  store.set('device_setup_complete', true)
+  store.set('shop_type', 'retail')
+  store.set('vendor-shop-info', { name: 'Boutique Test' })
+  store.set('vendor_auth_state', {
+    isAuthenticated: true,
+    user: { id: 'local-owner-smoke', ...SMOKE_OWNER },
+    token: mintVendorDesktopJwt({ id: 'local-owner-smoke', ...SMOKE_OWNER }),
+    expiresAt: Date.now() + 60 * 60 * 1000,
+    sessionId: currentSessionId,
+  })
+}
+
+async function runSmoketest() {
+  const finish = (ok, detail) => {
+    console.log('smoketest', JSON.stringify(detail))
+    app.exit(ok ? 0 : 1)
+  }
+  const deadline = setTimeout(() => finish(false, { error: 'timeout' }), 300_000)
+  const until = async (check, ms = 250) => { while (!(await check())) await new Promise((r) => setTimeout(r, ms)) }
+  const shot = argValue('screenshot')
+  const capture = async (suffix) => {
+    if (!shot) return
+    await new Promise((r) => setTimeout(r, 1500))
+    const image = await mainWindow.webContents.capturePage()
+    fs.writeFileSync(path.resolve(shot.replace(/\.png$/, `-${suffix}.png`)), image.toPNG())
+  }
+  /** Opens a page and waits (up to 90 s) for text the engine data should put on it. */
+  const open = async (url, text) => {
+    await mainWindow.loadURL(url)
+    const bodyText = () => mainWindow.webContents.executeJavaScript('document.body ? document.body.innerText : ""')
+    const started = Date.now()
+    let seen = ''
+    while (Date.now() - started < 90_000) {
+      seen = await bodyText()
+      if (seen.includes(text)) return true
+      await new Promise((r) => setTimeout(r, 500))
+    }
+    console.log('smoketest page', url, 'missing', JSON.stringify(text), 'shows:', JSON.stringify(seen.slice(0, 600)))
+    return false
+  }
+  try {
+    await until(() => core && mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents.getURL().includes('/vendor'))
+    mainWindow.webContents.on('console-message', (e) => {
+      const level = e.level ?? ''
+      if (level === 'error' || level === 'warning' || level === 3 || level === 2) console.log('smoketest console', level, String(e.message ?? '').slice(0, 300))
+    })
+    signInCore('owner', SMOKE_OWNER)
+    const engine = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const call = async (ch, input) => {
+        const r = await window.electronAPI.core.invoke(ch, input)
+        if (!r.ok) throw new Error(ch + ': ' + r.error.code + ' ' + r.error.message)
+        return r.data
+      }
+      const preview = await call('import:preview')
+      const imported = (await call('catalog:items')).length > 0 ? 'already imported' : preview && preview.errorCount === 0 ? await call('import:commit', { token: preview.token }) : { errors: preview && preview.errors }
+      const items = await call('catalog:items')
+      const item = items.find((i) => i.stock > 0) || items[0]
+      if ((await call('shift:status')).open === false) await call('shift:open', { openingFloat: 0 })
+      const sale = await call('sell:complete', { id: crypto.randomUUID(), lines: [{ variantId: item.variantId, qty: 1 }], tenders: [{ method: 'CASH', amount: item.salePrice }] })
+      const again = await call('catalog:items')
+      const recent = await call('sales:recent', { days: 1 })
+      return { imported, items: items.length, name: item.name, stockBefore: item.stock, stockAfter: again.find((i) => i.variantId === item.variantId).stock, number: sale.number, total: sale.total, recent: recent.length }
+    })()`)
+    console.log('smoketest engine', JSON.stringify(engine))
+    const pages = {}
+    pages.inventory = await open('http://localhost:3001/vendor?tab=inventory', engine.name)
+    await capture('inventory')
+    pages.pos = await open('http://localhost:3001/vendor?tab=pos', engine.name)
+    // Sell through the POS screen itself: tap the item's tile, then "Confirmer" (cash).
+    pages.checkout = await mainWindow.webContents.executeJavaScript(`(async () => {
+      const call = async (ch, input) => (await window.electronAPI.core.invoke(ch, input)).data
+      const salesBefore = (await call('sales:recent', { days: 1 })).length
+      const before = await call('catalog:items')
+      const target = before.find((i) => i.name === ${JSON.stringify(engine.name)})
+      const tile = [...document.querySelectorAll('div, button')].reverse().find((el) => el.innerText && el.innerText.startsWith(target.name) && el.onclick !== undefined && el.closest('[class*="cursor-pointer"], button'))
+      ;(tile.closest('[class*="cursor-pointer"], button') || tile).click()
+      await new Promise((r) => setTimeout(r, 800))
+      const confirm = [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Confirmer')
+      confirm.click()
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 250))
+        if ((await call('sales:recent', { days: 1 })).length > salesBefore) break
+      }
+      const sales = await call('sales:recent', { days: 1 })
+      const after = (await call('catalog:items')).find((i) => i.variantId === target.variantId)
+      const toasts = [...document.querySelectorAll('[role="status"], li[data-state], [data-radix-toast-announce-exclude], ol li')].map((t) => t.innerText).filter(Boolean)
+      return { added: sales.length - salesBefore, stockBefore: target.stock, stockAfter: after.stock, number: sales[0] && sales[0].number, toasts }
+    })()`).catch((e) => ({ error: String(e) }))
+    await capture('pos')
+    pages.sales = await open('http://localhost:3001/vendor?tab=sales', engine.name)
+    await capture('sales')
+    clearTimeout(deadline)
+    const ok = engine.items > 0 && engine.stockAfter === engine.stockBefore - 1 && engine.recent >= 1 && /-\d{6}$/.test(engine.number)
+      && pages.inventory && pages.pos && pages.sales
+      && pages.checkout.added === 1 && pages.checkout.stockAfter === pages.checkout.stockBefore - 1
+    finish(ok, { ...engine, pages })
+  } catch (e) {
+    clearTimeout(deadline)
+    finish(false, { error: String(e && e.stack || e) })
+  }
+}
+
 app.whenReady().then(() => {
   if (app.isPackaged) writeEarlyLog('whenReady - starting')
+  if (isSmoketest) seedSmoketestProfile()
   if (process.platform === 'win32') {
     try {
       app.setAppUserModelId('com.albaz.vendor')
@@ -1561,8 +1679,9 @@ app.whenReady().then(() => {
     }
   }
   
-  // Start sync service (if available)
-  if (syncService) {
+  // The old SQLite→cloud sync never got through (no auth header, schema mismatch, no idempotency)
+  // and sales now live in the engine. Off until a cloud API reads the engine's outbox.
+  if (syncService && process.env.ALBAZ_LEGACY_SYNC === '1') {
     try {
       syncService.startAutoSync(30000)
       if (app.isPackaged) writeEarlyLog('syncService ok')
@@ -1587,6 +1706,7 @@ app.whenReady().then(() => {
     if (app.isPackaged) writeEarlyLog('createWindow starting')
     createWindow()
     if (app.isPackaged) writeEarlyLog('createWindow done')
+    if (isSmoketest) runSmoketest()
     registerShortcuts()
     if (app.isPackaged) writeEarlyLog('shortcuts ok')
     createTray()

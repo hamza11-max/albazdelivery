@@ -6,6 +6,7 @@ import path from 'node:path'
 import { LANGUAGES, type LabelLayout, type Language, type Session } from '../shared/ipc'
 import { AuthService } from './auth/service'
 import { commitImport, planImport, templateWorkbook, type ImportPlan } from './catalog/import'
+import { adjustStock, archiveFlatItem, flatItems, saveFlatItem } from './catalog/flat'
 import { CatalogRepo } from './catalog/repo'
 import { readSpreadsheet } from './catalog/spreadsheet'
 import { getSetting, openDatabase, setSetting } from './db/database'
@@ -20,6 +21,7 @@ import { sendRaw } from './print/raw-print'
 import { receiptHtml } from './print/receipt'
 import { monochrome, monoToImage, printPaperWithDriver, printWithDriver, renderPaperImage, renderReceiptImage } from './print/render'
 import { zReportHtml } from './print/zreport'
+import { recentSales } from './sales/recent'
 import { SalesService } from './sales/sales'
 import { saveSalesSettings, salesSettings } from './sales/settings'
 import { ShiftService } from './sales/shifts'
@@ -159,6 +161,14 @@ export async function startCore(opts: CoreOptions): Promise<Core> {
     'catalog:findByCode': ({ code }) => catalog.findByCode(code),
     'catalog:newBarcode': () => ({ barcode: catalog.newBarcode() }),
     'catalog:variantInfo': ({ variantIds }) => catalog.variantInfo(variantIds),
+    'catalog:items': () => flatItems(db),
+    'catalog:saveItem': (input) => saveFlatItem(db, catalog, input, auth.requireUser().userId),
+    'catalog:archiveItem': ({ variantId }) => {
+      archiveFlatItem(db, catalog, variantId)
+      return null
+    },
+    'stock:adjust': (input) => adjustStock(db, input, auth.requireUser().userId),
+    'sales:recent': ({ days }) => recentSales(db, days),
     'app:info': () => ({
       appVersion: app.getVersion(),
       electronVersion: process.versions.electron,

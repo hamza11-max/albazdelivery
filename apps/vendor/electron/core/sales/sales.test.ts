@@ -14,6 +14,7 @@ import { openDatabase } from '../db/database'
 import { loadMigrations, migrate } from '../db/migrate'
 import { AppError } from '../errors'
 import { uuidv7 } from '../ids'
+import { recentSales } from './recent'
 import { SalesService } from './sales'
 import { saveSalesSettings, salesSettings } from './settings'
 import { ShiftService } from './shifts'
@@ -58,6 +59,23 @@ const sale = (over: Partial<SaleInput> = {}): SaleInput =>
     ...over,
   })
 const stock = (i: number) => (db.prepare('SELECT stock_qty FROM variants WHERE id = ?').get(shirt.variants[i]!.id) as { stock_qty: number }).stock_qty
+
+test('recent sales for the vendor screens: lines with names, returns negative, voided left out, card-paid marked', async () => {
+  shifts.open(cashier, 5000)
+  const a = await sales.completeSale(cashier, sale({ saleDiscount: 200 }))
+  await sales.completeSale(cashier, sale({ tenders: [{ method: 'CARD_EXTERNAL', amount: 7700 }] }))
+  const gone = await sales.completeSale(cashier, sale())
+  await sales.voidSale(owner, gone.saleId, 'erreur')
+  const line = sales.detail(a.saleId).lines[0]!
+  await sales.returnSale(cashier, inputs['sales:return'].parse({ id: uuidv7(), originalSaleId: a.saleId, lines: [{ lineId: line.lineId, qty: 1 }], refundMethod: 'CASH' }))
+
+  const rows = recentSales(db, 1)
+  assert.deepEqual(rows.map((r) => [r.type, r.total, r.paymentMethod]), [['RETURN', rows[0]!.total, 'cash'], ['SALE', 7700, 'card'], ['SALE', 7500, 'cash']])
+  assert.ok(rows[0]!.total < 0 && rows[0]!.items[0]!.quantity === -1)
+  assert.deepEqual(rows[2]!.items.map((i) => [i.productName, i.quantity, i.price]), [['قميص — M', 2, 2500], ['قميص — L', 1, 2700]])
+  assert.equal(rows[2]!.items.reduce((s, i) => s + i.discount, 0), 200, 'sale discount spread over the lines')
+  assert.deepEqual(recentSales(db, 1, new Date(Date.now() + 3 * 86_400_000)), [], 'outside the window')
+})
 
 test('no sale without an open cash register; only one register open at a time', async () => {
   await assert.rejects(sales.completeSale(cashier, sale()), code('NO_OPEN_SHIFT'))

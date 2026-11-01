@@ -10,6 +10,7 @@ import { Switch } from "@/root/components/ui/switch"
 import { Edit, Upload, Send, Trash2, Plus, RotateCcw, Package, Tag } from "lucide-react"
 import type { InventoryProduct } from "@/root/lib/types"
 import { isElectronOfflineInventoryVendorId } from "../../utils/electronUtils"
+import { engine, engineInventory, hasEngine } from "../../lib/engine"
 import { electronFetch, isElectronRuntime } from "@/lib/electron-fetch"
 import { InventoryAlertsTab } from "./InventoryAlertsTab"
 
@@ -109,6 +110,41 @@ export function InventoryTab({
     }
   }
 
+  /**
+   * Desktop app: the engine reads the file (dialog in main), checks every row and
+   * imports all or nothing. Errors are listed per Excel row before anything is saved.
+   */
+  const engineImport = async () => {
+    try {
+      const preview = await engine("import:preview")
+      if (!preview) return
+      if (preview.errorCount > 0) {
+        const lines = preview.errors.slice(0, 8).map((e) => `${translate("Ligne", "سطر")} ${e.row}: ${e.code}${e.field ? ` (${e.field})` : ""}${e.detail ? ` ${e.detail}` : ""}`)
+        toast({
+          title: translate(`${preview.errorCount} erreur(s) — rien n'a été importé`, `${preview.errorCount} خطأ — لم يتم استيراد أي شيء`),
+          description: lines.join(" · "),
+          variant: "destructive",
+        })
+        return
+      }
+      const summary = translate(
+        `${preview.products} produits, ${preview.variants} articles, ${preview.stockUnits} unités en stock. Importer ?`,
+        `${preview.products} منتج، ${preview.variants} صنف، ${preview.stockUnits} قطعة في المخزون. استيراد؟`,
+      )
+      if (!window.confirm(`${preview.fileName}\n\n${summary}`)) return
+      const done = await engine("import:commit", { token: preview.token })
+      const next = await engineInventory()
+      setProducts(next)
+      setLowStockProducts(next.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))
+      toast({
+        title: translate("Import réussi", "تم الاستيراد"),
+        description: translate(`${done.products} produits, ${done.stockUnits} unités`, `${done.products} منتج، ${done.stockUnits} قطعة`),
+      })
+    } catch (error: any) {
+      toast({ title: translate("Erreur d'import", "خطأ في الاستيراد"), description: error?.message || String(error), variant: "destructive" })
+    }
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6 -mx-2 sm:-mx-4 px-2 sm:px-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -132,6 +168,13 @@ export function InventoryTab({
             <Button 
               variant="outline" 
               onClick={async () => {
+                if (hasEngine()) {
+                  const next = await engineInventory()
+                  setProducts(next)
+                  setLowStockProducts(next.filter((p) => p.stock <= (p.lowStockThreshold ?? 10)))
+                  toast({ title: translate("Actualisé", "تم التحديث"), description: translate("Inventaire actualisé", "تم تحديث المخزون") })
+                  return
+                }
                 // Pure offline Electron (electron-vendor): load from localStorage
                 const vid = activeVendorId ?? ''
                 if (isElectronRuntime && isElectronOfflineInventoryVendorId(vid)) {
@@ -152,6 +195,12 @@ export function InventoryTab({
               <RotateCcw className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
               {translate("Actualiser", "تحديث")}
             </Button>
+            {hasEngine() ? (
+              <Button variant="outline" onClick={engineImport}>
+                <Package className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
+                {translate("Importer Excel / CSV", "استيراد Excel / CSV")}
+              </Button>
+            ) : (
             <label className="cursor-pointer">
               <input
                 type="file"
@@ -332,6 +381,7 @@ export function InventoryTab({
               </span>
             </Button>
           </label>
+            )}
           <Button onClick={() => setShowProductDialog(true)}>
             <Plus className={`w-4 h-4 ${isArabic ? "ml-2" : "mr-2"}`} />
             {translate("Ajouter un produit", "إضافة منتج")}

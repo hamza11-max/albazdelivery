@@ -15,6 +15,7 @@
     "electron": "electron .",
     "build:core": "tsc -p electron/tsconfig.json",
     "test:core": "npm run build:core && node scripts/electron-node.cjs --test \"electron/dist/core/**/*.test.js\"",
+    "smoketest:desktop": "npm run build:core && cross-env NODE_ENV=development electron . --smoketest --data-dir=smoke-data --import-file=test-fixtures/inventory-sample.csv --screenshot=smoke-data/vendor.png",
     "electron:dev": "npm run setup:icons && npm run build:core && cross-env NODE_ENV=development electron .",
     "electron:dev:restaurant": "cross-env VENDOR_BUILD_FLAVOR=restaurant node scripts/write-bundled-flavor.js && npm run electron:dev",
     "electron:dev:retail": "cross-env VENDOR_BUILD_FLAVOR=retail node scripts/write-bundled-flavor.js && npm run electron:dev",

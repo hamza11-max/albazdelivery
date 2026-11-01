@@ -119,6 +119,7 @@ import { usePOSHandlers } from "../../hooks/usePOSHandlers"
 import { LoadingScreen } from "@/root/components/LoadingScreen"
 import { useVendorState } from "../../hooks/useVendorState"
 import { loadElectronOfflineData, getMergedLocalSalesHistory, removeLocalProvisionalSale } from "../../utils/electronUtils"
+import { engineSales, hasEngine } from "../../lib/engine"
 import { AppUpdateCard } from "../../components/AppUpdateCard"
 import { VendorPrinterSettingsCard } from "../../components/VendorPrinterSettingsCard"
 import { VendorSecuritySettingsPanel } from "../../components/security/VendorSecuritySettingsPanel"
@@ -1616,6 +1617,10 @@ function VendorDashboardContent() {
       isLocalOfflineVendor ||
       (typeof navigator !== "undefined" && !navigator.onLine)
     if (!useLocalHistory) return
+    if (hasEngine()) {
+      engineSales().then(setSales).catch((e) => console.error("[Vendor] sales from engine", e))
+      return
+    }
     setSales(getMergedLocalSalesHistory())
   }, [activeTab, isElectronRuntime, isLocalOfflineVendor, setSales])
 
