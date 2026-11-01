@@ -1582,7 +1582,7 @@ async function runSmoketest() {
       const sale = await call('sell:complete', { id: crypto.randomUUID(), lines: [{ variantId: item.variantId, qty: 1 }], tenders: [{ method: 'CASH', amount: item.salePrice }] })
       const again = await call('catalog:items')
       const recent = await call('sales:recent', { days: 1 })
-      return { imported, items: items.length, name: item.name, stockBefore: item.stock, stockAfter: again.find((i) => i.variantId === item.variantId).stock, number: sale.number, total: sale.total, recent: recent.length }
+      return { imported, items: items.length, name: item.name, stockBefore: item.stock, stockAfter: again.find((i) => i.variantId === item.variantId).stock, number: sale.number, saleRef: sale.saleId.slice(0, 8), total: sale.total, recent: recent.length }
     })()`)
     console.log('smoketest engine', JSON.stringify(engine))
     const pages = {}
@@ -1610,7 +1610,8 @@ async function runSmoketest() {
       return { added: sales.length - salesBefore, stockBefore: target.stock, stockAfter: after.stock, number: sales[0] && sales[0].number, toasts }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('pos')
-    pages.sales = await open('http://localhost:3001/vendor?tab=sales', engine.name)
+    // History lists sales by the start of their id, not by product.
+    pages.sales = await open('http://localhost:3001/vendor?tab=sales', engine.saleRef)
     await capture('sales')
     // Stock screen (Inventory → Stock): receive 5 through the delivery form, then count the shelf at 2.
     pages.stock = await mainWindow.webContents.executeJavaScript(`(async () => {
