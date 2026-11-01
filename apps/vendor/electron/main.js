@@ -1704,6 +1704,10 @@ async function runSmoketest() {
       ;(tile.closest('[class*="cursor-pointer"], button') || tile).click()
       ;(await waitFor(() => { const b = byText('button', 'À crédit'); return b && !b.disabled && b }, 'credit button')).click()
       const owed = await waitFor(async () => { const c = await call('customers:get', { id: customerId }); return c.balance > 0 && c.balance }, 'balance after credit sale')
+      // "Imprimer le reçu" shows the engine's receipt image (same as paper and the Settings preview).
+      ;(await waitFor(() => [...document.querySelectorAll('button')].find((b) => b.innerText.trim() === 'Imprimer le reçu'), 'print receipt button')).click()
+      const receiptWidth = await waitFor(() => { const i = document.querySelector('[data-testid="engine-receipt-view"] img'); return i && i.naturalWidth > 0 && i.naturalWidth }, 'engine receipt on screen')
+      ;[...document.querySelectorAll('[data-testid="engine-receipt-view"] button')].find((b) => b.innerText.trim() === 'Fermer').click()
       // Clients screen: "Encaisser" takes the full amount (the prompt is answered with what is owed).
       window.prompt = (_msg, value) => value
       await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'clients-loyalty' })); return document.querySelector('[data-testid="credit-book"]') }, 'credit book')
@@ -1711,7 +1715,7 @@ async function runSmoketest() {
       const after = await waitFor(async () => { const c = await call('customers:get', { id: customerId }); return c.balance === 0 ? { balance: 0 } : null }, 'paid off')
       const ledger = await call('customers:ledger', { id: customerId })
       await waitFor(() => { window.dispatchEvent(new CustomEvent('switchTab', { detail: 'suppliers' })); return document.querySelector('[data-testid="supplier-stats"]') }, 'supplier stats')
-      return { owed, balanceAfter: after.balance, ledger: ledger.map((l) => l.type), suppliers: document.querySelector('[data-testid="supplier-stats"]').innerText }
+      return { owed, receiptWidth, balanceAfter: after.balance, ledger: ledger.map((l) => l.type), suppliers: document.querySelector('[data-testid="supplier-stats"]').innerText }
     })()`).catch((e) => ({ error: String(e) }))
     await capture('suppliers')
     // Reports: the screen shows engine figures, and its net revenue equals the day's recorded sales.
@@ -1768,7 +1772,7 @@ async function runSmoketest() {
       && pages.inventory && pages.pos && pages.sales
       && pages.checkout.added === 1 && pages.checkout.stockAfter === pages.checkout.stockBefore - 1
       && pages.stock.afterCount === 2 && pages.stock.received === pages.stock.before + 5
-      && pages.credit.owed > 0 && pages.credit.balanceAfter === 0 && /Réceptions/.test(pages.credit.suppliers)
+      && pages.credit.owed > 0 && pages.credit.receiptWidth === 576 && pages.credit.balanceAfter === 0 && /Réceptions/.test(pages.credit.suppliers)
       && pages.reports.revenue > 0 && pages.reports.revenue === pages.reports.recorded && pages.reports.credit === pages.credit.owed
       && pages.saleActions.returnTotal < 0 && pages.saleActions.voided === true
       && pages.zReport.open === false && /Annulations/.test(pages.zReport.text)

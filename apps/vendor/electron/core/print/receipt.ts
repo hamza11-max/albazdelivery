@@ -18,7 +18,7 @@ export const SAMPLE_RECEIPT: ReceiptData = {
     name: 'متجر الباز للملابس — AL-baz Boutique',
     phone: '0550 12 34 56',
     address: 'شارع العربي بن مهيدي، وهران',
-    footer: 'شكراً لزيارتكم! الاستبدال خلال 7 أيام مع الوصل. — Merci ! Échange sous 7 jours avec ce ticket.',
+    footer: 'شكراً لزيارتكم! الاستبدال خلال 7 أيام مع الوصل.\nMerci de votre visite ! Échange sous 7 jours avec ce ticket.',
   },
   number: 'R-0001-000123',
   createdAt: '2026-10-31T12:00:00.000Z',
@@ -33,12 +33,14 @@ export const SAMPLE_RECEIPT: ReceiptData = {
   total: 12500,
   cashTendered: 15000,
   card: 0,
+  credit: 0,
+  customer: '',
   change: 2500,
 }
 
 const LABELS = {
-  ar: { ret: 'استرجاع', original: 'الوصل الأصلي', refund: 'المبلغ المسترجع', receipt: 'وصل رقم', date: 'التاريخ', cashier: 'البائع', subtotal: 'المجموع الفرعي', discount: 'تخفيض', total: 'المجموع', paid: 'المدفوع نقداً', card: 'بطاقة', change: 'الباقي', currency: 'د.ج' },
-  fr: { ret: 'RETOUR', original: 'Ticket d’origine', refund: 'Remboursé', receipt: 'Ticket n°', date: 'Date', cashier: 'Caissier', subtotal: 'Sous-total', discount: 'Remise', total: 'TOTAL', paid: 'Espèces', card: 'Carte', change: 'Rendu', currency: 'DA' },
+  ar: { ret: 'وصل إرجاع', original: 'الوصل الأصلي', refund: 'المبلغ المُرجَع', receipt: 'رقم الوصل', date: 'التاريخ', cashier: 'البائع', customer: 'الزبون', subtotal: 'المجموع الفرعي', discount: 'التخفيض', total: 'المجموع', paid: 'نقداً', card: 'بالبطاقة', credit: 'بالدَّين', creditBack: 'إلى حساب الزبون', change: 'الباقي', currency: 'د.ج' },
+  fr: { ret: 'RETOUR', original: 'Ticket d’origine', refund: 'Remboursé', receipt: 'Ticket n°', date: 'Date', cashier: 'Caissier', customer: 'Client', subtotal: 'Sous-total', discount: 'Remise', total: 'TOTAL', paid: 'Espèces', card: 'Carte', credit: 'À crédit', creditBack: 'Sur le compte client', change: 'Rendu', currency: 'DA' },
 }
 
 function esc(s: string): string {
@@ -53,9 +55,26 @@ function amount(n: number): string {
   return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
 }
 
+/**
+ * In both languages: "المجموع / TOTAL". The slash sits in the Arabic (RTL) run so it lands between
+ * the two words; the French word is isolated so its own punctuation stays with it.
+ */
 function label(lang: ReceiptLang, key: keyof typeof LABELS.ar): string {
-  if (lang === 'mixed') return `${LABELS.ar[key]} <bdi>/ ${LABELS.fr[key]}</bdi>`
+  if (lang === 'mixed') return `${LABELS.ar[key]} / <bdi dir="ltr">${LABELS.fr[key]}</bdi>`
   return LABELS[lang][key]
+}
+
+/**
+ * Free text from the shop (name, address, footer) can mix Arabic and French. Each line, and each
+ * part around " — ", gets its own direction from its first letter, so neither language is reordered.
+ */
+function lines(text: string, cls: string): string {
+  return text
+    .split(/\n| — /)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .map((t) => `<div class="${cls}" dir="auto">${esc(t)}</div>`)
+    .join('')
 }
 
 function money(lang: ReceiptLang, n: number): string {
@@ -75,9 +94,9 @@ function localDate(iso: string): string {
 
 /** Product name in the receipt's language: French uses the other-language name when there is one. */
 function itemName(lang: ReceiptLang, l: ReceiptData['lines'][number]): string {
-  if (lang === 'fr') return esc(l.nameAlt || l.name)
-  if (lang === 'ar' || !l.nameAlt) return esc(l.name)
-  return `${esc(l.name)}<div class="sub"><bdi>${esc(l.nameAlt)}</bdi></div>`
+  if (lang === 'fr') return `<span dir="auto">${esc(l.nameAlt || l.name)}</span>`
+  if (lang === 'ar' || !l.nameAlt) return `<span dir="auto">${esc(l.name)}</span>`
+  return `<div dir="auto">${esc(l.name)}</div><div class="sub" dir="auto">${esc(l.nameAlt)}</div>`
 }
 
 export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions): string {
@@ -87,7 +106,7 @@ export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions):
 
   const items = data.lines
     .map((l) => {
-      const variant = l.variant ? `<div class="sub"><bdi>${esc(l.variant)}</bdi></div>` : ''
+      const variant = l.variant ? `<div class="sub" dir="auto">${esc(l.variant)}</div>` : ''
       const disc = l.lineDiscount > 0 ? `<div class="sub"><bdi>${label(lang, 'discount')} ${money(lang, -l.lineDiscount)}</bdi></div>` : ''
       return `<div class="item">
         <div class="name">${itemName(lang, l)}${variant}${disc}</div>
@@ -117,13 +136,15 @@ export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions):
     padding: ${Math.round(base * 0.5)}px ${Math.round(base * 0.4)}px ${base}px;
     -webkit-font-smoothing: none;
   }
-  .center { text-align: center; }
+  .center, .center[dir] { text-align: center; }
   .shop { font-size: ${Math.round(base * 1.45)}px; font-weight: 800; line-height: 1.25; }
   .muted { font-size: ${Math.round(base * 0.85)}px; }
   hr { border: 0; border-top: 2px dashed #000; margin: ${Math.round(base * 0.45)}px 0; }
   .meta, .row { display: flex; justify-content: space-between; gap: 8px; }
   .item { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; padding: ${Math.round(base * 0.2)}px 0; }
   .item .name { grid-column: 1 / -1; }
+  /* A French name or variant keeps its own word order but lines up with the Arabic one above it. */
+  ${dir === 'rtl' ? '.item .name [dir] { text-align: right; }' : ''}
   .item .qty { font-size: ${Math.round(base * 0.9)}px; }
   .item .amt { text-align: end; }
   .sub { font-size: ${Math.round(base * 0.8)}px; font-weight: 500; }
@@ -132,13 +153,15 @@ export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions):
 </style>
 </head>
 <body>
-  <div class="center shop">${esc(data.shop.name)}</div>
-  ${data.shop.address || data.shop.phone ? `<div class="center muted">${esc(data.shop.address)}${data.shop.address && data.shop.phone ? '<br>' : ''}<bdi>${esc(data.shop.phone)}</bdi></div>` : ''}
+  ${lines(data.shop.name, 'center shop')}
+  ${lines(data.shop.address, 'center muted')}
+  ${data.shop.phone ? `<div class="center muted" dir="ltr">${esc(data.shop.phone)}</div>` : ''}
   <hr>
   ${data.kind === 'RETURN' ? `<div class="center shop">${label(lang, 'ret')}</div><div class="meta"><span>${label(lang, 'original')}</span><bdi>${esc(data.originalNumber)}</bdi></div>` : ''}
   <div class="meta"><span>${label(lang, 'receipt')}</span><bdi>${esc(data.number)}</bdi></div>
   <div class="meta"><span>${label(lang, 'date')}</span><bdi>${localDate(data.createdAt)}</bdi></div>
   <div class="meta"><span>${label(lang, 'cashier')}</span><bdi>${esc(data.cashier)}</bdi></div>
+  ${data.customer ? `<div class="meta"><span>${label(lang, 'customer')}</span><bdi>${esc(data.customer)}</bdi></div>` : ''}
   <hr>
   ${items}
   <hr>
@@ -147,9 +170,10 @@ export function receiptHtml(data: ReceiptData, { lang, paper }: ReceiptOptions):
   ${row(data.kind === 'RETURN' ? 'refund' : 'total', money(lang, data.kind === 'RETURN' ? -data.total : data.total), 'row total')}
   ${data.cashTendered > 0 ? row('paid', money(lang, data.cashTendered)) : ''}
   ${data.card > 0 ? row('card', money(lang, data.card)) : ''}
+  ${data.credit > 0 ? row(data.kind === 'RETURN' ? 'creditBack' : 'credit', money(lang, data.credit)) : ''}
   ${data.change > 0 ? row('change', money(lang, data.change)) : ''}
   <hr>
-  ${data.shop.footer ? `<div class="center muted">${esc(data.shop.footer)}</div>` : ''}
+  ${lines(data.shop.footer, 'center muted')}
   <div class="center number">${esc(data.number)}</div>
 </body>
 </html>`

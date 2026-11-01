@@ -110,6 +110,11 @@ export async function enginePrintReceipt(saleId: string): Promise<{ printed: boo
   return engine("sell:printReceipt", { saleId })
 }
 
+/** The sale's receipt image, identical to the paper one (same template, settings and black-and-white). */
+export async function engineReceiptImage(saleId: string): Promise<string> {
+  return (await engine("sell:receiptImage", { saleId })).dataUrl
+}
+
 export async function engineInventory(): Promise<InventoryProduct[]> {
   return (await engine("catalog:items")).map(toInventoryProduct)
 }

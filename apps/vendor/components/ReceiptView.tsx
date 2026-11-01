@@ -13,6 +13,8 @@ interface ReceiptViewProps {
   isElectronRuntime: boolean
   onClose: () => void
   onPrint: () => void
+  /** Desktop app: the engine's receipt image for this sale, shown instead of the HTML ticket (what prints). */
+  engineImage?: string | null
   shopInfo?: {
     name?: string
     phone?: string
@@ -33,8 +35,25 @@ export function ReceiptView({
   onClose,
   onPrint,
   shopInfo,
+  engineImage,
 }: ReceiptViewProps) {
   if (!showReceipt || !completedSale) return null
+
+  if (engineImage) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-900" data-testid="engine-receipt-view">
+          <div className="flex justify-center bg-white p-2">
+            <img src={engineImage} alt={translate("Ticket de caisse", "وصل الصندوق")} className="w-[288px] border" style={{ imageRendering: "pixelated" }} />
+          </div>
+          <div className="mt-4 flex gap-3">
+            <Button variant="outline" className="flex-1" onClick={onClose}>{translate("Fermer", "إغلاق")}</Button>
+            <Button className="flex-1" onClick={onPrint}>{translate("Imprimer", "طباعة")}</Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const userWithExtras = user as any
   const displayName = shopInfo?.name || user?.name || "ALBAZ"
